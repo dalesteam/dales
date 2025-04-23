@@ -84,7 +84,8 @@ save
 contains
 !> Initialization routine, reads namelists and inits variables
 subroutine initbulkmicrostat
-    use modmpi,    only  : myid, comm3d, mpierr, D_MPI_BCAST, cmyid
+    use modmpi,    only  : myid, comm3d, mpierr, D_MPI_BCAST, cmyid, &
+                           print_info_stderr
     use modglobal, only  : ifnamopt, fname_options, cexpnr, ifoutput, &
          dtav_glob, timeav_glob, ladaptive, k1, dtmax,btime,tres,lwarmstart,checknamelisterror, output_prefix, kmax
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,nctiminfo,writestat_dims_nc, open_nc
@@ -118,6 +119,12 @@ subroutine initbulkmicrostat
       call checknamelisterror(ierr, ifnamopt, 'NAMBULKMICROSTAT')
       write(6,NAMBULKMICROSTAT)
       close(ifnamopt)
+    end if
+
+    if (imicro == imicro_bulk .and. lmicrostat) then
+      call print_info_stderr('modbulkmicrostat', 'lmicrostat is deprecated &
+        &for bulk microphysics, please enable lstat in NAMMICROPHYSCIS')
+      error stop
     end if
 
     call D_MPI_BCAST(lmicrostat,1,0,comm3d,mpierr)
@@ -267,6 +274,7 @@ subroutine initbulkmicrostat
 
     if (timee >= tnext) then
       tnext = tnext + idtav
+      print *, "doing bulkmicrostat at ", timee
       call dobulkmicrostat
     end if
     if (timee >= tnextwrite) then
@@ -282,7 +290,7 @@ subroutine initbulkmicrostat
 !> Performs the calculations for rainrate etc.
   subroutine dobulkmicrostat
     use modglobal,    only  : i1, j1, k1, ijtot
-    use modmicrodata,  only  : qr,precep,Dvr,Nr,epscloud,epsqr,epsprec,imicro,imicro_bulk
+    use modmicrodata,  only  : qr,precep,Dvr,Nr,epscloud,epsqr,epsprec,imicro,imicro_bulk, l_sb
     use modmicroutil, only: calc_dvr, calc_xr
     use modfields,  only  : ql0, rhof
     use bulkmicro_sb, only: xrmin_sb => xrmin, xrmax_sb => xrmax
@@ -300,6 +308,14 @@ subroutine initbulkmicrostat
     real :: c_count, r_count, p_count, p_sum_cl
     real :: Nr_sum, p_sum, qr_sum, Dvr_sum_cl
     real(field_r) :: xrmin, xrmax, xr
+
+    if (l_sb) then
+      xrmin = xrmin_sb
+      xrmax = xrmax_sb
+    else
+      xrmin = xrmin_kk
+      xrmax = xrmax_kk
+    end if
 
     if (lprocblock) then
        do k = 1, k1
@@ -327,7 +343,7 @@ subroutine initbulkmicrostat
              p_sum = p_sum + precep(i,j,k)
              qr_sum = qr_sum + qr(i,j,k)
              if (imicro==imicro_bulk .and. qr(i,j,k) > epsqr) then
-               xr = calc_xr(rhof(k), qr(i,j,i), nr(i,j,k), xrmin, xrmax)
+               xr = calc_xr(rhof(k), qr(i,j,k), nr(i,j,k), xrmin, xrmax)
                Dvr_sum_cl = Dvr_sum_cl + calc_dvr(xr)
              end if
            end do

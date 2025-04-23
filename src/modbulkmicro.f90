@@ -53,6 +53,7 @@ module modbulkmicro
                           accretion_sb, evaporation_sb, sedimentation_rain_sb
   use bulkmicro_kk, only: autoconversion_kk, &
                           accretion_kk, evaporation_kk, sedimentation_rain_kk
+  use modbulkmicrostat_new, only: initbulkmicrostat_new, bulkmicrostat_new
   implicit none
   private
 
@@ -71,7 +72,7 @@ module modbulkmicro
     use modmicrodata, only : lacz_gamma, Nr, Nrp, qr, qrp, thlpmcr, &
                              qtpmcr, Dvr, xr, mur, &
                              lbdr, iqr, inr, &
-                             precep
+                             precep, lstat
     use modtracers,   only: add_tracer
     implicit none
 
@@ -92,12 +93,14 @@ module modbulkmicro
     allocate(thlpmcr  (2:i1,2:j1,k1)  & !
             ,qtpmcr(2-ih:i1+ih,2-jh:j1+jh,k1))  ! ghost cells added here for modvarbudget
 
-    gamma25=lacz_gamma(2.5)
+    gamma25=gamma(2.5)
     gamma3=2.
-    gamma35=lacz_gamma(3.5)
+    gamma35=gamma(3.5)
 
     !$acc enter data copyin(Nr, qr, Nrp, qrp, Dvr, precep, &
     !$acc&                  thlpmcr, qtpmcr, xr, mur, lbdr, qrmask, qcmask)
+
+    if (lstat) call initbulkmicrostat_new
 
   end subroutine initbulkmicro
 
@@ -130,7 +133,7 @@ module modbulkmicro
                              l_sedc, l_mur_cst, l_lognormal, l_rain, &
                              qrmin, qcmin, &
                              mur_cst, inr, iqr, l_sb, Dvr, xr, lbdr, mur, &
-                             precep
+                             precep, lstat
     use modmicroutil, only: zero_field, sum_fields
     use modstat_profiles, only: sample_field
     implicit none
@@ -246,7 +249,7 @@ module modbulkmicro
 
     if (l_sedc) then
       call sedimentation_cloud(ql0, rhof, exnf, qcbase, qcroof, qtpmcr, thlpmcr)
-      call sample_field('qtpsedc', qtpmcr) ! First process, no need to zero beforehand
+      if(lstat) call sample_field('qtpsedc', qtpmcr) ! First process, no need to zero beforehand
     endif
 
     ! Rain processes
@@ -265,8 +268,10 @@ module modbulkmicro
                                qtpmcr, qrp_tmp, Nrp_tmp)
       end if
 
-      call sample_field('qrpauto', qrp_tmp)
-      call sample_field('npauto', nrp_tmp)
+      if (lstat) then
+        call sample_field('qrpauto', qrp_tmp)
+        call sample_field('npauto', nrp_tmp)
+      end if
 
       call sum_fields(qrp_tmp, qrp)
       call sum_fields(nrp_tmp, nrp)
@@ -283,8 +288,10 @@ module modbulkmicro
                           thlpmcr, qtpmcr, qrp_tmp)
       end if
 
-      call sample_field('qrpaccr', qrp_tmp)
-      call sample_field('npaccr', nrp_tmp)
+      if (lstat) then
+        call sample_field('qrpaccr', qrp_tmp)
+        call sample_field('npaccr', nrp_tmp)
+      end if
 
       call sum_fields(qrp_tmp, qrp)
       call sum_fields(nrp_tmp, nrp)
@@ -303,8 +310,10 @@ module modbulkmicro
                             thlpmcr, qtpmcr, qrp_tmp, Nrp_tmp)
       end if
 
-      call sample_field('qrpevap', qrp_tmp)
-      call sample_field('npevap', nrp_tmp)
+      if (lstat) then
+        call sample_field('qrpevap', qrp_tmp)
+        call sample_field('npevap', nrp_tmp)
+      end if
 
       call sum_fields(qrp_tmp, qrp)
       call sum_fields(nrp_tmp, nrp)
@@ -321,8 +330,10 @@ module modbulkmicro
                                    qrp_tmp, Nrp_tmp, precep)
       end if
 
-      call sample_field('qrpsed', qrp_tmp)
-      call sample_field('npsed', nrp_tmp)
+      if (lstat) then
+        call sample_field('qrpsed', qrp_tmp)
+        call sample_field('npsed', nrp_tmp)
+      end if
 
       call sum_fields(qrp_tmp, qrp)
       call sum_fields(nrp_tmp, nrp)
@@ -350,11 +361,18 @@ module modbulkmicro
       end do
     end do
 
-    call sample_field('qrpclip', qrp_tmp)
-    call sample_field('npclip', nrp_tmp)
+    if (lstat) then
+      call sample_field('qrpclip', qrp_tmp)
+      call sample_field('npclip', nrp_tmp)
+    end if
 
     call sum_fields(qrp_tmp, qrp)
     call sum_fields(nrp_tmp, nrp)
+
+    if (lstat) then
+      call sample_field('qrptot', qrp)
+      call sample_field('nptot', nrp)
+    end if
 
     !$acc parallel loop collapse(3) default(present)
     do k = 1, k1
@@ -370,6 +388,8 @@ module modbulkmicro
     enddo
 
     deallocate(qrp_tmp, nrp_tmp)
+
+    if (lstat) call bulkmicrostat_new
 
   end subroutine bulkmicro
 

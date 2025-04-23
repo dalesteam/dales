@@ -44,15 +44,15 @@ contains
     use modmicrodata, only : imicro, imicro_drizzle, imicro_bulk, imicro_bin, imicro_user,&
                              imicro_sice, imicro_sice2, imicro_none, imicro_bulk3, &
                              l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,l_warm,mur_cst, &
-                             Nc_0, sig_g, sig_gr, courantp
+                             Nc_0, sig_g, sig_gr, courantp, lstat
     use modbulkmicro3, only : initbulkmicro3 !#sb3
     implicit none
     integer :: ierr
     namelist/NAMMICROPHYSICS/ &
     imicro,l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,l_warm,mur_cst, &     ! OG
     Nc_0, sig_g, sig_gr, &                                ! SdeR
-    courantp                                              ! FJ
-    
+    courantp, lstat                                              ! FJ
+
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMMICROPHYSICS,iostat=ierr)
@@ -89,6 +89,7 @@ contains
     call D_MPI_BCAST(sig_g,    1, 0,comm3d,ierr)
     call D_MPI_BCAST(sig_gr,   1, 0,comm3d,ierr)
     call D_MPI_BCAST(courantp, 1, 0,comm3d,ierr)
+    call D_MPI_BCAST(lstat,    1, 0,comm3d,ierr)
 
     select case (imicro)
     case(imicro_none)
