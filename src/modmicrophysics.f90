@@ -91,6 +91,8 @@ contains
     call D_MPI_BCAST(courantp, 1, 0,comm3d,ierr)
     call D_MPI_BCAST(lstat,    1, 0,comm3d,ierr)
 
+    !$acc update device(l_mur_cst)
+
     select case (imicro)
     case(imicro_none)
     case(imicro_drizzle)
