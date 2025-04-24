@@ -265,7 +265,7 @@ contains
       end do
 
       if (do_global) then
-        !$acc host_data use_device(avg, ne)
+        !$acc host_data use_device(avg, n_cells_tot)
         call mpi_allreduce(mpi_in_place, avg, ke - ks + 1, mpi_real4, mpi_sum, &
                            comm3d, mpierr)
         call mpi_allreduce(mpi_in_place, n_cells_tot, ke - ks + 1, mpi_integer, &
@@ -362,7 +362,7 @@ contains
       end do
 
       if (do_global) then
-        !$acc host_data use_device(avg, ne)
+        !$acc host_data use_device(avg, n_cells_tot)
         call mpi_allreduce(mpi_in_place, avg, ke - ks + 1, mpi_real4, mpi_sum, &
                            comm3d, mpierr)
         call mpi_allreduce(mpi_in_place, n_cells_tot, ke - ks + 1, mpi_integer, &
