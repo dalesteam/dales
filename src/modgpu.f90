@@ -62,7 +62,7 @@ contains
     use modthermodynamics, only: th0av, thv0, thetah, qth, qlh
     use modboundary, only: tsc
     use modmicrodata, only: Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
-                            qtpmcr, xr, mur, lbdr, qrmask, qcmask
+                            qtpmcr
     use modchecksim, only: courxl, couryl, courzl, courtotl, peclettotl
 
     implicit none
@@ -89,7 +89,7 @@ contains
     !$acc&              esatmtab, esatitab, esatltab, &
     !$acc&              th0av, thv0, thetah, qth, qlh, &
     !$acc&              Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
-    !$acc&              qtpmcr, xr, mur, lbdr, qrmask, qcmask, &
+    !$acc&              qtpmcr, &
     !$acc&              thlprad, lwd, lwu, swd, swu, lwc, swdir, swdif, &
     !$acc&              lwdca, lwuca, swdca, swuca, &
     !$acc&              LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &
@@ -135,7 +135,7 @@ contains
     use modthermodynamics, only: th0av, thv0, thetah, qth, qlh
     use modboundary, only: tsc
     use modmicrodata, only: Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
-                            qtpmcr, xr, mur, lbdr, qrmask, qcmask
+                            qtpmcr
     use modchecksim, only: courxl, couryl, courzl, courtotl, peclettotl
 
     implicit none
@@ -164,7 +164,7 @@ contains
     !$acc&            esatmtab, esatitab, esatltab, &
     !$acc&            th0av, thv0, thetah, qth, qlh, &
     !$acc&            Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
-    !$acc&            qtpmcr, xr, mur, lbdr, qrmask, qcmask, &
+    !$acc&            qtpmcr, &
     !$acc&            thlprad, lwd, lwu, swd, swu, lwc, swdir, swdif, &
     !$acc&            lwdca, lwuca, swdca, swuca, &
     !$acc&            LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &

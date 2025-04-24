@@ -107,7 +107,7 @@ module modsimpleice2
 
     !$acc enter data create(nrp, nr, qrp, qr, thlpmcr, qtpmcr, sed_qr, qr_spl, &
     !$acc&                  ilratio, rsgratio, sgratio, lambdar, lambdas, &
-    !$acc&                  lambdag, qrmask, qcmask, precep, &
+    !$acc&                  lambdag, precep, &
     !$acc&                  ccrz, ccsz, ccgz, ccrz2, ccsz2, ccgz2)
 
     !$acc parallel loop collapse(3) default(present)
@@ -133,7 +133,7 @@ module modsimpleice2
     !$acc exit data delete(nrp, nr, &
     !$acc&                 qrp, qr, thlpmcr, qtpmcr, sed_qr, qr_spl, &
     !$acc&                 ilratio, rsgratio, sgratio, lambdar, lambdas, &
-    !$acc&                 lambdag, qrmask, qcmask, precep, &
+    !$acc&                 lambdag, precep, &
     !$acc&                 ccrz, ccsz, ccgz, ccrz2, ccsz2, ccgz2)
 
     deallocate(nr,nrp,qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag)
