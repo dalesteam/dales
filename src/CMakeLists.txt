@@ -22,6 +22,7 @@ set( dales_srcs
 	modbulkmicro3_column.f90
 	modbulkmicro3_point.f90
 	modbulkmicrostat.f90
+    modbulkmicro_stat.f90
 	modbulkmicrostat3.f90
 	modcanopy.f90
 	modcape.f90
