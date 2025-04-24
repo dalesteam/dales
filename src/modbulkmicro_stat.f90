@@ -1,11 +1,12 @@
 
-module modbulkmicrostat_new
+module modbulkmicro_stat
 
   use bulkmicro_sb,     only: xrmin_sb => xrmin, xrmax_sb => xrmax
   use bulkmicro_kk,     only: xrmin_kk => xrmin, xrmax_kk => xrmax
   use modfields,        only: ql0, rhof
   use modglobal,        only: i1, j1, k1
-  use modmicrodata,     only: qr, nr, precep, epscloud, epsqr, epsprec, l_sb
+  use modmicrodata,     only: qr, nr, precep, epscloud, epsqr, epsprec, l_sb, &
+                              l_rain, l_sedc
   use modmicroutil,     only: calc_dvr, calc_xr
   use modstat_profiles, only: add_profile, sample_field, is_sampling_timestep
   use modprecision,     only: field_r
@@ -14,12 +15,12 @@ module modbulkmicrostat_new
 
   private
 
-  public :: initbulkmicrostat_new
-  public :: bulkmicrostat_new
+  public :: init_bulkmicro_stat
+  public :: bulkmicro_stat
 
 contains
 
-  subroutine initbulkmicrostat_new
+  subroutine init_bulkmicro_stat
 
     call add_profile('cfrac', 'Cloud fraction', '-', 'tt')
 
@@ -49,10 +50,9 @@ contains
       call add_profile('qtpsedc', 'Sedimentation total water content tendency', 'kg/kg/s', 'tt')
     end if
 
+  end subroutine init_bulkmicro_stat
 
-  end subroutine initbulkmicrostat_new
-
-  subroutine bulkmicrostat_new
+  subroutine bulkmicro_stat
 
     integer       :: i, j, k
     real(field_r) :: xr, xrmin, xrmax
@@ -102,6 +102,6 @@ contains
 
     end if
 
-  end subroutine bulkmicrostat_new
+  end subroutine bulkmicro_stat
 
-end module modbulkmicrostat_new
+end module modbulkmicro_stat

@@ -53,7 +53,7 @@ module modbulkmicro
                           accretion_sb, evaporation_sb, sedimentation_rain_sb
   use bulkmicro_kk, only: autoconversion_kk, &
                           accretion_kk, evaporation_kk, sedimentation_rain_kk
-  use modbulkmicrostat_new, only: initbulkmicrostat_new, bulkmicrostat_new
+  use modbulkmicro_stat, only: init_bulkmicro_stat, bulkmicro_stat
   implicit none
   private
 
@@ -100,7 +100,7 @@ module modbulkmicro
     !$acc enter data copyin(Nr, qr, Nrp, qrp, Dvr, precep, &
     !$acc&                  thlpmcr, qtpmcr, xr, mur, lbdr, qrmask, qcmask)
 
-    if (lstat) call initbulkmicrostat_new
+    if (lstat) call init_bulkmicro_stat
 
   end subroutine initbulkmicro
 
@@ -389,7 +389,7 @@ module modbulkmicro
 
     deallocate(qrp_tmp, nrp_tmp)
 
-    if (lstat) call bulkmicrostat_new
+    if (lstat) call bulkmicro_stat
 
   end subroutine bulkmicro
 
