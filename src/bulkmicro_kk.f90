@@ -363,6 +363,7 @@ contains
     real(field_r) :: sed_Nr
     real(field_r) :: dt_spl
     real(field_r) :: delt_inv
+    real(field_r) :: xr, dvr
 
     real(field_r), allocatable :: qr_spl(:,:,:), Nr_spl(:,:,:)
     real(field_r), allocatable :: qr_tmp(:,:,:), Nr_tmp(:,:,:)
@@ -418,8 +419,6 @@ contains
         ! lower the rain base by one level to include the rain fall
         ! from the previous step
         qrbase = max(1, qrbase - 1)
-
-        call calculate_rain_parameters(Nr_spl, qr_spl, rhof, qrbase, qrroof, qrmask, Dvr, xr)
       end if
 
       ! Compute precep
@@ -429,7 +428,9 @@ contains
           do j = 2, j1
             do i = 2, i1
               if (qr_spl(i,j,k) > qrmin) then
-                precep(i,j,k) = max(0.0_field_r, 0.006_field_r * 1E6_field_r * Dvr(i,j,k) - 0.2_field_r) * qr_spl(i,j,k)
+                xr = calc_xr(rhof(k), qr_spl(i,j,k), nr(i,j,k), xrmin, xrmax)
+                dvr = calc_dvr(xr)
+                precep(i,j,k) = max(0.0_field_r, 0.006_field_r * 1E6_field_r * dvr - 0.2_field_r) * qr_spl(i,j,k)
               endif
             enddo
           enddo
@@ -447,8 +448,11 @@ contains
         do j = 2, j1
           do i = 2, i1
             if (qr_spl(i,j,k) > qrmin) then
-              sed_qr = max(0.0_field_r, 0.006_field_r *1E6_field_r * Dvr(i,j,k) - 0.2_field_r) * qr_spl(i,j,k) * rhof(k)
-              sed_Nr = max(0.0_field_r, 0.0035_field_r *1E6_field_r * Dvr(i,j,k) - 0.1_field_r) * Nr_spl(i,j,k)
+              xr = calc_xr(rhof(k), qr_spl(i,j,k), nr(i,j,k), xrmin, xrmax)
+              dvr = calc_dvr(xr)
+
+              sed_qr = max(0.0_field_r, 0.006_field_r *1E6_field_r * dvr - 0.2_field_r) * qr_spl(i,j,k) * rhof(k)
+              sed_Nr = max(0.0_field_r, 0.0035_field_r *1E6_field_r * dvr - 0.1_field_r) * Nr_spl(i,j,k)
 
               qr_tmp(i,j,k) = qr_tmp(i,j,k) - sed_qr * dt_spl / (dzf(k) * rhof(k))
               Nr_tmp(i,j,k) = Nr_tmp(i,j,k) - sed_Nr * dt_spl / dzf(k)
@@ -462,8 +466,11 @@ contains
         do j = 2, j1
           do i = 2, i1
             if (qr_spl(i,j,k) > qrmin) then
-              sed_qr = max(0.0_field_r, 0.006_field_r *1E6_field_r * Dvr(i,j,k) - 0.2_field_r) * qr_spl(i,j,k) * rhof(k)
-              sed_Nr = max(0.0_field_r, 0.0035_field_r *1E6_field_r * Dvr(i,j,k) - 0.1_field_r) * Nr_spl(i,j,k)
+              xr = calc_xr(rhof(k), qr_spl(i,j,k), nr(i,j,k), xrmin, xrmax)
+              dvr = calc_dvr(xr)
+
+              sed_qr = max(0.0_field_r, 0.006_field_r *1E6_field_r * dvr - 0.2_field_r) * qr_spl(i,j,k) * rhof(k)
+              sed_Nr = max(0.0_field_r, 0.0035_field_r *1E6_field_r * dvr - 0.1_field_r) * Nr_spl(i,j,k)
 
               !$acc atomic update
               qr_tmp(i,j,k) = qr_tmp(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
