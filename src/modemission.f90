@@ -23,6 +23,7 @@
 !
 
 module modemission
+use, intrinsic :: ieee_arithmetic, only: ieee_is_nan
 use modprecision, only: field_r
 use modemisdata
 use modtracers,       only : tracer_prop
@@ -920,7 +921,7 @@ contains
 
 
   ! Attempt to handle the problematic conditions
-  if (isnan(zbottom) .or. isnan(S)) then
+  if (ieee_is_nan(zbottom) .or. ieee_is_nan(S)) then
     ! Handle NaN values
     zbottom = 0.0000001
 
@@ -932,7 +933,7 @@ contains
 
     ztop    = hs + hmax*1.5
 
-    if (isnan(ztop)) ztop = 0.0000001
+    if (ieee_is_nan(ztop)) ztop = 0.0000001
 
     if(ztop<zbottom) ztop = zbottom
 
