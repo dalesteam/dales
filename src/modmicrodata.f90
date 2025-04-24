@@ -52,6 +52,8 @@
                  ,sig_g = 1.34      & !<  geom. std dev of cloud droplet DSD
                  ,sig_gr = 1.5        !<  geometric std dev of rain drop DSD
 
+  !$acc declare create(mur_cst)
+
   logical :: l_lognormal = .false.    !<  log param of rain terminal velocities for rain sedim
 
   integer :: inr = -1, iqr = -1
