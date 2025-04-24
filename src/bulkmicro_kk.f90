@@ -502,7 +502,7 @@ contains
 
     call timer_toc('bulkmicro_kk/sedimentation_rain')
 
-  end subroutine sedimentation_kk_rain
+  end subroutine sedimentation_rain_kk
 #endif
 
 end module bulkmicro_kk
