@@ -70,6 +70,8 @@ contains
       allocate(is_precip(2:i1,2:j1,1:k1))
       allocate(dvr(2:i1,2:j1,1:k1))
 
+      !$acc data create(is_cloud, is_rain, is_precip, dvr)
+
       if (l_sb) then
         xrmin = xrmin_sb
         xrmax = xrmax_sb
@@ -78,6 +80,7 @@ contains
         xrmax = xrmax_kk
       end if
 
+      !$acc parallel loop collapse(3) default(present) private(xr)
       do k = 1, k1
         do j = 2, j1
           do i = 2, i1
@@ -97,6 +100,8 @@ contains
       call sample_field('nrrain', nr)
       call sample_field('qrmn', qr)
       call sample_field('precmn', precep)
+
+      !$acc end data
 
       deallocate(is_cloud, is_rain, is_precip, dvr)
 

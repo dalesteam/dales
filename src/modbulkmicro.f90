@@ -254,6 +254,8 @@ module modbulkmicro
     if (l_rain) then
       allocate(qrp_tmp(2:i1,2:j1,1:k1), nrp_tmp(2:i1,2:j1,1:k1))
 
+      !$acc enter data create(qrp_tmp, nrp_tmp)
+
       call zero_field(qrp_tmp)
       call zero_field(nrp_tmp)
 
@@ -384,6 +386,8 @@ module modbulkmicro
         enddo
       enddo
     enddo
+
+    !$acc exit data delete(qrp_tmp, nrp_tmp)
 
     deallocate(qrp_tmp, nrp_tmp)
 
