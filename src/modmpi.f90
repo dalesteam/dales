@@ -111,6 +111,7 @@ interface D_MPI_ISEND
   end interface
   interface D_MPI_BCAST
     procedure :: D_MPI_BCAST_LOGICAL_S
+    procedure :: D_MPI_BCAST_INT64_S
     procedure :: D_MPI_BCAST_REAL64_S
     procedure :: D_MPI_BCAST_REAL32_S
     procedure :: D_MPI_BCAST_INT32_S

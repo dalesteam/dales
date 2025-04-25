@@ -120,6 +120,7 @@ program DALES
 !----------------------------------------------------------------
 !     0.1     USE STATEMENTS FOR ADDONS STATISTICAL ROUTINES
 !----------------------------------------------------------------
+  use modscalarpulse,  only : initscalarpulse, scalarpulse
   use modcape,         only : initcape,exitcape,docape
   use modchecksim,     only : initchecksim, checksim
   use modstat_nc,      only : initstat_nc
@@ -225,6 +226,7 @@ program DALES
   call initcanopy
 
   !call initspectra2
+  call initscalarpulse
   call initcape
 
   call init_profiles
@@ -249,6 +251,7 @@ program DALES
     ! Calculate new timestep, and reset tendencies to 0.
     call tstep_update
     call timedep
+    call scalarpulse
     call samptend(tend_start,firstterm=.true.)
     call datetime
 

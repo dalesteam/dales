@@ -18,7 +18,7 @@
 module modmpiinterface
 use mpi_f08
 use iso_c_binding  , only : c_loc, c_f_pointer, c_ptr
-use iso_fortran_env, only : real32,real64,int32
+use iso_fortran_env, only : real32,real64,int32,int64
 implicit none
 
 contains
@@ -125,6 +125,14 @@ contains
     call MPI_BCAST(buffer, count, MPI_INTEGER4, root, comm, ierror)
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_BCAST_INT32_S
+  subroutine D_MPI_BCAST_INT64_S(buffer, count, root, comm, ierror)
+     implicit none
+     integer(int64), intent(inout) ::  buffer
+     integer        :: count, root, ierror
+     type(MPI_COMM) :: comm
+     call MPI_BCAST(buffer, count, MPI_LONG_LONG, root, comm, ierror)
+     if (ierror /= MPI_SUCCESS) call abort
+   end subroutine D_MPI_BCAST_INT64_S
   subroutine D_MPI_BCAST_LOGICAL_S(buffer, count, root, comm, ierror)
     implicit none
     logical, intent(inout)        :: buffer

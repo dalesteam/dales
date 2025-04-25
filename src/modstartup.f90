@@ -424,7 +424,8 @@ contains
   subroutine checkinitvalues
     use modsurfdata, only: wtsurf, wqsurf, ustin, thls, isurf, ps, lhetero
     use modglobal,   only: itot, jtot, ysize, xsize, dtmax, runtime, &
-                           startfile, lwarmstart, eps1, imax, jmax, ih, jh
+                           startfile, lwarmstart, eps1, imax, jmax, ih, jh, &
+                           lcoriol, lpressgrad
     use modmpi,      only: myid, nprocx, nprocy, mpierr, MPI_FINALIZE
     use modtimedep,  only: ltimedep
 
@@ -515,6 +516,9 @@ contains
       end if
     end if
 
+    if (lcoriol .and. lpressgrad) then
+      if (myid==0) stop "Coriolis force (lcoriol) and channel-like pressure gradient (lpressgrad) are mutually exclusive. To use Coriolis force with NO pressure gradient, set geowinds to zero."
+   end if
   end subroutine checkinitvalues
 
   subroutine readinitfiles
@@ -530,7 +534,7 @@ contains
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
                                   trestart, ladaptive,llsadv,tnextrestart,longint,lconstexner,lopenbc, linithetero, &
-                                  iinput, input_netcdf, input_ascii
+                                  iinput, input_netcdf, input_ascii, lcoriol
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
@@ -607,10 +611,12 @@ contains
 
         else if (iinput == input_netcdf) then
           call init_from_netcdf('init.'//cexpnr//'.nc', height, uprof, vprof, &
-                                thlprof, qtprof, e12prof, ug, vg, wfls, &
+                                thlprof, qtprof, e12prof, ug, vg, dpdxl, dpdyl, wfls, &
                                 dqtdxls, dqtdyls, dqtdtls, thlpcar, kmax)
-          call tracer_profs_from_netcdf('tracers.'//cexpnr//'.nc', &
-                                        tracer_prop, svprof(1:kmax,:))
+          if (nsv_user > 0) then
+            call tracer_profs_from_netcdf('tracers.'//cexpnr//'.nc', &
+                                          tracer_prop, svprof(1:kmax,:))
+          end if
         else
           open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
           if (ierr /= 0) then
@@ -1021,9 +1027,44 @@ contains
           end if
           read (ifinput,'(a80)') chmess
           read (ifinput,'(a80)') chmess
-          do  k=1,kmax
-            read (ifinput,*) &
-                height (k), &
+
+          ! if coriolis force, read in 2nd and 3rd columns as ug and vg
+          if (lcoriol) then 
+            do  k=1,kmax
+              read (ifinput,*) &
+                  height (k), &
+                  ug     (k), &
+                  vg     (k), &
+                  wfls   (k), &
+                  dqtdxls(k), &
+                  dqtdyls(k), &
+                  dqtdtls(k), &
+                  thlpcar(k)
+            end do
+          else ! otherwhise read in same columns as pressure gradient
+            do  k=1,kmax
+              read (ifinput,*) &
+                  height (k), &
+                  dpdxl  (k), &
+                  dpdyl  (k), &
+                  wfls   (k), &
+                  dqtdxls(k), &
+                  dqtdyls(k), &
+                  dqtdtls(k), &
+                  thlpcar(k)
+            end do
+          end if 
+          close(ifinput)
+        end if
+
+      end if
+
+      if (lcoriol) then
+        write(6,*) ' height u_geo   v_geo    subs     ' &
+                  ,'   dqtdx      dqtdy        dqtdtls     thl_rad '
+        do k=kmax,1,-1
+          write (6,'(3f7.1,5e12.4)') &
+                zf     (k), &
                 ug     (k), &
                 vg     (k), &
                 wfls   (k), &
@@ -1031,26 +1072,22 @@ contains
                 dqtdyls(k), &
                 dqtdtls(k), &
                 thlpcar(k)
-          end do
-          close(ifinput)
-        end if
-
-      end if
-
-      write(6,*) ' height u_geo   v_geo    subs     ' &
-                ,'   dqtdx      dqtdy        dqtdtls     thl_rad '
-      do k=kmax,1,-1
-        write (6,'(3f7.1,5e12.4)') &
-              zf     (k), &
-              ug     (k), &
-              vg     (k), &
-              wfls   (k), &
-              dqtdxls(k), &
-              dqtdyls(k), &
-              dqtdtls(k), &
-              thlpcar(k)
-      end do
-
+        end do
+      else
+        write(6,*) ' height u_geo   v_geo    subs     ' &
+        ,'   dqtdx      dqtdy        dqtdtls     thl_rad '
+        do k=kmax,1,-1
+          write (6,'(3f7.1,5e12.4)') &
+                zf     (k), &
+                dpdxl  (k), &
+                dpdyl  (k), &
+                wfls   (k), &
+                dqtdxls(k), &
+                dqtdyls(k), &
+                dqtdtls(k), &
+                thlpcar(k)
+        end do
+      end if 
 
     end if ! end myid==0
 
@@ -1058,6 +1095,8 @@ contains
 
     call D_MPI_BCAST(ug       ,kmax,0,comm3d,mpierr)
     call D_MPI_BCAST(vg       ,kmax,0,comm3d,mpierr)
+    call D_MPI_BCAST(dpdxl    ,kmax,0,comm3d,mpierr)
+    call D_MPI_BCAST(dpdyl    ,kmax,0,comm3d,mpierr)
     call D_MPI_BCAST(wfls     ,kmax,0,comm3d,mpierr)
     call D_MPI_BCAST(dqtdxls  ,kmax,0,comm3d,mpierr)
     call D_MPI_BCAST(dqtdyls  ,kmax,0,comm3d,mpierr)
@@ -1069,12 +1108,12 @@ contains
     !-----------------------------------------------------------------
 
     !******include rho if rho = rho(z) /= 1.0 ***********
-
-    do k = 1, kmax
-      dpdxl(k) =  om23_gs*vg(k)
-      dpdyl(k) = -om23_gs*ug(k)
-    end do
-
+    if (lcoriol) then  ! only when Coriolis is enabled, calculte pressure gradients via geostrophic wind speeds (otherwise assume they have been set already)
+       do k = 1, kmax
+          dpdxl(k) =  om23_gs*vg(k)
+          dpdyl(k) = -om23_gs*ug(k)
+       end do
+    end if
     !-----------------------------------------------------------------
     !    2.5 make large-scale horizontal gradients
     !-----------------------------------------------------------------
@@ -1804,7 +1843,7 @@ contains
   !! \note Tracers are read from tracers.XXX.nc, not here.
   !! \todo Make DEPHY-compatible.
   subroutine init_from_netcdf(filename, height, uprof, vprof, thlprof, qtprof, &
-                              e12prof, ug, vg, wfls, dqtdxls, dqtdyls, &
+                              e12prof, ug, vg, dpdxl, dpdyl, wfls, dqtdxls, dqtdyls, &
                               dqtdtls, dthlrad, kmax)
     character(*),   intent(in)  :: filename
     real(field_r),  intent(out) :: height(:)
@@ -1815,6 +1854,8 @@ contains
     real(field_r),  intent(out) :: e12prof(:)
     real(field_r),  intent(out) :: ug(:)
     real(field_r),  intent(out) :: vg(:)
+    real(field_r),  intent(out) :: dpdxl(:)
+    real(field_r),  intent(out) :: dpdyl(:)
     real(field_r),  intent(out) :: wfls(:)
     real(field_r),  intent(out) :: dqtdxls(:)
     real(field_r),  intent(out) :: dqtdyls(:)
@@ -1843,6 +1884,10 @@ contains
     call read_nc_field(ncid, "ug", ug, start=1, count=kmax, &
                        fillvalue=0._field_r)
     call read_nc_field(ncid, "vg", vg, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "dpdx", dpdxl, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "dpdy", dpdyl, start=1, count=kmax, &
                        fillvalue=0._field_r)
     call read_nc_field(ncid, "wa", wfls, start=1, count=kmax, &
                        fillvalue=0._field_r)

@@ -220,12 +220,12 @@ contains
     end do
     !$acc end kernels
     if(lcoriol) then
-    !$acc kernels default(present) async(1)
-    do k=ksp,kmax
-      up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(ug(k)-cu))*((1./(geodamptime*rnu0))*tsc(k))
-      vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(vg(k)-cv))*((1./(geodamptime*rnu0))*tsc(k))
-    end do
-    !$acc end kernels
+      !$acc kernels default(present) async(1)
+      do k=ksp,kmax
+        up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(ug(k)-cu))*((1./(geodamptime*rnu0))*tsc(k))
+        vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(vg(k)-cv))*((1./(geodamptime*rnu0))*tsc(k))
+      end do
+      !$acc end kernels
     end if
   case(2)
     !$acc kernels default(present) async(1)

@@ -105,8 +105,8 @@ save
       real,parameter :: gamma_T_matrix = 3.4293695508945325 !< Heat conductivity soil [J s-1 m-1 K-1]
       real,parameter :: gamma_T_water  = 0.57       !< Heat conductivity water [J s-1 m-1 K-1]
 
-      logical :: lcoriol  = .true.  !<  switch for coriolis force
-      logical :: lpressgrad = .true.  !<  switch for horizontal pressure gradient force
+      logical       :: lcoriol  = .true.  !<  switch for coriolis force
+      logical       :: lpressgrad = .false.  !<  switch for horizontal pressure gradient (not to be used in combination with coriolis force)
       integer       :: igrw_damp = 2 !< switch to enable gravity wave damping
       real(field_r) :: geodamptime = 7200. !< time scale for nudging to geowind in sponge layer, prevents oscillations
       real(field_r) :: uvdamprate = 0.  !< rate for damping mean horizontal wind
@@ -375,13 +375,10 @@ contains
     phi    = xlat*pi/180.
     colat  = cos(phi)
     silat  = sin(phi)
-    if (lcoriol) then
-      omega = 7.292e-5
-      omega_gs = 7.292e-5
-    else
-      omega = 0.
-      omega_gs = 0.
-    end if
+
+    omega = 7.292e-5
+    omega_gs = 7.292e-5
+
     om22   = 2.*omega*colat
     om23   = 2.*omega*silat
     om22_gs   = 2.*omega_gs*colat
@@ -389,7 +386,6 @@ contains
 
     ! Variables
     write(cexpnr,'(i3.3)') iexpnr
-
 
     ! Create the physical grid variables
     allocate(dzf(k1), dzfi(k1))

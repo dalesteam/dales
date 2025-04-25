@@ -76,6 +76,7 @@ set( dales_srcs
 	modsampdata.f90
 	modsampling.f90
 	modsamptend.f90
+	modscalarpulse.f90
 	modsimpleice.f90
 	modsimpleice2.f90
 	modslabaverage.f90
@@ -141,8 +142,6 @@ set( rrtmg_lw_srcs
 	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/src/rrtmg_lw_rtrnmr.f90
 	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/src/rrtmg_lw_setcoef.f90
 	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/src/rrtmg_lw_taumol.f90
-	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/src/src_link
-	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/src/util_link
 )
 
 # RRTMG - shortwave

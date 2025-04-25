@@ -464,12 +464,15 @@ subroutine initbulkmicrostat
        do k=1, kmax
           Npav(k,ifield) = sum(Nrp(2:i1,2:j1,k)) - sum(Npav(k,1:ifield-1))
           qrpav(k,ifield) = sum(qrp(2:i1,2:j1,k)) - sum(qrpav(k,1:ifield-1))
+		  qtpav(k,ifield) = sum(qtpmcr(2:i1,2:j1,k)) - sum(qtpav(k,1:ifield-1))
        end do
        if (ifield == nrfields) then
           Npmn(:,:) = Npmn(:,:) + Npav(:,:) / nsamples / imax / jmax
           qrpmn(:,:) = qrpmn(:,:) + qrpav(:,:) / nsamples / imax / jmax
+		  qtpmn(:,:) = qtpmn(:,:) + qtpav(:,:) /nsamples / imax /jmax
           Npav(:,:)  = 0.0
           qrpav(:,:) = 0.0
+		  qtpav(:,:) = 0.0
        end if
     else
       !$acc kernels default(present)
@@ -704,9 +707,10 @@ subroutine initbulkmicrostat
       do k=1,k1
         varsP(1, 1, k,20) =sum(qrpmn  (k,2:nrfields))
       enddo
-          call writestat_nc(ncid,nvar,ncname,varsP(:,:,1:kmax,:),nrec,1,1,kmax)
+	  varsP(1, 1, :, 21) =qtpmn(:,ised)
+      call writestat_nc(ncid,nvar,ncname,varsP(:,:,1:kmax,:),nrec,1,1,kmax)
 
-          cloudcountmn(:) = 0.0
+      cloudcountmn(:) = 0.0
       raincountmn(:)  = 0.0
       preccountmn(:)  = 0.0
       prec_prcmn(:)   = 0.0

@@ -203,7 +203,7 @@ contains
 
       if (rad_longw) then
         call rrtmg_lw & !comments = corresponding variable names in the RRTMGP library
-                (int(imax,kind_im), int(nzrad+1,kind_im), ioverlap, & !ncol, nlay, icld, (+ idrv in later versions !)
+                (int(imax,kind_im), int(nzrad+1,kind_im), ioverlap, 0, & !ncol, nlay, icld, (+ idrv in later versions !)
                  layerP, interfaceP, layerT, interfaceT, tg_slice, & !play, plev, tlay, tlev, tsfc
                  h2ovmr, o3vmr, co2vmr, ch4vmr, n2ovmr, o2vmr, & !h2ovmr, o3vmr, co2vmr, ch4vmr, n2ovmr, o2vmr
                  cfc11vmr, cfc12vmr, cfc22vmr, ccl4vmr, emis, & !cfc11vmr, cfc12vmr, cfc22vmr, ccl4vmr, emis

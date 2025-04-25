@@ -19,6 +19,8 @@
 !> Routines for computing (masked) slab averaged profiles.
 module modslabaverage
 
+  use, intrinsic :: iso_fortran_env, only: real32, real64
+
   use modglobal, only: imax, jmax, ijtot
   use modmpi,    only: mpi_allreduce, mpi_in_place, mpi_real4, mpi_real8, mpi_integer, &
                        mpi_sum, comm3d, mpierr
@@ -46,50 +48,37 @@ contains
   !! \param nh Number of ghost cells.
   !!           \note For arrays with no ghost cells, pass nh=0!
   !! \param avg Slab averaged profile.
-  !! \param kstart Lowest vertical level to average
-  !! \param kend Highest vertical level to average.
   !! \param local Only compute average on local MPI domain.
-  subroutine slabavg_r4(field, nh, avg, kstart, kend, local)
+  subroutine slabavg_r4(field, nh, avg, local)
 
-    real(4), intent(in)  :: field(:,:,:)
-    integer, intent(in)  :: nh
-    real(4), intent(out) :: avg(:)
+    real(real32), intent(in)  :: field(:,:,:)
+    integer,      intent(in)  :: nh
+    real(real32), intent(out) :: avg(:)
 
-    integer, optional, intent(in) :: kstart, kend
     logical, optional, intent(in) :: local
 
-    integer :: i, j, k
-    integer :: is, ie, js, je, ks, ke
-    logical :: do_global
-    real(4) :: fld_sum, norm_fac
+    integer      :: i, j, k
+    integer      :: is, ie, js, je, ks, ke
+    logical      :: do_global
+    real(real32) :: fld_sum, norm_fac
 
     is = lbound(field, dim=1) + nh
     ie = ubound(field, dim=1) - nh
     js = lbound(field, dim=2) + nh
     je = ubound(field, dim=2) - nh
-
-    if (present(kstart)) then
-      ks = kstart
-    else
-      ks = 1
-    end if
-
-    if (present(kend)) then
-      ke = kend
-    else
-      ke = ubound(field, dim=3)
-    end if
+    ks = lbound(field, dim=3)
+    ke = ubound(field, dim=3)
 
     if (present(local)) then
       do_global = .not. local
     else
-      do_global = .false.
+      do_global = .true.
     end if
 
     if (do_global) then
-      norm_fac = 1.0_4 / ijtot
+      norm_fac = 1.0_real32 / ijtot
     else
-      norm_fac = 1.0_4 / (imax * jmax)
+      norm_fac = 1.0_real32 / (imax * jmax)
     end if
 
     !$acc parallel loop gang default(present)
@@ -107,7 +96,7 @@ contains
     ! TODO: experiment with non-blocking allreduce
     if (do_global) then
       !$acc host_data use_device(avg)
-      call mpi_allreduce(mpi_in_place, avg, ke - ks + 1, mpi_real4, mpi_sum, &
+      call mpi_allreduce(mpi_in_place, avg, ke, mpi_real4, mpi_sum, &
                          comm3d, mpierr)
       !$acc end host_data
     end if
@@ -120,50 +109,37 @@ contains
   !! \param nh Number of ghost cells.
   !!           \note For arrays with no ghost cells, pass nh=0!
   !! \param avg Slab averaged profile.
-  !! \param kstart Lowest vertical level to average.
-  !! \param kend Highest vertical level to average.
   !! \param local Only compute average on local MPI domain.
-  subroutine slabavg_r8(field, nh, avg, kstart, kend, local)
+  subroutine slabavg_r8(field, nh, avg, local)
 
-    real(8), intent(in)  :: field(:,:,:)
-    integer, intent(in)  :: nh
-    real(8), intent(out) :: avg(:)
+    real(real64), intent(in)  :: field(:,:,:)
+    integer,      intent(in)  :: nh
+    real(real64), intent(out) :: avg(:)
 
-    integer, optional, intent(in) :: kstart, kend
     logical, optional, intent(in) :: local
 
-    integer :: i, j, k
-    integer :: is, ie, js, je, ks, ke
-    logical :: do_global
-    real(8) :: fld_sum, norm_fac
+    integer      :: i, j, k
+    integer      :: is, ie, js, je, ks, ke
+    logical      :: do_global
+    real(real64) :: fld_sum, norm_fac
 
     is = lbound(field, dim=1) + nh
     ie = ubound(field, dim=1) - nh
     js = lbound(field, dim=2) + nh
     je = ubound(field, dim=2) - nh
-
-    if (present(kstart)) then
-      ks = kstart
-    else
-      ks = 1
-    end if
-
-    if (present(kend)) then
-      ke = kend
-    else
-      ke = ubound(field, dim=3)
-    end if
+    ks = lbound(field, dim=3)
+    ke = ubound(field, dim=3)
 
     if (present(local)) then
       do_global = .not. local
     else
-      do_global = .false.
+      do_global = .true.
     end if
 
     if (do_global) then
-      norm_fac = 1.0_8 / ijtot
+      norm_fac = 1.0_real64 / ijtot
     else
-      norm_fac = 1.0_8 / (imax * jmax)
+      norm_fac = 1.0_real64 / (imax * jmax)
     end if
 
     !$acc parallel loop gang default(present)
@@ -180,7 +156,7 @@ contains
 
     if (do_global) then
       !$acc host_data use_device(avg)
-      call mpi_allreduce(mpi_in_place, avg, ke - ks + 1, mpi_real8, mpi_sum, &
+      call mpi_allreduce(mpi_in_place, avg, ke, mpi_real8, mpi_sum, &
                          comm3d, mpierr)
       !$acc end host_data
     end if
@@ -194,44 +170,30 @@ contains
   !! \param nh Number of ghost cells.
   !!           \note For arrays with no ghost cells, pass nh=0!
   !! \param avg Slab averaged profile.
-  !! \param kstart Lowest vertical level to average.
-  !! \param kend Highest vertical level to average.
   !! \param local Only compute average on local MPI domain.
   !! \param fillvalue Value to use for fully masked layers. Default is 0.
-  subroutine slabavg_r4_masked(field, mask, nh, avg, kstart, kend, local, &
-                               fillvalue)
+  subroutine slabavg_r4_masked(field, mask, nh, avg, local, fillvalue)
 
-    real(4), intent(in)  :: field(:,:,:)
-    logical, intent(in)  :: mask(:,:,:)
-    integer, intent(in)  :: nh
-    real(4), intent(out) :: avg(:)
+    real(real32), intent(in)  :: field(:,:,:)
+    logical,      intent(in)  :: mask(:,:,:)
+    integer,      intent(in)  :: nh
+    real(real32), intent(out) :: avg(:)
 
-    integer, optional, intent(in) :: kstart, kend
-    logical, optional, intent(in) :: local
-    real(4), optional, intent(in) :: fillvalue
+    logical,      optional, intent(in) :: local
+    real(real32), optional, intent(in) :: fillvalue
 
-    integer :: i, j, k
-    integer :: is, ie, js, je, ks, ke
-    integer :: test, n_cells
-    logical :: do_global
-    real(4) :: fld_sum, fillvalue_
+    integer      :: i, j, k
+    integer      :: is, ie, js, je, ks, ke
+    integer      :: test, n_cells
+    logical      :: do_global
+    real(real32) :: fld_sum, fillvalue_
 
     is = lbound(field, dim=1) + nh
     ie = ubound(field, dim=1) - nh
     js = lbound(field, dim=2) + nh
     je = ubound(field, dim=2) - nh
-
-    if (present(kstart)) then
-      ks = kstart
-    else
-      ks = 1
-    end if
-
-    if (present(kend)) then
-      ke = kend
-    else
-      ke = ubound(field, dim=3)
-    end if
+    ks = lbound(field, dim=3)
+    ke = ubound(field, dim=3)
 
     if (present(local)) then
       do_global = .not. local
@@ -266,7 +228,7 @@ contains
 
       if (do_global) then
         !$acc host_data use_device(avg, n_cells_tot)
-        call mpi_allreduce(mpi_in_place, avg, ke - ks + 1, mpi_real4, mpi_sum, &
+        call mpi_allreduce(mpi_in_place, avg, ke, mpi_real4, mpi_sum, &
                            comm3d, mpierr)
         call mpi_allreduce(mpi_in_place, n_cells_tot, ke - ks + 1, mpi_integer, &
                            mpi_sum, comm3d, mpierr)
@@ -291,44 +253,30 @@ contains
   !! \param nh Number of ghost cells.
   !!           \note For arrays with no ghost cells, pass nh=0!
   !! \param avg Slab averaged profile.
-  !! \param kstart Lowest vertical level to average.
-  !! \param kend Highest vertical level to average.
   !! \param local Only compute average on local MPI domain.
   !! \param fillvalue Value to use for fully masked layers. Default is 0.
-  subroutine slabavg_r8_masked(field, mask, nh, avg, kstart, kend, local, &
-                               fillvalue)
+  subroutine slabavg_r8_masked(field, mask, nh, avg, local, fillvalue)
 
-    real(8), intent(in)  :: field(:,:,:)
-    logical, intent(in)  :: mask(:,:,:)
-    integer, intent(in)  :: nh
-    real(8), intent(out) :: avg(:)
+    real(real64), intent(in)  :: field(:,:,:)
+    logical,      intent(in)  :: mask(:,:,:)
+    integer,      intent(in)  :: nh
+    real(real64), intent(out) :: avg(:)
 
-    integer, optional, intent(in) :: kstart, kend
-    logical, optional, intent(in) :: local
-    real(8), optional, intent(in) :: fillvalue
+    logical,      optional, intent(in) :: local
+    real(real64), optional, intent(in) :: fillvalue
 
-    integer :: i, j, k
-    integer :: is, ie, js, je, ks, ke
-    integer :: test, n_cells
-    logical :: do_global
-    real(8) :: fld_sum, fillvalue_
+    integer      :: i, j, k
+    integer      :: is, ie, js, je, ks, ke
+    integer      :: test, n_cells
+    logical      :: do_global
+    real(real64) :: fld_sum, fillvalue_
 
     is = lbound(field, dim=1) + nh
     ie = ubound(field, dim=1) - nh
     js = lbound(field, dim=2) + nh
     je = ubound(field, dim=2) - nh
-
-    if (present(kstart)) then
-      ks = kstart
-    else
-      ks = 1
-    end if
-
-    if (present(kend)) then
-      ke = kend
-    else
-      ke = ubound(field, dim=3)
-    end if
+    ks = lbound(field, dim=3)
+    ke = ubound(field, dim=3)
 
     if (present(local)) then
       do_global = .not. local
@@ -363,9 +311,9 @@ contains
 
       if (do_global) then
         !$acc host_data use_device(avg, n_cells_tot)
-        call mpi_allreduce(mpi_in_place, avg, ke - ks + 1, mpi_real4, mpi_sum, &
-                           comm3d, mpierr)
-        call mpi_allreduce(mpi_in_place, n_cells_tot, ke - ks + 1, mpi_integer, &
+        call mpi_allreduce(mpi_in_place, avg, ke, mpi_real8, mpi_sum, comm3d, &
+                           mpierr)
+        call mpi_allreduce(mpi_in_place, n_cells_tot, ke, mpi_integer, &
                            mpi_sum, comm3d, mpierr)
         !$acc end host_data
       end if
