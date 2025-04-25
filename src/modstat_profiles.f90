@@ -67,6 +67,20 @@ contains
 
   end function is_writing_timestep
 
+  function find_index(name) result(index)
+
+    character(len=*), intent(in) :: name
+
+    integer :: index
+
+    do index = 1, nvar
+      if (trim(name) == trim(ncname(index,1))) return
+    end do
+
+    index = 0
+
+  end function find_index
+
   subroutine add_profile(name, long_name, unit, dim)
 
     character(len=*), intent(in) :: name
@@ -206,9 +220,8 @@ contains
 
       ! TODO: a hash is probably more efficient here
       ! Find location in the list of profiles
-      idx = findloc(ncname(:,1), value=trim(name), dim=1)
+      idx = find_index(name)
 
-      ! findloc() returns 0 if the given value is not found
       if (idx == 0) then
         call print_info_stderr(routine, 'profile '//trim(name)//' not found')
         error stop
@@ -241,9 +254,8 @@ contains
     if (do_stats) then
 
       ! Find location in the list of profiles
-      idx = findloc(ncname(:,1), value=trim(name), dim=1)
+      idx = find_index(name)
 
-      ! findloc() returns 0 if the given value is not found
       if (idx == 0) then
         call print_info_stderr(routine, 'profile '//trim(name)//' not found')
         error stop
