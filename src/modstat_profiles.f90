@@ -91,21 +91,22 @@ contains
     character(len=*), parameter :: routine = modname//':add_profile'
 
     character(len=80), allocatable :: tmp_ncname(:,:)
-
-    ! Check if given name already exists. For the long name, we don't care.
-    if (findloc(ncname(:,1), value=trim(name), dim=1) > 0) then
-      call print_info_stderr(routine, 'profile '//trim(name)//' already exists')
-      error stop
-    end if
+    integer :: idx
 
     ! Allocate array for metadata
     if (.not. allocated(ncname)) then
       allocate(ncname(1,4))
     else
-      ! If already allocated, grow in size by 1
-      allocate(tmp_ncname(size(ncname, dim=1) + 1, 4))
-      tmp_ncname(1:nvar,:) = ncname(1:nvar,:)
-      call move_alloc(tmp_ncname, ncname)
+      ! Check if given name already exists. For the long name, we don't care.
+      if (find_index(name) /= 0) then
+        call print_info_stderr(routine, 'profile '//trim(name)//' already exists')
+        error stop
+      else
+        ! If already allocated, grow in size by 1
+        allocate(tmp_ncname(size(ncname, dim=1) + 1, 4))
+        tmp_ncname(1:nvar,:) = ncname(1:nvar,:)
+        call move_alloc(tmp_ncname, ncname)
+      end if
     end if
 
     nvar = nvar + 1
