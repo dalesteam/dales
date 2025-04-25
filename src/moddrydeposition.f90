@@ -307,7 +307,7 @@ subroutine calc_depfield
       do j = 2, j1
         do i = 2, i1
           if (tile(ilu)%frac(i,j) > 0.) then
-            Rb(i,j) = 1/(fkar*tile(ilu)%ra(i,j)) * ScPrfac
+            Rb(i,j) = 1/(fkar*tile(ilu)%ustar(i,j)) * ScPrfac
             vd(i,j) = (tile(ilu)%ra(i,j) + Rb(i,j) + Rc(i,j)) ** (-1)
             ! Deposition flux in ug * m / (g * s)
             depfield(i,j,idt) = depfield(i,j,idt) - tile(ilu)%frac(i,j) * vd(i,j) * (sv0(i,j,1,tracer_prop(isv)%trac_idx) - Ccomp(i,j))  !GT added ccomp_tot to the deposition flux
