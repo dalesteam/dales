@@ -731,6 +731,11 @@ contains
           do j = 2, j1
             do i = 2, i1
               if (qr_spl(i,j,k) > qrmin) then
+                xr = calc_xr(rhof(k), qr_spl(i,j,k), nr_spl(i,j,k), xrmin, xrmax)
+                dvr = calc_dvr(xr)
+                mur = calc_mur(qr_spl(i,j,k), rhof(k))
+                lbdr = calc_lbdr(mur, dvr)
+
                 wfall_qr = max(0.0_field_r, (a_tvsb - b_tvsb * (1 + c_tvsb / lbdr)**(-1 * (mur + 4))))
                 wfall_Nr = max(0.0_field_r, (a_tvsb - b_tvsb * (1 + c_tvsb / lbdr)**(-1 * (mur + 1))))
 
