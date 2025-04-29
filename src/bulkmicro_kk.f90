@@ -18,8 +18,7 @@
 !> Kernels for Khairoutdinov-Kogan microphysics.
 module bulkmicro_kk
   use modglobal,    only: i1, ih, j1, jh, k1, rlv, cp, pi, rv
-  use modmicrodata, only: pirhow, qrmin, Nc_0, qcmin
-  use modmicroutil, only: calc_xr, calc_dvr
+  use modmicrodata, only: pirhow, qrmin, Nc_0, qcmin, l_mur_cst, mur_cst
   use modprecision, only: field_r
   use modtimer,     only: timer_tic, timer_toc
 
@@ -44,6 +43,8 @@ module bulkmicro_kk
     xrmax = 5.2e-7    !< Max mean mass of pw.
 
 contains
+
+  include 'microphysics.inc'
 
   !> Calculate the autoconversion term.
   !!

@@ -32,6 +32,7 @@ module modbulkmicrostat
   use modprecision, only : longint, field_r
   use modtimer
   use modsampdata, only : lprocblock
+  use modmicrodata, only: l_mur_cst, mur_cst, pirhow
 
 implicit none
 private
@@ -82,6 +83,9 @@ save
                                               tend_qtp
 
 contains
+
+  include 'microphysics.inc'
+
 !> Initialization routine, reads namelists and inits variables
 subroutine initbulkmicrostat
     use modmpi,    only  : myid, comm3d, mpierr, D_MPI_BCAST, cmyid, &
@@ -291,7 +295,6 @@ subroutine initbulkmicrostat
   subroutine dobulkmicrostat
     use modglobal,    only  : i1, j1, k1, ijtot
     use modmicrodata,  only  : qr,precep,Dvr,Nr,epscloud,epsqr,epsprec,imicro,imicro_bulk, l_sb
-    use modmicroutil, only: calc_dvr, calc_xr
     use modfields,  only  : ql0, rhof
     use bulkmicro_sb, only: xrmin_sb => xrmin, xrmax_sb => xrmax
     use bulkmicro_kk, only: xrmin_kk => xrmin, xrmax_kk => xrmax

@@ -19,8 +19,7 @@
 module bulkmicro_sb
   use modglobal,    only: ih, jh, i1, j1, k1, nsv, rlv, cp, eps1, pi, rv, &
                           mygamma21, mygamma251
-  use modmicrodata, only: Nc_0, pirhow, qrmin, iqr, inr, rhow, qcmin
-  use modmicroutil, only: calc_xr, calc_dvr, calc_lbdr, calc_mur
+  use modmicrodata, only: Nc_0, pirhow, qrmin, iqr, inr, rhow, qcmin, l_mur_cst, mur_cst
   use modprecision, only: field_r
   use modtimer,     only: timer_tic, timer_toc
 
@@ -68,7 +67,7 @@ module bulkmicro_sb
 
 contains
 
-
+  include 'microphysics.inc'
 
   !> Calculate the autoconversion term.
   !!

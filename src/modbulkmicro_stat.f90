@@ -6,8 +6,7 @@ module modbulkmicro_stat
   use modfields,        only: ql0, rhof
   use modglobal,        only: i1, j1, k1
   use modmicrodata,     only: qr, nr, precep, epscloud, epsqr, epsprec, l_sb, &
-                              l_rain, l_sedc
-  use modmicroutil,     only: calc_dvr, calc_xr
+                              l_rain, l_sedc, l_mur_cst, mur_cst, pirhow
   use modstat_profiles, only: add_profile, sample_field, is_sampling_timestep
   use modprecision,     only: field_r
 
@@ -19,6 +18,8 @@ module modbulkmicro_stat
   public :: bulkmicro_stat
 
 contains
+
+  include 'microphysics.inc'
 
   subroutine init_bulkmicro_stat
 
