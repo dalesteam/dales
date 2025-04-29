@@ -2006,7 +2006,10 @@ contains
           fw       = Cw * wsmax / (phitot(i,j) + wsmin)
 
 !          Resp     = R10 * (1 - fw)*(1+ustar(i,j)) * exp( Eact0 / (283.15 * 8.314) * (1.0 - 283.15 / ( thl0(i,j,1) )))
-          Resp     = R10 * (1 - fw)* exp( Eact0 / (283.15 * 8.314) * (1.0 - 283.15 / ( tsoil(i,j,1) )))
+!          Resp     = R10 * (1 - fw)* exp( Eact0 / (283.15 * 8.314) * (1.0 - 283.15 / ( tsoil(i,j,1) )))
+          
+          !Fixed respiration
+          Resp = (5.17 * 44.01) / 1000
 
           wco2     = (An + Resp) * (MW_Air/MW_CO2) * (1.0/rhof(1)) ! In ppm m/s
 
