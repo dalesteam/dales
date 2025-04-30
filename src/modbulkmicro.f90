@@ -71,6 +71,8 @@ module modbulkmicro
     use modglobal, only : i1,j1,k1,ih,jh
     use modmicrodata, only : lacz_gamma, Nr, Nrp, qr, qrp, thlpmcr, &
                              qtpmcr, Dvr, xr, mur, &
+                             lbdr, iqr, inr, inc, &
+                             precep, lstat, Nc, Nc_0
                              lbdr, iqr, inr, &
                              precep, lstat
     use modtracers,   only: add_tracer
@@ -88,7 +90,9 @@ module modbulkmicro
             ,qr       (2:i1,2:j1,k1)  & ! dobulkmicrostat, dosimpleicestat
             ,Nrp      (2:i1,2:j1,k1)  & ! bulkmicrotend, simpleicetend
             ,qrp      (2:i1,2:j1,k1)  & ! bulkmicrotend, simpleicetend
-            ,precep   (2:i1,2:j1,k1)  ) ! dobulkmicrostat, dosimpleicestat, docape
+            ,precep   (2:i1,2:j1,k1)  & ! dobulkmicrostat, dosimpleicestat, docape
+            ,Nc(2:i1,2:j1,k1))
+
 
     allocate(thlpmcr  (2:i1,2:j1,k1)  & !
             ,qtpmcr(2-ih:i1+ih,2-jh:j1+jh,k1))  ! ghost cells added here for modvarbudget
@@ -97,7 +101,9 @@ module modbulkmicro
     gamma3=2.
     gamma35=gamma(3.5)
 
-    !$acc enter data copyin(Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, qtpmcr)
+    Nc(:,:,:) = Nc_0
+
+    !$acc enter data copyin(Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, qtpmcr, Nc)
 
     if (lstat) call init_bulkmicro_stat
 
@@ -110,12 +116,12 @@ module modbulkmicro
   !*********************************************************************
     use modmicrodata, only : Nr,Nrp,qr,qrp,thlpmcr,qtpmcr, &
                              Dvr,xr,mur,lbdr, &
-                             precep
+                             precep, Nc
     implicit none
 
-    !$acc exit data delete(Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, qtpmcr)
+    !$acc exit data delete(Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, qtpmcr, Nc)
 
-    deallocate(Nr,Nrp,qr,qrp,thlpmcr,qtpmcr)
+    deallocate(Nr,Nrp,qr,qrp,thlpmcr,qtpmcr,Nc)
     deallocate(Dvr,xr,mur,lbdr)
     deallocate(precep)
 
@@ -131,14 +137,14 @@ module modbulkmicro
                              l_sedc, l_mur_cst, l_lognormal, l_rain, &
                              qrmin, qcmin, &
                              mur_cst, inr, iqr, l_sb, Dvr, xr, lbdr, mur, &
-                             precep, lstat
+                             precep, lstat, inc, Nc
     use modmicroutil, only: zero_field, sum_fields
     use modstat_profiles, only: sample_field
     implicit none
     integer :: i, j, k
     real :: qrtest,nr_cor,qr_cor
     real :: qrsum_neg, qrsum, Nrsum_neg, Nrsum
-    real(field_r), allocatable :: qrp_tmp(:,:,:), nrp_tmp(:,:,:)
+    real(field_r), allocatable :: qrp_tmp(:,:,:), nrp_tmp(:,:,:), ncp_tmp(:,:,:)
 
     !$acc parallel loop collapse(3) default(present)
     do k = 1, k1
@@ -246,7 +252,7 @@ module modbulkmicro
     ! if (min(qrbase,qcbase).gt.max(qrroof,qcroof)) return
 
     if (l_sedc) then
-      call sedimentation_cloud(ql0, rhof, exnf, qcbase, qcroof, qtpmcr, thlpmcr)
+      call sedimentation_cloud(ql0, Nc, rhof, exnf, qcbase, qcroof, qtpmcr, thlpmcr)
       if(lstat) call sample_field('qtpsedc', qtpmcr) ! First process, no need to zero beforehand
     endif
 
@@ -261,11 +267,11 @@ module modbulkmicro
 
       ! 1. Autoconversion
       if (l_sb) then
-        call autoconversion_sb(ql0, qr, exnf, rhof, qcbase, qcroof, thlpmcr, &
-                               qtpmcr, qrp_tmp, Nrp_tmp)
+        call autoconversion_sb(ql0, Nc, qr, exnf, rhof, qcbase, qcroof, thlpmcr, &
+                               qtpmcr, qrp_tmp, Nrp_tmp, Ncp_tmp)
       else
-        call autoconversion_kk(ql0, rhof, exnf, qcbase, qcroof, thlpmcr, &
-                               qtpmcr, qrp_tmp, Nrp_tmp)
+        call autoconversion_kk(ql0, Nc, rhof, exnf, qcbase, qcroof, thlpmcr, &
+                               qtpmcr, qrp_tmp, Nrp_tmp, Ncp_tmp)
       end if
 
       if (lstat) then
@@ -281,11 +287,11 @@ module modbulkmicro
 
       ! 2. Accretion
       if (l_sb) then
-        call accretion_sb(ql0, qr, Nr, exnf, rhof, qcbase, qcroof, qrbase, qrroof, &
-                          thlpmcr, qtpmcr, qrp_tmp, Nrp_tmp)
+        call accretion_sb(ql0, Nc, qr, Nr, exnf, rhof, qcbase, qcroof, qrbase, qrroof, &
+                          thlpmcr, qtpmcr, qrp_tmp, Nrp_tmp, Ncp_tmp)
       else
-        call accretion_kk(ql0, qr, exnf, qcbase, qcroof, qrbase, qrroof, &
-                          thlpmcr, qtpmcr, qrp_tmp)
+        call accretion_kk(ql0, Nc, qr, rhof, exnf, qcbase, qcroof, qrbase, qrroof, &
+                          thlpmcr, qtpmcr, qrp_tmp, Ncp_tmp)
       end if
 
       if (lstat) then
@@ -403,9 +409,10 @@ module modbulkmicro
   !! lognormal CDSD is assumed (1 free parameter : sig_g)
   !! terminal velocity : Stokes velocity is assumed (v(D) ~ D^2)
   !! flux is calc. anal.
-  subroutine sedimentation_cloud(ql, rhof, exnf, qcbase, qcroof, qtpmcr, thlpmcr)
+  subroutine sedimentation_cloud(ql, nc, rhof, exnf, qcbase, qcroof, qtpmcr, thlpmcr)
 
     real(field_r), intent(in)    :: ql(2:,2:,:)
+    real(field_r), intent(in)    :: nc(2:,2:,:)
     real(field_r), intent(in)    :: rhof(:)
     real(field_r), intent(in)    :: exnf(:)
     integer,       intent(in)    :: qcbase, qcroof
@@ -432,7 +439,7 @@ module modbulkmicro
       do j = 2, j1
         do i = 2, i1
           if (ql(i,j,k) > qcmin) then
-            sedc = csed*Nc_0**(-2./3.)*(ql(i,j,k)*rhof(k))**(5./3.)
+            sedc = csed*nc(i,j,k)**(-2./3.)*(ql(i,j,k)*rhof(k))**(5./3.)
 
             !$acc atomic update
             qtpmcr(i,j,k)  = qtpmcr (i,j,k) - sedc /(dzf(k)*rhof(k))

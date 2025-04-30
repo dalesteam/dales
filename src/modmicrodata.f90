@@ -56,7 +56,7 @@
 
   logical :: l_lognormal = .false.    !<  log param of rain terminal velocities for rain sedim
 
-  integer :: inr = -1, iqr = -1
+  integer :: inr = -1, iqr = -1, inc = -1
 
   real(field_r), parameter ::  D0_kk = 50e-6     & !<  diameter sep. cloud and prec. in KK00 scheme
                      ,qcmin = 1.0e-7     & !<  Cloud specific mixing ratio treshold for calculations
