@@ -43,6 +43,7 @@ module modtracers
 
   character(len=*), parameter :: modname = 'modtracers'
 
+  public :: get_tracer_index
   public :: inittracers
   public :: add_tracer
   public :: allocate_tracers
@@ -55,6 +56,20 @@ module modtracers
   type(T_tracer), allocatable, public, protected :: tracer_prop(:) !< List of tracers
 
 contains
+
+  function get_tracer_index(name) result(index)
+
+    character(len=*), intent(in) :: name
+
+    integer :: index
+
+    do index = 1, nsv
+      if (trim(tracer_prop(index)%tracname) == trim(name)) return
+    end do
+
+    index = 0
+
+  end function get_tracer_index
 
   !> Initialize tracer definition.
   subroutine inittracers
