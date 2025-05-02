@@ -22,6 +22,7 @@ set( dales_srcs
 	modbulkmicro3_column.f90
 	modbulkmicro3_point.f90
 	modbulkmicrostat.f90
+	modbulkmicro_data.f90
     modbulkmicro_stat.f90
 	modbulkmicrostat3.f90
 	modcanopy.f90
@@ -79,6 +80,7 @@ set( dales_srcs
 	modscalarpulse.f90
 	modsimpleice.f90
 	modsimpleice2.f90
+	modsimpleice_data.f90
 	modslabaverage.f90
 	modstartup.f90
 	modstat_nc.f90
