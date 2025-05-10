@@ -34,6 +34,7 @@ set( dales_srcs
 	modcufft.f90
 	moddatetime.f90
 	moddepcrosssection.f90
+	moddrizzle.f90
 	moddrydeposition.f90
 	modemisdata.f90
 	modemission.f90

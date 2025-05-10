@@ -175,45 +175,4 @@ contains
   end select
   end subroutine exitmicrophysics
 
- subroutine drizzle
-
-!-----------------------------------------------------------------|
-!                                                                 |
-!      Hans Cuijpers   I.M.A.U.  23 May 1995                      |
-!                                                                 |
-!     purpose.                                                    |
-!     --------                                                    |
-!                                                                 |
-!      Calculates gravitational settling (or rainfall rate)       |
-!                                                                 |
-!**   interface.                                                  |
-!     ----------                                                  |
-!                                                                 |
-!     *drizzle* is called from *program*.                         |
-!                                                                 |
-!-----------------------------------------------------------------|
-
-  use modglobal, only : i1,j1,kmax,rlv,cp,dzf,pi
-  use modfields, only : qtp,ql0,thlp,rhof,exnf
-  use modmicrodata, only : c_st, Nc_0, rhow, sig_g
-  implicit none
-  real :: sedc,csed
-  integer :: i, j, k
-    csed = c_St*(3./(4.*pi*rhow))**(2./3.)*exp(5.*log(sig_g)**2.)*Nc_0**(-2./3.)
-  sedc = 0.
-
-  do k=1,kmax
-  do j=2,j1
-  do i=2,i1
-  if (ql0(i,j,k)>0.0) then
-    sedc= csed*((ql0(i,j,k+1)*rhof(k+1))**(5./3.)-(ql0(i,j,k)*rhof(k))**(5./3.))/(dzf(k)*rhof(k))
-    qtp(i,j,k) = qtp(i,j,k) + sedc
-    thlp(i,j,k) = thlp(i,j,k) - (rlv/(cp*exnf(k)))*sedc
-  endif
-  enddo
-  enddo
-  enddo
-  return
-  end subroutine drizzle
-
 end module modmicrophysics

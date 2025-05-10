@@ -51,7 +51,7 @@ module modbulkmicro
   use modtimer,     only: timer_tic, timer_toc
   use modmicrodata, only: qrbase, qrroof, qcbase, qcroof, nc_0, qcmin, l_sb, &
                           l_sedc, l_rain, l_mur_cst, l_lognormal, mur_cst, Nc_0, &
-                          sig_g, sig_gr
+                          sig_g, sig_gr, c_St
   use bulkmicro_sb, only: autoconversion_sb, &
                           accretion_sb, evaporation_sb, sedimentation_rain_sb
   use bulkmicro_kk, only: autoconversion_kk, &
@@ -461,8 +461,6 @@ module modbulkmicro
     real(field_r), intent(inout) :: thlpmcr(2:,2:,:)
 
     character(len=*), parameter :: routine = modname//'/sedimentation_cloud'
-    real(field_r),    parameter :: c_st = 1.19E8 ! Stokes fall velocity [m^-1 s^-1]
-    real(field_r),    parameter :: sig_g = 1.34  ! Geom. std. dev. of cloud DSD
 
     integer       :: i, j, k
     real(field_r) :: csed

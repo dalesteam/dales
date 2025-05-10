@@ -7,6 +7,10 @@ module modbulkmicro_data
 
   public
 
+  ! Constants
+  real(field_r), parameter :: &
+    c_st = 1.19E8 ! Stokes fall velocity [m^-1 s^-1]
+
   ! Threshold values
   real(field_r), parameter :: &
     qcmin = 1.0E-7,           & !< Cloud specific mixing ratio treshold for calculations.
