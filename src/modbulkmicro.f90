@@ -45,26 +45,73 @@ module modbulkmicro
 !
 !   bulkmicro is called from *modmicrophysics*
 !*********************************************************************
-  use modglobal,    only: dzf, ih, jh, i1, j1, pi, rhow, rlv, cp
+  use modglobal,    only: dzf, ih, jh, i1, j1, pi, rhow, rlv, cp, &
+                          ifnamopt, checknamelisterror
   use modprecision, only : field_r
-  use modtimer
-  use modmicrodata, only: qrbase, qrroof, qcbase, qcroof, nc_0, qcmin
+  use modtimer,     only: timer_tic, timer_toc
+  use modmicrodata, only: qrbase, qrroof, qcbase, qcroof, nc_0, qcmin, l_sb, &
+                          l_sedc, l_rain, l_mur_cst, l_lognormal, mur_cst, Nc_0, &
+                          sig_g, sig_gr
   use bulkmicro_sb, only: autoconversion_sb, &
                           accretion_sb, evaporation_sb, sedimentation_rain_sb
   use bulkmicro_kk, only: autoconversion_kk, &
                           accretion_kk, evaporation_kk, sedimentation_rain_kk
   use modbulkmicro_stat, only: init_bulkmicro_stat, bulkmicro_stat
+  use modmpi, only: myid, D_MPI_BCAST, comm3d, mpierr, print_info_stderr
   implicit none
   private
 
   character(len=*), parameter :: modname = 'modbulkmicro'
 
   public initbulkmicro, exitbulkmicro, bulkmicro
+  public :: bulkmicro_read_namelist
 
   real :: gamma25
   real :: gamma3
   real :: gamma35
   contains
+
+  subroutine bulkmicro_read_namelist(nml_filename)
+
+    character(len=*), intent(in) :: nml_filename
+    
+    character(len=*), parameter :: routine = modname//"/bulkmicro_read_namelist"
+    integer :: ierr
+    
+    namelist /nambulkmicro/ l_sb, l_sedc, l_rain, l_mur_cst, l_lognormal, &
+                            mur_cst, Nc_0, sig_g, sig_gr
+
+    if (myid == 0) then
+      open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
+      read(ifnamopt, nambulkmicro, iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'nambulkmicro')
+      write(6, nambulkmicro)
+      close(ifnamopt)
+    end if
+
+    call D_MPI_BCAST(l_sb, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(l_sedc, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(l_rain, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(l_mur_cst, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(l_lognormal, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(mur_cst, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(Nc_0, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(sig_g, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(sig_gr, 1, 0, comm3d, mpierr)
+
+    !$acc update device(l_mur_cst, mur_cst)
+
+    if (Nc_0 < 1e4) then
+      ! Check that Nc_0 is reasonable.
+      ! It's easy to give it in units of /cm3 by mistake,
+      ! and when run with RRTMG that results in a hard-to-understand crash
+      ! in the short-wave scheme
+      call print_info_stderr(routine, &
+        'Nc_0 is suspiciously small (unit should be number per m3).')
+      error stop 
+    end if
+
+  end subroutine bulkmicro_read_namelist
 
 !> Initializes and allocates the arrays
   subroutine initbulkmicro

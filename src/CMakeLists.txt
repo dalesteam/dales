@@ -23,7 +23,7 @@ set( dales_srcs
 	modbulkmicro3_point.f90
 	modbulkmicrostat.f90
 	modbulkmicro_data.f90
-    modbulkmicro_stat.f90
+  modbulkmicro_stat.f90
 	modbulkmicrostat3.f90
 	modcanopy.f90
 	modcape.f90
@@ -59,6 +59,7 @@ set( dales_srcs
 	modmpi.f90
 	modmpiinterface.f90
 	modmsebudg.f90
+	modnamelist.f90
 	modnetcdf.f90
 	modnudge.f90
 	modnudgeboundary.f90

@@ -31,83 +31,85 @@
 
 
 module modmicrophysics
+  use modglobal,     only: ifnamopt, checknamelisterror
+  use modbulkmicro,  only: initbulkmicro, bulkmicro_read_namelist
+  use modbulkmicro3, only: initbulkmicro3, bulkmicro3_read_namelist
+  use modmicrodata,  only: imicro, lstat
+  use modsimpleice,  only: initsimpleice, simpleice_read_namelist
+  use modsimpleice2, only: initsimpleice2
+  use modmpi,        only: myid, D_MPI_BCAST, comm3d, print_info_stderr
 
 implicit none
 
+  private
+
+  public :: microphysics_read_namelist
+  public :: initmicrophysics
+  public :: microsources
+  public :: exitmicrophysics
+
+  character(len=*), parameter :: modname = 'modmicrophysics'
+
+  integer, parameter :: &
+    imicro_none = 0,    & !< No microphysics.
+    imicro_drizzle = 1, & !< Drizzle microphyics.
+    imicro_bulk = 2,    & !< Double-moment warm microphysics.
+    imicro_sice = 5,    & !< Single-moment mixed-phase microphysics.
+    imicro_sice2 = 6,   & !< Single-moment mixed-phase microphysics (alternative implementation).
+    imicro_user = 10,   & !< User-provided microphysics.
+    imicro_bulk3 = 11     !< Double-moment mixed-phase microphysics.
+
+  namelist /nammicrophysics/ imicro, lstat
+
 contains
-  subroutine initmicrophysics
-    use modmpi,   only :myid,comm3d,D_MPI_BCAST
-    use modglobal,only :ifnamopt,fname_options,nsv,checknamelisterror,lfast_thermo
-    use modbulkmicro, only : initbulkmicro
-    use modsimpleice, only : initsimpleice
-    use modsimpleice2, only : initsimpleice2
-    use modmicrodata, only : imicro, imicro_drizzle, imicro_bulk, imicro_bin, imicro_user,&
-                             imicro_sice, imicro_sice2, imicro_none, imicro_bulk3, &
-                             l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,l_warm,mur_cst, &
-                             Nc_0, sig_g, sig_gr, courantp, lstat
-    use modbulkmicro3, only : initbulkmicro3 !#sb3
-    implicit none
+
+  !> Read microphysics namelist entry and broadcast settings.
+  subroutine microphysics_read_namelist(nml_filename)
+
+    character(len=*), intent(in) :: nml_filename
+
     integer :: ierr
-    namelist/NAMMICROPHYSICS/ &
-    imicro,l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,l_warm,mur_cst, &     ! OG
-    Nc_0, sig_g, sig_gr, &                                ! SdeR
-    courantp, lstat                                              ! FJ
 
-    if(myid==0)then
-      open(ifnamopt,file=fname_options,status='old',iostat=ierr)
-      read (ifnamopt,NAMMICROPHYSICS,iostat=ierr)
-      call checknamelisterror(ierr, ifnamopt, 'NAMMICROPHYSICS')
-      write(6 ,NAMMICROPHYSICS)
+    if (myid == 0) then
+      open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
+      read(ifnamopt, nammicrophysics, iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'nammicrophysics')
       close(ifnamopt)
-
-      if(imicro == imicro_bulk3) then
-         if (.not. lfast_thermo) then
-            STOP 'Bulkmicro 3 requires lfast_thermo (special treatment, liquid-only saturation adjustment)'
-            ! Bulkmicro 3 special treatment of saturation adjustment is currently only impmemented in the fast_thermo scheme
-         end if
       end if
 
-      if (Nc_0 < 1e4) then
-         ! Check that Nc_0 is reasonable.
-         ! It's easy to give it in units of /cm3 by mistake,
-         ! and when run with RRTMG that results in a hard-to-understand crash
-         ! in the short-wave scheme
-         STOP 'Nc_0 is suspiciously small (unit should be number per m3).'
-      end if
-   end if
+    call D_MPI_BCAST(imicro, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(lstat, 1, 0, comm3d, ierr)
 
-    call D_MPI_BCAST(imicro,   1, 0,comm3d,ierr)
-    call D_MPI_BCAST(l_sb,     1, 0,comm3d,ierr)
-    call D_MPI_BCAST(l_rain,   1, 0,comm3d,ierr)
-    call D_MPI_BCAST(l_sedc,   1, 0,comm3d,ierr)
-    call D_MPI_BCAST(l_mur_cst,1, 0,comm3d,ierr)
-    call D_MPI_BCAST(l_berry,  1, 0,comm3d,ierr)
-    call D_MPI_BCAST(l_graupel,1, 0,comm3d,ierr)
-    call D_MPI_BCAST(l_warm,   1, 0,comm3d,ierr)
-    call D_MPI_BCAST(mur_cst,  1, 0,comm3d,ierr)
-    call D_MPI_BCAST(Nc_0,     1, 0,comm3d,ierr)
-    call D_MPI_BCAST(sig_g,    1, 0,comm3d,ierr)
-    call D_MPI_BCAST(sig_gr,   1, 0,comm3d,ierr)
-    call D_MPI_BCAST(courantp, 1, 0,comm3d,ierr)
-    call D_MPI_BCAST(lstat,    1, 0,comm3d,ierr)
+    ! Read namelist of selected microphysics scheme
+    select case(imicro)
+      case(imicro_bulk)
+        call bulkmicro_read_namelist(nml_filename)
+      case(imicro_sice, imicro_sice2)
+        call simpleice_read_namelist(nml_filename)
+      case(imicro_bulk3)
+        call bulkmicro3_read_namelist(nml_filename) 
+    end select
 
-    !$acc update device(l_mur_cst, mur_cst)
+  end subroutine microphysics_read_namelist
 
-    select case (imicro)
-    case(imicro_none)
-    case(imicro_drizzle)
+  subroutine initmicrophysics()
+
+    character(len=*), parameter :: routine = modname//'/init_microphysics'
+
+    select case(imicro)
     case(imicro_bulk)
        call initbulkmicro
-    case(imicro_bin)
-!       call initbinmicro
     case(imicro_sice)
        call initsimpleice
     case(imicro_sice2)
        call initsimpleice2
-    case(imicro_bulk3)  !#sb3
-       call initbulkmicro3 !#sb3
-    case(imicro_user)
+      case(imicro_bulk3)
+        call initbulkmicro3
+      case default
+        call print_info_stderr(modname, 'invalid option selected for imicro')
+        error stop
     end select
+
   end subroutine initmicrophysics
 
 
