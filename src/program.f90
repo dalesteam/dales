@@ -106,7 +106,7 @@ program DALES
   use modtimedep,        only : timedep
   use modboundary,       only : boundary, grwdamp! JvdD ,tqaver
   use modthermodynamics, only : thermodynamics
-  use modmicrophysics,   only : microsources
+  use modmicrophysics,   only : microphysics
   use modsurface,        only : surface
   use modlsm,            only : lsm
   use moddrydeposition,  only : drydep      
@@ -297,7 +297,7 @@ program DALES
 
     call lstend !large scale forcings
     call samptend(tend_ls)
-    call microsources !Drizzle etc.
+    call microphysics
     call samptend(tend_micro)
     call emission
 

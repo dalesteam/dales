@@ -45,7 +45,7 @@ implicit none
 
   public :: microphysics_read_namelist
   public :: initmicrophysics
-  public :: microsources
+  public :: microphysics
   public :: exitmicrophysics
 
   character(len=*), parameter :: modname = 'modmicrophysics'
@@ -112,35 +112,20 @@ contains
 
   end subroutine initmicrophysics
 
-
   subroutine microphysics
-    use modmicrodata, only : imicro, imicro_none, imicro_drizzle, imicro_bulk, imicro_bin, imicro_user
-    implicit none
-    select case (imicro)
-    case(imicro_none)
-    case(imicro_drizzle)
-    case(imicro_bulk)
-!       call bulkmicro
-    case(imicro_bin)
-!       call binmicro
-    case(imicro_user)
-    end select
-  end subroutine microphysics
-
-  subroutine microsources
    use moduser,      only : micro_user
    use modbulkmicro, only : bulkmicro
    use modsimpleice, only : simpleice
    use modsimpleice2, only : simpleice2
-   use modmicrodata, only : imicro, imicro_drizzle, imicro_bulk, imicro_bin, &
-                            imicro_sice, imicro_sice2, imicro_user, imicro_none, &
-                            imicro_bulk3
+   use modmicrodata, only : imicro
    use modbulkmicro3, only : bulkmicro3 !#sb3
    use modtimer
 !     use modbinmicro,  only : binmicrosources
     implicit none
 
-    call timer_tic('modmicrophysics/microsources', 0)
+    character(len=*), parameter :: routine = modname//'/microphysics'
+
+    call timer_tic(routine, 0)
 
     select case (imicro)
     case(imicro_none)
@@ -148,8 +133,6 @@ contains
       call drizzle
     case(imicro_bulk)
       call bulkmicro
-    case(imicro_bin)
-!       call binmicrosources
     case(imicro_sice)
        call simpleice
     case(imicro_sice2)
@@ -160,9 +143,9 @@ contains
       call micro_user
     end select
 
-    call timer_toc('modmicrophysics/microsources')
+    call timer_toc(routine)
 
-  end subroutine microsources
+  end subroutine microphysics
 
   subroutine exitmicrophysics
     use modbulkmicro, only : exitbulkmicro
