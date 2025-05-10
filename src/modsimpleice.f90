@@ -92,9 +92,9 @@ module modsimpleice
 
   end subroutine simpleice_read_namelist
 
-!> Initializes and allocates the arrays
+  !> Initializes and allocates the arrays
   subroutine initsimpleice
-    use modmicrodata, only : qr, qrp, nr, nrp, thlpmcr, qtpmcr, sed_qr, qr_spl, &
+    use modsimpleice_data, only : qr, qrp, thlpmcr, qtpmcr, sed_qr, qr_spl, &
                              ilratio, rsgratio, sgratio, &
                              lambdar, lambdas, lambdag, &
                              precep, &
@@ -110,8 +110,6 @@ module modsimpleice
 
     allocate (qr(2:i1,2:j1,k1)        & ! qr (total precipitation!) converted from a scalar variable
              ,qrp(2:i1,2:j1,k1)       & ! qr tendency due to microphysics only, for statistics
-             ,nr(2:i1,2:j1,k1)        & ! Nr converted from a scalar variable
-             ,nrp(2:i1,2:j1,k1)       & ! Nr tendency due to microphysics only, for statistics
              ,thlpmcr(2:i1,2:j1,k1)   & ! thl tendency due to microphysics only, for statistics
              ,qtpmcr(2-ih:i1+ih,2-jh:j1+jh,k1) & ! qt tendency due to microphysics only, for statistics. Ghost cells for modvarbudget.
              ,sed_qr(2:i1,2:j1,k1)    & ! sedimentation rain droplets mixing ratio
@@ -129,8 +127,6 @@ module modsimpleice
     allocate(ccrz(k1),ccsz(k1),ccgz(k1))
     allocate(ccrz2(k1),ccsz2(k1),ccgz2(k1))
 
-    nrp=0
-    nr=0
     precep=0
 
      gamb1r=lacz_gamma(bbr+1.0)
@@ -150,13 +146,13 @@ module modsimpleice
 
 !> Cleaning up after the run
   subroutine exitsimpleice
-    use modmicrodata, only : nr,nrp,qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl, &
+    use modsimpleice_data, only : qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl, &
                              ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag, &
                              precep, &
                              ccrz,ccsz,ccgz,&
                              ccrz2,ccsz2,ccgz2
     implicit none
-    deallocate(nr,nrp,qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag)
+    deallocate(qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag)
     deallocate(precep)
     deallocate(ccrz,ccsz,ccgz)
     deallocate(ccrz2,ccsz2,ccgz2)
@@ -168,7 +164,7 @@ module modsimpleice
     use modglobal, only : i1,j1,kmax,k1,rdt,rk3step,timee,tup,tdn
     use modfields, only : sv0,svm,svp,qtp,thlp,rhof,tmp0,rhobf
     use modbulkmicrostat, only : bulkmicrotend
-    use modmicrodata, only : iqr, qrp, qtpmcr, thlpmcr, delt, &
+    use modsimpleice_data, only : iqr, qrp, qtpmcr, thlpmcr, delt, &
                              qrmin, qr, &
                              ilratio, rsgratio, sgratio, &
                              aag, aar, aas, bbg, bbr, bbs, ccg, ccr, ccs, &
@@ -340,7 +336,7 @@ module modsimpleice
   subroutine autoconvert
     use modglobal, only : i1,j1,kmax,rlv,cp,tmelt
     use modfields, only : ql0,exnf,rhof,tmp0
-    use modmicrodata, only : betakessi, delt, l_berry, Nc_0, qli0, qll0, timekessl, &
+    use modsimpleice_data, only : betakessi, delt, l_berry, Nc_0, qli0, qll0, timekessl, &
                              qrp, qtpmcr, thlpmcr, ilratio, qcmin
     implicit none
     character(len=*), parameter :: routine = modname//"/autoconvert"
@@ -396,7 +392,7 @@ module modsimpleice
   subroutine accrete
     use modglobal, only : i1,j1,kmax,rlv,cp,pi
     use modfields, only : ql0,exnf,rhof
-    use modmicrodata, only : ddg, ddr, dds, aag, aar, aas, bbg, bbr, bbs, delt, &
+    use modsimpleice_data, only : ddg, ddr, dds, aag, aar, aas, bbg, bbr, bbs, delt, &
                              lambdag, lambdar, lambdas, ccgz, ccrz, ccsz, &
                              ceffgi, ceffgl, ceffri, ceffrl, ceffsi, ceffsl, &
                              qr, qrp, qtpmcr, thlpmcr, &
