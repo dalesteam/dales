@@ -415,7 +415,7 @@ subroutine calc_canopy_resistance_js
               else if (trim(tile(ilu)%lushort) == 'bs' .or. trim(tile(ilu)%lushort) == 'brn') then !TODO; special function for bare soil
                 tile(ilu)%rs(i,j) = tile(ilu)%rs_min(i,j) / f2b(i,j)
               else if (ilu == ilu_ws) then
-                tile(ilu)%rs(i,j) = 0
+                tile(ilu)%rs(i,j) = 10
               else
                 tile(ilu)%rs(i,j) = tile(ilu)%rs_min(i,j)
               endif 
