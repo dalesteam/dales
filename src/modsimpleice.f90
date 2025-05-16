@@ -62,6 +62,8 @@ module modsimpleice
 
     character(len=*), intent(in) :: nml_filename
 
+    character(len=*), parameter :: routine = modname//'simpleice_read_namelist'
+
     integer :: ierr
 
     if (myid == 0) then
