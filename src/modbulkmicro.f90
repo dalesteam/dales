@@ -163,7 +163,6 @@ module modbulkmicro
     !$acc exit data delete(Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, qtpmcr)
 
     deallocate(Nr,Nrp,qr,qrp,thlpmcr,qtpmcr)
-    deallocate(Dvr,xr,mur,lbdr)
     deallocate(precep)
 
   end subroutine exitbulkmicro
