@@ -17,11 +17,12 @@
 !
 !> Kernels for Seifert-Beheng microphysics
 module bulkmicro_sb
-  use modglobal,    only: ih, jh, i1, j1, k1, nsv, rlv, cp, eps1, pi, rv, &
-                          mygamma21, mygamma251
-  use modmicrodata, only: Nc_0, pirhow, qrmin, iqr, inr, rhow, qcmin, l_mur_cst, mur_cst
-  use modprecision, only: field_r
-  use modtimer,     only: timer_tic, timer_toc
+  use modglobal,         only: ih, jh, i1, j1, k1, nsv, rlv, cp, eps1, pi, rv, &
+                               mygamma21, mygamma251, pirhow, rhow
+  use modmicrodata,      only: iqr, inr, Nc_0
+  use modbulkmicro_data, only: qrmin, qcmin, l_mur_cst, mur_cst, sig_gr
+  use modprecision,      only: field_r
+  use modtimer,          only: timer_tic, timer_toc
 
   implicit none
 
@@ -57,7 +58,6 @@ module bulkmicro_sb
     Kt = 2.5e-2,      & !< Conductivity of heat [J/(sKm)].
     nu_a = 1.41e-5,   & !< Kinematic viscosity of air.
     Sc_num = 0.71,    & !< Schmidt number.
-    sig_gr = 1.5,     & !< GSD of rain drop DSD.
     wfallmax = 9.9,   & !< Terminal velocity (?)
     xcmin = 4.2e-15,  & !< Min mean mass of cw (D = 2.0e-6 m).
     xcmax = 2.6e-10,  & !< Max mean mass of cw.

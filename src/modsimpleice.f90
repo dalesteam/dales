@@ -31,7 +31,8 @@ module modsimpleice
   use modglobal,    only: ifnamopt, checknamelisterror
   use modmpi,       only: myid, D_MPI_BCAST, comm3d, mpierr, print_info_stderr
   use modprecision, only : field_r
-  use modsimpleice_data, only: l_berry, l_graupel, l_warm, l_mp, l_rain, Nc_0, &
+  use modmicrodata, only: Nc_0
+  use modsimpleice_data, only: l_berry, l_graupel, l_warm, l_mp, l_rain, &
                                evapfactor, courantp
   use modtimer
   implicit none
@@ -96,11 +97,11 @@ module modsimpleice
 
   !> Initializes and allocates the arrays
   subroutine initsimpleice
-    use modsimpleice_data, only : qr, qrp, thlpmcr, qtpmcr, sed_qr, qr_spl, &
+    use modmicrodata, only: qtpmcr, thlpmcr, iqr, precep
+    use modsimpleice_data, only : qr, qrp, sed_qr, qr_spl, &
                              ilratio, rsgratio, sgratio, &
                              lambdar, lambdas, lambdag, &
-                             precep, &
-                             ccrz, ccsz, ccgz, ccrz2, ccsz2, ccgz2, bbg, bbr, bbs, ddg, ddr, dds, iqr
+                             ccrz, ccsz, ccgz, ccrz2, ccsz2, ccgz2, bbg, bbr, bbs, ddg, ddr, dds
 
     use modglobal, only : ih,i1,jh,j1,k1,lacz_gamma
     use modtracers, only: add_tracer
@@ -148,9 +149,9 @@ module modsimpleice
 
 !> Cleaning up after the run
   subroutine exitsimpleice
-    use modsimpleice_data, only : qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl, &
+    use modmicrodata, only: qtpmcr, thlpmcr, precep
+    use modsimpleice_data, only : qr,qrp,sed_qr,qr_spl, &
                              ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag, &
-                             precep, &
                              ccrz,ccsz,ccgz,&
                              ccrz2,ccsz2,ccgz2
     implicit none
@@ -166,7 +167,8 @@ module modsimpleice
     use modglobal, only : i1,j1,kmax,k1,rdt,rk3step,timee,tup,tdn
     use modfields, only : sv0,svm,svp,qtp,thlp,rhof,tmp0,rhobf
     use modbulkmicrostat, only : bulkmicrotend
-    use modsimpleice_data, only : iqr, qrp, qtpmcr, thlpmcr, delt, &
+    use modmicrodata, only: delt, qtpmcr, thlpmcr, iqr
+    use modsimpleice_data, only : qrp, &
                              qrmin, qr, &
                              ilratio, rsgratio, sgratio, &
                              aag, aar, aas, bbg, bbr, bbs, ccg, ccr, ccs, &
@@ -338,8 +340,9 @@ module modsimpleice
   subroutine autoconvert
     use modglobal, only : i1,j1,kmax,rlv,cp,tmelt
     use modfields, only : ql0,exnf,rhof,tmp0
-    use modsimpleice_data, only : betakessi, delt, l_berry, Nc_0, qli0, qll0, timekessl, &
-                             qrp, qtpmcr, thlpmcr, ilratio, qcmin
+    use modmicrodata, only: qtpmcr, thlpmcr, delt, Nc_0
+    use modsimpleice_data, only : betakessi, l_berry, qli0, qll0, timekessl, &
+                             qrp, ilratio, qcmin
     implicit none
     character(len=*), parameter :: routine = modname//"/autoconvert"
     real(field_r) :: qll,qli,ddisp,lwc,autl,tc,times,auti,aut
@@ -394,10 +397,11 @@ module modsimpleice
   subroutine accrete
     use modglobal, only : i1,j1,kmax,rlv,cp,pi
     use modfields, only : ql0,exnf,rhof
-    use modsimpleice_data, only : ddg, ddr, dds, aag, aar, aas, bbg, bbr, bbs, delt, &
+    use modmicrodata, only: qtpmcr, thlpmcr, delt
+    use modsimpleice_data, only : ddg, ddr, dds, aag, aar, aas, bbg, bbr, bbs, &
                              lambdag, lambdar, lambdas, ccgz, ccrz, ccsz, &
                              ceffgi, ceffgl, ceffri, ceffrl, ceffsi, ceffsl, &
-                             qr, qrp, qtpmcr, thlpmcr, &
+                             qr, qrp, &
                              ilratio, rsgratio, sgratio, qcmin, qrmin
     implicit none
     character(len=*), parameter :: routine = modname//"/accrete"
@@ -443,10 +447,11 @@ module modsimpleice
   subroutine evapdep
     use modglobal, only : i1,j1,kmax,rlv,cp,pi
     use modfields, only : qt0,ql0,exnf,rhof,tmp0,qvsl,qvsi,esl
-    use modmicrodata, only : betag, betar, betas, ddg, ddr, dds, delt, &
+    use modmicrodata, only: qtpmcr, thlpmcr, delt
+    use modsimpleice_data, only : betag, betar, betas, ddg, ddr, dds, &
                              n0rg, n0rr, n0rs, &
                              ccrz2, ccsz2, ccgz2, lambdag, lambdar, lambdas, &
-                             evapfactor, qr, qrp, qtpmcr, thlpmcr, qrmin
+                             evapfactor, qr, qrp, qrmin
     implicit none
     character(len=*), parameter :: routine = modname//"/evapdep"
     real(field_r) :: ssl,ssi,ventr,vents,ventg,&
@@ -492,13 +497,14 @@ module modsimpleice
   subroutine precipitate
     use modglobal, only : i1,j1,kmax,dzf,dzh
     use modfields, only : rhof,rhobf
-    use modmicrodata, only : qr_spl, sed_qr, precep, qr, qrp, &
+    use modmicrodata, only: precep, qtpmcr, thlpmcr, delt
+    use modsimpleice_data, only : qr_spl, sed_qr, qr, qrp, &
                              aag, aas, aar, bbg, bbs, bbr, ddg, dds, ddr, n0rg, n0rs, n0rr, &
                              qrmin, &
                              lambdag, lambdar, lambdas, &
                              ccgz, ccrz, ccsz, &
                              sgratio, rsgratio, &
-                             courantp, delt, qrmin
+                             courantp
     implicit none
     character(len=*), parameter :: routine = modname//"/precipitate"
     integer :: i,j,k,jn

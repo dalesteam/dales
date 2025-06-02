@@ -31,16 +31,12 @@ module modbulkmicro_data
 
   real(field_r) :: &
     mur_cst = 5,   & !< Mu value if l_mur_cst = .true.
-    Nc_0 = 70E6,   & !< Initial cloud droplet number [1/m^3].
-    sig_g = 1.34,  & !< GSD of cloud droplet DSD.
     sig_gr = 1.5     !< GSD of rain droplet DSD.
 
   !$acc declare create(mur_cst)
 
   integer :: &
     iNc,     & !< Tracer index of cloud droplet number concentration.
-    iNr,     & !< Tracer index of rain droplet number concentration.
-    iqr,     & !< Tracer index of rain specific mixing ratio.
     qcbase,  & !< Lowest model layer with cloud.
     qcroof,  & !< Highest model layer with cloud.
     qrbase,  & !< Lowest model layer with rain.
@@ -54,10 +50,5 @@ module modbulkmicro_data
     Ncp(:,:,:),             & !< Tendency of cloud droplet number concentration.
     Nrp(:,:,:),             & !< Tendency of rain droplet number concentration.
     qrp(:,:,:)                !< Tendency of rain specific mixing ratio.
-
-  real(field_r), allocatable :: &
-    thlpmcr(:,:,:),         & !< Microphysical tendency of theta_l.
-    qtpmcr(:,:,:),          & !< Microphysical tendency of humidity.
-    precep(:,:,:)             !< Precipitation [m/s].
 
 end module modbulkmicro_data

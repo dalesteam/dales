@@ -24,7 +24,8 @@ module moddrizzle
 
   use modglobal,         only: i1, j1, kmax, rlv, cp, dzf, pi, rhow
   use modfields,         only: qtp, ql0, thlp, rhof, exnf
-  use modbulkmicro_data, only: c_st, Nc_0, sig_g
+  use modmicrodata,      only: Nc_0, sig_g
+  use modbulkmicro_data, only: c_st
   use modprecision,      only: field_r
 
 contains

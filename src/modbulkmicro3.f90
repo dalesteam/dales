@@ -82,6 +82,7 @@ module modbulkmicro3
      ,c_ccn, n_clmax                                         & ! C_CCN parameter, used when l_c_ccn
      ,kappa_ccn, x_cnuc,sat_max                              & ! parameters for liquid cloud nucleation
      ,Nc0, xc0_min, Nccn0                                    & ! setting of initial clouds
+     ,sig_gr                                                 & ! shape parameter of rain drop DSD
      ,l_statistics, l_tendencies                               ! output
 
     if(myid==0) then
@@ -183,6 +184,7 @@ module modbulkmicro3
      call D_MPI_BCAST(Nc0,               1, 0,comm3d,ierr)
      call D_MPI_BCAST(xc0_min,           1, 0,comm3d,ierr)
      call D_MPI_BCAST(Nccn0,             1, 0,comm3d,ierr)
+     call D_MPI_BCAST(sig_gr,            1, 0,comm3d,ierr)
 
 
   end subroutine bulkmicro3_read_namelist

@@ -49,9 +49,10 @@ module modbulkmicro
                           ifnamopt, checknamelisterror
   use modprecision, only : field_r
   use modtimer,     only: timer_tic, timer_toc
-  use modmicrodata, only: qrbase, qrroof, qcbase, qcroof, nc_0, qcmin, l_sb, &
-                          l_sedc, l_rain, l_mur_cst, l_lognormal, mur_cst, Nc_0, &
-                          sig_g, sig_gr, c_St
+  use modmicrodata, only: Nc_0, sig_g, qtpmcr, thlpmcr
+  use modbulkmicro_data, only: qrbase, qrroof, qcbase, qcroof, qcmin, l_sb, &
+                          l_sedc, l_rain, l_mur_cst, l_lognormal, mur_cst, &
+                          sig_gr, c_St
   use bulkmicro_sb, only: autoconversion_sb, &
                           accretion_sb, evaporation_sb, sedimentation_rain_sb
   use bulkmicro_kk, only: autoconversion_kk, &
@@ -79,7 +80,7 @@ module modbulkmicro
     integer :: ierr
     
     namelist /nambulkmicro/ l_sb, l_sedc, l_rain, l_mur_cst, l_lognormal, &
-                            mur_cst, Nc_0, sig_g, sig_gr
+                            mur_cst, sig_gr
 
     if (myid == 0) then
       open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
@@ -95,8 +96,6 @@ module modbulkmicro
     call D_MPI_BCAST(l_mur_cst, 1, 0, comm3d, mpierr)
     call D_MPI_BCAST(l_lognormal, 1, 0, comm3d, mpierr)
     call D_MPI_BCAST(mur_cst, 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(Nc_0, 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(sig_g, 1, 0, comm3d, mpierr)
     call D_MPI_BCAST(sig_gr, 1, 0, comm3d, mpierr)
 
     !$acc update device(l_mur_cst, mur_cst)
@@ -116,10 +115,8 @@ module modbulkmicro
 !> Initializes and allocates the arrays
   subroutine initbulkmicro
     use modglobal, only : i1,j1,k1,ih,jh
-    use modmicrodata, only : lacz_gamma, Nr, Nrp, qr, qrp, thlpmcr, &
-                             qtpmcr, Dvr, xr, mur, &
-                             lbdr, iqr, inr, &
-                             precep, lstat
+    use modmicrodata, only: iqr, inr, lstat, precep
+    use modbulkmicro_data, only : Nr, Nrp, qr, qrp 
     use modtracers,   only: add_tracer
     implicit none
 
@@ -155,9 +152,8 @@ module modbulkmicro
   !*********************************************************************
   ! subroutine exitbulkmicro
   !*********************************************************************
-    use modmicrodata, only : Nr,Nrp,qr,qrp,thlpmcr,qtpmcr, &
-                             Dvr,xr,mur,lbdr, &
-                             precep
+    use modmicrodata,      only : precep, qtpmcr, thlpmcr
+    use modbulkmicro_data, only : Nr,Nrp,qr,qrp
     implicit none
 
     !$acc exit data delete(Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, qtpmcr)
@@ -173,11 +169,11 @@ module modbulkmicro
     use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof, esl, qt0, qvsl, tmp0
     use modbulkmicrostat, only : bulkmicrotend
     use modmpi,    only : myid
-    use modmicrodata, only : Nr, qr, Nrp, qrp, thlpmcr, qtpmcr, delt, &
+    use modbulkmicro_data, only : Nr, qr, Nrp, qrp,  &
                              l_sedc, l_mur_cst, l_lognormal, l_rain, &
                              qrmin, qcmin, &
-                             mur_cst, inr, iqr, l_sb, Dvr, xr, lbdr, mur, &
-                             precep, lstat
+                             mur_cst, l_sb
+    use modmicrodata, only: iqr, inr, lstat, precep, delt, qtpmcr, thlpmcr
     use modmicroutil, only: zero_field, sum_fields
     use modstat_profiles, only: sample_field
     implicit none

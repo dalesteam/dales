@@ -69,26 +69,15 @@ module modsimpleice_data
     l_rain                !< Switch for rain.
 
   real(field_r) ::  &
-    Nc_0,           & !< Initial cloud droplet number [1/m^3].
     evapfactor = 1, & !< Prefactor to reduce evaporation.
     courantp = 1      !< CFLmax-criterion for precipitation.
-  
-  ! Internal data
-  integer :: &
-    iqr !< Tracer index of rain specific mixing ratio.
 
-  real(field_r) :: &
-    delt             !< Time step size
- 
   ! Arrays
   real(field_r), allocatable :: &
     qr(:,:,:),                  & !< Total precipitation specific mixing ratio.
     qrp(:,:,:),                 & !< Tendency of precipitation specific mixing ratio.
     qr_spl(:,:,:),              &
-    qtpmcr(:,:,:),              & !< Microphysical tendency of humidity.
-    thlpmcr(:,:,:),             & !< Microphysical tendency of theta_l.
     sed_qr(:,:,:),              &
-    precep(:,:,:),              & !< Precipitation [m/s]
     ilratio(:,:,:),             &
     rsgratio(:,:,:),            &
     sgratio(:,:,:),             &

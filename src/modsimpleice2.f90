@@ -59,12 +59,12 @@ module modsimpleice2
 !> Initializes and allocates the arrays
   subroutine initsimpleice2
     use modglobal, only : ih,i1,jh,j1,k1,lacz_gamma
-    use modsimpleice_data, only : qr, qrp, thlpmcr, qtpmcr, sed_qr, qr_spl, &
+    use modmicrodata, only: qtpmcr, thlpmcr, iqr, precep
+    use modsimpleice_data, only : qr, qrp, sed_qr, qr_spl, &
                              ilratio, rsgratio, sgratio, &
                              lambdar, lambdas, lambdag, &
-                             precep, &
                              ccrz,ccsz,ccgz,ccrz2,ccsz2,ccgz2,&
-                             bbg,bbr,bbs,ddg,ddr,dds, iqr
+                             bbg,bbr,bbs,ddg,ddr,dds
     use modtracers, only: add_tracer
     implicit none
     integer:: i, j, k
@@ -112,9 +112,9 @@ module modsimpleice2
 
 !> Cleaning up after the run
   subroutine exitsimpleice2
-    use modsimpleice_data, only : qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl, &
+    use modmicrodata, only: qtpmcr, thlpmcr, precep
+    use modsimpleice_data, only : qr,qrp,sed_qr,qr_spl, &
                              ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag, &
-                             precep, &
                              ccrz,ccsz,ccgz,ccrz2,ccsz2,ccgz2
     implicit none
 
@@ -135,14 +135,15 @@ module modsimpleice2
   subroutine simpleice2
     use modglobal, only : i1,ih,j1,jh,k1,rdt,rk3step,timee,rlv,cp,tup,tdn,pi,tmelt,kmax,dzf,dzh
     use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhof,tmp0,rhobf,qvsl,qvsi,esl,surf_rain
+    use modmicrodata, only: delt, qtpmcr, thlpmcr, Nc_0, iqr, precep
     use modsimpleice_data, only : sed_qr,qrp,&
                              aag,aar,aas,bbg,bbr,bbs,betag,betar,betas,ccg,ccr,ccs,&
                              ccgz2,ccrz2,ccsz2,ddg,ddr,dds,&
                              ccgz,ccrz,ccsz,&
                              n0rg,n0rr,n0rs,&
-                             betakessi,ceffgl,ceffri,ceffrl,ceffsi,ceffsl,ceffgi,courantp,delt,&
-                             qr,qtpmcr,thlpmcr,evapfactor,iqr,n0rg,n0rs,Nc_0,&
-                             qr_spl,precep,&
+                             betakessi,ceffgl,ceffri,ceffrl,ceffsi,ceffsl,ceffgi,courantp,&
+                             qr,evapfactor,n0rg,n0rs,&
+                             qr_spl,&
                              qcmin,qrmin,qli0,qll0,tdnrsg,tdnsg,tuprsg,tupsg,&
                              l_berry,l_graupel,l_rain,l_warm,timekessl
 
