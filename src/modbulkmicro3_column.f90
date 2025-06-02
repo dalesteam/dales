@@ -1,6 +1,7 @@
 module modbulkmicro3_column
+  use modglobal,    only: pirhow
   use modprecision, only: field_r
-  use modmicrodata
+  use modmicrodata, only: delt
   use modmicrodata3
   implicit none
   private
