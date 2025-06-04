@@ -1,6 +1,5 @@
 module modbulkmicro3_column
   use modglobal,    only: pirhow
-  use modprecision, only: field_r
   use modmicrodata, only: delt
   use modmicrodata3
   implicit none
@@ -841,7 +840,7 @@ real function sed_flux3(Nin,Din,sig2,Ddiv,nnn)
   implicit none
 
   real, intent(in)    :: Nin, Din
-  real(field_r), intent(in)    :: Ddiv, sig2
+  real, intent(in)    :: Ddiv, sig2
   integer, intent(in) :: nnn
 
   ! para. def. lognormal DSD (sig2 = ln^2 sigma_g), D sep. droplets from drops
@@ -899,7 +898,7 @@ real function liq_cont3(Nin,Din,sig2,Ddiv,nnn)
   implicit none
 
   real, intent(in)    :: Nin, Din
-  real(field_r), intent(in) :: Ddiv, sig2
+  real, intent(in) :: Ddiv, sig2
   integer, intent(in) :: nnn
 
   ! para. def. lognormal DSD (sig2 = ln^2 sigma_g), D sep. droplets from drops
@@ -931,7 +930,7 @@ end function liq_cont3
 real function erfint3(beta, D, D_min, D_max, sig2,nnn )
   implicit none
   real, intent(in)    :: beta, D, D_min, D_max
-  real(field_r), intent(in) :: sig2
+  real, intent(in) :: sig2
   integer, intent(in) :: nnn
 
   real, parameter :: eps = 1e-10      &
