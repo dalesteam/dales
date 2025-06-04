@@ -12,7 +12,7 @@ set( dales_srcs
 	daleslib.f90
 	fftnew.f90
 	go.f90
-	le_drydepos_gas_depac.f90
+	le_drydepos_gas.f90
 	modAGScross.f90
 	modadvection.f90
 	modboundary.f90
@@ -49,6 +49,8 @@ set( dales_srcs
 	modgpumpiinterface.f90
 	modheterostats.f90
 	modhypre.f90
+	modibm.f90
+	modibmdata.f90
 	modlsm.f90
 	modlsmcrosssection.f90
 	modlsmdata.f90
@@ -84,6 +86,8 @@ set( dales_srcs
 	modsimpleice2.f90
 	modsimpleice_data.f90
 	modslabaverage.f90
+	modspraying.f90
+	modsprayingdata.f90
 	modstartup.f90
 	modstat_nc.f90
 	modstat_profiles.f90

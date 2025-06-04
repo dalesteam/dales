@@ -188,8 +188,8 @@ contains
             call ncinfo(ncname3(12,:),'f1', 'f1(SWD) function vegetation resistance', 's/m', 'tt0t')
             call ncinfo(ncname3(13,:),'f2_b', 'f2(theta) function soil resistance', 's/m', 'tt0t')
             if (lags) then
-              call ncinfo(ncname3(14,:),'an_co2', 'Net CO2 assimilation', 'ppb m s-1', 'tt0t')
-              call ncinfo(ncname3(15,:),'resp_co2', 'CO2 respiration soil', 'ppb m s-1', 'tt0t')
+              call ncinfo(ncname3(14,:),'an_co2', 'Net CO2 assimilation', 'ppm m s-1', 'tt0t')
+              call ncinfo(ncname3(15,:),'resp_co2', 'CO2 respiration soil + plant', 'ppm m s-1', 'tt0t')
             end if
 
             call open_nc(trim(output_prefix)//fname3,  ncid3,nrec3,n1=imax,n2=jmax)

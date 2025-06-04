@@ -1561,6 +1561,7 @@ contains
 
   pure function psim(zeta)
     implicit none
+    !$acc routine seq
 
     real             :: psim
     real, intent(in) :: zeta
@@ -1582,6 +1583,7 @@ contains
   pure function psih(zeta)
 
     implicit none
+    !$acc routine seq
 
     real             :: psih
     real, intent(in) :: zeta

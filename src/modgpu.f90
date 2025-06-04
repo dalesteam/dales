@@ -64,6 +64,7 @@ contains
     use modmicrodata, only: Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
                             qtpmcr
     use modchecksim, only: courxl, couryl, courzl, courtotl, peclettotl
+    use modibm,      only: fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p
 
     implicit none
 
@@ -93,7 +94,8 @@ contains
     !$acc&              thlprad, lwd, lwu, swd, swu, lwc, swdir, swdif, &
     !$acc&              lwdca, lwuca, swdca, swuca, &
     !$acc&              LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &
-    !$acc&              LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA)
+    !$acc&              LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA, &
+    !$acc&              fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p)
 
   end subroutine update_gpu
 
@@ -137,6 +139,7 @@ contains
     use modmicrodata, only: Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
                             qtpmcr
     use modchecksim, only: courxl, couryl, courzl, courtotl, peclettotl
+    use modibm,      only: fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p
 
     implicit none
 
@@ -168,7 +171,8 @@ contains
     !$acc&            thlprad, lwd, lwu, swd, swu, lwc, swdir, swdif, &
     !$acc&            lwdca, lwuca, swdca, swuca, &
     !$acc&            LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &
-    !$acc&            LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA)
+    !$acc&            LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA, &
+    !$acc&            fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p)
 
     host_is_updated = .true.
 

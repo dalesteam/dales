@@ -613,7 +613,7 @@ contains
       end do
     end if
 
-    if (imicro > 1) then
+    if (imicro == imicro_sice .or. imicro == imicro_sice2 .or. imicro == imicro_bulk) then
       !$acc parallel loop collapse(2) default(present) reduction(+:qrintavl) &
       !$acc& private(qrint) async
       do j = 2, j1

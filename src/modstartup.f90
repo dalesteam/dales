@@ -106,9 +106,11 @@ contains
     use modversion,        only : git_version
     use modopenboundary,   only : initopenboundary,openboundary_divcorr,openboundary_excjs,lbuoytop,&
                                   rhointi, openboundary_phasevelocity
+    use modibm,            only : initibm
 
     use modchecksim,       only : chkdiv
     use modnamelist,       only : read_namelists
+    use modspraying,       only : initspraying
 #if defined(_OPENACC)
     use modgpu,             only : initgpu
 #endif
@@ -355,9 +357,12 @@ contains
     call initfields
     call inittracers
     call initmicrophysics
+    call initspraying
     call allocate_tracers ! At this point, all tracers have to be defined
     call inittestbed    !reads initial profiles from scm_in.nc, to be used in readinitfiles
     call inittstep
+
+    call initibm ! keep here as it may overwrite ibas_prf
 
     if(.not.lopenbc) then
       call initboundary
@@ -549,6 +554,8 @@ contains
     use modmpi,            only : slabsum,myid,comm3d,mpierr,D_MPI_BCAST, print_info_stderr
     use modthermodynamics, only : thermodynamics,calc_halflev
     use moduser,           only : initsurf_user
+    use modibm,            only : fluid_mask
+    use modibmdata,        only : thlibm, qtibm, lapply_ibm
 
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
@@ -556,6 +563,8 @@ contains
     use modtracers,        only : tracer_prop, tracer_profs_from_netcdf, nsv_user
     use go,                only : goSplitString_s
     use utils,             only : to_lower
+    use modslabaverage,    only : slabavg
+    
 #if defined(_OPENACC)
     use modgpu, only: update_gpu, update_host, host_is_updated, update_gpu_surface
 #endif
@@ -810,6 +819,36 @@ contains
         call randomnize(w0  ,k,randu  ,irandom,ih,jh,negval)
       end do
 
+      ! when using ibm, overwrite randomnization inside obtacles (velocities, thl, qt)
+      if (lapply_ibm) then
+        do k=1,kmax
+          do j=2,j1
+            do i=2,i1
+              if (.not.(fluid_mask(i,j,k))) then
+                thlm(i,j,k)     = thlibm !set to thlibm value
+                thl0(i,j,k)     = thlibm
+                qtm(i,j,k)      = qtibm  !set to qtibm value
+                qt0(i,j,k)      = qtibm
+                um (i:i+1,j,k)  = 0.
+                u0 (i:i+1,j,k)  = 0.
+                vm (i,j:j+1,k)  = 0.
+                v0 (i,j:j+1,k)  = 0.
+                wm (i,j,k:k+1)  = 0.
+                w0 (i,j,k:k+1)  = 0.
+                e12m(i,j,k)     = e12min
+                e120(i,j,k)     = e12min
+                if (nsv > 0) then !TODO: check this here..
+                  do n=1,nsv
+                    sv0(i,j,k,n) = 0.
+                    svm(i,j,k,n) = 0.
+                  end do
+                end if 
+              end if  
+            end do
+          end do
+        end do
+      end if
+
       !-----------------------------------------------------------------
       !    2.2 Initialize surface layer and base profiles
       !-----------------------------------------------------------------
@@ -958,27 +997,40 @@ contains
       ql0av(:) = 0.0
       sv0av(:,:) = 0.0
 
-      call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
+      if (.not.(lapply_ibm)) then
+        call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
+        call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
 
-      call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+        call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+        call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+        call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+        call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+        call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+        do n = 1, nsv
+          call slabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+        end do
 
-      call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      do n = 1, nsv
-        call slabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      end do
+        thvh(:) = thvh(:) / ijtot
+        thvf(:) = thvf(:) / ijtot
+        u0av(:) = u0av(:) / ijtot + cu
+        v0av(:) = v0av(:) / ijtot + cv
+        thl0av(:) = thl0av(:) / ijtot
+        qt0av(:) = qt0av(:) / ijtot
+        ql0av(:) = ql0av(:) / ijtot
+        sv0av(:,:) = sv0av(:,:) / ijtot
+      else
+        call slabavg(thv0h,fluid_mask,ih,thvh)
+        call slabavg(thv0,fluid_mask,ih,thvf)
+        call slabavg(u0,fluid_mask,ih,u0av)
+        call slabavg(v0,fluid_mask,ih,v0av)
+        call slabavg(thl0,fluid_mask,ih,thl0av)
+        call slabavg(qt0,fluid_mask,ih,qt0av)
+        call slabavg(ql0,fluid_mask,ih,ql0av)
+        do n=1,nsv
+          call slabavg(sv0(:,:,:,n),fluid_mask,ih,sv0av(:,n))
+        end do
+      end if 
 
-      thvh(:) = thvh(:) / ijtot
-      thvf(:) = thvf(:) / ijtot
-      u0av(:) = u0av(:) / ijtot + cu
-      v0av(:) = v0av(:) / ijtot + cv
-      thl0av(:) = thl0av(:) / ijtot
-      qt0av(:) = qt0av(:) / ijtot
-      ql0av(:) = ql0av(:) / ijtot
-      sv0av(:,:) = sv0av(:,:) / ijtot
       th0av(:) = thl0av(:) + (rlv/cp) * ql0av(:) / exnf(:)
       thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
       rhof(:) = presf(:)/(rd*thvf(:)*exnf(:))
@@ -1533,6 +1585,7 @@ contains
     use modthermodynamics, only : exitthermodynamics
     use modemission,       only : exitemission
     use modopenboundary,   only : exitopenboundary
+    use modibm,            only : exitibm
     use modchecksim,       only : exitchecksim
     use tstep,             only : exittstep
 
@@ -1554,6 +1607,7 @@ contains
     else
       call exitboundary
     endif
+    call exitibm
     call exitfields
     call exitglobal
     call exitmpi

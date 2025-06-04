@@ -38,15 +38,12 @@ save
 
 contains
   subroutine initsubgrid
-    use modglobal,  only : ih,i1,jh,j1,k1,delta,deltai,dx,dy,zf,dzf,fkar,pi
+    use modglobal,  only : ih,i1,jh,j1,k1,deltai,dx,dy,dzf,pi
     use modmpi,     only : myid
 
     implicit none
 
-    integer   :: k
-
     real :: ceps
-    real :: mlen
 
     call timer_tic('modsubgrid/initsubgrid', 0)
 
@@ -120,7 +117,7 @@ contains
     integer :: ierr
 
     namelist/NAMSUBGRID/ &
-        ldelta,lmason,cf,cn,Rigc,Prandtl,lsmagorinsky,cs,nmason,sgs_surface_fix,ch1,lanisotrop
+        ldelta,lmason,cf,cn,Rigc,Prandtl,lsmagorinsky,cs,nmason,sgs_surface_fix,ch1,lanisotrop,lD80R
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -130,8 +127,11 @@ contains
       close(ifnamopt)
 
       if (.not. lsmagorinsky) then
-        if (lmason .and. .not. ldelta) stop "lmason = .true. requires ldelta = .true."
-        if (lmason .and. lanisotrop) stop "lmason = .true. is not compatible with lanisotropic = .true."
+        if (lmason .and. .not. ldelta) stop "subgrid: lmason = .true. requires ldelta = .true."
+        if (lmason .and. lanisotrop)   stop "subgrid: lmason is not compatible with lanisotrop."
+        if (lD80R  .and. lmason)       stop "subgrid: lD80R is not compatible with lmason."
+        if (lD80R  .and. ldelta)       stop "subgrid: lD80R is not compatible with ldelta."
+        if (lD80R  .and. lanisotrop)   stop "subgrid: lD80R is not compatible with lanisotrop."
       end if
     end if
 
@@ -140,6 +140,7 @@ contains
     call D_MPI_BCAST(nmason          ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(lsmagorinsky    ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(lanisotrop      ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lD80R           ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(cs              ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(cf              ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(cn              ,1, 0,comm3d,mpierr)
@@ -159,7 +160,7 @@ contains
 
     implicit none
     integer :: sx=2,sy=2
-    
+
     call timer_tic('modsubgrid/subgrid', 0)
 
     if(lopenbc) then ! If openbounaries are used only calculate tendencies for non-domain boundary cells
@@ -168,7 +169,7 @@ contains
     endif
     call closure
     !$acc wait
-    
+
     call diffu(up,sx)
     call diffv(vp,sy)
     call diffw(wp)
@@ -228,7 +229,7 @@ contains
   !                                                                 |
   !-----------------------------------------------------------------|
   subroutine closure
-    use modglobal,        only : i1,j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav,zf,fkar,deltai, &
+    use modglobal,        only : i1,j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav,zf,zh,fkar,deltai, &
                                   dxi,dyi,dzf,dzfi,dzhi,lopenbc,lboundary,lperiodic,eps1
     use modfields,        only : dthvdz,e120,u0,v0,w0,thvf
     use modsurfdata,      only : dudz,dvdz,z0m
@@ -241,12 +242,12 @@ contains
 
     if(lsmagorinsky) then
       ! First level
-      mlen = csz(1) * delta(1) ! (SvdL, 20241106:) default value when lmason = .false.
+      mlen = csz(1) * delta(1) ! default value when lmason = .false.
       !$acc parallel loop collapse(2) private(strain2) async(1)
       do i = 2, i1
         do j = 2, j1
 
-            ! (SvdL, 20241106:) moved Mason correction here to allow horizontal variation in z0m
+            ! SvdL: moved Mason correction here to allow horizontal variation in z0m
             if(lmason) then
               mlen   = (1. / (csz(1) * delta(1))**nmason + 1. / (fkar * (zf(1)+z0m(i,j)))**nmason)**(-1./nmason)
             end if
@@ -274,7 +275,7 @@ contains
                     ( 0.25_field_r*(w0(i,j+1,2)-w0(i,j-1,2))*dyi + &
                       dvdz(i,j) )**2 )
 
-          RiPrratio  = min( grav/thvf(1) * dthvdz(i,j,1) / (2 * strain2 * Prandtl) , (1 - eps1) ) ! SvdL, 20241106: dthvdz(i,j,k) already contains MO gradient at k=kmin (see modthermodynamics.f90)
+          RiPrratio  = min( grav/thvf(1) * dthvdz(i,j,1) / (2 * strain2 * Prandtl) , (1 - eps1) ) ! dthvdz(i,j,1) already contains MO gradient at k=1 (see modthermodynamics.f90)
 
           ekm(i,j,1) = mlen ** 2 * sqrt(2 * strain2) * sqrt(1 - RiPrratio)
           ekh(i,j,1) = ekm(i,j,1) / Prandtl
@@ -292,10 +293,10 @@ contains
 
             mlen = csz(k) * delta(k) ! default value when lmason = .false.
 
-            ! (SvdL, 20241106:) moved Mason correction here to allow horizontal variation in z0m
+            ! SvdL: moved Mason correction here to allow horizontal variation in z0m
             if(lmason) then
               mlen   = (1. / (mlen)**nmason + 1. / (fkar * (zf(k)+z0m(i,j)))**nmason)**(-1./nmason)
-            end if 
+            end if
 
             strain2 =  ( &
               ((u0(i+1,j  ,k  )-u0(i,j,k))*dxi     )**2 + &
@@ -332,8 +333,8 @@ contains
               ((v0(i  ,j+1,k+1)-v0(i  ,j+1,k  )) *dzhi(k+1) + &
               (w0(i  ,j+1,k+1)-w0(i  ,j  ,k+1)) *dyi )**2 )
 
-            ! (SvdL, 20241106:) take ratio of gradient Richardson number to critical Richardson number (equal to Prandtl in Smagorinsky-Lilly model)
-            RiPrratio  = min( grav/thvf(k) * dthvdz(i,j,k) / (2 * strain2 * Prandtl) , (1 - eps1) ) ! (SvdL, 20241106:) dthvdz(i,j,k) already contains MO gradient at k=kmin (see modthermodynamics.f90)
+            ! take ratio of gradient Richardson number to critical Richardson number (equal to Prandtl in Smagorinsky-Lilly model)
+            RiPrratio  = min( grav/thvf(k) * dthvdz(i,j,k) / (2 * strain2 * Prandtl) , (1 - eps1) ) ! dthvdz(i,j,1) already contains MO gradient at k=1 (see modthermodynamics.f90)
 
             ekm(i,j,k) = mlen ** 2 * sqrt(2 * strain2) * sqrt(1 - RiPrratio)
             ekh(i,j,k) = ekm(i,j,k) / Prandtl
@@ -392,15 +393,37 @@ contains
                   ekh(i,j,k) = max(ekh(i,j,k),ekmin)
               end do
             end do
-        end do
+         end do
+      else if (lD80R) then
+         ! D80R scheme
+         ! Y. Dai, S. Basu, B. Maronga, S. R. de Roode, 
+         ! Addressing the grid-size sensitivity issue in large-eddy simulations of stable boundary layers.
+         ! Boundary-Layer Meteorology, 178, 63-89 (2021).
+         
+         !$acc parallel loop collapse(3) default(present)
+         do k = 1, kmax
+            do j = 2, j1
+               do i = 2, i1
+                  zlt(i,j,k) = delta(k)
+                  if (dthvdz(i,j,k) > 0) then
+                     zlt(i,j,k) = min(delta(k), 1/(1/(0.4_field_r*zh(k))+1/(cn*e120(i,j,k)/sqrt(grav/thvf(k)*dthvdz(i,j,k)))))
+                  end if
+                  
+                  ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
+                  ekh(i,j,k) = (ch1 + ch2 * zlt(i,j,k)*deltai(k)) * ekm(i,j,k)
+
+                  ekm(i,j,k) = max(ekm(i,j,k),ekmin)
+                  ekh(i,j,k) = max(ekh(i,j,k),ekmin)
+               end do
+            end do
+         end do
       else ! Deardorff lengthscale correction
         !$acc parallel loop collapse(3) default(present)
         do k = 1, kmax
             do j = 2, j1
               do i = 2, i1
-                  zlt(i,j,k) = delta(k)
-
                   !original
+                  !zlt(i,j,k) = delta(k)
                   !if (dthvdz(i,j,k) > 0) then
                   !zlt(i,j,k) = min(delta(k),cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k))))
                   !end if
@@ -423,7 +446,7 @@ contains
         end do
       end if
     end if
-    
+
     !*************************************************************
     !     Set cyclic boundary condition for K-closure factors.
     !*************************************************************

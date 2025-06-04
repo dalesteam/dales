@@ -37,6 +37,7 @@ save
   logical :: lmason       = .false. !<  switch for decreased length scale near the surface
   logical :: lsmagorinsky = .false. !<  switch for smagorinsky subgrid scheme
   logical :: lanisotrop   = .false. !<  switch for anisotropic diffusion
+  logical :: lD80R        = .false. !<  switch for D80R subgrid scheme
 
   real(field_r) :: cf      = 2.5  !< filter constant
   real(field_r) :: Rigc    = 0.25 !< critical Richardson number
@@ -63,6 +64,5 @@ save
 
   real(field_r), allocatable :: csz(:)       !< Smagorinsky constant
 
-  real(field_r), allocatable :: anis_fac(:)  !< grid anisotropy factor 
+  real(field_r), allocatable :: anis_fac(:)  !< grid anisotropy factor
 end module modsubgriddata
-

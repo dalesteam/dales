@@ -1,6 +1,6 @@
 [submodule "src/RRTMG/RRTMG_LW"]
 	path = external/RRTMG/RRTMG_LW
-	url = https://github.com/dalesteam/RRTMG_LW/
+	url = https://github.com/AER-RC/RRTMG_LW/
 [submodule "src/RRTMG/RRTMG_SW"]
 	path = external/RRTMG/RRTMG_SW
 	url = https://github.com/dalesteam/RRTMG_SW.git
@@ -13,4 +13,4 @@
 	branch = develop
 [submodule "external/rrtmgp-data"]
 	path = external/rrtmgp-data
-	url = git@github.com:earth-system-radiation/rrtmgp-data.git
+	url = https://github.com/earth-system-radiation/rrtmgp-data.git

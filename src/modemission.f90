@@ -25,11 +25,11 @@
 module modemission
 use, intrinsic :: ieee_arithmetic, only: ieee_is_nan
 use modprecision, only: field_r
+use ieee_arithmetic, only: ieee_is_nan
 use modemisdata
 use modtracers,       only : tracer_prop
 
 implicit none
-
 
 contains
 
@@ -42,11 +42,11 @@ contains
     implicit none
 
     ! Auxiliary variables
-    integer :: ierr
+    integer :: ierr, l
 
     ! --- Read & broadcast namelist EMISSION -----------------------------------
     ! namelist/NAMEMISSION/ l_emission, kemis, svskip, emisnames, svco2sum
-    namelist/NAMEMISSION/ l_emission, l_points, kemis, nemis, emisnames, l_scale, scalefactor
+    namelist/NAMEMISSION/ l_emission, l_points, explicit_plume_rise, kemis, nemis, emisnames, l_scale, scalefactor
 
     if (myid == 0) then
 
@@ -60,6 +60,7 @@ contains
 
     call d_mpi_bcast(l_emission,           1,  0, comm3d, ierr)
     call d_mpi_bcast(l_points,             1,  0, comm3d, ierr)
+    call d_mpi_bcast(explicit_plume_rise,  1,  0, comm3d, ierr)
     call d_mpi_bcast(kemis,                1,  0, comm3d, ierr)
     call d_mpi_bcast(emisnames(1:100),   100,  0, comm3d, ierr)
     call d_mpi_bcast(nemis,                1,  0, comm3d, ierr)
@@ -68,20 +69,34 @@ contains
 
     ! -- Interaction with AGs   ----------------------------------------------------
     if (.not. (l_emission)) return
-    allocate(co2fields(nsv))
+    !allocate(co2fields(nsv))
 
-    co2fields = 0
+    !co2fields = 0
     ! co2fields(svskip+1:nsv) = index(emisnames(1:nsv-svskip), "co2")
-    co2fields = index(emisnames, "co2")
-
+    !co2fields = index(emisnames, "co2")
+    
+    !svco2sum = findloc(emisnames, value = "co2sum", dim = 1)
 
     ! svco2ags = findloc(emisnames(1:nsv-svskip), value = "co2ags", dim = 1)
     ! svco2ags = svco2ags + svskip
-    svco2ags = findloc(emisnames, value = "co2ags", dim = 1)
+    !svco2ags = findloc(emisnames, value = "co2ags", dim = 1)
 
     ! svco2veg = findloc(emisnames(1:nsv-svskip), value = "co2veg", dim = 1)
     ! svco2veg = svco2veg + svskip
-    svco2veg = findloc(emisnames, value = "co2veg", dim = 1)
+    !svco2veg = findloc(emisnames, value = "co2veg", dim = 1)
+    
+    
+    ! Find CO2 index and set conversions
+    do l = 1, nsv
+        if (trim(tracer_prop(l)%tracname) == 'co2ags') then                       
+            svco2ags= tracer_prop(l)%trac_idx
+        else if (trim(tracer_prop(l)%tracname) == 'co2veg') then 
+            svco2veg= tracer_prop(l)%trac_idx
+        else if (trim(tracer_prop(l)%tracname) == 'co2sum') then
+            svco2sum = tracer_prop(l)%trac_idx
+        end if 
+    enddo
+
 
     if (myid == 0) then
       write(6,*) 'modemission: co2fields (scalar fields with CO2 0=no, 1=yes)'
@@ -90,6 +105,8 @@ contains
       write(6,*) svco2ags
       write(6,*) 'modemission: svco2veg (scalar field number for AGS emissions)'
       write(6,*) svco2veg
+      write(6,*) 'modemission: svco2sum (scalar field number for AGS emissions)'
+      write(6,*) svco2sum
       write(6,*) 'number of emitted species'
       write(6,*) nemis
     endif
@@ -126,64 +143,55 @@ contains
 
     endif
 
-
     if (l_points) then
-        npoints = 0
-
-        ! Check if the current time step is at the half-hour mark
-        if (datex(5) >= 30) then
-            ! Check if you need to read data for the current time step
+    
+        ! Ensure point_sources is allocated on all ranks
+        if (.not. allocated(point_sources)) then
+            allocate(point_sources(nsv))
+        endif
+    
+        if (myid == 0) then
+            ! First, inquire how many points exist for each time/tracer
             call inquirepoints(datex(1), datex(2), datex(3), datex(4))
-
-            if (datex(4) == 23) then
-                call inquirepoints(nextday(1), nextday(2), nextday(3), 0)
+            if (datex(5) >= 30) then
+                if (datex(4) == 23) then
+                    call inquirepoints(nextday(1), nextday(2), nextday(3), 0)
+                else
+                    call inquirepoints(datex(1), datex(2), datex(3), datex(4)+1)
+                endif
             else
-                call inquirepoints(datex(1), datex(2), datex(3), datex(4) + 1)
+                if (datex(4) == 0) then
+                    call inquirepoints(prevday(1), prevday(2), prevday(3), 23)
+                else
+                    call inquirepoints(datex(1), datex(2), datex(3), datex(4)-1)
+                endif
             endif
-
-        else
-            call inquirepoints(datex(1), datex(2), datex(3), datex(4))
-
-            if (datex(4) == 0) then
-                call inquirepoints(prevday(1), prevday(2), prevday(3), 23)
+        
+            ! Root reads point source data
+            if (datex(5) >= 30) then
+                call readpoints(datex(1), datex(2), datex(3), datex(4), 1)  ! t1 = current
+                if (datex(4) == 23) then
+                    call readpoints(nextday(1), nextday(2), nextday(3), 0, 2)
+                else
+                    call readpoints(datex(1), datex(2), datex(3), datex(4)+1, 2)
+                endif
             else
-                call inquirepoints(datex(1), datex(2), datex(3), datex(4) - 1)
+                call readpoints(datex(1), datex(2), datex(3), datex(4), 2)
+                if (datex(4) == 0) then
+                    call readpoints(prevday(1), prevday(2), prevday(3), 23, 1)
+                else
+                    call readpoints(datex(1), datex(2), datex(3), datex(4)-1, 1)
+                endif
             endif
         endif
 
-
-      ! Check if there are points to read
-      if (npoints > 0) then
-
-        allocate(point_source_data(npoints, 7,2))
-
-        if (datex(5) >= 30) then
-
-            call readpoints(datex(1), datex(2), datex(3), datex(4), point_source_data(:,:,1))
-
-            if (datex(4) == 23) then
-
-                call readpoints(nextday(1), nextday(2), nextday(3), 0, point_source_data(:,:,2))
-            else
-
-                call readpoints(datex(1), datex(2), datex(3), datex(4) + 1, point_source_data(:,:,2))
+        ! Distribute point source data to all ranks
+        do l = 1, nsv
+            if (tracer_prop(l)%lemis) then
+                call distributepoints(l)
             endif
-        else
-
-            call readpoints(datex(1),   datex(2),   datex(3),   datex(4), point_source_data(:,:,2))
-
-            if (datex(4) == 0) then
-
-                call readpoints(prevday(1), prevday(2), prevday(3), 23, point_source_data(:,:,1))
-                
-            else
-
-                call readpoints(datex(1), datex(2), datex(3), datex(4) - 1, point_source_data(:,:,1))
-
-            endif
-         endif
-        endif
-      endif
+        end do
+    endif
 
 
 
@@ -277,15 +285,21 @@ contains
   !
   !    Emitted tracers now align properly with "non-emitted" tracers, e.g.
   !    cloud scalars and secondary chemical components
+  
+  ! 3. A. Doyennel 2025/05
+  !    Separate model input for point sources with/without explicit simulation of plume rise
+  !    (Now: supports multiple chemical tracers, having different point sources number )
+  !
   ! ----------------------------------------------------------------------
 
-    use modfields,   only : svp
+    use modfields,   only : svm, svp
     use modglobal,   only : i1, j1, nsv, &
                             rdt, rtimee, rk3step, &
                             dzf, dx, dy
     use modfields,   only : rhof
     use moddatetime, only : datex, nextday
     use modlsm,      only : lags
+    use modmpi,      only : myid
 
     implicit none
 
@@ -342,6 +356,13 @@ contains
             else
               sf = 1.
             endif
+            
+            if (lags .and. tracer_prop(l)%tracname == 'co2') then
+              ! Add tendency to CO2 sum field
+              if (trim(tracer_prop(l)%tracname) == 'co2sum') then
+                  svp(i,j,k,svco2sum) = svp(i,j,k,svco2sum) + tend * conv_factor * sf
+              end if 
+            endif
 
             ! Add tendency to tracer field
             svp(i,j,k,tracer_prop(l)%trac_idx) = svp(i,j,k,tracer_prop(l)%trac_idx) + tend * conv_factor * sf
@@ -352,10 +373,7 @@ contains
             ! write(*,*) 'tend      ', tend
             ! write(*,*) 'svp       ', svp(i,j,k,tracer_prop(l)%trac_idx)
             !endif
-            if (lags) then
-              ! Add tendency to CO2 sum field
-              svp(i,j,k,svco2sum) = svp(i,j,k,svco2sum) + tend * conv_factor * sf
-            endif
+            
             iem = iem + 1
           end do
         end do
@@ -364,13 +382,17 @@ contains
 
     ! -----
     ! Point sources
-    ! ----
-
-    !Intra-hour interpolation is applied
-
-    if ( l_points .and. (npoints > 0) )  then
-      call applypoints
-    end if
+    ! Intra-hour interpolation is applied
+    iem = 1
+    do l = 1, nsv
+        if (.not. tracer_prop(l)%lemis) cycle
+    
+        ! Check if current tracer has point sources
+        if (l_points .and. (point_sources(l)%npoints > 0)) then
+            call applypoints(l, iem)  ! Pass the tracer index to applypoints
+        end if
+        iem=iem+1
+    end do
 
     ! --------------------------------------------------------------------------
     ! Read emission files when neccesary, i.e. simulation reaches half hour mark
@@ -378,45 +400,60 @@ contains
     ! --------------------------------------------------------------------------
 
     if ( rk3step == 3 ) then
-      emistime_e = mod(rtimee + rdt + 1800., 3600.)*div3600
+        emistime_e = mod(rtimee + rdt + 1800., 3600.)*div3600
 
-      if ( emistime_e < emistime_s ) then
-        ! Transfer data from 'ahead-of-modeltime' field to 'past-modeltime' field
-        emisfield(:,:,:,:,1) = emisfield(:,:,:,:,2)
+        if ( emistime_e < emistime_s ) then
+            ! Transfer data from 'ahead-of-modeltime' field to 'past-modeltime' field
+            emisfield(:,:,:,:,1) = emisfield(:,:,:,:,2)
 
-        ! Read new 'ahead-of-modeltime' emission field
-        if ( datex(4) == 23 ) then
-          call reademission(nextday(1), nextday(2), nextday(3),          0, emisfield(:,:,:,:,2))
-        else
-          call reademission(  datex(1),   datex(2),   datex(3), datex(4)+1, emisfield(:,:,:,:,2))
-        endif
-      endif
-
-
-      ! --------------------------------------------------------------------------
-      ! Point sources, with inter-hour interpolation
-      ! --------------------------------------------------------------------------
-      ! Check if you need to handle point sources
-
-      if (l_points .and. emistime_e < emistime_s) then
-        if (datex(4) == 23) then
-            if (npoints == 0) then
-                call inquirepoints(nextday(1), nextday(2), nextday(3), 0)
-            elseif (npoints > 0) then
-                ! Transfer data from 'ahead-of-modeltime' field to 'past-modeltime' field
-                point_source_data(:,:,1) = point_source_data(:,:,2)
-                call readpoints(nextday(1), nextday(2), nextday(3), 0, point_source_data(:,:,2))
-            endif
-        else
-            if (npoints == 0) then
-                call inquirepoints(datex(1), datex(2), datex(3), datex(4) + 1)
-            elseif (npoints > 0) then
-                ! Transfer data from 'ahead-of-modeltime' field to 'past-modeltime' field
-                point_source_data(:,:,1) = point_source_data(:,:,2)
-                call readpoints(datex(1), datex(2), datex(3), datex(4) + 1, point_source_data(:,:,2))
+            ! Read new 'ahead-of-modeltime' emission field
+            if ( datex(4) == 23 ) then
+                call reademission(nextday(1), nextday(2), nextday(3),          0, emisfield(:,:,:,:,2))
+            else
+                call reademission(  datex(1),   datex(2),   datex(3), datex(4)+1, emisfield(:,:,:,:,2))
             endif
         endif
+
+
+        ! --------------------------------------------------------------------------
+        ! Point sources, with inter-hour interpolation
+        ! --------------------------------------------------------------------------
+        ! Check if you need to handle point sources
+
+        if (l_points .and. emistime_e < emistime_s) then
+
+            ! Ensure point_sources is allocated on all ranks
+          if (.not. allocated(point_sources)) then
+              allocate(point_sources(nsv))
+          endif
+          
+          do l = 1, nsv
+            if (.not. tracer_prop(l)%lemis)  cycle
+            
+            if (myid == 0) then
+                if (datex(4) == 23) then
+                    if (point_sources(l)%npoints == 0) then
+                        call inquirepoints(nextday(1), nextday(2), nextday(3), 0)
+                    endif
+                
+                    call readpoints(nextday(1), nextday(2), nextday(3), 0, 1)
+                else
+                    if (point_sources(l)%npoints == 0) then
+                        call inquirepoints(datex(1), datex(2), datex(3), datex(4)+1)
+                    else
+                        point_sources(l)%data(:,:,1) = point_sources(l)%data(:,:,2)
+                    endif
+                
+                    call readpoints(datex(1), datex(2), datex(3), datex(4)+1, 2)
+                endif
+            endif
+            
+            ! Distribute point source data to all ranks
+            call distributepoints(l)
+          
+          end do
       endif
+
     endif
 
   end subroutine emission
@@ -426,302 +463,496 @@ contains
   ! --------------------------------------------------------------------------
   subroutine exitemission
     implicit none
+    integer         :: l
+    
     if (.not. (l_emission)) return
     deallocate(emisfield)
-    deallocate(co2fields)
+    !deallocate(co2fields)
 
-    if (l_points .and. (npoints > 0)) then
-        deallocate(point_source_data)
+    if (l_points) then
+        do l = 1, size(point_sources)
+            if (allocated(point_sources(l)%data)) deallocate(point_sources(l)%data)
+        end do
+        if (allocated(point_sources)) deallocate(point_sources)
     endif
 
   end subroutine exitemission
 
   subroutine inquirepoints(iyear, imonth, iday, ihour)
+    !A. Doyennel 2025/05
+    !Check how many point sources per tracer in the simulation domain 
+    
     use netcdf
-    use modmpi,      only : myidx, myidy, comm3d, mpierr
-    use modglobal,   only : imax, jmax, dx, dy, nsv
+    use modmpi,    only: myidx, myidy
+    use modglobal, only: nsv
 
     implicit none
 
-    integer, intent(in)  :: iyear, imonth, iday, ihour
-    integer :: ncid, ndimid
+    integer, intent(in) :: iyear, imonth, iday, ihour
+    integer :: ncid, ndimid, np, l
     logical :: points_exist
-
-    ! Synchronization variables
-    integer :: dummy_var = 0  ! Used for implicit synchronization
-    character(256) :: filename = 'pointsources.____________.x___.y___.nc'
     character(512) :: fullpath
+    character(16)  :: tracname
+    character(256) :: filename
+    
+    do l = 1, nsv
+        if (.not. tracer_prop(l)%lemis)  cycle
+        tracname = trim(tracer_prop(l)%tracname)
 
-    ! Generate filename with current time and coordinates
-    write(filename(14:17), '(i4.4)') iyear
-    write(filename(18:19), '(i2.2)') imonth
-    write(filename(20:21), '(i2.2)') iday
-    write(filename(22:23), '(i2.2)') ihour
-    write(filename(24:25), '(i2.2)') 0 !minutes
-    write(filename(28:30), '(i3.3)') myidx
-    write(filename(33:35), '(i3.3)') myidy
+        filename = 'pointsources.____________.' // trim(tracname) // '.nc'
+        write(filename(14:17), '(i4.4)') iyear
+        write(filename(18:19), '(i2.2)') imonth
+        write(filename(20:21), '(i2.2)') iday
+        write(filename(22:23), '(i2.2)') ihour
+        write(filename(24:25), '(i2.2)') 0  ! minutes
 
-    fullpath = 'emissions/' // trim(filename)
+        fullpath = 'emissions/' // trim(filename)
 
-    ! Check if point source file exists for this process
-    inquire(file=trim(fullpath), exist=points_exist)
+        inquire(file=trim(fullpath), exist=points_exist)
 
-    if (points_exist) then
-        ! Read point source emission file
-        call check(nf90_open(trim(fullpath), NF90_NOWRITE, ncid))
-
-        ! Determine total amount of sources
-        call check(nf90_inq_dimid(ncid, "n", ndimid))
-        call check(nf90_inquire_dimension(ncid, ndimid, len=npoints))
-
-        call check(nf90_close(ncid))
-
-        write(6,*) 'Found point sources: ', trim(filename), ' npoints: ', npoints
-    else
-        write(6,*) 'No point sources: ', trim(filename), ' NONE'
-    end if
-
+        if (points_exist) then
+            call check(nf90_open(trim(fullpath), NF90_NOWRITE, ncid))
+            call check(nf90_inq_dimid(ncid, "n", ndimid))
+            call check(nf90_inquire_dimension(ncid, ndimid, len=np))
+            point_sources(l)%npoints = np
+            call check(nf90_close(ncid))
+            write(6,*) 'Filename: ', filename, ' Tracer:', trim(tracname), ' npoints=', np
+        else
+            point_sources(l)%npoints = 0
+            write(6,*) 'Filename: ', filename, ' Tracer: ', trim(tracname), ' has no point sources.'
+        end if
+    end do
 
   contains
 
     subroutine check(status)
         integer, intent(in) :: status
-
-        if(status /= nf90_noerr) then
+        if (status /= nf90_noerr) then
             print *, trim(nf90_strerror(status))
-            stop 'NetCDF error in inquirepoints. See outputfile for more information.'
+            stop 'NetCDF error in inquirepoints.'
         end if
     end subroutine check
 
   end subroutine inquirepoints
 
-  subroutine readpoints(iyear, imonth, iday, ihour, point_source_data)
+  subroutine readpoints(iyear, imonth, iday, ihour, itime)
+    
+    !A. Doyennel 2025/05
+    !Read point sources per tracer in the simulation domain 
+    
     use netcdf
-    use modmpi, only: myidx, myidy
-    use modglobal, only: imax, jmax, dx, dy, nsv
-
+    use modmpi,    only: myidx, myidy
+    use modglobal, only: nsv
     implicit none
 
-    integer, intent(in) :: iyear, imonth, iday, ihour
-    real, intent(out) :: point_source_data(npoints, 7)
+    integer, intent(in) :: iyear, imonth, iday, ihour, itime
 
-    integer :: ncid, varid, tstep
-    character(80) :: pointsource_file
+    integer :: ncid, varid, l, np
+    character(256) :: filename, fullpath
+    character(16)  :: tracname
 
+    do l = 1, nsv
+    
+        if (.not. tracer_prop(l)%lemis)  cycle
+        np = point_sources(l)%npoints
+        if (np == 0) cycle
 
-        pointsource_file = 'pointsources.____________.x___.y___.nc'
+        tracname = trim(tracer_prop(l)%tracname)
 
-        write(pointsource_file(14:17), '(i4.4)') iyear
-        write(pointsource_file(18:19), '(i2.2)') imonth
-        write(pointsource_file(20:21), '(i2.2)') iday
-        write(pointsource_file(22:23), '(i2.2)') ihour
-        write(pointsource_file(24:25), '(i2.2)') 0 !minutes
-        write(pointsource_file(28:30), '(i3.3)') myidx
-        write(pointsource_file(33:35), '(i3.3)') myidy
+        ! Construct filename
+        filename = 'pointsources.____________.' // trim(tracname) // '.nc'
+        write(filename(14:17), '(i4.4)') iyear
+        write(filename(18:19), '(i2.2)') imonth
+        write(filename(20:21), '(i2.2)') iday
+        write(filename(22:23), '(i2.2)') ihour
+        write(filename(24:25), '(i2.2)') 0  ! minutes
+        fullpath = 'emissions/' // trim(filename)
 
-        ! Read point source emission file
-        call check( nf90_open('emissions/' // trim(pointsource_file), NF90_NOWRITE, ncid))
+        ! Allocate storage
+        if (.not. allocated(point_sources(l)%data)) then
+            allocate(point_sources(l)%data(np,6,2))
+        endif
 
-        ! Load data
-        call check(nf90_inq_varid(ncid, "x_idx", varid))
-        call check(nf90_get_var(ncid, varid, point_source_data(1:npoints, 1), count = (/npoints, 1/)))
-        call check(nf90_inq_varid(ncid, "y_idx", varid))
-        call check(nf90_get_var(ncid, varid, point_source_data(1:npoints, 2), count = (/npoints, 1/)))
-        call check( nf90_inq_varid(ncid, "height", varid))
-        call check( nf90_get_var  (ncid, varid, point_source_data(1:npoints, 3), count = (/npoints,1/) ) )
-        call check( nf90_inq_varid(ncid, "temperature", varid))
-        call check( nf90_get_var  (ncid, varid, point_source_data(1:npoints, 4), count = (/npoints,1/) ) )
-        call check( nf90_inq_varid(ncid, "volume", varid))
-        call check( nf90_get_var  (ncid, varid,	point_source_data(1:npoints, 5), count = (/npoints,1/) ) )
-        call check( nf90_inq_varid(ncid, "emission", varid))
-        call check( nf90_get_var  (ncid, varid, point_source_data(1:npoints, 6), count = (/npoints,1/) ) )
-        call check( nf90_inq_varid(ncid, "tracer_idx", varid))
-        call check( nf90_get_var  (ncid, varid,point_source_data(1:npoints, 7), count = (/npoints,1/) ) )
+        ! Read NetCDF
+        call check(nf90_open(trim(fullpath), NF90_NOWRITE, ncid))
 
+        call check(nf90_inq_varid(ncid, "x_idx", varid)) !Global domain indexes!
+        call check(nf90_get_var(ncid, varid, point_sources(l)%data(:,1,itime)))
+        call check(nf90_inq_varid(ncid, "y_idx", varid)) !Global domain indexes!
+        call check(nf90_get_var(ncid, varid, point_sources(l)%data(:,2,itime)))
+        call check(nf90_inq_varid(ncid, "height", varid))
+        call check(nf90_get_var(ncid, varid, point_sources(l)%data(:,3,itime)))
+        call check(nf90_inq_varid(ncid, "temperature", varid))
+        call check(nf90_get_var(ncid, varid, point_sources(l)%data(:,4,itime)))
+        call check(nf90_inq_varid(ncid, "volume", varid))
+        call check(nf90_get_var(ncid, varid, point_sources(l)%data(:,5,itime)))
+        call check(nf90_inq_varid(ncid, "emission", varid))
+        call check(nf90_get_var(ncid, varid, point_sources(l)%data(:,6,itime)))
 
         call check(nf90_close(ncid))
 
-   contains
+        write(6,*) 'Read ', np, ' point sources', ' from ', filename, ' for tracer: ', trim(tracname)
+    end do
+
+  contains
 
     subroutine check(status)
         integer, intent(in) :: status
-
         if (status /= nf90_noerr) then
             print *, trim(nf90_strerror(status))
-            stop 'NetCDF error in modemission point sources. See outputfile for more information.'
+            stop 'NetCDF error in readpoints.'
         end if
     end subroutine check
 
-   end subroutine readpoints
+  end subroutine readpoints
+  
+  subroutine distributepoints(l)
+  
+    !A. Doyennel 2025/05
+    !Distribute point sources for each rank
+    
+    use modmpi, only: myid, comm3d, D_MPI_BCAST_INT32_R1, D_MPI_BCAST_REAL64_R3
+    implicit none
+
+    integer, intent(in) :: l
+    integer :: npoints, ierr
+    integer :: npoints_array(1)  ! Temporary array to hold npoints
+
+    !------------------------------------------------------------
+    ! Broadcast number of point sources for tracer `l` from rank 0
+    !------------------------------------------------------------
+    if (myid == 0) then
+        npoints = point_sources(l)%npoints
+    endif
+
+    ! Broadcast integer npoints using the specific subroutine
+    npoints_array(1) = npoints
+    call D_MPI_BCAST_INT32_R1(npoints_array, 1, 0, comm3d, ierr)  ! Broadcast npoints in an array
+    npoints = npoints_array(1)  ! Retrieve npoints from the array
+
+    point_sources(l)%npoints = npoints
+
+    !------------------------------------------------------------
+    ! Allocate point_sources(l)%data if not already done (on non-root)
+    !------------------------------------------------------------
+    if (myid /= 0 .and. npoints > 0) then
+        if (.not. allocated(point_sources(l)%data)) then
+            allocate(point_sources(l)%data(npoints, 6, 2))
+        endif
+    endif
+
+    !------------------------------------------------------------
+    ! Broadcast the actual point source data (6 vars, 2 times)
+    !------------------------------------------------------------
+    if (npoints > 0) then
+        ! Broadcast the actual point source data using the specific subroutine for 3D REAL64
+        call D_MPI_BCAST_REAL64_R3(point_sources(l)%data, npoints*6*2, 0, comm3d, ierr)
+    endif
+    
+  end subroutine distributepoints
 
 
-
-   subroutine applypoints
-
-    use modfields, only : svp, u0, v0, tmp0, rhof
-    use modglobal, only : kmax, dx, dy, dzf,rdt, rtimee, nsv, zh
+  subroutine applypoints(l, iem)
+  
+    ! A. Doyennel 2025/05
+    ! ----------------------------------------------------------------------  !
+    ! Purpose:
+    !   Applies point source emission tendencies to svp.
+    !
+    !   Handles plume injection based on two approaches:
+    !
+    !   a) Explicit plume rise simulation (flag explicit_plume_rise in namoptions):
+    !      - Alters potential temperature and momentum tendencies directly (by heat and vertical velocity from the plume)
+    !        emission applied around stack heights index (with Gaussian spread applied for optimisation, if needed)
+    !      - Suitable for high-resolution LES, where plume dynamics are resolved (<50m horizontal resolutions)
+    !
+    !   b) Parameterized modeling of plume rise:
+    !      - Uses Briggs’ empirical formulation
+    !      - Useful for coarse LES grid setups where plume rise cannot be properly resolved explicitly 
+    !
+    !  !   Notes:
+    !     - Approach (b) (Briggs) does not modify any model atmospheric thermodynamic fields.
+    !       It only estimates plume rise height and distributes emissions accordingly in svp.
+    !     - In contrast, approach (a) directly modifies potential temperature and vertical momentum
+    !       to simulate buoyant plume dynamics.
+    !   
+    !     - Supports application of point sources to multiple chemical tracers
+    !       (accessed by outer loop through l)
+    ! ----------------------------------------------------------------------
+    
+    use modfields, only: svp, u0, v0, tmp0, rhof
+    use modglobal, only : kmax, dx, dy, dzf,rdt, rtimee, nsv, zh, zf, imax, jmax
+    use modmpi, only : myidx, myidy
 
     implicit none
 
-    integer :: ipoint, ix, iy, iz, isv, izt, izb, l, iheight, i, k, iem
+    integer, intent(in) :: l, iem
+    integer :: ipoint, ix, iy, iz, isv, izt, izb, iheight, i, k
     real    :: emis_b,emis_a, emis_top, emis_bot, emis_in_between
     real    :: plume_top_fraction, plume_bottom_fraction, plumefactor
+    real    ::  hmax, ztop, zbottom
 
     real            :: emistime_s, emistime_e ! Emission timers
     real, parameter :: div3600 = 1./3600.     ! Quick division
     real            :: tend
     real            :: factor, sf
     real, parameter :: MW_air = 28.97
+    
+    integer :: ixg, iyg         ! Global indices
+    integer :: istart, jstart
+    logical :: point_is_local
+    
+    ! For Gaussian vertical distribution
+    logical :: use_gaussian
+    real    :: dz_plume, mean_dz, plume_sigma
+    real    :: z_layer_center, z_plume_center
+    real    :: weight, sum_weight, emis_k
+    real, dimension(kmax) :: plume_shape
+    integer :: nlevels
+    
+    integer :: k_center, klow, khigh
+    real :: z_center, z_layer
+    real :: sigma_z
+
+    ! Calculate start of this rank’s local domain (DALES global indices start at 2!)
+    istart = myidx * imax + 2
+    jstart = myidy * jmax + 2                
+     
+    ! Loop over each point source for the current tracer
+    do ipoint = 1, point_sources(l)%npoints
+    
+                
+            ! Read global grid indices (+2) from data array
+            ixg = int(point_sources(l)%data(ipoint, 1, 1)+0.1)  !  full grid (+2) x-index 
+            iyg = int(point_sources(l)%data(ipoint, 2, 1)+0.1)  !  full grid (+2) y-index
+            
+            ! Check if this point falls within local subdomain
+            point_is_local = ixg >= istart .and. ixg < istart + imax .and. &
+                 iyg >= jstart .and. iyg < jstart + jmax
+
+            if (point_is_local) then
+                ! Convert to local indices
+                ix = ixg - istart + 2  
+                iy = iyg - jstart + 2
+                 
+                ! Emission values for past and ahead model time
+                emis_b = point_sources(l)%data(ipoint, 6, 1)  ! Emission for 'past-modeltime'
+                emis_a = point_sources(l)%data(ipoint, 6, 2)  ! Emission for 'ahead-of-modeltime'
+                                
+                ! --------------------------------------------------------------------------
+                ! Interpolate emission (now, the temporal interpolation is in the same way as for area emissions)
+                ! --------------------------------------------------------------------------
+                emistime_s = mod(rtimee +       1800., 3600.)*div3600
+                tend=((1. - emistime_s)*emis_b + emistime_s *emis_a)
+
+                ! old unit conversion: from kg/hour to ug/g
+                ! conv_factor = 1/(3600.*rhof(k)*dzf(k)*dx*dy*1e-6)
+
+                ! new unit conversion: from kg hour-1 to ppb or ppm
+
+                if ( trim(tracer_prop(l)%unit) == 'ppb' ) then
+                    factor = 1.e9
+                elseif ( trim(tracer_prop(l)%unit) == 'ppm' ) then
+                    factor = 1.e6
+                else
+                    print *, trim(tracer_prop(l)%unit)
+                    STOP 'factor not defined for this unit'
+                endif
+
+                if (tracer_prop(l)%molar_mass < 0. ) then
+                    print *, trim(tracer_prop(l)%tracname)
+                    STOP 'molar mass not defined for this tracer'
+                endif
+
+                sf = merge(scalefactor(iem), 1.0, l_scale) !Analog of if-else statement
+                
+                if (explicit_plume_rise) then !flag for explicit LES simulation of emission plume rise:
+                
+                    ! ----------------------------------------------------------------------------
+                    ! Inject heat into the potential temperature tendency field (thlp)
+                    ! ----------------------------------------------------------------------------
+                    call inject_heat_source(ix, iy, &
+                            point_sources(l)%data(ipoint, 3, 1), &  ! Stack height [m]
+                            point_sources(l)%data(ipoint, 4, 1), &  ! Exhaust temp Ts [K]
+                            point_sources(l)%data(ipoint, 5, 1), &  ! Volumetric flow rate Vs [m³/s]
+                            use_gaussian = .true.)
+
+                    ! ----------------------------------------------------------------------------
+                    ! Inject momentum into the vertical velocity tendency field (wp)
+                    ! ----------------------------------------------------------------------------                    
+                    call inject_momentum_source(ix, iy, &
+                            point_sources(l)%data(ipoint, 3, 1), &  ! Stack height [m]
+                            point_sources(l)%data(ipoint, 5, 1), &  ! Volumetric flow rate Vs [m³/s]
+                            use_gaussian = .true.)  
 
 
+                    ! ----------------------------------------------------------------------------
+                    ! Inject emission tendencies into tracer source (svp) (with Gaussian disp.)
+                    ! ----------------------------------------------------------------------------
 
-    do ipoint = 1, npoints
+                    k_center = minloc(abs(zf - point_sources(l)%data(ipoint, 3, 1)), dim=1)
+                    z_center = zf(k_center)
+                    klow = max(1, k_center - 4)
+                    khigh = min(size(zf), k_center + 4)
+                    sigma_z = 0.25 * maxval(dzf(klow:khigh)) * 3.0
+    
+                    sum_weight = 0.0
 
+                    do k = klow, khigh
+                       z_layer = zf(k)
+                       weight = exp(-((z_layer - z_center)**2) / (2.0 * sigma_z**2))
+                       sum_weight = sum_weight + weight
+                    end do
 
+                    do k = klow, khigh
+                       z_layer = zf(k)
+                       weight = exp(-((z_layer - z_center)**2) / (2.0 * sigma_z**2)) / sum_weight
+                       svp(ix, iy, k, tracer_prop(l)%trac_idx) = svp(ix, iy, k, tracer_prop(l)%trac_idx) + compute_tendency_func(tend * weight, k, factor, l, sf)
+                    end do 
+                     
+                
+                else
+                
+                    ! ===Briggs empirical model (for coarse resolution simulations): Compute vertical range and inject into izb to izt
+      
+                    ! Call briggs subroutine to calculate plume parameters
+                    call briggs(tmp0(ix, iy, 1:kmax), &                             ! Temperature profile
+                        sqrt(v0(ix, iy, 1:kmax)**2 + u0(ix, iy, 1:kmax)**2), & ! Total horizontal windspeed profile
 
-       ix  =  int(point_source_data(ipoint,1,1)+0.1) !TODO change this! +0.1 is to prevent the conversion to result in an integer that's one too low
-       iy  =  int(point_source_data(ipoint,2,1)+0.1)
-       !isv =  int(point_source_data(ipoint,7,1)+0.1)
-       emis_b =     point_source_data(ipoint,6,1)  !point source for the 'past-modeltime' step
-       emis_a =     point_source_data(ipoint,6,2)  !point source for the 'ahead-of-modeltime' step
+                        point_sources(l)%data(ipoint, 4, 1), &    ! Source temperature
+                        point_sources(l)%data(ipoint, 5, 1), &    ! Source volumetric flow rate
+                        point_sources(l)%data(ipoint, 3, 1), &    ! Source stack height
 
-
-       call briggs( tmp0(ix,iy,1:kmax), &                              !temperature profile
-                    sqrt(v0(ix,iy,1:kmax)**2 + u0(ix,iy,1:kmax)**2), & !total horizontal windspeed profile
-
-                    point_source_data(ipoint,4,1), &       ! Source temperature
-                    point_source_data(ipoint,5,1), &       ! Source volumetric flow rate
-                    point_source_data(ipoint,3,1), &       ! Source stack height
-
-                    izt, plume_top_fraction, &          ! This index should be in full levels
-                    izb, plume_bottom_fraction, emis_b) ! plume top/bottom include the partially filled levels
-
-
-
-       ! --------------------------------------------------------------------------
-       ! Interpolate emission (now, the temporal interpolation is in the same way as for area emissions)
-       ! --------------------------------------------------------------------------
-
-
-        emistime_s = mod(rtimee +       1800., 3600.)*div3600
-
-        tend=((1. - emistime_s)*emis_b + emistime_s *emis_a)
-
-
-       !-------------------------------------------------------------------------------------------------
-
-       ! Emissions are per source, so refactor to emission per gridbox
-       ! ALSO: Emissions are per source, per hour so refactor to account for pressure, gridboxsize and seconds below:
-
-       if (izt - izb > 1) then
-            !plumefactor =  1/((izt - izb-1) + plume_top_fraction + plume_bottom_fraction )
-
-            emis_top = (tend / (izt - izb + 1)) * plume_top_fraction
-            emis_bot = (tend / (izt - izb + 1)) * plume_bottom_fraction
-            emis_in_between = ((tend- emis_bot - emis_top) / (izt - izb - 1))
-
-            if ((plume_top_fraction>1) .OR. (plume_bottom_fraction>1) .OR. (plume_top_fraction<0) .OR. (plume_bottom_fraction<0)) then
-                print*,'plume_top_fraction, plume_bottom_fraction', plume_top_fraction, plume_bottom_fraction
-            endif
-
-       end if
+                        izt, plume_top_fraction, &               ! Full level index for plume top
+                        izb, plume_bottom_fraction, hmax, ztop, zbottom)     
 
 
+                    !-------------------------------------------------------------------------------------------------
+
+                    ! Emissions are per source, so refactor to emission per gridbox
+                    ! ALSO: Emissions are per source, per hour so refactor to account for pressure, gridboxsize and seconds below:
+
+                    if (izt - izb > 1) then
+                        !plumefactor =  1/((izt - izb-1) + plume_top_fraction + plume_bottom_fraction )
+
+                        emis_top = (tend / (izt - izb + 1)) * plume_top_fraction
+                        emis_bot = (tend / (izt - izb + 1)) * plume_bottom_fraction
+                        emis_in_between = ((tend- emis_bot - emis_top) / (izt - izb - 1))
+
+                        if ((plume_top_fraction>1) .OR. (plume_bottom_fraction>1) .OR. (plume_top_fraction<0) .OR. (plume_bottom_fraction<0)) then
+                            print*,'plume_top_fraction, plume_bottom_fraction', plume_top_fraction, plume_bottom_fraction
+                        endif
+
+                    end if
+
+                    ! Apply interpolated-in-time point source emissions:
+                    !-------------------------------------------------------------------------------------------------
+
+                    if (izb == izt) then
+
+                        svp(ix, iy, izb, tracer_prop(l)%trac_idx) = svp(ix, iy, izb, tracer_prop(l)%trac_idx) + compute_tendency_func(tend, izb,factor,l, sf)
+
+                    else if (izt - izb == 1) then
 
 
-        ! Apply interpolated-in-time point source emissions:
-        !-------------------------------------------------------------------------------------------------
+                        svp(ix, iy, izb, tracer_prop(l)%trac_idx) = svp(ix, iy, izb, tracer_prop(l)%trac_idx) + compute_tendency_func(tend/2, izb,factor,l, sf)
+                        svp(ix, iy, izt, tracer_prop(l)%trac_idx) = svp(ix, iy, izt, tracer_prop(l)%trac_idx) + compute_tendency_func(tend/2, izt,factor,l, sf)
 
-        iem = 1
+                    else if (izt - izb > 1) then
+                        ! Compute mean dz in affected layers
+                        dz_plume = 0.0
+                        nlevels = izt - izb + 1
 
-        do l = 1, nsv
+                        do k = izb, izt
+                            dz_plume = dz_plume + dzf(k)
+                        end do
 
+                        mean_dz = dz_plume / real(nlevels)
 
-        if (.not. tracer_prop(l)%lemis)  cycle
+                        ! Determine whether to use Gaussian
+                        use_gaussian = (hmax > 20.0) .and. ((hmax / mean_dz) >= 3.0)
 
-            ! old unit conversion: from kg/hour to ug/g
-            ! conv_factor = 1/(3600.*rhof(k)*dzf(k)*dx*dy*1e-6)
+                        if (use_gaussian) then
+                            ! Gaussian vertical distribution
+                            do k = izb, izt
+                                ! Compute layer center height relative to plume center
+                                z_layer_center = zf(k)
+                                z_plume_center = 0.5 * (ztop + zbottom)
+                                plume_sigma = (ztop - zbottom) / 4.0  ! Stddev = 1/4 of plume height range
 
-            ! new unit conversion: from kg hour-1 to ppb or ppm
+                                ! Gaussian weight (unnormalized)
+                                weight = exp(- ((z_layer_center - z_plume_center)**2) / (2.0 * plume_sigma**2))
+                                plume_shape(k) = weight
+                            end do
 
-            if ( trim(tracer_prop(l)%unit) == 'ppb' ) then
-              factor = 1.e9
-            elseif ( trim(tracer_prop(l)%unit) == 'ppm' ) then
-              factor = 1.e6
-            else
-              print *, trim(tracer_prop(l)%unit)
-              STOP 'factor not defined for this unit'
-            endif
+                            ! Normalize weights so total = 1
+                            sum_weight = 0.0
+                            do k = izb, izt
+                                sum_weight = sum_weight + plume_shape(k)
+                            end do
 
-            if (tracer_prop(l)%molar_mass < 0. ) then
-              print *, trim(tracer_prop(l)%tracname)
-              STOP 'molar mass not defined for this tracer'
-            endif
+                            do k = izb, izt
+                                emis_k = tend * (plume_shape(k) / sum_weight)
+                                svp(ix, iy, k, tracer_prop(l)%trac_idx) = svp(ix, iy, k, tracer_prop(l)%trac_idx) + &
+                                compute_tendency_func(emis_k, k, factor, l, sf)
+                            end do
 
+                        else
+                            ! Uniform linear interpolation
 
-            sf = merge(scalefactor(iem), 1.0, l_scale) !Analog of if-else statement
+                            emis_top = (tend / (izt - izb + 1)) * plume_top_fraction
+                            emis_bot = (tend / (izt - izb + 1)) * plume_bottom_fraction
+                            emis_in_between = ((tend - emis_bot - emis_top) / (izt - izb - 1))
 
+                            if ((plume_top_fraction > 1.0) .or. (plume_bottom_fraction > 1.0) .or. &
+                                (plume_top_fraction < 0.0) .or. (plume_bottom_fraction < 0.0)) then
+                                print *, 'Warning: plume_top_fraction or plume_bottom_fraction out of bounds:', &
+                                plume_top_fraction, plume_bottom_fraction
+                            end if
 
+                            svp(ix, iy, izb, tracer_prop(l)%trac_idx) = svp(ix, iy, izb, tracer_prop(l)%trac_idx) + &
+                                compute_tendency_func(emis_bot, izb, factor, l, sf)
+                            svp(ix, iy, izt, tracer_prop(l)%trac_idx) = svp(ix, iy, izt, tracer_prop(l)%trac_idx) + &
+                                compute_tendency_func(emis_top, izt, factor, l, sf)
 
-            if (izb == izt) then
-
-                svp(ix, iy, izb, tracer_prop(l)%trac_idx) = svp(ix, iy, izb, tracer_prop(l)%trac_idx) + compute_tendency_func(tend, izb,factor,l, sf)
-
-            else if (izt - izb == 1) then
-
-
-                svp(ix, iy, izb, tracer_prop(l)%trac_idx) = svp(ix, iy, izb, tracer_prop(l)%trac_idx) + compute_tendency_func(tend/2, izb,factor,l, sf)
-                svp(ix, iy, izt, tracer_prop(l)%trac_idx) = svp(ix, iy, izt, tracer_prop(l)%trac_idx) + compute_tendency_func(tend/2, izt,factor,l, sf)
-
-            else if (izt - izb > 1) then
-
-
-                svp(ix, iy, izb, tracer_prop(l)%trac_idx) = svp(ix, iy, izb, tracer_prop(l)%trac_idx) + compute_tendency_func(emis_bot, izb,factor,l, sf)
-                svp(ix, iy, izt, tracer_prop(l)%trac_idx) = svp(ix, iy, izt, tracer_prop(l)%trac_idx) + compute_tendency_func(emis_top, izt,factor,l, sf)
-
-
-                do k = izb+1, izt-1
-                    svp(ix, iy, k, tracer_prop(l)%trac_idx) = svp(ix, iy, k, tracer_prop(l)%trac_idx) + compute_tendency_func(emis_in_between, k,factor,l, sf)
-                enddo
+                            do k = izb+1, izt-1
+                                svp(ix, iy, k, tracer_prop(l)%trac_idx) = svp(ix, iy, k, tracer_prop(l)%trac_idx) + &
+                                compute_tendency_func(emis_in_between, k, factor, l, sf)
+                            end do
+                        end if
+                    end if
             end if
-
-
-
-    iem = iem + 1
+        end if
     enddo
-  enddo
 
+    contains
 
-  contains
+    function compute_tendency_func(etend, k, factor, l, sf) result(tendency)
+        integer, intent(in) :: k, l
+        real, intent(in) :: etend, factor, sf
+        real :: tendency
+        real :: tmp
+        logical :: is_valid
+        real, parameter :: div3600 = 1.0 / 3600.0
+        real, parameter :: MW_air = 28.97
 
-  function compute_tendency_func(etend, k, factor, l, sf) result(tendency)
-    integer, intent(in) :: k, l
-    real, intent(in) :: etend, factor, sf
-    real :: tendency
-    real :: tmp
-    logical :: is_valid
-    real, parameter :: div3600 = 1.0 / 3600.0
-    real, parameter :: MW_air = 28.97
+        tmp = etend * ((1/(rhof(k)*dzf(k)*dx*dy)) * div3600 * MW_air / tracer_prop(l)%molar_mass * factor) * sf
 
-    tmp = etend * ((1/(rhof(k)*dzf(k)*dx*dy)) * div3600 * MW_air / tracer_prop(l)%molar_mass * factor) * sf
+        is_valid = (tmp == tmp .and. abs(tmp) <= 1.0e6)
 
-    is_valid = (tmp == tmp .and. abs(tmp) <= 1.0e6)
+        if (.not. is_valid) then
+            print*,'Warning: point source emission tendency value is invalid (set to 0.0). Raw value = ', tmp, k
+        end if
 
-    if (.not. is_valid) then
-        print*,'Warning: point source emission tendency value is invalid (set to 0.0). Raw value = ', tmp, k
-    end if
+        tendency = merge(tmp, 0.0, is_valid)
 
-    tendency = merge(tmp, 0.0, is_valid)
-
-  end function compute_tendency_func
-
-
+    end function compute_tendency_func
 
   end subroutine applypoints
 
-  subroutine briggs(Ta, U, Ts, Vs, hs, iztop, ztop_frac, izbottom, zbottom_frac, emis_b)
+  subroutine briggs(Ta, U, Ts, Vs, hs, iztop, ztop_frac, izbottom, zbottom_frac, hmax, ztop, zbottom)
 
-    !Algorithm to calculate the vertical plume rise above the stack height
+    !Briggs algorithm to calculate the vertical plume rise above the stack height
     !The detail description can be found in Gordon et al., (2017) and Akingunola et al., (2018)
 
     use modglobal,   only : zh, zf, dzf, kmax
@@ -747,214 +978,374 @@ contains
 
     implicit none
 
-    real, intent(in)  :: Ts, hs, vs, emis_b
+    real, intent(in)  :: Ts, hs, vs
     real(field_r), dimension(kmax), intent(in) :: Ta, U
     integer, intent(out) :: iztop, izbottom
-    real,    intent(out) :: ztop_frac, zbottom_frac
+    real,    intent(out) :: ztop_frac, zbottom_frac, hmax, ztop, zbottom
 
     integer :: iz, i, imax, imin, ieq, iz0
     real    :: F0, F0_old, F1, Fb, dT, dU, ths, uhs
-    real    :: ztop, zbottom
-    real             :: gradT, S, hmax, upperh, lowerh, lowerw
+    real             :: gradT, S, upperh, lowerh, lowerw
     real, parameter  :: g = 9.81, &
                         cp = 1005., &
                         pi = 3.1415926535897932
 
     real, dimension(kmax+1) :: tzh, uzh
+    real, parameter :: min_plume_thickness = 10.0 !tune it if needed
 
-    !character(len=100) :: format_string
+    !============================================================
+    ! 1. Compute half-level (interface) values for T and U
+    !============================================================
 
+    do i = 1, kmax-1
+        tzh(i+1) = 0.5 * (Ta(i) + Ta(i+1))
+        uzh(i+1) = 0.5 * (U(i) + U(i+1))
+    end do
+    
+    tzh(1) = Ta(1)
+    uzh(1) = U(1)
 
-
-
-    !Ta and U at half-level grid using simple avaraging:
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    do i=1,kmax
-
-        if(i.eq.kmax) then
-
-            dT= Ta(i) - tzh(i)
-            dU= U(i) - uzh(i)
-        else
-            dT= (Ta(i + 1) - Ta(i))/2.
-            dU= (U(i + 1) - U(i))/2.
-
-        endif
-
-        if((i==1).OR.(i==kmax)) then
-
-            tzh(i) = Ta(i)-dT
-            tzh(i+1) = Ta(i)+dT
-
-            uzh(i) = U(i)-dU
-            uzh(i+1) = U(i)+dU
-
-        else
-
-            tzh(i+1) = Ta(i)+dT
-            uzh(i+1) = U(i)+dU
-
-        endif
-
-    enddo
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    !The atmospheric temperature (ths) and windspeed (uhs) at the stack height:
-
-    imax = minloc(zh, dim =1, mask = zh.gt.hs)
-    imin = maxloc(zh, dim =1, mask = zh.lt.hs)
-
-    ieq = 0
+    
+    !============================================================
+    ! 2. Interpolate T and U at stack height
+    !============================================================
     ieq = findloc(zh, hs, dim = 1)
-
-    if(ieq.eq.0) then
-
-        ths = tzh(imin)+(((tzh(imax)-tzh(imin))/(zh(imax)-zh(imin)))*(hs-zh(imin)))
-        uhs = uzh(imin)+(((uzh(imax)-uzh(imin))/(zh(imax)-zh(imin)))*(hs-zh(imin)))
-
-    else
-
+    if (ieq > 0) then
         ths = tzh(ieq)
         uhs = uzh(ieq)
+    else
+        imax = minloc(zh, dim = 1, mask = zh > hs)
+        imin = maxloc(zh, dim = 1, mask = zh < hs)
+        ths = tzh(imin) + (tzh(imax) - tzh(imin)) * (hs - zh(imin)) / (zh(imax) - zh(imin))
+        uhs = uzh(imin) + (uzh(imax) - uzh(imin)) * (hs - zh(imin)) / (zh(imax) - zh(imin))
+    end if
 
-    endif
-
-
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !The buoyancy flux at stack height:
-
-
-    Fb = 0.
-    F1 = 0.
-
-    if (Ts.gt.ths)  then
-
-        Fb = (g/pi)*Vs*(Ts-ths)/Ts
-
-    endif
-
+    !============================================================
+    ! 3. Compute initial buoyancy flux at stack height
+    !============================================================
+    Fb = 0.0
+    F1 = 0.0
+    
+    if (Ts > ths) Fb = (g / pi) * Vs * (Ts - ths) / Ts
     F1 = Fb
+    hmax = 0.0
 
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    !Residual buoyancy flux(F1) and the exact plume rise height(hmax):
-
-    iz = minloc(zh, dim=1, mask=zh.gt.hs)
+    !============================================================
+    ! 4. Integrate residual buoyancy flux vertically
+    !============================================================
+    iz = minloc(zh, dim = 1, mask = zh > hs)
     iz0 = iz
-
-
     S = 0.0
-
-    do while ((F1 > 0.).AND.(iz<=kmax))
-
-
-
-        if((iz.eq.iz0)) then
-
-            gradT = (tzh(iz)-ths)/(zh(iz)-hs)
-            S = g/tzh(iz)*(gradT + g/cp)
-
-            F0_old = Fb  !Should F0_old and F0  be the same for the first step
-            F0 = Fb      !since iz0 and hs are in the same layer?
-
-            upperh = zh(iz)-hs
-            lowerh = 0   !i.e., vertical distances are relative to the top of the stack
-            lowerw = (uhs+uzh(iz))/2. !the mean windspeed (as in Gordon et al., 2017)
-
-
-        elseif(iz.gt.iz0) then
-
-            gradT = (tzh(iz)-tzh(iz-1))/(zh(iz)-zh(iz-1))
-            S = g/tzh(iz)*(gradT + g/cp)
-            F0_old = F0
-            F0 = F1
-            upperh = zh(iz)-hs
-            lowerh = zh(iz-1)-hs
-            lowerw = (uzh(iz-1)+uzh(iz))/2. !the mean windspeed (as in Gordon et al., 2017)
-
-        endif
-
-
-
-
-        if(S>=0.) then
-
-            F1 = min( F0 - 0.015*S*F0_old**(1./3.)*(upperh**(8./3.)-lowerh**(8./3.)), &
-                         F0 - 0.053*S*lowerw*        (upperh**3.     -lowerh**3.) )
-
+    
+    do while ((F1 > 0.0) .and. (iz <= kmax))
+        if (iz == iz0) then
+            gradT = (tzh(iz) - ths) / (zh(iz) - hs)
+            lowerh = 0.0 !i.e., vertical distances are relative to the top of the stack
+            upperh = zh(iz) - hs
+            lowerw = 0.5 * (uhs + uzh(iz)) !the mean windspeed (as in Gordon et al., 2017)
         else
+            gradT = (tzh(iz) - tzh(iz - 1)) / (zh(iz) - zh(iz - 1))
+            lowerh = zh(iz - 1) - hs
+            upperh = zh(iz) - hs
+            lowerw = 0.5 * (uzh(iz) + uzh(iz - 1))
+        end if
 
+        S = g / tzh(iz) * (gradT + g / cp)
+
+        F0_old = F0
+        F0 = F1
+
+        if (S >= 0.0) then
+            F1 = min( F0 - 0.015 * S * max(F0_old,1e-6)**(1./3.) * (upperh**(8./3.) - lowerh**(8./3.)), &
+                      F0 - 0.053 * S * lowerw * (upperh**3. - lowerh**3.) )
+        else
             F1 = F0
-
-        endif
+        end if
 
         if(F1==0) then
-
             hmax = upperh
-
         endif
 
-        if(F1<0) then
-
-            hmax =  min(((F0/(0.015*S*F0_old**(1./3.))**(3./8.))+lowerh), &
-                        (((F0/(0.053*S*lowerw))**(1./3.))+lowerh))
-
-        endif
+        if (F1 < 0.0) then
+            if (abs(S) > 1.0e-6 .and. F0_old > 0.0 .and. lowerw > 0.0) then
+                hmax = min( ((F0 / (0.015 * S * max(F0_old,1e-6)**(1.0/3.0)))**(3.0/8.0) + lowerh), &
+                    ((F0 / (0.053 * S * lowerw))**(1.0/3.0) + lowerh) )
+            else
+                 ! Fallback if instability or bad input
+                 hmax = max(upperh, 0.0)
+            end if
+            exit
+        end if
 
         iz = iz + 1
-
-
     end do
 
-
+    !============================================================
+    ! 5. Compute vertical bounds
+    !============================================================
     !Now, the parameterization can handle the exact plume rise height:
+    
+    zbottom = hs - 0.5 * hmax
+    ztop    = hs + 1.5 * hmax
 
-    ! Initialize zbottom and S to valid values
-    zbottom = 0.0000001
-    ztop = 0.0000001
+    ! Fix invalid values
+    if (ieee_is_nan(zbottom) .or. zbottom <= 0.0) zbottom = 1.0
+    if (ieee_is_nan(ztop)) ztop = zbottom + min_plume_thickness
+    if (ztop < zbottom) ztop = zbottom + min_plume_thickness
 
-    zbottom = hs - hmax*0.5
+    !============================================================
+    ! 6. Map to grid indices
+    !============================================================
+    izbottom = minloc(zh, dim=1, mask=zh >= zbottom) - 1
+    iztop    = minloc(zh, dim=1, mask=zh >= ztop) - 1
 
+    izbottom = max(izbottom, 1)
+    iztop    = max(iztop, izbottom + 1)
 
-
-  ! Attempt to handle the problematic conditions
-  if (ieee_is_nan(zbottom) .or. ieee_is_nan(S)) then
-    ! Handle NaN values
-    zbottom = 0.0000001
-
-  else if (zbottom <= 0 .or. S < 0) then
-    ! Handle non-positive values
-    zbottom = 0.0000001
-  endif
-
-
-    ztop    = hs + hmax*1.5
-
-    if (ieee_is_nan(ztop)) ztop = 0.0000001
-
-    if(ztop<zbottom) ztop = zbottom
-
-    ! Create the format string dynamically
-    !format_string = '(F12.3, F12.3, F12.3, F12.3, F12.3)'
-
-    ! Print the values in a formatted way using the format string
-    !write(*, format_string) hmax, hs, Ts, vs, emis_b
-
-
-
-    izbottom = minloc(zh, dim=1, mask=zh.ge.zbottom)-1 !TODO makes sure this index is consistent with what is input in svp later
-    iztop    = minloc(zh, dim=1, mask=zh.ge.ztop   )-1 !TODO makes sure this index is consistent with what is input in svp later
-
-
-
-    ztop_frac    = (ztop           - zh(iztop))/dzf(iztop)    !(zh(iztop   +1) - zh(iztop   ))
-    zbottom_frac = (zh(izbottom+1) - zbottom  )/dzf(izbottom) !(zh(izbottom+1) - zh(izbottom))
-
+    zbottom_frac = (zh(izbottom+1) - zbottom) / dzf(izbottom)
+    ztop_frac    = (ztop - zh(iztop)) / dzf(iztop)
 
   end subroutine
+
+  
+  subroutine inject_heat_source(ix, iy, hs, Ts, Vs, use_gaussian)
+    
+    !TODO: Optimisation is needed to avoid too small dt..
+    !TODO: add Gaussian spread (horizontal) ? 
+
+    use modglobal,    only: rdt, dzf, zf, dx, dy
+    use modfields,    only: tmp0, rhof, thlp
+
+    implicit none
+
+    ! === Inputs ===
+    integer, intent(in) :: ix, iy
+    real,    intent(in) :: hs       ! Stack height [m]
+    real,    intent(in) :: Ts       ! Stack exit temperature [K]
+    real,    intent(in) :: Vs       ! Volumetric flow rate [m³/s]
+    logical, intent(in), optional :: use_gaussian
+
+    ! === Physical constants and limits ===
+    real, parameter :: cp = 1005.0                    ! Specific heat at const. pressure [J/kg·K]
+    real, parameter :: MAX_DELTA_THETA = 1.0          ! Max allowed heating [K per timestep] [tune me!]
+
+    ! === Locals ===
+    integer :: k, k_center, kmin, kmax
+    real :: Ta, rho_air, emission_power, heat_tend
+    real :: sigma_z, z_layer, z_center, weight, sum_weight
+    real :: max_heat_tend, volume
+
+    ! === Find vertical index nearest to stack height ===
+    k_center = minloc(abs(zf - hs), dim=1)
+
+    ! === Local ambient conditions ===
+    Ta = tmp0(ix, iy, k_center)
+    rho_air = max(1.0e-6, rhof(k_center))  ! Avoid divide-by-zero
+
+    ! === Input safety checks ===
+    if (Ts <= 0.0 .or. Ta <= 0.0 .or. Vs <= 0.0 .or. rho_air <= 0.0) then
+        print *, 'WARNING: Bad inputs in inject_heat_source @', ix, iy, &
+                 ' Ts:', Ts, ' Ta:', Ta, ' Vs:', Vs, ' rho:', rho_air, ' hs:', hs, ' k_center:', k_center
+        return
+    end if
+
+    ! === Total heat emission power ===
+    ! Units: [kg/m³] * [m³/s] * [J/kg·K] * [K] = [W] = [J/s]
+    emission_power = rho_air * Vs * cp * (Ts - Ta)
+
+    ! === Max allowed temperature tendency [K/s]
+    max_heat_tend = MAX_DELTA_THETA / rdt
+
+    ! === Direct (non-Gaussian) injection ===
+    if (.not. present(use_gaussian) .or. .not. use_gaussian) then
+        volume = dx * dy * dzf(k_center)  ! [m³]
+        ! [K/s] = [W] / ([kg/m³] * [m³] * [J/kg·K])
+        heat_tend = emission_power / (volume * rho_air * cp)
+
+        if (heat_tend > max_heat_tend) then
+            print *, 'Capping heat_tend at', ix, iy, k_center, ':', heat_tend, '→', max_heat_tend
+            heat_tend = max_heat_tend
+        end if
+
+        thlp(ix, iy, k_center) = thlp(ix, iy, k_center) + heat_tend
+        return
+    end if
+
+    ! === Gaussian vertical distribution ===
+    z_center = zf(k_center)
+    kmin = max(1, k_center - 4)
+    kmax = min(size(zf), k_center + 4)
+    sigma_z = 0.25 * maxval(dzf(kmin:kmax)) * 3.0
+
+    ! === Normalize Gaussian weights ===
+    sum_weight = 0.0
+    do k = kmin, kmax
+        z_layer = zf(k)
+        weight = exp(-((z_layer - z_center)**2) / (2.0 * sigma_z**2))
+        sum_weight = sum_weight + weight
+    end do
+
+    ! === Apply distributed heating tendency [K/s] ===
+    do k = kmin, kmax
+        z_layer = zf(k)
+        weight = exp(-((z_layer - z_center)**2) / (2.0 * sigma_z**2)) / sum_weight
+        rho_air = max(1.0e-6, rhof(k))   ! Update for each level
+        volume = dx * dy * dzf(k)
+
+        ! [K/s] = [W] * [unitless] / ([kg/m³] * [m³] * [J/kg·K])
+        heat_tend = emission_power * weight / (volume * rho_air * cp)
+
+        if (heat_tend > max_heat_tend) then
+            print *, 'Capping Gaussian heat_tend at', ix, iy, k, ':', heat_tend, '→', max_heat_tend
+            heat_tend = max_heat_tend
+        end if
+
+        thlp(ix, iy, k) = thlp(ix, iy, k) + heat_tend ! [K/s]
+    end do
+
+  end subroutine inject_heat_source
+  
+  subroutine inject_momentum_source(ix, iy, hs, Vs, use_gaussian)
+  
+    !TODO: Optimisation is needed to avoid too small dt..
+    !TODO: add Gaussian spread (horizontal) ?
+    
+    use modglobal,    only: rdt, dzf, zf, dx, dy
+    use modfields,    only: wp  ! Vertical wind tendency [m/s²]
+    
+    implicit none
+
+    ! Inputs
+    integer, intent(in) :: ix, iy
+    real,    intent(in) :: hs       ! Stack height [m]
+    real,    intent(in) :: Vs       ! Volumetric flow rate [m³/s]
+    logical, intent(in), optional :: use_gaussian
+
+    ! Parameters
+    real, parameter :: pi = 3.141592653589793
+    !real, parameter :: MAX_W_TEND = 0.3  ! Max dvz injection rate [m/s²] [tune me!]
+    real :: MAX_W_TEND ! Max dvz injection rate [m/s²]
+    real, parameter :: MAX_DVZ_PER_STEP = 0.5  ! Maximum change in vertical velocity [m/s] allowed per timestep [tune me!]
+
+    ! Locals
+    integer :: k, k_center, kmin, kmax
+    real :: D, r, A, w_exit
+    real :: z_center, z_layer, weight, sum_weight, dvz
+    real :: sigma_z, volume
+    
+    !  ===  Max dvz injection rate assumption [m/s²]  ===
+    MAX_W_TEND = MAX_DVZ_PER_STEP / rdt  ! rdt = 1/dt
+
+    ! === Geometry assumptions (rough estimate) ===
+    D = hs / 10.0            ! Effective stack diameter [m] [tune me!]
+    r = D / 2.0              ! Stack radius [m]
+    A = pi * r**2            ! Stack exit area [m²]
+
+    ! === Safety check ===
+    if (A <= 0.0 .or. Vs <= 0.0) then
+        print *, 'WARNING: Invalid stack geometry or zero flow at ix=', ix, 'iy=', iy
+        return
+    end if
+
+    ! === Compute exit velocity ===
+    w_exit = Vs / A          ! Stack exit velocity [m/s]
+
+    ! === Find vertical index closest to stack height ===
+    k_center = minloc(abs(zf - hs), dim=1)
+
+    ! === Compute grid cell volume at center ===
+    volume = dx * dy * dzf(k_center)   ! Grid cell volume [m³]
+
+    ! === Direct momentum injection (no Gaussian) ===
+    dvz = (w_exit**2 * A) / volume     ! Vertical velocity tendency [m/s²]
+
+    if (dvz > MAX_W_TEND) then
+        print *, 'Capping dvz at', ix, iy, ':', dvz, '→', MAX_W_TEND
+        dvz = MAX_W_TEND
+    end if
+
+    if (.not. present(use_gaussian) .or. .not. use_gaussian) then
+        wp(ix, iy, k_center) = wp(ix, iy, k_center) + dvz
+        return
+    end if
+
+    ! === Gaussian spread vertically ===
+    z_center = zf(k_center)
+    kmin = max(1, k_center - 4)
+    kmax = min(size(zf), k_center + 4)
+    sigma_z = 0.25 * maxval(dzf(kmin:kmax)) * 3.0  ! Gaussian width [m]
+
+    ! === Normalize Gaussian weights ===
+    sum_weight = 0.0
+    do k = kmin, kmax
+        z_layer = zf(k)
+        weight = exp(-((z_layer - z_center)**2) / (2.0 * sigma_z**2))
+        sum_weight = sum_weight + weight
+    end do
+
+    ! === Apply distributed momentum injection ===
+    do k = kmin, kmax
+        z_layer = zf(k)
+        weight = exp(-((z_layer - z_center)**2) / (2.0 * sigma_z**2)) / sum_weight
+        volume = dx * dy * dzf(k)
+
+        dvz = (w_exit**2 * A * weight) / volume   ! [m/s²]
+
+        if (dvz > MAX_W_TEND) then
+            print *, 'Capping Gaussian dvz at', ix, iy, k, ':', dvz, '→', MAX_W_TEND
+            dvz = MAX_W_TEND
+        end if
+
+        wp(ix, iy, k) = wp(ix, iy, k) + dvz ! [m/s²]
+    
+    end do
+
+  end subroutine inject_momentum_source
+  
+  
+  !subroutine inject_tracer_source(ix, iy, hs, etend, dzf, zh, svp, factor, l, sf, use_gaussian)
+    !implicit none
+    !integer, intent(in) :: ix, iy, l
+    !real, intent(in) :: hs, etend
+    !real, intent(in) :: dzf(:), zh(:)
+    !real, intent(inout) :: svp(:, :, :, :)
+    !real, intent(in) :: factor, sf
+    !logical, intent(in), optional :: use_gaussian
+
+    !integer :: k, k_center, kmin, kmax
+    !real :: z_center, z_layer, weight, sum_weight
+    !real :: local_tendency
+    !real :: sigma_z
+
+    !k_center = minloc(abs(zh - hs), dim=1)
+    
+    !if (.not. present(use_gaussian) .or. .not. use_gaussian) then
+        !local_tendency = compute_tendency_func(etend, k_center, factor, l, sf)
+        !svp(ix, iy, k_center, tracer_prop(l)%trac_idx) = svp(ix, iy, k_center, tracer_prop(l)%trac_idx) + local_tendency
+        !return
+    !end if
+
+    !z_center = zh(k_center)
+    !kmin = max(1, k_center - 4)
+    !kmax = min(size(zh), k_center + 4)
+    !sigma_z = 0.25 * maxval(dzf(kmin:kmax)) * 3.0
+    
+    !sum_weight = 0.0
+
+    !do k = kmin, kmax
+        !z_layer = zh(k)
+        !weight = exp(-((z_layer - z_center)**2) / (2.0 * sigma_z**2))
+        !sum_weight = sum_weight + weight
+    !end do
+
+   ! do k = kmin, kmax
+        !z_layer = zh(k)
+        !weight = exp(-((z_layer - z_center)**2) / (2.0 * sigma_z**2)) / sum_weight
+        !local_tendency = compute_tendency_func(etend * weight, k, factor, l, sf)
+        !svp(ix, iy, k, tracer_prop(l)%trac_idx) = svp(ix, iy, k, tracer_prop(l)%trac_idx) + local_tendency
+    !end do
+  !end subroutine
 
   ! pure real function briggs_iter(F0, F1, z0, z1, T0, T1, U0)
     ! real, intent(in) :: F0, F1, z0, z1, T0, T1, U0

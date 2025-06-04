@@ -228,9 +228,9 @@ contains
 
       if (do_global) then
         !$acc host_data use_device(avg, n_cells_tot)
-        call mpi_allreduce(mpi_in_place, avg, ke, mpi_real4, mpi_sum, &
-                           comm3d, mpierr)
-        call mpi_allreduce(mpi_in_place, n_cells_tot, ke - ks + 1, mpi_integer, &
+        call mpi_allreduce(mpi_in_place, avg, ke, mpi_real4, mpi_sum, comm3d, &
+                           mpierr)
+        call mpi_allreduce(mpi_in_place, n_cells_tot, ke, mpi_integer, &
                            mpi_sum, comm3d, mpierr)
         !$acc end host_data
       end if
