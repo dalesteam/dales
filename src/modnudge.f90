@@ -37,6 +37,8 @@ module modnudge
   logical :: lthlnudge = .true.
   logical :: lqtnudge = .true.
 
+  logical :: ltthlnudge = .false. ! in the ASCII input, expect an additional column with thl nudge times
+
   ! Nudging profiles
   real(field_r), allocatable :: tnudge(:,:)
   real(field_r), allocatable :: unudge(:,:)
@@ -80,7 +82,7 @@ contains
     real, allocatable, dimension(:) :: height
 
     namelist /NAMNUDGE/ lnudge, lunudge, lvnudge, lwnudge, lthlnudge, &
-                        lqtnudge, tnudgefac
+                        lqtnudge, tnudgefac, ltthlnudge
 
     if (myid == 0) then
       open(ifnamopt, file=fname_options, status='old', iostat=ierr)
@@ -97,6 +99,7 @@ contains
     call D_MPI_BCAST(lthlnudge, 1, 0, comm3d, mpierr)
     call D_MPI_BCAST(lqtnudge, 1, 0, comm3d, mpierr)
     call D_MPI_BCAST(tnudgefac, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(ltthlnudge, 1, 0, comm3d, mpierr)
 
     if (.not. lnudge) return
 
@@ -220,16 +223,30 @@ contains
           write(6, *) 'time', timenudge(t)
           write(6, *) ' height    t_nudge    u_nudge    v_nudge    w_nudge    &
           &thl_nudge    qt_nudge'
-          do k = 1, kmax
-            read(ifinput, *) &
-              height(k), &
-              tnudge(k,t), &
-              unudge(k,t), &
-              vnudge(k,t), &
-              wnudge(k,t), &
-              thlnudge(k,t), &
-              qtnudge(k,t)
-          end do
+          if (.not. ltthlnudge) then
+             do k = 1, kmax
+                read(ifinput, *) &
+                     height(k), &
+                     tnudge(k,t), &
+                     unudge(k,t), &
+                     vnudge(k,t), &
+                     wnudge(k,t), &
+                     thlnudge(k,t), &
+                     qtnudge(k,t)
+             end do
+          else
+             do k = 1, kmax
+                read(ifinput, *) &
+                     height(k), &
+                     tnudge(k,t), &
+                     unudge(k,t), &
+                     vnudge(k,t), &
+                     wnudge(k,t), &
+                     thlnudge(k,t), &
+                     qtnudge(k,t), &
+                     tthlnudge(k,t)   ! extra input column for thlnudget
+             end do
+          end if
 
           do k = kmax, 1, -1
             write(6, '(f7.1,6e12.4)') &
@@ -262,8 +279,8 @@ contains
       tunudge(:,:) = tnudge(:,:)
       tvnudge(:,:) = tnudge(:,:)
       twnudge(:,:) = tnudge(:,:)
-      tthlnudge(:,:) = tnudge(:,:)
       tqtnudge(:,:) = tnudge(:,:)
+      if (.not. ltthlnudge) tthlnudge(:,:) = tnudge(:,:)
     end if
 
 

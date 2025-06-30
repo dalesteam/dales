@@ -379,7 +379,7 @@ subroutine initbulkmicrostat3
     use modstat_nc, only : lnetcdf, writestat_nc
 !    use modgenstat, only : nrec_prof=>nrec
     use modmicrodata3
-    use modmpi,    only  : comm3d, mpierr, D_MPI_REDUCE
+    use modmpi,    only  : comm3d, mpierr, D_MPI_ALLREDUCE
 
     implicit none
     integer  :: nsecs, nhrs, nminut
@@ -392,12 +392,12 @@ subroutine initbulkmicrostat3
 
     ! gather all columns
     if (l_statistics) then
-      call D_MPI_REDUCE(statistic_mphys    ,size(statistic_mphys    ),MPI_SUM,0,comm3d,mpierr)
-      call D_MPI_REDUCE(statistic_sv0_count,size(statistic_sv0_count),MPI_SUM,0,comm3d,mpierr)
-      call D_MPI_REDUCE(statistic_sv0_fsum ,size(statistic_sv0_fsum ),MPI_SUM,0,comm3d,mpierr)
-      call D_MPI_REDUCE(statistic_sv0_csum ,size(statistic_sv0_csum ),MPI_SUM,0,comm3d,mpierr)
-      call D_MPI_REDUCE(statistic_svp_fsum ,size(statistic_sv0_fsum ),MPI_SUM,0,comm3d,mpierr)
-      call D_MPI_REDUCE(statistic_svp_csum ,size(statistic_sv0_csum ),MPI_SUM,0,comm3d,mpierr)
+      call D_MPI_ALLREDUCE(statistic_mphys    ,size(statistic_mphys    ),MPI_SUM,comm3d,mpierr)
+      call D_MPI_ALLREDUCE(statistic_sv0_count,size(statistic_sv0_count),MPI_SUM,comm3d,mpierr)
+      call D_MPI_ALLREDUCE(statistic_sv0_fsum ,size(statistic_sv0_fsum ),MPI_SUM,comm3d,mpierr)
+      call D_MPI_ALLREDUCE(statistic_sv0_csum ,size(statistic_sv0_csum ),MPI_SUM,comm3d,mpierr)
+      call D_MPI_ALLREDUCE(statistic_svp_fsum ,size(statistic_sv0_fsum ),MPI_SUM,comm3d,mpierr)
+      call D_MPI_ALLREDUCE(statistic_svp_csum ,size(statistic_sv0_csum ),MPI_SUM,comm3d,mpierr)
 
       ! normalize
       statistic_sv0_fsum = statistic_sv0_fsum / ijtot / nsamples
@@ -413,7 +413,7 @@ subroutine initbulkmicrostat3
     endif
 
     if (l_tendencies) then
-      call D_MPI_REDUCE(tend_fsum          ,size(tend_fsum          ),MPI_SUM,0,comm3d,mpierr)
+      call D_MPI_ALLREDUCE(tend_fsum, size(tend_fsum), MPI_SUM, comm3d, mpierr)
 
       ! normalize
       tend_fsum = tend_fsum / ijtot / nsamples

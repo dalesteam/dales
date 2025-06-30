@@ -1009,7 +1009,7 @@ contains
     !============================================================
     ! 2. Interpolate T and U at stack height
     !============================================================
-    ieq = findloc(zh, hs, dim = 1)
+    ieq = findloc(zh, real(hs, field_r), dim = 1)
     if (ieq > 0) then
         ths = tzh(ieq)
         uhs = uzh(ieq)
