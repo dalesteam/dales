@@ -27,7 +27,7 @@ module modbulkmicro_data
     l_mur_cst = .false.,  & !< Use constant value for mu in DSD.
     l_lognormal = .false.   !< Use lognormal distribution for rain terminal velocities.
 
-  !$acc decleare create(l_mur_cst)
+  !$acc declare create(l_mur_cst)
 
   real(field_r) :: &
     mur_cst = 5,   & !< Mu value if l_mur_cst = .true.
