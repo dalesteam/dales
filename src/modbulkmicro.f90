@@ -141,7 +141,7 @@ module modbulkmicro
     gamma3=2.
     gamma35=gamma(3.5)
 
-    !$acc enter data copyin(Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, qtpmcr)
+    !$acc enter data copyin(Nr, qr, Nrp, qrp, precep, thlpmcr, qtpmcr)
 
     if (lstat) call init_bulkmicro_stat
 
@@ -156,7 +156,7 @@ module modbulkmicro
     use modbulkmicro_data, only : Nr,Nrp,qr,qrp
     implicit none
 
-    !$acc exit data delete(Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, qtpmcr)
+    !$acc exit data delete(Nr, qr, Nrp, qrp, precep, thlpmcr, qtpmcr)
 
     deallocate(Nr,Nrp,qr,qrp,thlpmcr,qtpmcr)
     deallocate(precep)
