@@ -12,7 +12,7 @@ set( dales_srcs
 	daleslib.f90
 	fftnew.f90
 	go.f90
-	le_drydepos_gas_depac.f90
+	le_drydepos_gas.f90
 	modAGScross.f90
 	modadvection.f90
 	modboundary.f90
@@ -22,7 +22,8 @@ set( dales_srcs
 	modbulkmicro3_column.f90
 	modbulkmicro3_point.f90
 	modbulkmicrostat.f90
-    modbulkmicro_stat.f90
+	modbulkmicro_data.f90
+  modbulkmicro_stat.f90
 	modbulkmicrostat3.f90
 	modcanopy.f90
 	modcape.f90
@@ -33,6 +34,7 @@ set( dales_srcs
 	modcufft.f90
 	moddatetime.f90
 	moddepcrosssection.f90
+	moddrizzle.f90
 	moddrydeposition.f90
 	modemisdata.f90
 	modemission.f90
@@ -48,6 +50,8 @@ set( dales_srcs
 	modheterostats.f90
 	modhypre.f90
 	modlookuptable.f90
+	modibm.f90
+	modibmdata.f90
 	modlsm.f90
 	modlsmcrosssection.f90
 	modlsmdata.f90
@@ -59,6 +63,7 @@ set( dales_srcs
 	modmpi.f90
 	modmpiinterface.f90
 	modmsebudg.f90
+	modnamelist.f90
 	modnetcdf.f90
 	modnudge.f90
 	modnudgeboundary.f90
@@ -80,7 +85,10 @@ set( dales_srcs
 	modscalarpulse.f90
 	modsimpleice.f90
 	modsimpleice2.f90
+	modsimpleice_data.f90
 	modslabaverage.f90
+	modspraying.f90
+	modsprayingdata.f90
 	modstartup.f90
 	modstat_nc.f90
 	modstat_profiles.f90

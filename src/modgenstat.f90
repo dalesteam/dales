@@ -536,7 +536,8 @@ contains
                           ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi,tup,tdn,lopenbc
     use modmpi,    only : comm3d,mpi_sum,mpierr,slabsum,D_MPI_ALLREDUCE
     use advec_kappa, only : halflev_kappa
-    use modmicrodata, only: tuprsg, tdnrsg, iqr
+    use modmicrodata, only: iqr
+    use modsimpleice_data, only: tuprsg, tdnrsg
     use modthermodynamics, only: qsat_tab
     implicit none
 

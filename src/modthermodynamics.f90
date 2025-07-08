@@ -85,9 +85,12 @@ contains
 !! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure,
 !! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
-    use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds,lfast_thermo
-    use modfields, only : thl0, qt0, ql0, presf, exnf, thvh, thv0h, qt0av, ql0av, thvf, rhof
-    use modmpi, only : slabsum
+    use modglobal,  only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds,lfast_thermo
+    use modfields,  only : thl0, qt0, ql0, presf, exnf, thvh, thv0h, qt0av, ql0av, thvf, rhof
+    use modmpi,     only : slabsum
+    use modibm,     only : fluid_mask
+    use modibmdata, only : lapply_ibm
+    use modslabaverage, only : slabavg
     implicit none
     integer:: i, j, k
 
@@ -144,15 +147,22 @@ contains
     thvf(:) = 0.0
     !$acc end kernels
 
+    if (.not. lapply_ibm) then
     !$acc host_data use_device(thvh, thv0h, thvf, thv0)
-    call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
-    call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+      call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
+      call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     !$acc end host_data
+    else
+      call slabavg(thv0h,fluid_mask,ih,thvh)
+      call slabavg(thv0,fluid_mask,ih,thvf)
+    end if
 
     !$acc kernels default(present) async(1)
-    thvh(:) = thvh(:)/ijtot
+    if (.not. lapply_ibm) then
+      thvh(:) = thvh(:)/ijtot
+      thvf(:) = thvf(:)/ijtot
+    end if
     thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
-    thvf(:) = thvf(:)/ijtot
     !$acc end kernels
 
     !$acc parallel loop default(present) async(1)
@@ -335,11 +345,14 @@ contains
 !!     qt,ql,exner,pressure and the density
 !! \author      Pier Siebesma   K.N.M.I.     06/01/1995
   subroutine diagfld
-  use modglobal, only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0,timee,lconstexner
-  use modfields, only : u0,v0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
+  use modglobal,  only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0,timee,lconstexner
+  use modfields,  only : u0,v0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
                         presf,presh,exnf,exnh,rhof,thvf
   use modsurfdata,only : thls,ps
-  use modmpi,    only : slabsum
+  use modmpi,     only : slabsum
+  use modibm,     only : fluid_mask
+  use modibmdata, only : lapply_ibm
+  use modslabaverage, only : slabavg
   implicit none
 
   integer :: k,n
@@ -354,42 +367,55 @@ contains
 
 ! initialise local MPI arrays
 
-    !$acc kernels default(present)
-    u0av = 0.0
-    v0av = 0.0
-    thl0av = 0.0
-    th0av  = 0.0
-    qt0av  = 0.0
-    ql0av  = 0.0
-    sv0av = 0.
-    !$acc end kernels
+  !$acc kernels default(present)
+  u0av = 0.0
+  v0av = 0.0
+  thl0av = 0.0
+  th0av  = 0.0
+  qt0av  = 0.0
+  ql0av  = 0.0
+  sv0av = 0.
+  !$acc end kernels
 
-!  !CvH changed momentum array dimensions to same value as scalars!
-   !$acc host_data use_device(u0av, u0, v0av, v0, thl0av, thl0, qt0av, qt0, &
-   !$acc&                     ql0av, ql0, sv0av, sv0)
-   call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   do n=1,nsv
+  !CvH changed momentum array dimensions to same value as scalars!
+  if (.not. lapply_ibm) then
+  !$acc host_data use_device(u0av, u0, v0av, v0, thl0av, thl0, qt0av, qt0, &
+  !$acc&                     ql0av, ql0, sv0av, sv0)
+    call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    do n=1,nsv
       call slabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   end do
-   !$acc end host_data
+    end do
+  !$acc end host_data
+  else
+    call slabavg(u0,fluid_mask,ih,u0av)
+    call slabavg(v0,fluid_mask,ih,v0av)
+    call slabavg(thl0,fluid_mask,ih,thl0av)
+    call slabavg(qt0,fluid_mask,ih,qt0av)
+    call slabavg(ql0,fluid_mask,ih,ql0av)
+    do n=1,nsv
+      call slabavg(sv0(:,:,:,n),fluid_mask,ih,sv0av(:,n))
+    end do
+  end if
 
-   !$acc kernels default(present)
-   u0av   = u0av  /ijtot + cu
-   v0av   = v0av  /ijtot + cv
-   thl0av = thl0av/ijtot
-   qt0av  = qt0av /ijtot
-   ql0av  = ql0av /ijtot
-   sv0av  = sv0av /ijtot
-   if (timee < 0.01 .or. .not. lconstexner) then
-     exnf   = 1-grav*zf/(cp*thls)
-     exnh   = 1-grav*zh/(cp*thls)
-   endif
-   th0av  = thl0av+ (rlv/cp)*ql0av/exnf
-   !$acc end kernels
+  !$acc kernels default(present)
+  if (.not. lapply_ibm) then
+    u0av   = u0av  /ijtot + cu
+    v0av   = v0av  /ijtot + cv
+    thl0av = thl0av/ijtot
+    qt0av  = qt0av /ijtot
+    ql0av  = ql0av /ijtot
+    sv0av  = sv0av /ijtot
+  end if
+  if (timee < 0.01 .or. .not. lconstexner) then
+    exnf   = 1-grav*zf/(cp*thls)
+    exnh   = 1-grav*zh/(cp*thls)
+  endif
+  th0av  = thl0av+ (rlv/cp)*ql0av/exnf
+  !$acc end kernels
 
 !***********************************************************
 !  2.0   calculate average profile of pressure at full and *

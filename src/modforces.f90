@@ -253,11 +253,17 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal, only : i1,j1,kmax,dzh,nsv,lmomsubs
+  use modglobal, only : i1,j1,kmax,dzh,nsv,lmomsubs,&
+                        rlv,cp,&
+                        dx,dy,dzf
   use modfields, only : up,vp,thlp,qtp,svp,&
                         whls, u0av,v0av,thl0,qt0,sv0,u0,v0,&
                         dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,dqtdxls,dqtdyls, &
-                        dqtdtls, dthldtls, dudtls, dvdtls
+                        dqtdtls, dthldtls, dudtls, dvdtls,&
+                        exnf,rhobf,ql0
+  use modsprayingdata, only : lwater_spraying, lsalt_spraying,i_loc_spray,j_loc_spray,k_loc_spray,&
+                              water_spray_rate,salt_spray_rate,&
+                              dqldt_spraying,dsvdt_spraying,isv_salt, salinity
   implicit none
 
   integer i, j, k, n
@@ -333,6 +339,26 @@ contains
     end do
   end if
   !$acc wait
+
+
+  if ((lwater_spraying.or.lsalt_spraying).and.i_loc_spray.ne.-999) then
+
+     dqldt_spraying = water_spray_rate/(rhobf(k_loc_spray)*dx*dy*dzf(k_loc_spray)) 
+     dsvdt_spraying = salt_spray_rate/(rhobf(k_loc_spray)*dx*dy*dzf(k_loc_spray)) * &
+                       (1-sv0(i_loc_spray,j_loc_spray,k_loc_spray,isv_salt)/salinity)
+
+     qtp(i_loc_spray,j_loc_spray,k_loc_spray)  = qtp(i_loc_spray,j_loc_spray,k_loc_spray)  &
+                  + (1-qt0(i_loc_spray,j_loc_spray,k_loc_spray)) * dqldt_spraying
+     thlp(i_loc_spray,j_loc_spray,k_loc_spray) = thlp(i_loc_spray,j_loc_spray,k_loc_spray) & 
+                  - (rlv/(cp*exnf(k_loc_spray)))* (1-ql0(i_loc_spray,j_loc_spray,k_loc_spray))* dqldt_spraying
+     write(6,*) 'sv0 ',sv0(i_loc_spray:i_loc_spray+1,j_loc_spray,k_loc_spray,isv_salt)
+     write(6,*) 'svp ' ,svp(i_loc_spray:i_loc_spray+1,j_loc_spray,k_loc_spray,isv_salt)
+
+     svp(i_loc_spray,j_loc_spray,k_loc_spray,isv_salt)  = svp(i_loc_spray,j_loc_spray,k_loc_spray,isv_salt) &
+                  + dsvdt_spraying
+     write(6,*) 'spray rate',water_spray_rate,dqldt_spraying, dsvdt_spraying,&
+           svp(i_loc_spray,j_loc_spray,k_loc_spray,isv_salt),isv_salt
+  endif
 
   call timer_toc('modforces/lstend')
 

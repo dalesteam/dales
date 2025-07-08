@@ -61,9 +61,9 @@ contains
                           LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA
     use modthermodynamics, only: th0av, thv0, thetah, qth, qlh
     use modboundary, only: tsc
-    use modmicrodata, only: Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
-                            qtpmcr
+    use modmicrodata, only: precep, thlpmcr, qtpmcr
     use modchecksim, only: courxl, couryl, courzl, courtotl, peclettotl
+    use modibm,      only: fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p
 
     implicit none
 
@@ -88,12 +88,12 @@ contains
     !$acc&              qvsl, qvsi, esl, qsat, qth, qlh, &
     !$acc&              esatmtab, esatitab, esatltab, &
     !$acc&              th0av, thv0, thetah, qth, qlh, &
-    !$acc&              Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
-    !$acc&              qtpmcr, &
+    !$acc&              precep, thlpmcr, qtpmcr, &
     !$acc&              thlprad, lwd, lwu, swd, swu, lwc, swdir, swdif, &
     !$acc&              lwdca, lwuca, swdca, swuca, &
     !$acc&              LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &
-    !$acc&              LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA)
+    !$acc&              LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA, &
+    !$acc&              fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p)
 
   end subroutine update_gpu
 
@@ -134,9 +134,9 @@ contains
                           LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA
     use modthermodynamics, only: th0av, thv0, thetah, qth, qlh
     use modboundary, only: tsc
-    use modmicrodata, only: Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
-                            qtpmcr
+    use modmicrodata, only: precep, thlpmcr, qtpmcr
     use modchecksim, only: courxl, couryl, courzl, courtotl, peclettotl
+    use modibm,      only: fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p
 
     implicit none
 
@@ -163,12 +163,12 @@ contains
     !$acc&            qvsl, qvsi, esl, qsat, qth, qlh, &
     !$acc&            esatmtab, esatitab, esatltab, &
     !$acc&            th0av, thv0, thetah, qth, qlh, &
-    !$acc&            Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
-    !$acc&            qtpmcr, &
+    !$acc&            precep, thlpmcr, qtpmcr, &
     !$acc&            thlprad, lwd, lwu, swd, swu, lwc, swdir, swdif, &
     !$acc&            lwdca, lwuca, swdca, swuca, &
     !$acc&            LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &
-    !$acc&            LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA)
+    !$acc&            LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA, &
+    !$acc&            fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p)
 
     host_is_updated = .true.
 

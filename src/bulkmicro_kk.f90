@@ -17,12 +17,11 @@
 !
 !> Kernels for Khairoutdinov-Kogan microphysics.
 module bulkmicro_kk
-  use modglobal,    only: i1, ih, j1, jh, k1, rlv, cp, pi, rv
-  use modmicrodata, only: pirhow, qrmin, Nc_0, qcmin, delt
-  use modmicroutil, only: calc_xr, calc_dvr
-  use modprecision, only: field_r
-  use modtimer,     only: timer_tic, timer_toc
-
+  use modglobal,         only: i1, ih, j1, jh, k1, rlv, cp, pi, rv, pirhow
+  use modmicrodata,      only: Nc_0
+  use modbulkmicro_data, only: qrmin, qcmin, l_mur_cst, mur_cst
+  use modprecision,      only: field_r
+  use modtimer,          only: timer_tic, timer_toc
 
   implicit none
 
@@ -45,6 +44,8 @@ module bulkmicro_kk
     eps = 1e-18
 
 contains
+
+  include 'microphysics.inc'
 
   !> Calculate the autoconversion term.
   !!

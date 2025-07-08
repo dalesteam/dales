@@ -353,6 +353,24 @@ contains
     call MPI_ALLREDUCE(MPI_IN_PLACE, recvbuf, count, MPI_REAL8, op, comm, ierror)
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_ALLREDUCE_REAL64_IP
+    subroutine D_MPI_ALLREDUCE_REAL32_IP_R2(recvbuf, count, op, comm, ierror)
+    implicit none
+    real(real32), contiguous, intent(inout)   :: recvbuf(:,:)
+    integer        :: count, ierror
+    type(MPI_OP)   :: op
+    type(MPI_COMM) :: comm
+    call MPI_ALLREDUCE(MPI_IN_PLACE, recvbuf, count, MPI_REAL4, op, comm, ierror)
+    if (ierror /= MPI_SUCCESS) call abort
+  end subroutine D_MPI_ALLREDUCE_REAL32_IP_R2
+  subroutine D_MPI_ALLREDUCE_REAL64_IP_R2(recvbuf, count, op, comm, ierror)
+    implicit none
+    real(real64), contiguous, intent(inout)   :: recvbuf(:,:)
+    integer        :: count, ierror
+    type(MPI_OP)   :: op
+    type(MPI_COMM) :: comm
+    call MPI_ALLREDUCE(MPI_IN_PLACE, recvbuf, count, MPI_REAL8, op, comm, ierror)
+    if (ierror /= MPI_SUCCESS) call abort
+  end subroutine D_MPI_ALLREDUCE_REAL64_IP_R2
 
 !>D_MPI_ALLTOALL
   subroutine D_MPI_ALLTOALL_REAL32_R1(sendbuf, sendcount, recvbuf, recvcount, comm, ierror)
@@ -427,6 +445,8 @@ contains
     call MPI_REDUCE(sendbuf, recvbuf, count, MPI_REAL8, op, root, comm, ierror)
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_REDUCE_REAL64_R3
+  !! only root process should pass MPI_IN_PLACE
+  !! only root process should call the single-argument version
   subroutine D_MPI_REDUCE_REAL32_IP_R1(recvbuf, count, op, root, comm, ierror)
     implicit none
     real(real32), contiguous, intent(inout)   :: recvbuf(:)

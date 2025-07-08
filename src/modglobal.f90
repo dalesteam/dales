@@ -97,6 +97,7 @@ save
       real(field_r),parameter :: eps1     = 1.e-10           !<    *very small number*
       real,parameter :: epscloud = 1.e-5            !<    *limit for cloud calculation 0.01 g/kg
       real,parameter :: boltz    = 5.67e-8          !<    *Stefan-Boltzmann constant
+      real(field_r), parameter :: pirhow = pi*rhow/6 !< Microphysics, conversion of mass to diameter.
 
       ! Land-surface
       real,parameter :: rho_solid_soil = 2700       !< Density of dry solid soil (kg m-3)

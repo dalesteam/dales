@@ -1,23 +1,7 @@
 !#################################################################
 !
-! depac_lu.inc file for definition of landuse classes and 
+! depos_lu.inc file for definition of landuse classes and 
 !   land use dependent settings
-!
-!
-! DEPAC uses the "LBG" landuse clasification, 
-! while LOTOS-EUROS reads a map following "Smiatek" clasification:
-!
-! LBG class                       composed from lotos-euros landuse
-! ------------------------------  ----------------------------------------
-!  1 = grass                           3
-!  2 = arable                       2
-!  3 = permanent crops              2
-!  4 = coniferous forest                     5 6 
-!  5 = deciduous forest                   4    6    8         12 13
-!  6 = water                                     7  8      11
-!  7 = urban                      1
-!  8 = other (short grassy area)                         10
-!  9 = desert                                         9
 !
 !
 ! LBG class                       composed from glc landuse
@@ -130,7 +114,7 @@
 !#################################################################
 
 
-! depac classes:
+! landuse classes:
 integer, parameter  ::  ilu_grass               = 1
 integer, parameter  ::  ilu_arable              = 2
 integer, parameter  ::  ilu_permanent_crops     = 3

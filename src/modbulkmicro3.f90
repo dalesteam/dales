@@ -50,19 +50,20 @@ module modbulkmicro3
 !*********************************************************************
   use modmicrodata
   use modmicrodata3
+  use modglobal, only: ifnamopt, lwarmstart
+  use modmpi,    only : myid,comm3d,D_MPI_BCAST
   use modprecision, only : field_r
   implicit none
   private
   public initbulkmicro3, exitbulkmicro3, bulkmicro3
+  public :: bulkmicro3_read_namelist
 
   contains
 
-!> Initializes and allocates the arrays
-  subroutine initbulkmicro3
-    use modglobal, only : lwarmstart,ifnamopt,fname_options,i1,ih,j1,jh,k1
-    use modmpi,    only : myid,comm3d,D_MPI_BCAST
-    use modtracers, only: add_tracer
-    implicit none
+  subroutine bulkmicro3_read_namelist(nml_filename)
+
+    character(len=*), intent(in) :: nml_filename
+
     integer :: ierr
 
     ! set some initial values before loading namelist
@@ -81,10 +82,11 @@ module modbulkmicro3
      ,c_ccn, n_clmax                                         & ! C_CCN parameter, used when l_c_ccn
      ,kappa_ccn, x_cnuc,sat_max                              & ! parameters for liquid cloud nucleation
      ,Nc0, xc0_min, Nccn0                                    & ! setting of initial clouds
+     ,sig_gr                                                 & ! shape parameter of rain drop DSD
      ,l_statistics, l_tendencies                               ! output
 
     if(myid==0) then
-      open(ifnamopt,file=fname_options,status='old',iostat=ierr)
+      open(ifnamopt,file=nml_filename,status='old',iostat=ierr)
       read (ifnamopt,NAMBULK3,iostat=ierr)
       if (ierr > 0) then
         print *, 'Problem in namoptions NAMBULK3 '
@@ -182,7 +184,16 @@ module modbulkmicro3
      call D_MPI_BCAST(Nc0,               1, 0,comm3d,ierr)
      call D_MPI_BCAST(xc0_min,           1, 0,comm3d,ierr)
      call D_MPI_BCAST(Nccn0,             1, 0,comm3d,ierr)
+     call D_MPI_BCAST(sig_gr,            1, 0,comm3d,ierr)
 
+
+  end subroutine bulkmicro3_read_namelist
+
+!> Initializes and allocates the arrays
+  subroutine initbulkmicro3
+    use modglobal, only : i1,ih,j1,jh,k1
+    use modtracers, only: add_tracer
+    implicit none
 
   ! adding calculation of the constant part for moment
   c_mmt_1cl = calc_cons_mmt (1, mu_cl_cst, nu_cl_cst)

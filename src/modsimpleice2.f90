@@ -59,12 +59,12 @@ module modsimpleice2
 !> Initializes and allocates the arrays
   subroutine initsimpleice2
     use modglobal, only : ih,i1,jh,j1,k1,lacz_gamma
-    use modmicrodata, only : qr, qrp, nr, nrp, thlpmcr, qtpmcr, sed_qr, qr_spl, &
+    use modmicrodata, only: qtpmcr, thlpmcr, iqr, precep
+    use modsimpleice_data, only : qr, qrp, sed_qr, qr_spl, &
                              ilratio, rsgratio, sgratio, &
                              lambdar, lambdas, lambdag, &
-                             precep, &
                              ccrz,ccsz,ccgz,ccrz2,ccsz2,ccgz2,&
-                             bbg,bbr,bbs,ddg,ddr,dds, iqr
+                             bbg,bbr,bbs,ddg,ddr,dds
     use modtracers, only: add_tracer
     implicit none
     integer:: i, j, k
@@ -74,8 +74,6 @@ module modsimpleice2
 
     allocate (qr(2:i1,2:j1,k1)        & ! qr (total precipitation!) converted from a scalar variable
              ,qrp(2:i1,2:j1,k1)       & ! qr tendency due to microphysics only, for statistics
-             ,nr(2:i1,2:j1,k1)        & ! qr (total precipitation!) converted from a scalar variable
-             ,nrp(2:i1,2:j1,k1)       & ! qr tendency due to microphysics only, for statistics
              ,thlpmcr(2:i1,2:j1,k1)   & ! thl tendency due to microphysics only, for statistics
              ,qtpmcr(2-ih:i1+ih,2-jh:j1+jh,k1) & ! qt tendency due to microphysics only, for statistics. Ghost cells for modvarbudget.
              ,sed_qr(2:i1,2:j1,k1)    & ! sedimentation rain droplets mixing ratio
@@ -105,38 +103,28 @@ module modsimpleice2
     gammadds3=lacz_gamma(3.+dds)
     gammaddg3=lacz_gamma(3.+ddg)
 
-    !$acc enter data create(nrp, nr, qrp, qr, thlpmcr, qtpmcr, sed_qr, qr_spl, &
+    !$acc enter data create(qrp, qr, thlpmcr, qtpmcr, sed_qr, qr_spl, &
     !$acc&                  ilratio, rsgratio, sgratio, lambdar, lambdas, &
     !$acc&                  lambdag, precep, &
     !$acc&                  ccrz, ccsz, ccgz, ccrz2, ccsz2, ccgz2)
-
-    !$acc parallel loop collapse(3) default(present)
-    do k = 1, k1
-      do j = 2, j1
-        do i = 2, i1
-          nrp(i,j,k)=0. ! not used in this scheme
-          nr (i,j,k)=0. ! set to 0 here in case the statistics use them
-        enddo
-      enddo
-    enddo
 
   end subroutine initsimpleice2
 
 !> Cleaning up after the run
   subroutine exitsimpleice2
-    use modmicrodata, only : nr,nrp,qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl, &
+    use modmicrodata, only: qtpmcr, thlpmcr, precep
+    use modsimpleice_data, only : qr,qrp,sed_qr,qr_spl, &
                              ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag, &
-                             precep, &
                              ccrz,ccsz,ccgz,ccrz2,ccsz2,ccgz2
     implicit none
 
-    !$acc exit data delete(nrp, nr, &
+    !$acc exit data delete( &
     !$acc&                 qrp, qr, thlpmcr, qtpmcr, sed_qr, qr_spl, &
     !$acc&                 ilratio, rsgratio, sgratio, lambdar, lambdas, &
     !$acc&                 lambdag, precep, &
     !$acc&                 ccrz, ccsz, ccgz, ccrz2, ccsz2, ccgz2)
 
-    deallocate(nr,nrp,qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag)
+    deallocate(qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag)
     deallocate(precep)
     deallocate(ccrz,ccsz,ccgz)
     deallocate(ccrz2,ccsz2,ccgz2)
@@ -147,14 +135,15 @@ module modsimpleice2
   subroutine simpleice2
     use modglobal, only : i1,ih,j1,jh,k1,rdt,rk3step,timee,rlv,cp,tup,tdn,pi,tmelt,kmax,dzf,dzh
     use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhof,tmp0,rhobf,qvsl,qvsi,esl,surf_rain
-    use modmicrodata, only : sed_qr,qrp,&
+    use modmicrodata, only: delt, qtpmcr, thlpmcr, Nc_0, iqr, precep
+    use modsimpleice_data, only : sed_qr,qrp,&
                              aag,aar,aas,bbg,bbr,bbs,betag,betar,betas,ccg,ccr,ccs,&
                              ccgz2,ccrz2,ccsz2,ddg,ddr,dds,&
                              ccgz,ccrz,ccsz,&
                              n0rg,n0rr,n0rs,&
-                             betakessi,ceffgl,ceffri,ceffrl,ceffsi,ceffsl,ceffgi,courantp,delt,&
-                             qr,qtpmcr,thlpmcr,evapfactor,iqr,n0rg,n0rs,Nc_0,&
-                             qr_spl,precep,&
+                             betakessi,ceffgl,ceffri,ceffrl,ceffsi,ceffsl,ceffgi,courantp,&
+                             qr,evapfactor,n0rg,n0rs,&
+                             qr_spl,&
                              qcmin,qrmin,qli0,qll0,tdnrsg,tdnsg,tuprsg,tupsg,&
                              l_berry,l_graupel,l_rain,l_warm,timekessl
 

@@ -1,10 +1,6 @@
 !> \file modsamptend.f90
 !!  Calculates the tendencies of the main fields
-
-
-!>
-!!  Calculates the tendencies of the main fields
-!>
+!!
 !! Profiles of the individual terms of the prognostic equations.  Written to *tend.expnr
 !! If netcdf is true, this module also writes in the profiles.expnr.nc output
 !!  \author Thijs Heus, MPI
@@ -133,7 +129,7 @@ subroutine initsamptend
     if (lsamptendnr) allocate (nrptm(k1,nrfields,isamptot), nrpmn(k1,nrfields,isamptot), nrpav(k1,nrfields,isamptot), nrst(k1,isamptot))
 
     ! Needed to decompose advective terms
-    if (ltenddec) allocate (uwav(k1,isamptot), vsav(k1,isamptot), wav(k1,isamptot), uwavr(k1,isamptot), vsavr(k1,isamptot), & 
+    if (ltenddec) allocate (uwav(k1,isamptot), vsav(k1,isamptot), wav(k1,isamptot), uwavr(k1,isamptot), vsavr(k1,isamptot), &
                             wavr(k1,isamptot), thlavr(k1,isamptot), qtavr(k1,isamptot), qravr(k1,isamptot), nravr(k1,isamptot), qlavr(k1,isamptot))
 
     ! Only allocate these if you have the budget for a scalar and you want to decompose that scalar's budget
@@ -145,12 +141,12 @@ subroutine initsamptend
                                               uqrwav(k1,isamptot), vqrsav(k1,isamptot))
     if (ltenddec .and. lsamptendnr)  allocate(nrav(k1,isamptot), nrwav(k1,isamptot), nrsav(k1,isamptot), wnrav(k1,isamptot), &
                                               unrwav(k1,isamptot), vnrsav(k1,isamptot))
-	if (ltenddec .and. lqlflux) allocate(qlav(k1, isamptot), qlwav(k1, isamptot), qlsav(k1, isamptot), wqlav(k1, isamptot), &
- 	                                     uqlwav(k1, isamptot), vqlsav(k1, isamptot))
+    if (ltenddec .and. lqlflux) allocate(qlav(k1, isamptot), qlwav(k1, isamptot), qlsav(k1, isamptot), wqlav(k1, isamptot), &
+                                             uqlwav(k1, isamptot), vqlsav(k1, isamptot))
 
     allocate (tendmask(2-ih:i1+ih,2-jh:j1+jh,k1,isamptot))
     allocate (nrsamptot(k1,isamptot),nrsamp(k1,isamptot),nrsamplast(k1,isamptot),nrsampnew(k1,isamptot))
-    
+
     ! Tendency terms
     if (lsamptendu) then
       uptm = 0.; upmn = 0.; upav = 0.; ust = 0.
@@ -167,7 +163,7 @@ subroutine initsamptend
     if (lsamptendqt) then
       qtptm = 0.; qtpmn = 0.; qtpav = 0.; qtst = 0.
     end if
-    if (lsamptendqr) then 
+    if (lsamptendqr) then
       qrptm = 0.; qrpmn = 0.; qrpav = 0.; qrst = 0.
     end if
     if (lsamptendnr) then
@@ -190,7 +186,7 @@ subroutine initsamptend
     if (ltenddec .and. lsamptendnr) then
       nrav = 0.; nrwav = 0.; nrsav = 0.; wnrav = 0.; unrwav = 0.; vnrsav = 0.
     end if
-	if (ltenddec .and. lqlflux) then
+    if (ltenddec .and. lqlflux) then
        qlav = 0.; qlwav = 0.; qlsav = 0.; wqlav = 0.; uqlwav = 0.; vqlsav = 0.
     end if
 
@@ -210,13 +206,13 @@ subroutine initsamptend
         if (myid==0) then
           call initnetcdf()
         end if
-      end if      
+      end if
     end if
 
   end subroutine initsamptend
 
   subroutine initnetcdf
-  
+
     use modmpi,   only : cmyid
     use modglobal,only : cexpnr, kmax, output_prefix
     use modstat_nc, only : open_nc,define_nc,redefine_nc,ncinfo,nctiminfo,writestat_dims_nc
@@ -439,7 +435,7 @@ subroutine initsamptend
           call ncinfo(ncname(ifield +1,:,isamp),'qrtendleib'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'rain water content total tendency with leibniz terms','kg/kg/s',dimst)
           ifield = ifield + 1
-        end if        
+        end if
         if (ltenddec) then
           call ncinfo(ncname(ifield +1,:,isamp),'qrm'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'rain water content block average','kg/kg',dimst)
@@ -505,8 +501,8 @@ subroutine initsamptend
         call ncinfo(ncname(ifield +3,:,isamp),'vs'//samplname(isamp),&
         trim(longsamplname(isamp))//' '//'V southern edge average','m/s',dimsv)
         ifield = ifield + 3
-		if (lqlflux) then
- 		  call ncinfo(ncname(ifield +1,:,isamp),'qlm'//samplname(isamp),&
+        if (lqlflux) then
+           call ncinfo(ncname(ifield +1,:,isamp),'qlm'//samplname(isamp),&
            trim(longsamplname(isamp))//' '//'total liquid water content block average','kg/kg',dimst)
            call ncinfo(ncname(ifield +2,:,isamp),'qlw'//samplname(isamp),&
            trim(longsamplname(isamp))//' '//'total liquid water content west edge average','kg/kg',dimsu)
@@ -519,7 +515,7 @@ subroutine initsamptend
            call ncinfo(ncname(ifield +6,:,isamp),'wqlm'//samplname(isamp),&
            trim(longsamplname(isamp))//' '//'Vertical total liquid water content flux block average','kg/kg m/s',dimsm)
            ifield = ifield + 6
- 		end if
+        end if
       end if
       nvar = ifield ! total number of fields actually in use
       call define_nc(ncid,nvar,ncname(1:nvar,:,isamp)) ! Slice ncname up to nvar, which may have decreased
@@ -561,7 +557,7 @@ subroutine initsamptend
       ! and sample the state variables over these isamptot masks
       nrsamplast=0
       tendmask=.false.
-      if (lsamptendu) then 
+      if (lsamptendu) then
         uptm = 0.; ust = 0.
       end if
       if (lsamptendv) then
@@ -582,7 +578,7 @@ subroutine initsamptend
       if (lsamptendnr) then
         nrptm = 0.; nrst = 0.
       end if
-      
+
       if (lsampco .or. lsampbuup) then
         allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
         allocate(thvav(k1))
@@ -861,9 +857,9 @@ subroutine initsamptend
       nravr = 0.
       nrwavr = 0.
       nrsavr = 0.
-	  qlavr = 0.
-	  qlwavr = 0.
-	  qlsavr = 0.
+      qlavr = 0.
+      qlwavr = 0.
+      qlsavr = 0.
 
       do isamp=1,isamptot
       do k=1,k1
@@ -1029,21 +1025,21 @@ subroutine initsamptend
         enddo
         enddo
       end if
-	  if (lqlflux) then
+      if (lqlflux) then
          do isamp=1,isamptot
          do k=1,k1
            qlavr(k,isamp)  = sum(ql0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))/jmax/imax
            qlwavr = sum(ql0(2   ,2:j1,k),tendmask(2   ,2:j1,k,isamp))/jmax
            qlsavr = sum(ql0(2:i1,2   ,k),tendmask(2:i1,2   ,k,isamp))/imax
- 
+
            qlav(k,isamp) = qlav(k,isamp) + qlavr(k,isamp)
            qlwav(k,isamp) = qlwav(k,isamp) + qlwavr
            qlsav(k,isamp) = qlsav(k,isamp) + qlsavr
- 
+
            ! Horizontal flux on edges
            uqlwav(k,isamp) = uqlwav(k,isamp) + sum((u0(2   ,2:j1,k) - uwavr(k,isamp))*(ql0(2   ,2:j1,k) - qlwavr), tendmask(2,2:j1,k,isamp))/jmax
            vqlsav(k,isamp) = vqlsav(k,isamp) + sum((v0(2:i1,2   ,k) - vsavr(k,isamp))*(ql0(2:i1,2   ,k) - qlsavr), tendmask(2:i1,2,k,isamp))/imax
- 
+
            ! Vertical flux (including the subgrid flux), excluding block-averaged contributions
            wqlavr = 0.
            if (k == 1) then
@@ -1065,7 +1061,7 @@ subroutine initsamptend
            wqlav(k,isamp) = wqlav(k,isamp) + wqlavr/jmax/imax
          enddo
          enddo
-	  end if
+      end if
       ntsamp = ntsamp + 1
 
   end subroutine decomposedadvtend
@@ -1296,14 +1292,14 @@ subroutine initsamptend
           unrwav(k,isamp) = unrwav(k,isamp)/ntsamp
           vnrsav(k,isamp) = vnrsav(k,isamp)/ntsamp
         end if
-		if (lsamptendqt) then
+        if(lqlflux) then
            qlav(k,isamp) = qlav(k,isamp)/ntsamp
            qlwav(k,isamp) = qlwav(k,isamp)/ntsamp
            qlsav(k,isamp) = qlsav(k,isamp)/ntsamp
            wqlav(k,isamp) = wqlav(k,isamp)/ntsamp
            uqlwav(k,isamp) = uqlwav(k,isamp)/ntsamp
            vqlsav(k,isamp) = vqlsav(k,isamp)/ntsamp
-		end if
+        end if
       enddo
       enddo
     end if
@@ -1317,7 +1313,7 @@ subroutine initsamptend
         if (myid==0) then
           call writenetcdf()
         end if
-      end if      
+      end if
     end if
 
     if (lsamptendu) upav = 0.
@@ -1345,9 +1341,9 @@ subroutine initsamptend
     if (ltenddec .and. lsamptendnr) then
       nrav = 0.; nrwav = 0.; nrsav = 0.; wnrav = 0.; unrwav = 0.; vnrsav = 0.
     end if
- 	if (ltenddec .and. lqlflux) then
+    if (ltenddec .and. lqlflux) then
        qlav = 0.; qlwav = 0.; qlsav = 0.; wqlav = 0.; uqlwav = 0.; vqlsav = 0.
-	end if
+    end if
 
   end subroutine writesamptend
 
@@ -1494,13 +1490,13 @@ subroutine initsamptend
 
     use modstat_nc, only: writestat_nc
     use modglobal, only : kmax,k1,rtimee
-    
+
     implicit none
     integer :: nvar = 73 ! Current maximum number of fields
     integer :: ifield=0
     real, allocatable :: vars(:,:,:,:)
     allocate(vars(1,1,1:k1,nvar))
-    
+
     call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
     do isamp=1,isamptot
       ifield = 0
@@ -1595,7 +1591,7 @@ subroutine initsamptend
         if (ltendleib) then
           vars(1, 1, :,ifield+1) = qtpmn(:,tend_totlb,isamp)
           ifield = ifield+1
-        end if        
+        end if
         if (ltenddec) then
           vars(1, 1, :,ifield+1) = qtav(:,isamp)
           vars(1, 1, :,ifield+2) = qtwav(:,isamp)
@@ -1660,15 +1656,15 @@ subroutine initsamptend
         vars(1, 1, :,ifield+2) = uwav(:,isamp)
         vars(1, 1, :,ifield+3) = vsav(:,isamp)
         ifield = ifield+3
-		if (lqlflux) then
- 		  vars(1, 1, :,ifield+1) = qlav(:,isamp)
- 		  vars(1, 1, :,ifield+2) = qlwav(:,isamp)
+        if (lqlflux) then
+           vars(1, 1, :,ifield+1) = qlav(:,isamp)
+           vars(1, 1, :,ifield+2) = qlwav(:,isamp)
            vars(1, 1, :,ifield+3) = qlsav(:,isamp)
            vars(1, 1, :,ifield+4) = uqlwav(:,isamp)
            vars(1, 1, :,ifield+5) = vqlsav(:,isamp)
            vars(1, 1, :,ifield+6) = wqlav(:,isamp)
            ifield = ifield + 6
- 		end if
+        end if
       end if
     nvar = ifield
     call writestat_nc(ncid,nvar,ncname(:,:,isamp),vars(:,:,1:kmax,:),nrec,1,1,kmax)
@@ -1698,7 +1694,7 @@ subroutine initsamptend
           call exitstat_nc(ncid)
        end if
     end if
-    
+
     if (lsamptendu) deallocate (uptm, upmn, upav, ust)
     if (lsamptendv) deallocate (vptm, vpmn, vpav, vst)
     if (lsamptendw) deallocate (wptm, wpmn, wpav, wst)

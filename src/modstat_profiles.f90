@@ -191,20 +191,26 @@ contains
   !! limits the time step.
   subroutine sample_profiles
 
-    if (.not. lstat) return
+    ! Reset switch
+    do_stats = .false.
+    write_stats = .false.
 
-    if (rk3step == 3 .and. timee >= tnext) then
+    if (.not. lstat) return
+    if (rk3step /= 3) return
+
+    if (timee < tnext .and. timee < tnextwrite) then
+      dt_lim = minval([dt_lim, tnext - timee, tnextwrite - timee])
+      return
+    end if
+
+    if (timee >= tnext) then
       do_stats = .true.
       tnext = tnext + idtav
-      if (timee >= tnextwrite) then
-        write_stats = .true.
-        tnextwrite = tnextwrite + itimeav
-      end if
-    else
-      do_stats = .false.
-      write_stats = .false.
-      if (timee < tnext) dt_lim = minval([dt_lim, tnext - timee])
-      if (timee < tnextwrite) dt_lim = minval([dt_lim, tnextwrite - timee])
+    end if
+
+    if (timee >= tnextwrite) then
+      write_stats = .true.
+      tnextwrite = tnextwrite + itimeav
     end if
 
   end subroutine sample_profiles

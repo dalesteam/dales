@@ -1,0 +1,121 @@
+name: Compilation
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+          - {compiler: gcc, version: 13}
+          - {compiler: intel, version: '2025.0'}
+          - {compiler: nvidia-hpc, version: '25.1'}
+        target: ["CPU"]
+        prec: ["DP"]
+        hypre: ["OFF"]
+        include:
+          # GPU build
+          - toolchain: {compiler: nvidia-hpc, version: '25.1'}
+            target: "GPU"
+            prec: "DP"
+            hypre: "OFF"
+          # Single precision build
+          - toolchain: {compiler: gcc, version: 13}
+            target: "CPU"
+            prec: "SP"
+            hypre: "OFF"
+          # With HYPRE
+          - toolchain: {compiler: gcc, version: 13}
+            target: "CPU"
+            prec: "DP"
+            hypre: "ON"
+    
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@v2
+        with:
+          submodules: 'true'
+
+      - name: "Install OpenMPI"
+        if: matrix.toolchain.compiler == 'gcc'
+        uses: mpi4py/setup-mpi@v1
+        with:
+          mpi: 'openmpi'
+
+      - name: "Install Intel MPI"
+        if: matrix.toolchain.compiler == 'intel'
+        uses: mpi4py/setup-mpi@v1
+        with:
+          mpi: 'intelmpi'
+
+      # NVIDIA includes OpenMPI in the NVHPC SDK
+
+      - name: "Install NetCDF-C"
+        run: |
+          sudo apt-get -y install libnetcdf-dev
+        
+      - name: "Setup Fortran compiler"
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: ${{ matrix.toolchain.compiler }}
+          version: ${{ matrix.toolchain.version }}
+
+      - name: "Setup MPI compiler command"
+        run: |
+          case ${{ matrix.toolchain.compiler }} in
+            intel)
+              echo "MPI_COMPILER=mpiifx" >> "$GITHUB_ENV"
+              ;;
+            gcc | nvidia-hpc)
+              echo "MPI_COMPILER=mpif90" >> "$GITHUB_ENV"
+              ;;
+          esac
+      
+      - name: Checkout NetCDF-Fortran repository
+        if: matrix.toolchain.compiler != 'gcc'
+        uses: actions/checkout@v2
+        with:
+          repository: Unidata/netcdf-fortran
+          ref: v4.6.2
+          path: netcdf-fortran
+
+      - name: Compile NetCDF-Fortran
+        if: matrix.toolchain.compiler != 'gcc'
+        run: |
+          cd netcdf-fortran
+          cmake -DCMAKE_Fortran_COMPILER=${{ env.FC }}
+          make -j 2
+          sudo make install
+
+      - name: Install NetCDF-Fortran
+        if: matrix.toolchain.compiler == 'gcc'
+        run: |
+          sudo apt-get -y install libnetcdff-dev
+
+      - name: Install HYPRE
+        if: matrix.hypre == 'ON'
+        run: |
+          sudo apt-get -y install libhypre-dev
+
+      - name: Compile
+        run: |
+          mkdir build
+          cd build
+
+          if ${{ matrix.target == 'GPU' }}; then
+            export CUDAToolkit_ROOT=/opt/nvidia/hpc_sdk/Linux_x86_64/25.1/cuda/12.6
+          fi
+
+          FC=${{ env.MPI_COMPILER }} cmake -DCMAKE_BUILD_TYPE=DEBUG \
+            -DENABLE_ACC=${{ matrix.target == 'GPU' }} \
+            -DENABLE_FP32_FIELDS=${{ matrix.prec == 'SP' }} \
+            -DENABLE_FP32_POIS=${{ matrix.prec == 'SP' }} \
+            -DENABLE_HYPRE=${{ matrix.hypre }} \
+            ../
+
+          make -j 2

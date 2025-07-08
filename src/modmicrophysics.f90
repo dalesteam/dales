@@ -1,16 +1,4 @@
-!> \file modmicrophysics.f90
-!!  Microphysics abstraction layer.
-
-!>
-!!  Microphysics abstraction layer.
-!>
-!!  Also provides the drizzle routine
-!!  \author Hans Cuijpers, IMAU
-!!  \author Thijs Heus,MPI-M
-!!  \author Steef B\"oing, TU Delft
-!!  \todo Documentation
-!!  \par Revision list
-!  This file is part of DALES.
+! This file is part of DALES.
 !
 ! DALES is free software; you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
@@ -25,210 +13,143 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !
-!  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
+! Copyright 1993-2025 The DALES team.
 !
 
-
-
+!> Microphysics abstraction layer.
+!!  \author Hans Cuijpers, IMAU
+!!  \author Thijs Heus,MPI-M
+!!  \author Steef B\"oing, TU Delft
 module modmicrophysics
 
-implicit none
+  use modglobal,     only: ifnamopt, checknamelisterror
+  use moddrizzle,    only: drizzle
+  use modbulkmicro,  only: initbulkmicro, bulkmicro_read_namelist, &
+                           exitbulkmicro, bulkmicro
+  use modbulkmicro3, only: initbulkmicro3, bulkmicro3_read_namelist, &
+                           exitbulkmicro3, bulkmicro3
+  use modmicrodata,  only: imicro, lstat
+  use modsimpleice,  only: initsimpleice, simpleice_read_namelist, &
+                           exitsimpleice, simpleice
+  use modsimpleice2, only: initsimpleice2, exitsimpleice2, simpleice2
+  use modmpi,        only: myid, D_MPI_BCAST, comm3d, print_info_stderr
+  use modtimer,      only: timer_tic, timer_toc
+  use moduser,       only: micro_user
+
+  implicit none
+
+  private
+
+  public :: microphysics_read_namelist
+  public :: initmicrophysics
+  public :: microphysics
+  public :: exitmicrophysics
+
+  character(len=*), parameter :: modname = 'modmicrophysics'
+
+  integer, parameter :: &
+    imicro_none = 0,    & !< No microphysics.
+    imicro_drizzle = 1, & !< Drizzle microphyics.
+    imicro_bulk = 2,    & !< Double-moment warm microphysics.
+    imicro_sice = 5,    & !< Single-moment mixed-phase microphysics.
+    imicro_sice2 = 6,   & !< Single-moment mixed-phase microphysics (alternative implementation).
+    imicro_user = 10,   & !< User-provided microphysics.
+    imicro_bulk3 = 11     !< Double-moment mixed-phase microphysics.
+
+  namelist /nammicrophysics/ imicro, lstat
 
 contains
-  subroutine initmicrophysics
-    use modmpi,   only :myid,comm3d,D_MPI_BCAST
-    use modglobal,only :ifnamopt,fname_options,nsv,checknamelisterror,lfast_thermo
-    use modbulkmicro, only : initbulkmicro
-    use modsimpleice, only : initsimpleice
-    use modsimpleice2, only : initsimpleice2
-    use modmicrodata, only : imicro, imicro_drizzle, imicro_bulk, imicro_bin, imicro_user,&
-                             imicro_sice, imicro_sice2, imicro_none, imicro_bulk3, &
-                             l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,l_warm,mur_cst, &
-                             Nc_0, sig_g, sig_gr, courantp, lstat
-    use modbulkmicro3, only : initbulkmicro3 !#sb3
-    implicit none
+
+  !> Read microphysics namelist entry and broadcast settings.
+  subroutine microphysics_read_namelist(nml_filename)
+
+    character(len=*), intent(in) :: nml_filename
+
     integer :: ierr
-    namelist/NAMMICROPHYSICS/ &
-    imicro,l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,l_warm,mur_cst, &     ! OG
-    Nc_0, sig_g, sig_gr, &                                ! SdeR
-    courantp, lstat                                              ! FJ
 
-    if(myid==0)then
-      open(ifnamopt,file=fname_options,status='old',iostat=ierr)
-      read (ifnamopt,NAMMICROPHYSICS,iostat=ierr)
-      call checknamelisterror(ierr, ifnamopt, 'NAMMICROPHYSICS')
-      write(6 ,NAMMICROPHYSICS)
+    if (myid == 0) then
+      open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
+      read(ifnamopt, nammicrophysics, iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'nammicrophysics')
       close(ifnamopt)
+    end if
 
-      if(imicro == imicro_bulk3) then
-         if (.not. lfast_thermo) then
-            STOP 'Bulkmicro 3 requires lfast_thermo (special treatment, liquid-only saturation adjustment)'
-            ! Bulkmicro 3 special treatment of saturation adjustment is currently only impmemented in the fast_thermo scheme
-         end if
-      end if
+    call D_MPI_BCAST(imicro, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(lstat, 1, 0, comm3d, ierr)
 
-      if (Nc_0 < 1e4) then
-         ! Check that Nc_0 is reasonable.
-         ! It's easy to give it in units of /cm3 by mistake,
-         ! and when run with RRTMG that results in a hard-to-understand crash
-         ! in the short-wave scheme
-         STOP 'Nc_0 is suspiciously small (unit should be number per m3).'
-      end if
-   end if
-
-    call D_MPI_BCAST(imicro,   1, 0,comm3d,ierr)
-    call D_MPI_BCAST(l_sb,     1, 0,comm3d,ierr)
-    call D_MPI_BCAST(l_rain,   1, 0,comm3d,ierr)
-    call D_MPI_BCAST(l_sedc,   1, 0,comm3d,ierr)
-    call D_MPI_BCAST(l_mur_cst,1, 0,comm3d,ierr)
-    call D_MPI_BCAST(l_berry,  1, 0,comm3d,ierr)
-    call D_MPI_BCAST(l_graupel,1, 0,comm3d,ierr)
-    call D_MPI_BCAST(l_warm,   1, 0,comm3d,ierr)
-    call D_MPI_BCAST(mur_cst,  1, 0,comm3d,ierr)
-    call D_MPI_BCAST(Nc_0,     1, 0,comm3d,ierr)
-    call D_MPI_BCAST(sig_g,    1, 0,comm3d,ierr)
-    call D_MPI_BCAST(sig_gr,   1, 0,comm3d,ierr)
-    call D_MPI_BCAST(courantp, 1, 0,comm3d,ierr)
-    call D_MPI_BCAST(lstat,    1, 0,comm3d,ierr)
-
-    !$acc update device(l_mur_cst, mur_cst)
-
-    select case (imicro)
-    case(imicro_none)
-    case(imicro_drizzle)
-    case(imicro_bulk)
-       call initbulkmicro
-    case(imicro_bin)
-!       call initbinmicro
-    case(imicro_sice)
-       call initsimpleice
-    case(imicro_sice2)
-       call initsimpleice2
-    case(imicro_bulk3)  !#sb3
-       call initbulkmicro3 !#sb3
-    case(imicro_user)
+    ! Read namelist of selected microphysics scheme
+    select case(imicro)
+      case(imicro_none, imicro_drizzle, imicro_user)
+        ! Do nothing
+      case(imicro_bulk)
+        call bulkmicro_read_namelist(nml_filename)
+      case(imicro_sice, imicro_sice2) ! simpleice2 uses the same namelist
+        call simpleice_read_namelist(nml_filename)
+      case(imicro_bulk3)
+        call bulkmicro3_read_namelist(nml_filename) 
+      case default
+        call print_info_stderr(modname, 'invalid option selected for imicro')
+        error stop
     end select
+
+  end subroutine microphysics_read_namelist
+
+  !> Call the initialization routine of the selected microphysical scheme.
+  subroutine initmicrophysics()
+
+    select case(imicro)
+      case(imicro_bulk)
+        call initbulkmicro
+      case(imicro_sice)
+        call initsimpleice
+      case(imicro_sice2)
+        call initsimpleice2
+      case(imicro_bulk3)
+        call initbulkmicro3
+    end select
+
   end subroutine initmicrophysics
 
-
+  !> Do the microphysics.
   subroutine microphysics
-    use modmicrodata, only : imicro, imicro_none, imicro_drizzle, imicro_bulk, imicro_bin, imicro_user
-    implicit none
+
+    character(len=*), parameter :: routine = modname//'/microphysics'
+
+    call timer_tic(routine, 0)
+
     select case (imicro)
-    case(imicro_none)
-    case(imicro_drizzle)
-    case(imicro_bulk)
-!       call bulkmicro
-    case(imicro_bin)
-!       call binmicro
-    case(imicro_user)
+      case(imicro_drizzle)
+        call drizzle
+      case(imicro_bulk)
+        call bulkmicro
+      case(imicro_sice)
+         call simpleice
+      case(imicro_sice2)
+        call simpleice2
+      case(imicro_bulk3)
+        call bulkmicro3
+      case(imicro_user)
+        call micro_user
     end select
+
+    call timer_toc(routine)
+
   end subroutine microphysics
 
-  subroutine microsources
-   use moduser,      only : micro_user
-   use modbulkmicro, only : bulkmicro
-   use modsimpleice, only : simpleice
-   use modsimpleice2, only : simpleice2
-   use modmicrodata, only : imicro, imicro_drizzle, imicro_bulk, imicro_bin, &
-                            imicro_sice, imicro_sice2, imicro_user, imicro_none, &
-                            imicro_bulk3
-   use modbulkmicro3, only : bulkmicro3 !#sb3
-   use modtimer
-!     use modbinmicro,  only : binmicrosources
-    implicit none
-
-    call timer_tic('modmicrophysics/microsources', 0)
+  !> Calls the clean-up routine for the selected microphysical scheme.
+  subroutine exitmicrophysics
 
     select case (imicro)
-    case(imicro_none)
-    case(imicro_drizzle)
-      call drizzle
-    case(imicro_bulk)
-      call bulkmicro
-    case(imicro_bin)
-!       call binmicrosources
-    case(imicro_sice)
-       call simpleice
-    case(imicro_sice2)
-      call simpleice2
-    case(imicro_bulk3)  !#sb3
-      call bulkmicro3   !#sb3
-    case(imicro_user)
-      call micro_user
+      case(imicro_bulk)
+        call exitbulkmicro
+      case(imicro_sice)
+        call exitsimpleice
+      case(imicro_sice2)
+        call exitsimpleice2
+      case(imicro_bulk3)
+        call exitbulkmicro3
     end select
 
-    call timer_toc('modmicrophysics/microsources')
-
-  end subroutine microsources
-
-  subroutine exitmicrophysics
-    use modbulkmicro, only : exitbulkmicro
-    use modsimpleice, only : exitsimpleice
-    use modsimpleice2, only : exitsimpleice2
-    use modmicrodata, only : imicro, imicro_none, imicro_drizzle, imicro_bin, &
-                             imicro_user, imicro_bulk, imicro_sice, imicro_sice2, &
-                             imicro_bulk3
-    use modbulkmicro3, only : exitbulkmicro3 !#sb3
- !     use modbinmicro,  only : exitbinmicro
-    implicit none
-
-     select case (imicro)
-     case(imicro_none)
-     case(imicro_drizzle)
-     case(imicro_bulk)
-!       call exitbulkmicro
-     case(imicro_bin)
-!       call exitbinmicro
-     case(imicro_user)
-     case(imicro_sice)
-        call exitsimpleice
-     case(imicro_sice2)
-      call exitsimpleice2
-     case(imicro_bulk3)    !#sb3
-      call exitbulkmicro3  !#sb3
-  end select
   end subroutine exitmicrophysics
-
- subroutine drizzle
-
-!-----------------------------------------------------------------|
-!                                                                 |
-!      Hans Cuijpers   I.M.A.U.  23 May 1995                      |
-!                                                                 |
-!     purpose.                                                    |
-!     --------                                                    |
-!                                                                 |
-!      Calculates gravitational settling (or rainfall rate)       |
-!                                                                 |
-!**   interface.                                                  |
-!     ----------                                                  |
-!                                                                 |
-!     *drizzle* is called from *program*.                         |
-!                                                                 |
-!-----------------------------------------------------------------|
-
-  use modglobal, only : i1,j1,kmax,rlv,cp,dzf,pi
-  use modfields, only : qtp,ql0,thlp,rhof,exnf
-  use modmicrodata, only : c_st, Nc_0, rhow, sig_g
-  implicit none
-  real :: sedc,csed
-  integer :: i, j, k
-    csed = c_St*(3./(4.*pi*rhow))**(2./3.)*exp(5.*log(sig_g)**2.)*Nc_0**(-2./3.)
-  sedc = 0.
-
-  do k=1,kmax
-  do j=2,j1
-  do i=2,i1
-  if (ql0(i,j,k)>0.0) then
-    sedc= csed*((ql0(i,j,k+1)*rhof(k+1))**(5./3.)-(ql0(i,j,k)*rhof(k))**(5./3.))/(dzf(k)*rhof(k))
-    qtp(i,j,k) = qtp(i,j,k) + sedc
-    thlp(i,j,k) = thlp(i,j,k) - (rlv/(cp*exnf(k)))*sedc
-  endif
-  enddo
-  enddo
-  enddo
-  return
-  end subroutine drizzle
 
 end module modmicrophysics

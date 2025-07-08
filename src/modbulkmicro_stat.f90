@@ -1,15 +1,15 @@
 
 module modbulkmicro_stat
 
-  use bulkmicro_sb,     only: xrmin_sb => xrmin, xrmax_sb => xrmax
-  use bulkmicro_kk,     only: xrmin_kk => xrmin, xrmax_kk => xrmax
-  use modfields,        only: ql0, rhof
-  use modglobal,        only: i1, j1, k1
-  use modmicrodata,     only: qr, nr, precep, epscloud, epsqr, epsprec, l_sb, &
-                              l_rain, l_sedc
-  use modmicroutil,     only: calc_dvr, calc_xr
-  use modstat_profiles, only: add_profile, sample_field, is_sampling_timestep
-  use modprecision,     only: field_r
+  use bulkmicro_sb,      only: xrmin_sb => xrmin, xrmax_sb => xrmax
+  use bulkmicro_kk,      only: xrmin_kk => xrmin, xrmax_kk => xrmax
+  use modfields,         only: ql0, rhof
+  use modglobal,         only: i1, j1, k1, pirhow
+  use modmicrodata,      only: precep
+  use modbulkmicro_data, only: qr, nr, epscloud, epsqr, epsprec, l_sb, l_rain, &
+                               l_sedc, l_mur_cst, mur_cst
+  use modstat_profiles,  only: add_profile, sample_field, is_sampling_timestep
+  use modprecision,      only: field_r
 
   implicit none
 
@@ -19,6 +19,8 @@ module modbulkmicro_stat
   public :: bulkmicro_stat
 
 contains
+
+  include 'microphysics.inc'
 
   subroutine init_bulkmicro_stat
 

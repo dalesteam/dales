@@ -272,7 +272,8 @@ contains
                           timee,dt_lim,cexpnr,ifoutput,rtimee,cp,tdn,tup
     use modmpi,    only : myid,cmyidx, cmyidy
     use modstat_nc, only : lnetcdf, writestat_nc
-    use modmicrodata, only : iqr, imicro, imicro_none, tuprsg, tdnrsg
+    use modmicrodata, only : iqr, imicro, imicro_none
+    use modsimpleice_data, only: tuprsg, tdnrsg
     use modraddata, only   :lwu,lwd,swu,swd
     use modthermodynamics, only: qsat_tab
 #if defined(_OPENACC)

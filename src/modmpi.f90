@@ -155,6 +155,8 @@ interface D_MPI_ISEND
     procedure :: D_MPI_ALLREDUCE_INT32_R2
     procedure :: D_MPI_ALLREDUCE_REAL32_IP
     procedure :: D_MPI_ALLREDUCE_REAL64_IP
+    procedure :: D_MPI_ALLREDUCE_REAL32_IP_R2
+    procedure :: D_MPI_ALLREDUCE_REAL64_IP_R2
 #if defined(_OPENACC)
     procedure :: D_MPI_ALLREDUCE_REAL32_S_GPU
     procedure :: D_MPI_ALLREDUCE_REAL64_S_GPU
@@ -169,6 +171,8 @@ interface D_MPI_ISEND
     procedure :: D_MPI_ALLREDUCE_INT32_R2_GPU
     procedure :: D_MPI_ALLREDUCE_REAL32_IP_GPU
     procedure :: D_MPI_ALLREDUCE_REAL64_IP_GPU
+    procedure :: D_MPI_ALLREDUCE_REAL32_IP_R2_GPU
+    procedure :: D_MPI_ALLREDUCE_REAL64_IP_R2_GPU
 #endif
   end interface
   interface D_MPI_ALLTOALL
@@ -188,8 +192,8 @@ interface D_MPI_ISEND
     procedure :: D_MPI_REDUCE_REAL64_R1
     procedure :: D_MPI_REDUCE_REAL64_R2
     procedure :: D_MPI_REDUCE_REAL64_R3
-    procedure :: D_MPI_REDUCE_REAL32_IP_R1
-    procedure :: D_MPI_REDUCE_REAL32_IP_R2
+    procedure :: D_MPI_REDUCE_REAL32_IP_R1 ! inplace variants (single buffer arg) must be called
+    procedure :: D_MPI_REDUCE_REAL32_IP_R2 ! only on root process
     procedure :: D_MPI_REDUCE_REAL64_IP_R1
     procedure :: D_MPI_REDUCE_REAL64_IP_R2
 #if defined(_OPENACC)
