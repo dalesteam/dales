@@ -18,7 +18,7 @@
 !> Kernels for Khairoutdinov-Kogan microphysics.
 module bulkmicro_kk
   use modglobal,         only: i1, ih, j1, jh, k1, rlv, cp, pi, rv, pirhow
-  use modmicrodata,      only: Nc_0
+  use modmicrodata,      only: Nc_0, delt
   use modbulkmicro_data, only: qrmin, qcmin, l_mur_cst, mur_cst
   use modprecision,      only: field_r
   use modtimer,          only: timer_tic, timer_toc

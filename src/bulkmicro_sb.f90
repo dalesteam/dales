@@ -19,7 +19,7 @@
 module bulkmicro_sb
   use modglobal,         only: ih, jh, i1, j1, k1, nsv, rlv, cp, eps1, pi, rv, &
                                mygamma21, mygamma251, pirhow, rhow
-  use modmicrodata,      only: iqr, inr, Nc_0
+  use modmicrodata,      only: iqr, inr, Nc_0, delt
   use modbulkmicro_data, only: qrmin, qcmin, l_mur_cst, mur_cst, sig_gr
   use modprecision,      only: field_r
   use modtimer,          only: timer_tic, timer_toc

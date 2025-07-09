@@ -115,8 +115,8 @@ module modbulkmicro
 !> Initializes and allocates the arrays
   subroutine initbulkmicro
     use modglobal, only : i1,j1,k1,ih,jh
-    use modmicrodata, only: iqr, inr, lstat, precep
-    use modbulkmicro_data, only : Nr, Nrp, qr, qrp, Nc, Nc_0
+    use modmicrodata, only: iqr, inr, lstat, precep, Nc_0
+    use modbulkmicro_data, only : Nr, Nrp, qr, qrp, Nc
     use modtracers,   only: add_tracer
     implicit none
 
@@ -176,7 +176,7 @@ module modbulkmicro
     use modbulkmicro_data, only : Nr, qr, Nrp, qrp,  &
                              l_sedc, l_mur_cst, l_lognormal, l_rain, &
                              qrmin, qcmin, &
-                             mur_cst, l_sb, lstat, inc, Nc
+                             mur_cst, l_sb, inc, Nc
     use modmicrodata, only: iqr, inr, lstat, precep, delt, qtpmcr, thlpmcr
     use modmicroutil, only: zero_field, sum_fields
     use modstat_profiles, only: sample_field
