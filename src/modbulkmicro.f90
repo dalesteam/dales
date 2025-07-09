@@ -49,7 +49,7 @@ module modbulkmicro
                           ifnamopt, checknamelisterror
   use modprecision, only : field_r
   use modtimer,     only: timer_tic, timer_toc
-  use modmicrodata, only: Nc_0, sig_g, qtpmcr, thlpmcr
+  use modmicrodata, only: Nc_0, sig_g, qtpmcr, thlpmcr, Ncp, inc, Nc
   use modbulkmicro_data, only: qrbase, qrroof, qcbase, qcroof, qcmin, l_sb, &
                           l_sedc, l_rain, l_mur_cst, l_lognormal, mur_cst, &
                           sig_gr, c_St
@@ -114,9 +114,10 @@ module modbulkmicro
 
 !> Initializes and allocates the arrays
   subroutine initbulkmicro
+    use modaerosol, only: laerosol
     use modglobal, only : i1,j1,k1,ih,jh
-    use modmicrodata, only: iqr, inr, lstat, precep, Nc_0
-    use modbulkmicro_data, only : Nr, Nrp, qr, qrp, Nc
+    use modmicrodata, only: iqr, inr, lstat, precep, Nc_0, Nc, Ncp, inc
+    use modbulkmicro_data, only : Nr, Nrp, qr, qrp
     use modtracers,   only: add_tracer
     implicit none
 
@@ -126,6 +127,14 @@ module modbulkmicro
 
     call add_tracer("Nr", long_name="rain droplet number concentration", &
                     unit="1/m^3", lmicro=.true., isv=inr)
+
+    ! If aerosol scheme is enabled, we need an extra tracer for the
+    ! prognostic cloud droplet number concentration
+    if (laerosol) then
+      call add_tracer("Nc", long_name="cloud droplet number concentration", &
+                      unit="1/m^3", lmicro=.true., isv=inc)
+      allocate(Ncp(2:i1,2:j1,k1))
+    end if
 
                                         ! Fields accessed by:
     allocate(Nr       (2:i1,2:j1,k1)  & ! dobulkmicrostat, dosimpleicestat
@@ -157,7 +166,7 @@ module modbulkmicro
   ! subroutine exitbulkmicro
   !*********************************************************************
     use modmicrodata,      only : precep, qtpmcr, thlpmcr
-    use modbulkmicro_data, only : Nr,Nrp,qr,qrp, Nc
+    use modbulkmicro_data, only : Nr,Nrp,qr,qrp
     implicit none
 
     !$acc exit data delete(Nr, qr, Nrp, qrp, precep, thlpmcr, qtpmcr)
@@ -169,6 +178,8 @@ module modbulkmicro
 
 !> Calculates the microphysical source term.
   subroutine bulkmicro
+    use modaerosol, only: laerosol, aerosol_prepare, activation => activation_interface, aerosol_finalize, &
+                          aerosol_cloud_to_rain, aerosol_redistribute, scavenging_cloud
     use modglobal, only : i1,j1,kmax,k1,rdt,rk3step,timee,rlv,cp, dzf
     use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof, esl, qt0, qvsl, tmp0
     use modbulkmicrostat, only : bulkmicrotend
@@ -176,7 +187,7 @@ module modbulkmicro
     use modbulkmicro_data, only : Nr, qr, Nrp, qrp,  &
                              l_sedc, l_mur_cst, l_lognormal, l_rain, &
                              qrmin, qcmin, &
-                             mur_cst, l_sb, inc, Nc
+                             mur_cst, l_sb
     use modmicrodata, only: iqr, inr, lstat, precep, delt, qtpmcr, thlpmcr
     use modmicroutil, only: zero_field, sum_fields
     use modstat_profiles, only: sample_field
@@ -199,6 +210,18 @@ module modbulkmicro
         enddo
       enddo
     enddo
+
+    if (laerosol) then
+      !$acc parallel loop collapse(3) default(present)
+      do k = 1, k1
+        do j = 2, j1
+          do i = 2, i1
+            Nc(i,j,k) = sv0(i,j,k,inc)
+            Ncp(i,j,k) = 0
+          end do
+        end do
+      end do
+    end if
 
     delt = rdt/ (4. - dble(rk3step))
 
@@ -288,6 +311,11 @@ module modbulkmicro
       qcroof = min(k1, qcroof)
     endif
 
+    if (laerosol) then
+      call aerosol_prepare
+      call activation
+    end if
+
     ! if there is nothing to do, we can return at this point
     ! if (min(qrbase,qcbase).gt.max(qrroof,qcroof)) return
 
@@ -305,6 +333,12 @@ module modbulkmicro
       call zero_field(qrp_tmp)
       call zero_field(nrp_tmp)
 
+      if (laerosol) then
+        allocate(ncp_tmp(2:i1,2:j1,1:k1))
+        !$acc enter data create(ncp_tmp)
+        call zero_field(ncp_tmp)
+      end if
+
       ! 1. Autoconversion
       if (l_sb) then
         call autoconversion_sb(ql0, Nc, qr, exnf, rhof, qcbase, qcroof, thlpmcr, &
@@ -321,6 +355,11 @@ module modbulkmicro
 
       call sum_fields(qrp_tmp, qrp)
       call sum_fields(nrp_tmp, nrp)
+
+      if (laerosol) then
+        call aerosol_cloud_to_rain(ql0, qrp)
+        call sum_fields(ncp_tmp, ncp)
+      end if
 
       call zero_field(qrp_tmp)
       call zero_field(nrp_tmp)
@@ -341,6 +380,11 @@ module modbulkmicro
 
       call sum_fields(qrp_tmp, qrp)
       call sum_fields(nrp_tmp, nrp)
+
+      if (laerosol) then
+        call aerosol_cloud_to_rain(ql0, qrp)
+        call sum_fields(ncp_tmp, ncp)
+      end if
 
       call zero_field(qrp_tmp)
       call zero_field(nrp_tmp)
@@ -363,6 +407,10 @@ module modbulkmicro
 
       call sum_fields(qrp_tmp, qrp)
       call sum_fields(nrp_tmp, nrp)
+
+      if (laerosol) then
+        call aerosol_redistribute(qr, qrp_tmp, nrp_tmp, delt)
+      end if
 
       call zero_field(qrp_tmp)
       call zero_field(nrp_tmp)
@@ -387,37 +435,43 @@ module modbulkmicro
       call zero_field(qrp_tmp)
       call zero_field(nrp_tmp)
 
-    end if
 
-    !*********************************************************************
-    ! remove negative values and non physical low values
-    !*********************************************************************
-    !$acc parallel loop collapse(3) default(present) private(qr_cor, Nr_cor)
-    do k = 1, k1
-      do j = 2, j1
-        do i = 2, i1
-          qr_cor = min(svp(i,j,k,iqr) + qrp(i,j,k) + (svm(i,j,k,iqr) / delt), &
-                       0.0_field_r)
-          Nr_cor = min(svp(i,j,k,iNr) + Nrp(i,j,k) + (svm(i,j,k,iNr) / delt), &
-                       0.0_field_r)
+      ! Aerosol scavenging
+      if (laerosol) then
+        call scavenging_cloud(ql0, Nc, rhof)
+      end if
 
-          qrp_tmp(i,j,k) = - qr_cor
-          Nrp_tmp(i,j,k) = - Nr_cor
+      !*********************************************************************
+      ! remove negative values and non physical low values
+      !*********************************************************************
+      !$acc parallel loop collapse(3) default(present) private(qr_cor, Nr_cor)
+      do k = 1, k1
+        do j = 2, j1
+          do i = 2, i1
+            qr_cor = min(svp(i,j,k,iqr) + qrp(i,j,k) + (svm(i,j,k,iqr) / delt), &
+                         0.0_field_r)
+            Nr_cor = min(svp(i,j,k,iNr) + Nrp(i,j,k) + (svm(i,j,k,iNr) / delt), &
+                         0.0_field_r)
+
+            qrp_tmp(i,j,k) = - qr_cor
+            Nrp_tmp(i,j,k) = - Nr_cor
+          end do
         end do
       end do
-    end do
 
-    if (lstat) then
-      call sample_field('qrpclip', qrp_tmp)
-      call sample_field('npclip', nrp_tmp)
-    end if
+      if (lstat) then
+        call sample_field('qrpclip', qrp_tmp)
+        call sample_field('npclip', nrp_tmp)
+      end if
 
-    call sum_fields(qrp_tmp, qrp)
-    call sum_fields(nrp_tmp, nrp)
+      call sum_fields(qrp_tmp, qrp)
+      call sum_fields(nrp_tmp, nrp)
 
-    if (lstat) then
-      call sample_field('qrptot', qrp)
-      call sample_field('nptot', nrp)
+      if (lstat) then
+        call sample_field('qrptot', qrp)
+        call sample_field('nptot', nrp)
+      end if
+    
     end if
 
     !$acc parallel loop collapse(3) default(present)
@@ -433,9 +487,24 @@ module modbulkmicro
       enddo
     enddo
 
+    if (laerosol) then
+      call aerosol_finalize
+
+      do k = 1, k1
+        do j = 2, j1
+          do i = 2, i1
+            svp(i,j,k,inc) = svp(i,j,k,inc) + Ncp(i,j,k)
+          end do
+        end do
+      end do
+
+    end if
+
+
+
     !$acc exit data delete(qrp_tmp, nrp_tmp)
 
-    deallocate(qrp_tmp, nrp_tmp)
+    if (l_rain) deallocate(qrp_tmp, nrp_tmp)
 
     if (lstat) call bulkmicro_stat
 
