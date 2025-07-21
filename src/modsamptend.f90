@@ -532,6 +532,7 @@ subroutine initsamptend
     use modfields, only : up,vp,wp,thlp,qtp,svp,w0,thl0,ql0,exnf,qt0,u0,v0,sv0
     use modmicrodata, only : iqr,inr
     use modstat_nc, only : lnetcdf
+    use modchecksim, only: lchecktend, checktend
     implicit none
     integer, intent(in)           :: tendterm !< name of the term to write down
     logical, intent(in), optional :: lastterm !< true if this is the last term of the equations; the write routine is entered.
@@ -540,6 +541,8 @@ subroutine initsamptend
     real, allocatable, dimension(:,:,:) :: thv0
     real, allocatable, dimension(:) :: thvav
     integer :: i,j,k
+
+    if (lchecktend) call checktend(tendnames(tendterm))
 
     if (.not. lsamptend) return
     if(isamptot < 1) return
