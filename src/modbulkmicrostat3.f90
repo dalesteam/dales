@@ -374,12 +374,11 @@ subroutine initbulkmicrostat3
 !>  * write a text file
 !>  * write to a netcdf file using writestat_nc
   subroutine writebulkmicrostat3
-    use modmpi,     only : myid, MPI_SUM
+    use modmpi,     only : myid, MPI_SUM, comm3d, mpierr, D_MPI_ALLREDUCE
     use modglobal,  only : rtimee, kmax, ijtot
     use modstat_nc, only : lnetcdf, writestat_nc
 !    use modgenstat, only : nrec_prof=>nrec
     use modmicrodata3
-    use modmpi,    only  : comm3d, mpierr, D_MPI_ALLREDUCE
 
     implicit none
     integer  :: nsecs, nhrs, nminut
@@ -622,17 +621,20 @@ subroutine initbulkmicrostat3
 
 !------------------------------------------------------------------------------!
   subroutine exitbulkmicrostat3
-    use modstat_nc, only : exitstat_nc
+    use modstat_nc,    only : exitstat_nc
     use modmicrodata3, only : l_statistics, l_tendencies
+    use modmpi,        only : myid
     implicit none
 
     if (.not. lmicrostat)  return
 
-    if (l_statistics) then
-      call exitstat_nc(ncid_mphys)
-    endif
-    if (l_tendencies) then
-      call exitstat_nc(ncid_tends)
+    if (myid==0) then
+       if (l_statistics) then
+          call exitstat_nc(ncid_mphys)
+       endif
+       if (l_tendencies) then
+          call exitstat_nc(ncid_tends)
+       endif
     endif
   end subroutine exitbulkmicrostat3
 
