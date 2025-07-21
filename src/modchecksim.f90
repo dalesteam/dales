@@ -27,12 +27,32 @@
 !
 !
 module modchecksim
+  use, intrinsic :: iso_fortran_env, only: real64, real32
+  use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
   use modprecision, only: field_r
-  use modglobal, only : longint
+  use modglobal, only : longint, ih, jh
+  use modfields, only: u0, v0, w0, qt0, thl0, e120, qtp, thlp
+  use modstringutils, only: number2string
   use modtimer
   implicit none
   private
   public initchecksim,exitchecksim,checksim,chkdiv
+
+  public :: checktend
+  public :: check_array
+  public :: lchecktend
+
+  interface check_array !< Check array for invalid values and/or values outside of a given range.
+    module procedure :: check_array_1d_int
+    module procedure :: check_array_1d_r4
+    module procedure :: check_array_1d_r8
+    module procedure :: check_array_2d_int
+    module procedure :: check_array_2d_r4
+    module procedure :: check_array_2d_r8
+    module procedure :: check_array_3d_int
+    module procedure :: check_array_3d_r4
+    module procedure :: check_array_3d_r8
+  end interface
 
   real    :: tcheck = 0.
   integer(kind=longint) :: tnext = 3600.,itcheck
@@ -40,6 +60,9 @@ module modchecksim
 
   ! explanations for dt_limit, determined in tstep_update()
   character (len=15) :: dt_reasons(0:5) = [character(len=15):: "initial step", "timee", "dt_lim" , "idtmax", "velocity", "diffusion"]
+
+  logical :: lchecktend
+  logical :: lstop
 
   save
     real, public, allocatable, dimension (:) :: courxl
@@ -62,7 +85,7 @@ contains
     integer :: ierr
 
     namelist/NAMCHECKSIM/ &
-    tcheck
+    tcheck, lchecktend, lstop
 
     call timer_tic('modchecksim/initchecksim', 0)
 
@@ -79,6 +102,8 @@ contains
     end if
 
     call D_MPI_BCAST(tcheck     ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(lchecktend     ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(lstop     ,1,0,comm3d,mpierr)
     itcheck = floor(tcheck/tres)
     tnext = itcheck+btime
 
@@ -239,5 +264,339 @@ contains
 
    return
   end subroutine chkdiv
+
+  !> Check tendencies of various prognostic variables.
+  subroutine checktend(step)
+
+    character(len=*), intent(in) :: step
+
+    call check_array(qtp, "qtp", step, [-0.01, 0.01])
+    call check_array(thlp, "thlp", step, [-20.0, 20.0])
+  
+  end subroutine checktend
+
+  subroutine check_array_1d_int(array, name, step, threshold, lacc)
+
+    integer,          intent(in) :: array(:), threshold(2)
+    character(len=*), intent(in) :: name
+    character(len=*), intent(in) :: step
+
+    logical, intent(in), optional :: lacc
+
+    integer           :: i
+    integer           :: val
+    character(len=32) :: cloc
+    character(len=11) :: cval
+
+    do i = 1, size(array, dim=1)
+      val = array(i)
+      cval = number2string(val)
+      if ((val < threshold(1) .or. val > threshold(2))) then
+        call print_warning_out_of_range(name, step, [i], cval, &
+                [number2string(threshold(1)), number2string(threshold(2))])
+      end if
+    end do
+
+  end subroutine check_array_1d_int
+
+  subroutine check_array_1d_r4(array, name, step, threshold, lacc)
+
+    real(real32),     intent(in) :: array(:)
+    character(len=*), intent(in) :: name
+    character(len=*), intent(in) :: step
+
+    real(real32), intent(in), optional :: threshold(2)
+    logical,      intent(in), optional :: lacc
+
+    integer           :: i
+    real(real32)      :: val
+    character(len=32) :: cloc
+    character(len=11) :: cval
+
+    do i = 1, size(array, dim=1)
+      val = array(i)
+      cval = number2string(val)
+      if (.not. ieee_is_finite(val)) then
+        call print_warning_non_finite(name, step, [i], cval)
+      else if (present(threshold) .and. (val < threshold(1) .or. val > threshold(2))) then
+        call print_warning_out_of_range(name, step, [i], cval, &
+                [number2string(threshold(1)), number2string(threshold(2))])
+      end if
+    end do
+
+  end subroutine check_array_1d_r4
+
+  subroutine check_array_1d_r8(array, name, step, threshold, lacc)
+
+    real(real64),     intent(in) :: array(:)
+    character(len=*), intent(in) :: name
+    character(len=*), intent(in) :: step
+
+    real(real64), intent(in), optional :: threshold(2)
+    logical,      intent(in), optional :: lacc
+
+    integer           :: i
+    real(real64)      :: val
+    character(len=32) :: cloc
+    character(len=11) :: cval
+
+    do i = 1, size(array, dim=1)
+      val = array(i)
+      cval = number2string(val)
+      if (.not. ieee_is_finite(val)) then
+        call print_warning_non_finite(name, step, [i], cval)
+      else if (present(threshold) .and. (val < threshold(1) .or. val > threshold(2))) then
+        call print_warning_out_of_range(name, step, [i], cval, &
+                [number2string(threshold(1)), number2string(threshold(2))])
+      end if
+    end do
+
+  end subroutine check_array_1d_r8
+
+  subroutine check_array_2d_int(array, name, step, threshold, lacc)
+
+    integer,          intent(in) :: array(:,:), threshold(2)
+    character(len=*), intent(in) :: name
+    character(len=*), intent(in) :: step
+
+    logical, intent(in), optional :: lacc
+
+    integer           :: i, j
+    integer           :: val
+    character(len=32) :: cloc
+    character(len=11) :: cval
+
+    do j = 1, size(array, dim=2)
+      do i = 1, size(array, dim=1)
+        val = array(i,j)
+        cval = number2string(val)
+        if ((val < threshold(1) .or. val > threshold(2))) then
+          call print_warning_out_of_range(name, step, [i, j], cval, &
+                  [number2string(threshold(1)), number2string(threshold(2))])
+        end if
+      end do
+    end do
+
+  end subroutine check_array_2d_int
+
+  subroutine check_array_2d_r4(array, name, step, threshold, lacc)
+
+    real(real32),     intent(in) :: array(:,:)
+    character(len=*), intent(in) :: name
+    character(len=*), intent(in) :: step
+
+    real(real32), intent(in), optional :: threshold(2)
+    logical,      intent(in), optional :: lacc
+
+    integer           :: i, j
+    real(real32)      :: val
+    character(len=32) :: cloc
+    character(len=11) :: cval
+
+    do j = 1, size(array, dim=2)
+      do i = 1, size(array, dim=1)
+        val = array(i,j)
+        cval = number2string(val)
+        if (.not. ieee_is_finite(val)) then
+          call print_warning_non_finite(name, step, [i, j], cval)
+        else if (present(threshold) .and. (val < threshold(1) .or. val > threshold(2))) then
+          call print_warning_out_of_range(name, step, [i, j], cval, &
+                  [number2string(threshold(1)), number2string(threshold(2))])
+        end if
+      end do
+    end do
+
+  end subroutine check_array_2d_r4
+
+  subroutine check_array_2d_r8(array, name, step, threshold, lacc)
+
+    real(real64),     intent(in) :: array(:,:)
+    character(len=*), intent(in) :: name
+    character(len=*), intent(in) :: step
+
+    real(real64), intent(in), optional :: threshold(2)
+    logical,      intent(in), optional :: lacc
+
+    integer           :: i, j
+    real(real64)      :: val
+    character(len=32) :: cloc
+    character(len=11) :: cval
+
+    do j = 1, size(array, dim=2)
+      do i = 1, size(array, dim=1)
+        val = array(i,j)
+        cval = number2string(val)
+        if (.not. ieee_is_finite(val)) then
+          call print_warning_non_finite(name, step, [i, j], cval)
+        else if (present(threshold) .and. (val < threshold(1) .or. val > threshold(2))) then
+          call print_warning_out_of_range(name, step, [i, j], cval, &
+                  [number2string(threshold(1)), number2string(threshold(2))])
+        end if
+      end do
+    end do
+
+  end subroutine check_array_2d_r8
+
+  subroutine check_array_3d_int(array, name, step, threshold, lacc)
+
+    integer,          intent(in) :: array(:,:,:), threshold(2)
+    character(len=*), intent(in) :: name
+    character(len=*), intent(in) :: step
+
+    logical, intent(in), optional :: lacc
+
+    integer           :: i, j, k
+    integer           :: val
+    character(len=32) :: cloc
+    character(len=11) :: cval
+
+    do k = 1, size(array, dim=3)
+      do j = 1, size(array, dim=2)
+        do i = 1, size(array, dim=1)
+          val = array(i,j,k)
+          cval = number2string(val)
+          if ((val < threshold(1) .or. val > threshold(2))) then
+            call print_warning_out_of_range(name, step, [i, j, k], cval, &
+                    [number2string(threshold(1)), number2string(threshold(2))])
+          else
+            cycle
+          end if
+          if (lstop) then
+            call dump_state([i,j,k])
+            error stop
+          end if
+        end do
+      end do
+    end do
+
+  end subroutine check_array_3d_int
+
+  subroutine check_array_3d_r4(array, name, step, threshold, lacc)
+
+    real(real32),     intent(in) :: array(:,:,:)
+    character(len=*), intent(in) :: name
+    character(len=*), intent(in) :: step
+
+    real(real32), intent(in), optional :: threshold(2)
+    logical,      intent(in), optional :: lacc
+
+    integer           :: i, j, k
+    real(real32)      :: val
+    character(len=32) :: cloc
+    character(len=11) :: cval
+
+    do k = 1, size(array, dim=3)
+      do j = 1, size(array, dim=2)
+        do i = 1, size(array, dim=1)
+          val = array(i,j,k)
+          cval = number2string(val)
+          if (.not. ieee_is_finite(val)) then
+            call print_warning_non_finite(name, step, [i, j, k], cval)
+          else if (present(threshold) .and. (val < threshold(1) .or. val > threshold(2))) then
+            call print_warning_out_of_range(name, step, [i, j, k], cval, &
+                    [number2string(threshold(1)), number2string(threshold(2))])
+          else
+            cycle
+          end if
+          if (lstop) then
+            call dump_state([i-ih+1,j-jh+1,k])
+            error stop
+          end if
+        end do
+      end do
+    end do
+
+  end subroutine check_array_3d_r4
+
+  subroutine check_array_3d_r8(array, name, step, threshold, lacc)
+
+    real(real64),     intent(in) :: array(:,:,:)
+    character(len=*), intent(in) :: name
+    character(len=*), intent(in) :: step
+
+    real(real64), intent(in), optional :: threshold(2)
+    logical,      intent(in), optional :: lacc
+
+    integer      :: i, j, k
+    real(real64) :: val
+    character(len=32) :: cloc
+    character(len=11) :: cval
+
+    do k = 1, size(array, dim=3)
+      do j = 1, size(array, dim=2)
+        do i = 1, size(array, dim=1)
+          val = array(i,j,k)
+          cval = number2string(val)
+          if (.not. ieee_is_finite(val)) then
+            call print_warning_non_finite(name, step, [i, j, k], cval)
+          else if (present(threshold) .and. (val < threshold(1) .or. val > threshold(2))) then
+            call print_warning_out_of_range(name, step, [i, j, k], cval, &
+                    [number2string(threshold(1)), number2string(threshold(2))])
+          else
+            cycle
+          end if
+          if (lstop) then
+            call dump_state([i-ih+1,j-jh+1,k])
+            error stop
+          end if
+        end do
+      end do
+    end do
+
+  end subroutine check_array_3d_r8
+
+  !> Prints non-finite warning (Inf, NaN) to stderr.
+  subroutine print_warning_non_finite(name, step, loc, cval)
+
+    character(len=*), intent(in) :: name, step, cval
+    integer,          intent(in) :: loc(:)
+
+    character(len=128) :: cloc
+
+    write(cloc, "(*(g0,:,','))") loc
+    write(0,'(*(a))') &
+      'modchecktend: Invalid value found in array: ', trim(name), '  [step=', &
+      trim(step), ']  [location=', trim(cloc), ']  [value=', trim(cval), ']'
+
+  end subroutine print_warning_non_finite
+
+  !> Prints out of range warning to stderr.
+  subroutine print_warning_out_of_range(name, step, loc, cval, cthreshold)
+
+    character(len=*), intent(in) :: name, step, cval, cthreshold(2)
+    integer,          intent(in) :: loc(:)
+
+    character(len=128) :: cloc
+
+    write(cloc, "(*(g0,:,','))") loc
+    write(0,'(13a)') &
+      'modchecktend: Value outside of valid range found in array: ', trim(name), &
+      '  [step=', trim(step), ']  [location=', trim(cloc), ']  [value=', trim(cval), ']&
+      &  [min,max=', trim(cthreshold(1)), ',', trim(cthreshold(2)), ']'
+
+  end subroutine print_warning_out_of_range
+
+  !> Dumps values of prognostic variables at specified location.
+  !!
+  !! @param[in] loc (i,j,k) location to print variables for. 
+  subroutine dump_state(loc)
+
+    integer, intent(in) :: loc(3)
+
+    integer :: i, j, k
+
+    i = loc(1)
+    j = loc(2)
+    k = loc(3)
+
+    write(0, '(7(a,/))')"Prognostic variables:", &
+      & "u   = "//number2string(u0(i,j,k)), &
+      & "v   = "//number2string(v0(i,j,k)), &
+      & "w   = "//number2string(w0(i,j,k)), &
+      & "qt  = "//number2string(qt0(i,j,k)), &
+      & "thl = "//number2string(thl0(i,j,k)), &
+      & "e12 = "//number2string(e120(i,j,k))
+
+  end subroutine dump_state
 
 end module modchecksim
