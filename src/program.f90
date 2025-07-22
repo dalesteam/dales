@@ -246,8 +246,6 @@ program DALES
   do while (timeleft>0 .or. rk3step < 3)
     call timer_tic('program/timestep', istep)
 
-    ! Check if we have to sample profiles this time step
-    call sample_profiles
 
     ! Calculate new timestep, and reset tendencies to 0.
     call tstep_update
@@ -255,6 +253,9 @@ program DALES
     call scalarpulse
     call samptend(tend_start,firstterm=.true.)
     call datetime
+
+    ! Check if we have to sample profiles this time step
+    call sample_profiles
 
     call datetime
 
