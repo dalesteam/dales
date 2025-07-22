@@ -24,6 +24,7 @@ module modstat_profiles
   public :: sample_profiles
   public :: sample_field
   public :: write_profiles
+  public :: exit_profiles
 
   interface sample_field
     module procedure sample_field
@@ -184,6 +185,14 @@ contains
     end if
 
   end subroutine init_profiles
+
+
+  subroutine exit_profiles
+
+    if (my_task_writes .and. lstat) call exitstat_nc(ncid)
+
+  end subroutine exit_profiles
+
 
   !> Bookkeeping routine
   !!

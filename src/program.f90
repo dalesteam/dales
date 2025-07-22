@@ -163,7 +163,7 @@ program DALES
   use moddatetime,     only : datetime
   use modemission,     only : emission
   use modopenboundary, only : openboundary_ghost,openboundary_tend,openboundary_phasevelocity,openboundary_turb
-  use modstat_profiles, only: init_profiles, sample_profiles, write_profiles
+  use modstat_profiles, only: init_profiles, sample_profiles, write_profiles, exit_profiles
   use modibm,          only : applyibm, zerowallvelocity
   use modibmdata,      only : lpoislast
 !----------------------------------------------------------------
@@ -432,6 +432,7 @@ program DALES
   call exittimestat
   call exitnudgeboundary  !cstep
   call exitmodules
+  call exit_profiles
 
 
 end program DALES
