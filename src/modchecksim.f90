@@ -85,16 +85,12 @@ module modchecksim
   logical :: lchecktend
   logical :: lstop
 
-  real, public, allocatable, dimension (:) :: courxl
-  real, public, allocatable, dimension (:) :: courx
-  real, public, allocatable, dimension (:) :: couryl
-  real, public, allocatable, dimension (:) :: coury
-  real, public, allocatable, dimension (:) :: courzl
-  real, public, allocatable, dimension (:) :: courz
-  real, public, allocatable, dimension (:) :: courtotl
-  real, public, allocatable, dimension (:) :: courtot
-  real, public, allocatable, dimension (:) :: peclettotl
-  real, public, allocatable, dimension (:) :: peclettot
+  real(field_r), allocatable :: &
+    courx(:),                   &
+    coury(:),                   &
+    courz(:),                   &
+    courtot(:),                 &
+    peclettot(:)
 
 contains
   
@@ -139,11 +135,9 @@ contains
     itcheck = floor(tcheck / tres)
     tnext = itcheck + btime
 
-    allocate(courx(kmax), courxl(kmax), coury(kmax), couryl(kmax), courz(kmax), &
-             courzl(kmax), courtot(kmax), courtotl(kmax), peclettot(kmax), &
-             peclettotl(kmax))
+    allocate(courx(kmax), coury(kmax), courz(kmax), courtot(kmax), peclettot(kmax))
 
-    !$acc enter data create(courxl, couryl, courzl, courtotl, peclettotl)
+    !$acc enter data create(courx, coury, courz, courtot, peclettot)
 
     call timer_toc(routine)
 
@@ -152,10 +146,9 @@ contains
   !> Deallocate checksim arrays.
   subroutine exitchecksim
 
-    !$acc exit data delete(courxl, couryl, courzl, courtotl, peclettotl)
+    !$acc exit data delete(courx, coury, courz, courtot, peclettot)
 
-    deallocate(courx, courxl, coury, couryl, courz, courzl, courtot, courtotl, &
-               peclettot, peclettotl)
+    deallocate(courx, coury, courz, courtot, peclettot)
 
   end subroutine exitchecksim
 
@@ -230,20 +223,20 @@ contains
           ekm_max = max(ekm_max, ekm(i,j,k))
         enddo
       enddo
-      courxl(k)=velx_max*dtmn/dx
-      couryl(k)=vely_max*dtmn/dy
-      courzl(k)=velz_max*dtmn/dzh(k)
-      courtotl(k)=velmag_max*dtmn*dtmn
-      peclettotl(k)=ekm_max*dtmn/min(dzh(k),dx,dy)**2
+      courx(k)=velx_max*dtmn/dx
+      coury(k)=vely_max*dtmn/dy
+      courz(k)=velz_max*dtmn/dzh(k)
+      courtot(k)=velmag_max*dtmn*dtmn
+      peclettot(k)=ekm_max*dtmn/min(dzh(k),dx,dy)**2
     end do
 
-    !$acc update self(courxl, couryl, courzl, courtotl, peclettotl)
+    !$acc update self(courx, coury, courz, courtot, peclettot)
 
-    call D_MPI_ALLREDUCE(courxl, courx, kmax, MPI_MAX, comm3d, mpierr)
-    call D_MPI_ALLREDUCE(couryl, coury, kmax, MPI_MAX, comm3d, mpierr)
-    call D_MPI_ALLREDUCE(courzl, courz, kmax, MPI_MAX, comm3d, mpierr)
-    call D_MPI_ALLREDUCE(courtotl, courtot, kmax, MPI_MAX, comm3d, mpierr)
-    call D_MPI_ALLREDUCE(peclettotl, peclettot, kmax, MPI_MAX, comm3d, mpierr)
+    call D_MPI_ALLREDUCE(courx, kmax, MPI_MAX, comm3d, mpierr)
+    call D_MPI_ALLREDUCE(coury, kmax, MPI_MAX, comm3d, mpierr)
+    call D_MPI_ALLREDUCE(courz, kmax, MPI_MAX, comm3d, mpierr)
+    call D_MPI_ALLREDUCE(courtot, kmax, MPI_MAX, comm3d, mpierr)
+    call D_MPI_ALLREDUCE(peclettot, kmax, MPI_MAX, comm3d, mpierr)
 
     if (myid == 0) then
       write(*,'(A,3ES10.2,I5,ES10.2,I5)') 'Courant numbers (x,y,z,tot):', &
@@ -262,14 +255,10 @@ contains
     real(field_r) :: &
       div,           &
       divmax,        &
-      divtot,        &
-      divmaxl,       &
-      divtotl
+      divtot
 
     divmax = 0.
     divtot = 0.
-    divmaxl= 0.
-    divtotl= 0.
 
     !$acc parallel loop collapse(3) default(present) private(div, divmaxl, divtotl) &
     !$acc reduction(max:divmaxl) reduction(+:divtotl)
@@ -279,14 +268,14 @@ contains
           div = rhobf(k) * (u0(i+1,j,k) - u0(i,j,k) )/dx + &
                 rhobf(k) * (v0(i,j+1,k) - v0(i,j,k) )/dy + &
                 (rhobh(k+1)*w0(i,j,k+1) - rhobh(k)*w0(i,j,k) )/dzf(k)
-          divmaxl = max(divmaxl,abs(div))
-          divtotl = divtotl + div*dx*dy*dzf(k)
+          divmax = max(divmax,abs(div))
+          divtot = divtot + div*dx*dy*dzf(k)
         end do
       end do
     end do
 
-    call D_MPI_ALLREDUCE(divtotl, divtot, 1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(divmaxl, divmax, 1, MPI_MAX, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(divtot, 1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(divmax, 1, MPI_MAX, comm3d,mpierr)
 
     if (myid == 0) then
       write(6 ,'(A,2ES11.2,A,A)')'divmax, divtot = ', divmax, divtot,  &
