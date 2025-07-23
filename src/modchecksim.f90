@@ -36,7 +36,7 @@ module modchecksim
                             dt_reason, ifnamopt, checknamelisterror, tres, btime, &
                             ladaptive, timee, rtimee, rk3step, rdt, fname_options
   use modfields,      only: u0, v0, w0, qt0, thl0, e120, qtp, thlp, rhobf, rhobh
-  use modsubgrid,     only: ekm
+  use modsubgriddata, only: ekm
   use modstringutils, only: number2string
   use modmpi,         only: myid, comm3d, mpierr, mpi_sum, mpi_max, D_MPI_ALLREDUCE, &
                             D_MPI_BCAST
