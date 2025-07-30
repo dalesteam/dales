@@ -70,12 +70,8 @@ save
                cloudcountmn  , &
                raincountav  , &
                raincountmn  , &
-               Nrrainav  , &
-               Nrrainmn  , &
                qrav    , &
-               qrmn    , &
-               Dvrav  , &
-               Dvrmn
+               qrmn
 
   real(field_r), allocatable, dimension(:) :: tend_np, &
                                               tend_qrp,&
@@ -172,9 +168,6 @@ subroutine initbulkmicrostat
     cloudcountmn  = 0.0
     raincountmn  = 0.0
     qrmn    = 0.0
-    Dvrmn    = 0.0
-
-    Dvrav = 0
 
     allocate(tend_np(k1))
     allocate(tend_qrp(k1))
@@ -186,9 +179,9 @@ subroutine initbulkmicrostat
     if (.not. lprocblock) then
     !$acc enter data copyin(tend_np, tend_qrp, tend_qtp, Npmn, qrpmn, &
     !$acc&                  Npav, qrpav, precav, preccountav, prec_prcav, &
-    !$acc&                  cloudcountav, raincountav, Nrrainav, qrav, Dvrav, &
+    !$acc&                  cloudcountav, raincountav, qrav, &
     !$acc&                  preccountmn, prec_prcmn, &
-    !$acc&                  precmn, cloudcountmn, raincountmn, Nrrainmn, qrmn, Dvrmn)
+    !$acc&                  precmn, cloudcountmn, raincountmn, qrmn)
     end if
 
     if (myid == 0 .and. .not. lwarmstart) then
@@ -223,10 +216,10 @@ subroutine initbulkmicrostat
         call ncinfo(ncname( 1,:),'cfrac','Cloud fraction','-',dimst)
         call ncinfo(ncname( 2,:),'rainrate','Echo rain rate','W/m^2',dimst)
         call ncinfo(ncname( 3,:),'preccount','Precipitation flux area fraction','-',dimst)
-        call ncinfo(ncname( 4,:),'nrrain','Rain droplet number concentration','#/m3',dimst)
+        call ncinfo(ncname( 4,:),'nrrain','Rain droplet number concentration','#/m3',dimst) ! not used in simpleice
         call ncinfo(ncname( 5,:),'raincount','Rain water content area fraction','-',dimst)
         call ncinfo(ncname( 6,:),'precmn','Rain rate','W/m^2',dimst)
-        call ncinfo(ncname( 7,:),'dvrmn','Precipitation mean diameter','m',dimst)
+        call ncinfo(ncname( 7,:),'dvrmn','Precipitation mean diameter','m',dimst) ! not used in simpleice
         call ncinfo(ncname( 8,:),'qrmn','Precipitation specific humidity','kg/kg',dimst)
         call ncinfo(ncname( 9,:),'npauto','Autoconversion rain drop tendency','#/m3/s',dimst)
         call ncinfo(ncname(10,:),'npaccr','Accretion rain drop tendency','#/m3/s',dimst)
@@ -298,7 +291,7 @@ subroutine initbulkmicrostat
 
     integer :: i, j, k
     real :: c_count, r_count, p_count, p_sum_cl
-    real :: Nr_sum, p_sum, qr_sum, Dvr_sum_cl
+    real :: Nr_sum, p_sum, qr_sum
     real(field_r) :: xrmin, xrmax, xr
 
     if (lprocblock) then
@@ -310,7 +303,6 @@ subroutine initbulkmicrostat
          Nr_sum = 0.0
          p_sum = 0.0
          qr_sum = 0.0
-         Dvr_sum_cl = 0.0
            do j = 2, j1
            do i = 2, i1
              if (ql0(i,j,k) > epscloud) then
@@ -338,12 +330,11 @@ subroutine initbulkmicrostat
        raincountmn(:)  = raincountmn(:)  +  raincountav(:)  / ((i1-1)*(j1-1))
        preccountmn(:)  = preccountmn(:)  +  preccountav(:)  / ((i1-1)*(j1-1))
        prec_prcmn(:)   = prec_prcmn(:)   +  prec_prcav(:)   / ((i1-1)*(j1-1))
-       Dvrmn(:)        = Dvrmn(:)        +  Dvrav(:)        / ((i1-1)*(j1-1))
        precmn(:)       = precmn(:)       +  precav(:)       / ((i1-1)*(j1-1))
        qrmn(:)         = qrmn(:)         +  qrav(:)         / ((i1-1)*(j1-1))
         else
       !$acc parallel loop gang default(present) private(c_count, r_count, p_count, p_sum_cl,&
-      !$acc&                                            p_sum, qr_sum, Dvr_sum_cl)
+      !$acc&                                            p_sum, qr_sum)
       do k = 1, k1
         c_count = 0.0
         r_count = 0.0
@@ -351,9 +342,8 @@ subroutine initbulkmicrostat
         p_sum_cl = 0.0
         p_sum = 0.0
         qr_sum = 0.0
-        Dvr_sum_cl = 0.0
         !$acc loop collapse(2) reduction(+:c_count, r_count, p_count, p_sum_cl,&
-        !$acc&                             p_sum, qr_sum, Dvr_sum_cl)
+        !$acc&                             p_sum, qr_sum)
         do j = 2, j1
           do i = 2, i1
             if (ql0(i,j,k) > epscloud) then
@@ -490,7 +480,7 @@ subroutine initbulkmicrostat
 
         if (.not. lprocblock) then
           !$acc update self(Npmn, qrpmn, cloudcountmn, raincountmn, preccountmn,&
-      !$acc&            prec_prcmn, Dvrmn, Nrrainmn, precmn, qrmn)
+      !$acc&            prec_prcmn, precmn, qrmn)
         end if
 
     cloudcountmn(:) = cloudcountmn(:) / nsamples
@@ -533,10 +523,10 @@ subroutine initbulkmicrostat
       cloudcountmn  (k)      , &
       prec_prcmn  (k)*rhof(k)*rlv  , &
       preccountmn  (k)      , &
-      0      , &
+      0.0      , &
       raincountmn  (k)      , &
       precmn    (k)*rhof(k)*rlv  , &
-      0      , &
+      0.0      , &
       qrmn    (k)      , &
       k=1,kmax)
     close(ifoutput)
@@ -601,10 +591,10 @@ subroutine initbulkmicrostat
           varsP(1, 1, :, 1) = cloudcountmn
       varsP(1, 1, :, 2) = prec_prcmn  (:)*rhof(:)*rlv
       varsP(1, 1, :, 3) = preccountmn  (:)
-      varsP(1, 1, :, 4) = Nrrainmn  (:)
+      varsP(1, 1, :, 4) = 0 ! Nrrainmn  (:)
       varsP(1, 1, :, 5) = raincountmn  (:)
       varsP(1, 1, :, 6) = precmn    (:)*rhof(:)*rlv
-      varsP(1, 1, :, 7) = Dvrmn    (:)
+      varsP(1, 1, :, 7) = 0 ! Dvrmn    (:)
       varsP(1, 1, :, 8) = qrmn    (:)
       varsP(1, 1, :, 9) =0
       varsP(1, 1, :,10) =0
@@ -666,9 +656,9 @@ subroutine initbulkmicrostat
         else
       !$acc exit data delete(tend_np, tend_qrp, tend_qtp, Npmn, qrpmn, &
       !$acc&                 Npav, qrpav, precav, preccountav, prec_prcav, &
-      !$acc&                 cloudcountav, raincountav, Nrrainav, qrav, Dvrav, &
+      !$acc&                 cloudcountav, raincountav, qrav, &
       !$acc&                 preccountmn, prec_prcmn, &
-      !$acc&                 precmn, cloudcountmn, raincountmn, Nrrainmn, qrmn, Dvrmn)
+      !$acc&                 precmn, cloudcountmn, raincountmn, qrmn)
         end if
 
     deallocate(&
