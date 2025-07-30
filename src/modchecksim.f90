@@ -259,7 +259,7 @@ contains
     divmax = 0.
     divtot = 0.
 
-    !$acc parallel loop collapse(3) default(present) private(div, divmaxl, divtotl) &
+    !$acc parallel loop collapse(3) default(present) private(div) &
     !$acc reduction(max:divmaxl) reduction(+:divtotl)
     do k=1,kmax
       do j=2,j1
