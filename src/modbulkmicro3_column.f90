@@ -1,6 +1,7 @@
 module modbulkmicro3_column
   use modglobal,    only: pirhow
   use modmicrodata, only: delt
+  use modbulkmicro_data, only: l_lognormal, l_mur_cst, l_sb, mur_cst, sig_gr
   use modmicrodata3
   implicit none
   private

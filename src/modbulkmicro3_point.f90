@@ -1,7 +1,8 @@
 module modbulkmicro3_point
   use modprecision, only : field_r
   use modglobal, only :    rdt,rk3step, pirhow
-  use modmicrodata, only: delt
+  use modmicrodata, only: delt, l_rain
+  use modbulkmicro_data, only: l_sb, l_mur_cst, mur_cst
   use modmicrodata3 ! Ugly!
   implicit none
 

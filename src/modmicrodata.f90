@@ -47,7 +47,9 @@ module modmicrodata
 
   ! User settings
   integer :: imicro = 0     !< Selected scheme.
-  logical :: lstat = .true. !< Compute intermediate statistics.
+  logical ::        &
+    lstat = .true., & !< Compute intermediate statistics.
+    l_rain = .true.   !< Switch for rain calculations.
 
   ! Cloud settings
   ! Might be used without microphysics (e.g.: radiation), so kept here.
