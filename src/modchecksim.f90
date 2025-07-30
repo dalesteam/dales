@@ -260,7 +260,7 @@ contains
     divtot = 0.
 
     !$acc parallel loop collapse(3) default(present) private(div) &
-    !$acc reduction(max:divmaxl) reduction(+:divtotl)
+    !$acc reduction(max:divmax) reduction(+:divtot)
     do k=1,kmax
       do j=2,j1
         do i=2,i1
