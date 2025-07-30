@@ -48,6 +48,7 @@ module modchecksim
 
   character(len=*), parameter :: modname = 'modchecksim'
 
+  public :: checksim_read_namelist
   public :: initchecksim
   public :: exitchecksim
   public :: checksim
@@ -125,8 +126,6 @@ contains
     integer :: ierr
 
     call timer_tic(routine, 0)
-
-    call checksim_read_namelist(fname_options)
 
     if (.not. ladaptive .and. tcheck < dtmax) then
       tcheck = dtmax

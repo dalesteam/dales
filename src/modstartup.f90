@@ -426,8 +426,6 @@ contains
 
     call checkinitvalues
 
-    ! TODO: invalid values here do stop the model. This is because the checksim 
-    ! namelist is not read yet at this point.
     call check_initial_state
 
     call timer_toc('modstartup/startup')
