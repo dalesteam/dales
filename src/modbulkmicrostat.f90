@@ -82,9 +82,12 @@ save
                                               tend_qtp
 
 contains
+
+
 !> Initialization routine, reads namelists and inits variables
 subroutine initbulkmicrostat
-    use modmpi,    only  : myid, comm3d, mpierr, D_MPI_BCAST, cmyid
+    use modmpi,    only  : myid, comm3d, mpierr, D_MPI_BCAST, cmyid, &
+                           print_info_stderr
     use modglobal, only  : ifnamopt, fname_options, cexpnr, ifoutput, &
          dtav_glob, timeav_glob, ladaptive, k1, dtmax,btime,tres,lwarmstart,checknamelisterror, output_prefix, kmax
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,nctiminfo,writestat_dims_nc, open_nc
@@ -120,6 +123,12 @@ subroutine initbulkmicrostat
       close(ifnamopt)
     end if
 
+    if (imicro == imicro_bulk .and. lmicrostat) then
+      call print_info_stderr('modbulkmicrostat', 'lmicrostat is deprecated &
+        &for bulk microphysics, please enable lstat in NAMMICROPHYSCIS')
+      error stop
+    end if
+
     call D_MPI_BCAST(lmicrostat,1,0,comm3d,mpierr)
     call D_MPI_BCAST(dtav      ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(timeav    ,1,0,comm3d,mpierr)
@@ -138,9 +147,7 @@ subroutine initbulkmicrostat
       stop 'dtav must be an integer multiple of dtmax (NAMBULKMICROSTAT)'
     end if
 
-    allocate(Npav    (k1, nrfields), &
-             Npmn    (k1, nrfields), &
-             qrpav   (k1, nrfields), &
+    allocate(qrpav   (k1, nrfields), &
              qrpmn   (k1, nrfields), &
              qtpav   (k1, nrfields), &
              qtpmn   (k1, nrfields))
@@ -155,13 +162,8 @@ subroutine initbulkmicrostat
              cloudcountmn  (k1)    , &
              raincountav  (k1)    , &
              raincountmn  (k1)    , &
-             Nrrainav  (k1)    , &
-             Nrrainmn  (k1)    , &
              qrav    (k1)    , &
-             qrmn    (k1)    , &
-             Dvrav    (k1)    , &
-             Dvrmn    (k1))
-    Npmn    = 0.0
+             qrmn    (k1))
     qrpmn    = 0.0
     qtpmn    = 0.0
     precmn    = 0.0
@@ -169,7 +171,6 @@ subroutine initbulkmicrostat
     prec_prcmn  = 0.0
     cloudcountmn  = 0.0
     raincountmn  = 0.0
-    Nrrainmn  = 0.0
     qrmn    = 0.0
     Dvrmn    = 0.0
 
@@ -267,6 +268,7 @@ subroutine initbulkmicrostat
 
     if (timee >= tnext) then
       tnext = tnext + idtav
+      print *, "doing bulkmicrostat at ", timee
       call dobulkmicrostat
     end if
     if (timee >= tnextwrite) then
@@ -282,8 +284,9 @@ subroutine initbulkmicrostat
 !> Performs the calculations for rainrate etc.
   subroutine dobulkmicrostat
     use modglobal,    only  : i1, j1, k1, ijtot
-    use modmicrodata,  only  : qr,precep,Dvr,Nr,epscloud,epsqr,epsprec,imicro,imicro_bulk
-    use modfields,  only  : ql0
+    use modmicrodata, only: precep, epscloud, epsprec, epsqr
+    use modsimpleice_data,  only  : qr 
+    use modfields,  only  : ql0, rhof
     use modmpiinterface
     use modgpumpiinterface
     use modmpi
@@ -296,6 +299,7 @@ subroutine initbulkmicrostat
     integer :: i, j, k
     real :: c_count, r_count, p_count, p_sum_cl
     real :: Nr_sum, p_sum, qr_sum, Dvr_sum_cl
+    real(field_r) :: xrmin, xrmax, xr
 
     if (lprocblock) then
        do k = 1, k1
@@ -319,47 +323,37 @@ subroutine initbulkmicrostat
                p_count = p_count + 1.0
                p_sum_cl = p_sum_cl + precep(i,j,k)
              endif
-             Nr_sum = Nr_sum + Nr(i,j,k)
              p_sum = p_sum + precep(i,j,k)
              qr_sum = qr_sum + qr(i,j,k)
-             if (imicro==imicro_bulk .and. qr(i,j,k) > epsqr) then
-               Dvr_sum_cl = Dvr_sum_cl + Dvr(i,j,k)
-             end if
            end do
          end do
          cloudcountav(k) = c_count
          raincountav (k) = r_count
          preccountav (k) = p_count
          prec_prcav  (k) = p_sum_cl
-         Nrrainav    (k) = Nr_sum
          precav      (k) = p_sum
          qrav        (k) = qr_sum
-         if (imicro==imicro_bulk) then
-           Dvrav     (k) = Dvr_sum_cl
-         end if
        end do
        cloudcountmn(:) = cloudcountmn(:) +  cloudcountav(:) / ((i1-1)*(j1-1))
        raincountmn(:)  = raincountmn(:)  +  raincountav(:)  / ((i1-1)*(j1-1))
        preccountmn(:)  = preccountmn(:)  +  preccountav(:)  / ((i1-1)*(j1-1))
        prec_prcmn(:)   = prec_prcmn(:)   +  prec_prcav(:)   / ((i1-1)*(j1-1))
        Dvrmn(:)        = Dvrmn(:)        +  Dvrav(:)        / ((i1-1)*(j1-1))
-       Nrrainmn(:)     = Nrrainmn(:)     +  Nrrainav(:)     / ((i1-1)*(j1-1))
        precmn(:)       = precmn(:)       +  precav(:)       / ((i1-1)*(j1-1))
        qrmn(:)         = qrmn(:)         +  qrav(:)         / ((i1-1)*(j1-1))
         else
       !$acc parallel loop gang default(present) private(c_count, r_count, p_count, p_sum_cl,&
-      !$acc&                                            Nr_sum, p_sum, qr_sum, Dvr_sum_cl)
+      !$acc&                                            p_sum, qr_sum, Dvr_sum_cl)
       do k = 1, k1
         c_count = 0.0
         r_count = 0.0
         p_count = 0.0
         p_sum_cl = 0.0
-        Nr_sum = 0.0
         p_sum = 0.0
         qr_sum = 0.0
         Dvr_sum_cl = 0.0
         !$acc loop collapse(2) reduction(+:c_count, r_count, p_count, p_sum_cl,&
-        !$acc&                             Nr_sum, p_sum, qr_sum, Dvr_sum_cl)
+        !$acc&                             p_sum, qr_sum, Dvr_sum_cl)
         do j = 2, j1
           do i = 2, i1
             if (ql0(i,j,k) > epscloud) then
@@ -372,32 +366,22 @@ subroutine initbulkmicrostat
               p_count = p_count + 1.0
               p_sum_cl = p_sum_cl + precep(i,j,k)
             endif
-            Nr_sum = Nr_sum + Nr(i,j,k)
             p_sum = p_sum + precep(i,j,k)
             qr_sum = qr_sum + qr(i,j,k)
-            if (imicro==imicro_bulk .and. qr(i,j,k) > epsqr) then
-              Dvr_sum_cl = Dvr_sum_cl + Dvr(i,j,k)
-            end if
           end do
         end do
         cloudcountav(k) = c_count
         raincountav (k) = r_count
         preccountav (k) = p_count
         prec_prcav  (k) = p_sum_cl
-        Nrrainav    (k) = Nr_sum
         precav      (k) = p_sum
         qrav        (k) = qr_sum
-        if (imicro==imicro_bulk) then
-          Dvrav     (k) = Dvr_sum_cl
-        end if
       end do
 
       call MPI_ALLREDUCE(MPI_IN_PLACE, cloudcountav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
       call MPI_ALLREDUCE(MPI_IN_PLACE, raincountav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
       call MPI_ALLREDUCE(MPI_IN_PLACE, preccountav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
       call MPI_ALLREDUCE(MPI_IN_PLACE, prec_prcav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
-      call MPI_ALLREDUCE(MPI_IN_PLACE, Dvrav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
-      call MPI_ALLREDUCE(MPI_IN_PLACE, Nrrainav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
       call MPI_ALLREDUCE(MPI_IN_PLACE, precav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
       call MPI_ALLREDUCE(MPI_IN_PLACE, qrav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
 
@@ -406,8 +390,6 @@ subroutine initbulkmicrostat
       raincountmn(:)  = raincountmn(:)  +  raincountav(:)  / ijtot
       preccountmn(:)  = preccountmn(:)  +  preccountav(:)  / ijtot
       prec_prcmn(:)   = prec_prcmn(:)   +  prec_prcav(:)   / ijtot
-      Dvrmn(:)        = Dvrmn(:)        +  Dvrav(:)        / ijtot
-      Nrrainmn(:)     = Nrrainmn(:)     +  Nrrainav(:)     / ijtot
       precmn(:)       = precmn(:)       +  precav(:)       / ijtot
       qrmn(:)         = qrmn(:)         +  qrav(:)         / ijtot
       !$acc end kernels
@@ -420,7 +402,8 @@ subroutine initbulkmicrostat
   subroutine bulkmicrotend
     use modmpi,    only  : slabsum, slabsum_multi
     use modglobal,    only  : rk3step, timee, dt_lim, k1, ih, i1, jh, j1, ijtot, kmax, jmax, imax
-    use modmicrodata, only  : qrp, Nrp, qtpmcr
+    use modmicrodata, only  : qtpmcr
+    use modsimpleice_data, only: qrp
     implicit none
     integer        :: k
     integer        :: ifield = 0
@@ -440,29 +423,23 @@ subroutine initbulkmicrostat
 
     if (lprocblock) then
        do k=1, kmax
-          Npav(k,ifield) = sum(Nrp(2:i1,2:j1,k)) - sum(Npav(k,1:ifield-1))
           qrpav(k,ifield) = sum(qrp(2:i1,2:j1,k)) - sum(qrpav(k,1:ifield-1))
 		  qtpav(k,ifield) = sum(qtpmcr(2:i1,2:j1,k)) - sum(qtpav(k,1:ifield-1))
        end do
        if (ifield == nrfields) then
-          Npmn(:,:) = Npmn(:,:) + Npav(:,:) / nsamples / imax / jmax
           qrpmn(:,:) = qrpmn(:,:) + qrpav(:,:) / nsamples / imax / jmax
 		  qtpmn(:,:) = qtpmn(:,:) + qtpav(:,:) /nsamples / imax /jmax
-          Npav(:,:)  = 0.0
           qrpav(:,:) = 0.0
 		  qtpav(:,:) = 0.0
        end if
     else
       !$acc kernels default(present)
-      tend_np(:) = 0.0
       tend_qrp(:) = 0.0
       tend_qtp(:) = 0.0
       !$acc end kernels
 
-      !$acc host_data use_device(tend_np, Nrp, tend_qrp, qrp, tend_qtp, qtpmcr)
-      call slabsum_multi(tend_np , 1,k1,Nrp  ,2,i1,2,j1,1,k1,2,i1,2,j1,1,k1, &
-                         tend_qrp      ,qrp)
-
+      !$acc host_data use_device(tend_qrp, qrp, tend_qtp, qtpmcr)
+      call slabsum(tend_qrp,1,k1,qrp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
       call slabsum(tend_qtp,1,k1,qtpmcr  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
       ! note qtpmcr has different shape, includes ghost cells
       !$acc end host_data
@@ -470,17 +447,14 @@ subroutine initbulkmicrostat
 
 
       !$acc kernels default(present)
-      Npav(:,ifield)  = tend_np(:)  - sum(Npav (:,1:ifield-1),2)
       qrpav(:,ifield) = tend_qrp(:) - sum(qrpav(:,1:ifield-1),2)
       qtpav(:,ifield) = tend_qtp(:) - sum(qtpav(:,1:ifield-1),2)
       !$acc end kernels
 
       if (ifield == nrfields) then
         !$acc kernels default(present)
-        Npmn(:,:)  = Npmn(:,:)  + Npav(:,:)  / nsamples / ijtot
         qrpmn(:,:) = qrpmn(:,:) + qrpav(:,:) / nsamples / ijtot
         qtpmn(:,:) = qtpmn(:,:) + qtpav(:,:) / nsamples / ijtot
-        Npav(:,:)  = 0.0
         qrpav(:,:) = 0.0
         qtpav(:,:) = 0.0
         !$acc end kernels
@@ -523,16 +497,9 @@ subroutine initbulkmicrostat
     raincountmn(:)  = raincountmn(:)  / nsamples
     preccountmn(:)  = preccountmn(:)  / nsamples
     prec_prcmn(:)   = prec_prcmn(:)   / nsamples
-    Dvrmn(:)        = Dvrmn(:)        / nsamples
-    Nrrainmn(:)     = Nrrainmn(:)     / nsamples
     precmn(:)       = precmn(:)       / nsamples
     qrmn(:)         = qrmn(:)         / nsamples
 
-    where (raincountmn > 0.)
-      Dvrmn = Dvrmn / raincountmn
-    elsewhere
-      Dvrmn = 0.0
-    end where
     where (preccountmn > 0.)
       prec_prcmn = prec_prcmn/preccountmn
     elsewhere
@@ -566,39 +533,11 @@ subroutine initbulkmicrostat
       cloudcountmn  (k)      , &
       prec_prcmn  (k)*rhof(k)*rlv  , &
       preccountmn  (k)      , &
-      Nrrainmn  (k)      , &
+      0      , &
       raincountmn  (k)      , &
       precmn    (k)*rhof(k)*rlv  , &
-      Dvrmn    (k)      , &
+      0      , &
       qrmn    (k)      , &
-      k=1,kmax)
-    close(ifoutput)
-
-    open (ifoutput,file='nptend.'//cexpnr,position='append')
-    write(ifoutput,'(//2A,/A,F5.0,A,I4,A,I2,A,I2,A)')         &
-      '#-------------------------------------------------------------'   &
-      ,'---------------------------------)'           &
-      ,'#',(timeav),'--- AVERAGING TIMESTEP --- '         &
-      ,nhrs,':',nminut,':',nsecs             &
-      ,'   HRS:MIN:SEC AFTER INITIALIZATION '
-    write (ifoutput,'(2A/A/A/2A/A/A)')             &
-      '#------------------------------------------------------------'     &
-      , '------------'               &
-      ,'#               --------   T E N D E N C I E S NRAIN ------    '     &
-      ,'#                                                           '     &
-      ,'# LEV HEIGHT   PRES  |  AUTO         ACCR          SEDIM    '     &
-      ,'     EVAP         TOT '             &
-      ,'#      (M)   (MB)  |  ---------   (#/M3/S)      ----------'     &
-      ,'#-----------------------------------------------------------'
-    write(ifoutput,'(I4,F10.2,F7.1,5E13.5)') &
-      (k          , &
-      zf    (k)      , &
-      presf    (k)/100.    , &
-      Npmn    (k,iauto)    , &
-      Npmn    (k,iaccr)    , &
-      Npmn    (k,ised)    , &
-      Npmn    (k,ievap)    , &
-      sum(Npmn  (k,2:nrfields))    , &
       k=1,kmax)
     close(ifoutput)
 
@@ -633,19 +572,17 @@ subroutine initbulkmicrostat
         vars(:, 1) = cloudcountmn
         vars(:, 2) = prec_prcmn  (:)*rhof(:)*rlv
         vars(:, 3) = preccountmn  (:)
-        vars(:, 4) = Nrrainmn  (:)
+        vars(:, 4) = 0
         vars(:, 5) = raincountmn  (:)
         vars(:, 6) = precmn    (:)*rhof(:)*rlv
-        vars(:, 7) = Dvrmn    (:)
+        vars(:, 7) = 0
         vars(:, 8) = qrmn    (:)
-        vars(:, 9) =Npmn    (:,iauto)
-        vars(:,10) =Npmn    (:,iaccr)
-        vars(:,11) =Npmn    (:,ised)
-        vars(:,12) =Npmn    (:,ievap)
-        vars(:,13) =Npmn    (:,iclip)
-        do k=1,k1
-        vars(k,14) =sum(Npmn  (k,2:nrfields))
-        enddo
+        vars(:, 9) =0
+        vars(:,10) =0
+        vars(:,11) =0
+        vars(:,12) =0
+        vars(:,13) =0
+        vars(:,14) = 0
         vars(:,15) =qrpmn    (:,iauto)
         vars(:,16) =qrpmn    (:,iaccr)
         vars(:,17) =qrpmn    (:,ised)
@@ -669,14 +606,12 @@ subroutine initbulkmicrostat
       varsP(1, 1, :, 6) = precmn    (:)*rhof(:)*rlv
       varsP(1, 1, :, 7) = Dvrmn    (:)
       varsP(1, 1, :, 8) = qrmn    (:)
-      varsP(1, 1, :, 9) =Npmn    (:,iauto)
-      varsP(1, 1, :,10) =Npmn    (:,iaccr)
-      varsP(1, 1, :,11) =Npmn    (:,ised)
-      varsP(1, 1, :,12) =Npmn    (:,ievap)
-          varsP(1, 1, :,13) =Npmn    (:,iclip)
-      do k=1,k1
-        varsP(1, 1, k,14) =sum(Npmn  (k,2:nrfields))
-      enddo
+      varsP(1, 1, :, 9) =0
+      varsP(1, 1, :,10) =0
+      varsP(1, 1, :,11) =0
+      varsP(1, 1, :,12) =0
+          varsP(1, 1, :,13) =0
+          varsP(1, 1, :,14) =0
       varsP(1, 1, :,15) =qrpmn    (:,iauto)
       varsP(1, 1, :,16) =qrpmn    (:,iaccr)
       varsP(1, 1, :,17) =qrpmn    (:,ised)
@@ -692,11 +627,8 @@ subroutine initbulkmicrostat
       raincountmn(:)  = 0.0
       preccountmn(:)  = 0.0
       prec_prcmn(:)   = 0.0
-      Dvrmn(:)        = 0.0
-      Nrrainmn(:)     = 0.0
       precmn(:)       = 0.0
       qrmn(:)         = 0.0
-      Npmn(:,:)         = 0.0
       qrpmn(:,:)        = 0.0
         else
       !$acc kernels default(present)
@@ -704,11 +636,8 @@ subroutine initbulkmicrostat
       raincountmn(:)  = 0.0
       preccountmn(:)  = 0.0
       prec_prcmn(:)   = 0.0
-      Dvrmn(:)        = 0.0
-      Nrrainmn(:)     = 0.0
       precmn(:)       = 0.0
       qrmn(:)         = 0.0
-      Npmn(:,:)         = 0.0
       qrpmn(:,:)        = 0.0
       qtpmn(:,:)        = 0.0
       !$acc end kernels
@@ -742,8 +671,7 @@ subroutine initbulkmicrostat
       !$acc&                 precmn, cloudcountmn, raincountmn, Nrrainmn, qrmn, Dvrmn)
         end if
 
-    deallocate(Npav     , &
-               Npmn     , &
+    deallocate(&
                qrpav    , &
                qrpmn    , &
                qtpav    , &
@@ -759,14 +687,10 @@ subroutine initbulkmicrostat
          cloudcountmn    , &
          raincountav    , &
          raincountmn    , &
-         Nrrainav    , &
-         Nrrainmn    , &
          qrav      , &
-         qrmn      , &
-         Dvrav    , &
-         Dvrmn)
+         qrmn)
 
-    deallocate(tend_np, tend_qrp, tend_qtp)
+    deallocate(tend_qrp, tend_qtp)
 
   end subroutine exitbulkmicrostat
 

@@ -427,7 +427,7 @@ module daleslib
             use modtimedep,         only : timedep
             use modboundary,        only : boundary, grwdamp! JvdD ,tqaver
             use modthermodynamics,  only : thermodynamics
-            use modmicrophysics,    only : microsources
+            use modmicrophysics,    only : microphysics
             use modsurface,         only : surface
             use modsubgrid,         only : subgrid
             use modforces,          only : forces, coriolis, lstend
@@ -519,7 +519,7 @@ module daleslib
             call samptend(tend_ls)
 
             !call check_tend('after lstend')
-            call microsources !Drizzle etc.
+            call microphysics !Drizzle etc.
             !call check_tend('after microsources')
             call samptend(tend_micro)
 

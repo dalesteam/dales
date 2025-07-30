@@ -23,6 +23,7 @@
 !
 
 module modemission
+use, intrinsic :: ieee_arithmetic, only: ieee_is_nan
 use modprecision, only: field_r
 use ieee_arithmetic, only: ieee_is_nan
 use modemisdata

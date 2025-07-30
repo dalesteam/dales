@@ -24,6 +24,7 @@ module modstat_profiles
   public :: sample_profiles
   public :: sample_field
   public :: write_profiles
+  public :: exit_profiles
 
   interface sample_field
     module procedure sample_field
@@ -67,6 +68,20 @@ contains
 
   end function is_writing_timestep
 
+  function find_index(name) result(index)
+
+    character(len=*), intent(in) :: name
+
+    integer :: index
+
+    do index = 1, nvar
+      if (trim(name) == trim(ncname(index,1))) return
+    end do
+
+    index = 0
+
+  end function find_index
+
   subroutine add_profile(name, long_name, unit, dim)
 
     character(len=*), intent(in) :: name
@@ -77,21 +92,22 @@ contains
     character(len=*), parameter :: routine = modname//':add_profile'
 
     character(len=80), allocatable :: tmp_ncname(:,:)
-
-    ! Check if given name already exists. For the long name, we don't care.
-    if (findloc(ncname(:,1), value=trim(name), dim=1) > 0) then
-      call print_info_stderr(routine, 'profile '//trim(name)//' already exists')
-      error stop
-    end if
+    integer :: idx
 
     ! Allocate array for metadata
     if (.not. allocated(ncname)) then
       allocate(ncname(1,4))
     else
-      ! If already allocated, grow in size by 1
-      allocate(tmp_ncname(size(ncname, dim=1) + 1, 4))
-      tmp_ncname(1:nvar,:) = ncname(1:nvar,:)
-      call move_alloc(tmp_ncname, ncname)
+      ! Check if given name already exists. For the long name, we don't care.
+      if (find_index(name) /= 0) then
+        call print_info_stderr(routine, 'profile '//trim(name)//' already exists')
+        error stop
+      else
+        ! If already allocated, grow in size by 1
+        allocate(tmp_ncname(size(ncname, dim=1) + 1, 4))
+        tmp_ncname(1:nvar,:) = ncname(1:nvar,:)
+        call move_alloc(tmp_ncname, ncname)
+      end if
     end if
 
     nvar = nvar + 1
@@ -141,6 +157,8 @@ contains
 
     profiles = 0
 
+    !$acc enter data copyin(profiles) create(slab_average) async
+
     if (lprocblock) then
       my_task_writes = .true. ! All MPI ranks write to a file
       fname = 'new-profiles.x'//cmyidx//'.y'//cmyidy//'.'//cexpnr//'.nc'
@@ -168,26 +186,40 @@ contains
 
   end subroutine init_profiles
 
+
+  subroutine exit_profiles
+
+    if (my_task_writes .and. lstat) call exitstat_nc(ncid)
+
+  end subroutine exit_profiles
+
+
   !> Bookkeeping routine
   !!
   !! Determines if profiles need to be sampled/written this timestep, and
   !! limits the time step.
   subroutine sample_profiles
 
-    if (.not. lstat) return
+    ! Reset switch
+    do_stats = .false.
+    write_stats = .false.
 
-    if (rk3step == 3 .and. timee >= tnext) then
+    if (.not. lstat) return
+    if (rk3step /= 3) return
+
+    if (timee < tnext .and. timee < tnextwrite) then
+      dt_lim = minval([dt_lim, tnext - timee, tnextwrite - timee])
+      return
+    end if
+
+    if (timee >= tnext) then
       do_stats = .true.
       tnext = tnext + idtav
-      if (timee >= tnextwrite) then
-        write_stats = .true.
-        tnextwrite = tnextwrite + itimeav
-      end if
-    else
-      do_stats = .false.
-      write_stats = .false.
-      if (timee < tnext) dt_lim = minval([dt_lim, tnext - timee])
-      if (timee < tnextwrite) dt_lim = minval([dt_lim, tnextwrite - timee])
+    end if
+
+    if (timee >= tnextwrite) then
+      write_stats = .true.
+      tnextwrite = tnextwrite + itimeav
     end if
 
   end subroutine sample_profiles
@@ -206,9 +238,8 @@ contains
 
       ! TODO: a hash is probably more efficient here
       ! Find location in the list of profiles
-      idx = findloc(ncname(:,1), value=trim(name), dim=1)
+      idx = find_index(name)
 
-      ! findloc() returns 0 if the given value is not found
       if (idx == 0) then
         call print_info_stderr(routine, 'profile '//trim(name)//' not found')
         error stop
@@ -219,6 +250,7 @@ contains
 
       call slabavg(field, nh, slab_average, local=lprocblock)
 
+      !$acc parallel loop vector default(present) async
       do k = 1, kmax
         profiles(k,idx) = profiles(k,idx) + slab_average(k)
       end do
@@ -241,9 +273,8 @@ contains
     if (do_stats) then
 
       ! Find location in the list of profiles
-      idx = findloc(ncname(:,1), value=trim(name), dim=1)
+      idx = find_index(name)
 
-      ! findloc() returns 0 if the given value is not found
       if (idx == 0) then
         call print_info_stderr(routine, 'profile '//trim(name)//' not found')
         error stop
@@ -254,6 +285,7 @@ contains
 
       call slabavg(field, mask, nh, slab_average, local=lprocblock)
 
+      !$acc parallel loop vector default(present) async
       do k = 1, kmax
         profiles(k,idx) = profiles(k,idx) + slab_average(k)
       end do
@@ -268,11 +300,14 @@ contains
 
     if (write_stats) then
 
+      !$acc parallel loop collapse(2) default(present)
       do n = 1, nvar
         do k = 1, kmax
           profiles(k,n) = profiles(k,n) / nsamples
         end do
       end do
+
+      !$acc update host(profiles)
 
       if (my_task_writes) then
         call writestat_nc(ncid, 1, tncname, [rtimee], nrec, .true.)
@@ -280,6 +315,7 @@ contains
       end if
 
       ! Reset averages
+      !$acc parallel loop collapse(2) default(present) async
       do n = 1, nvar
         do k = 1, kmax
           profiles(k,n) = 0

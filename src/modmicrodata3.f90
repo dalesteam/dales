@@ -27,6 +27,7 @@
 !
 
   module modmicrodata3
+    use modmicrodata, only: Nc0 => Nc_0
 
   implicit none
   save
@@ -67,9 +68,8 @@
             ,l_tendencies     = .true.   &  !<- if to write full tendencies TODO: check if there is an existing flag
             ,l_statistics     = .true.      !<- if to write statistics
 
-  real ::  Nc0             = 70.0e6   &  !<- proposed number of droplet in namelist
-             ,xc0_min         = 4.2e-15  &  !<- xcmin  min mean mass of cloud water
-             ,Nccn0           = 100.0e6     !<- proposed initial number of cc
+  real :: xc0_min         = 4.2e-15  &  !<- xcmin  min mean mass of cloud water
+         ,Nccn0           = 100.0e6     !<- proposed initial number of cc
 
   ! addjusting position of species to scalars fields
   ! need to be backward compatible to bulkmicro
@@ -516,5 +516,41 @@
                        ,n_qvsl    = 5 &
                        ,n_qvsi    = 6 &
                        ,n_w0      = 7
+
+  real :: k_au
+
+  real, allocatable :: phi(:,:,:)
+
+  real, parameter ::  &
+    a_tvsb = 9.65,    & !< Coefficient in terminal velocity param.
+    avf = 0.78,       & !< Constant in ventilation factor.
+    b_tvsb = 9.8,     & !< Coefficient in terminal velocity param.
+    bvf = 0.308,      & !< Constant in ventilation factor.
+    c_Nevap = 0.7,    & !< Coefficient for evaporation.
+    c_tvsb = 600.,    & !< Coefficient in terminal velocity param.
+    D_eq = 1.1e-3,    & !< Parameter for break-up.
+    Dv = 2.4e-5,      & !< Diffusivity of water vapor [m^2/s].
+    Dvcmax = 79.2e-6, & !< Max mean diameter of cw.
+    D_s = Dvcmax,     & !< Diameter separating the cloud and precipitation parts of the DSD.
+    eps0 = 1e-18,     & !< Very small number.
+    k_1 = 4.0e2,      & !< k_1 + k_2: coefficient for phi function in autoconversion rate SB2006.
+    k_2 = 0.7,        & !< See k_1.
+    kappa_r = 60.7,   & !< See eq. 11 in SB2006.
+    k_br = 1000.,     & !< Parameter for break-up.
+    k_c = 10.58e9,    & !< Long Kernel coefficient SB2006 (k'cc).
+    k_l = 5.e-5,      & !< Coefficient for phi function in accretion rate.
+    k_r = 5.25,       & !< Kernel SB2006.
+    k_rr = 7.12,      & !< See eq. 11 in SB2006.
+    Kt = 2.5e-2,      & !< Conductivity of heat [J/(sKm)].
+    nu_a = 1.41e-5,   & !< Kinematic viscosity of air.
+    qcmin = 1e-7,     & !< Threshold.
+    Sc_num = 0.71,    & !< Schmidt number.
+    wfallmax = 9.9,   & !< Terminal velocity (?)
+    xcmin = 4.2e-15,  & !< Min mean mass of cw (D = 2.0e-6 m).
+    xcmax = 2.6e-10,  & !< Max mean mass of cw.
+    xrmin = xcmax,    & !< Min mean mass of pw.
+    xrmax = 5.0e-6,   & !< Max mean maxx of pw.
+    xrmaxkk = 5.2e-7, & !< Max mean maxx of pw.
+    x_s = xcmax         !< Drop mass separating the cloud and precipitation parts of the DSD.
 
   end module modmicrodata3

@@ -109,6 +109,7 @@ contains
     use modibm,            only : initibm
 
     use modchecksim,       only : chkdiv
+    use modnamelist,       only : read_namelists
     use modspraying,       only : initspraying
 #if defined(_OPENACC)
     use modgpu,             only : initgpu
@@ -344,6 +345,9 @@ contains
     call D_MPI_BCAST(lambdas_x,  1, 0,commwrld,mpierr)
     call D_MPI_BCAST(lambdas_y,  1, 0,commwrld,mpierr)
     call D_MPI_BCAST(lambdas_z,  1, 0,commwrld,mpierr)
+
+    ! Read all namelists
+    call read_namelists(fname_options)    
 
     call testwctime
     ! Allocate and initialize core modules
