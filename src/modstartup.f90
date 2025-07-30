@@ -34,6 +34,8 @@ use iso_c_binding
 use modprecision,      only : field_r
 use modtimer
 use modstat_nc
+use modchecksim, only: check_array
+use modstringutils, only: number2string
 
 implicit none
 ! private
@@ -423,6 +425,10 @@ contains
     call inittstep
 
     call checkinitvalues
+
+    ! TODO: invalid values here do stop the model. This is because the checksim 
+    ! namelist is not read yet at this point.
+    call check_initial_state
 
     call timer_toc('modstartup/startup')
 
@@ -1961,5 +1967,33 @@ contains
     call nchandle_error(nf90_close(ncid))
 
   end subroutine init_from_netcdf
+
+  !> Check prognostic variables before simulation
+  subroutine check_initial_state()
+    use modglobal, only: lmoist
+    use modfields, only: u0, v0, w0, thl0, qt0, sv0
+
+    ! Weird bug, casting thresholds to _field_r leads to compilation error for
+    ! some reason
+    integer, parameter :: rkind = kind(u0)
+
+    integer :: s
+
+    call check_array(u0, 'u0', 'startup', &
+                     threshold=[real(-100, rkind), real(100, rkind)])
+    call check_array(v0, 'v0', 'startup', &
+                     threshold=[real(-100, rkind), real(100, rkind)])
+    call check_array(w0, 'w0', 'startup', &
+                     threshold=[real(-30, rkind), real(30, rkind)])
+    call check_array(thl0, 'thl0', 'startup', &
+                     threshold=[real(150, rkind), real(350, rkind)])
+    if (lmoist) call check_array(qt0, 'qt0', 'startup', &
+                                 threshold=[real(0, rkind), real(1, rkind)])
+    
+    do s = 1, size(sv0, dim=4)
+      call check_array(sv0(:,:,:,s), 'sv0('//number2string(s)//')', 'startup')
+    end do
+    
+  end subroutine check_initial_state
 
 end module modstartup
