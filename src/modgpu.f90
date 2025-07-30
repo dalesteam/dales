@@ -62,7 +62,6 @@ contains
     use modthermodynamics, only: th0av, thv0, thetah, qth, qlh
     use modboundary, only: tsc
     use modmicrodata, only: precep, thlpmcr, qtpmcr
-    use modchecksim, only: courxl, couryl, courzl, courtotl, peclettotl
     use modibm,      only: fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p
 
     implicit none
@@ -135,7 +134,6 @@ contains
     use modthermodynamics, only: th0av, thv0, thetah, qth, qlh
     use modboundary, only: tsc
     use modmicrodata, only: precep, thlpmcr, qtpmcr
-    use modchecksim, only: courxl, couryl, courzl, courtotl, peclettotl
     use modibm,      only: fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p
 
     implicit none
