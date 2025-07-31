@@ -153,6 +153,9 @@ interface D_MPI_ISEND
     procedure :: D_MPI_ALLREDUCE_REAL64_R3
     procedure :: D_MPI_ALLREDUCE_INT32_R1
     procedure :: D_MPI_ALLREDUCE_INT32_R2
+    procedure :: D_MPI_ALLREDUCE_REAL32_IP_S
+    procedure :: D_MPI_ALLREDUCE_REAL64_IP_S
+    procedure :: D_MPI_ALLREDUCE_INT32_IP_S
     procedure :: D_MPI_ALLREDUCE_REAL32_IP
     procedure :: D_MPI_ALLREDUCE_REAL64_IP
     procedure :: D_MPI_ALLREDUCE_REAL32_IP_R2
