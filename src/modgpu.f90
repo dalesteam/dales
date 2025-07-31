@@ -49,7 +49,7 @@ contains
                          dudxls, dudyls, dudtls, dvdxls, dvdyls, &
                          dvdtls, dthvdz, qvsl, qvsi, esl, qsat
     use modglobal, only: dzf, dzh, zh, zf, delta, deltai, &
-                         rd, rv, esatmtab, esatitab, esatltab
+                         rd, rv
     use modsurfdata, only: z0m, z0h, obl, tskin, qskin, Cm, Cs, &
                            ustar, dudz, dvdz, thlflux, qtflux, &
                            dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf
@@ -85,7 +85,6 @@ contains
     !$acc&              anis_fac, tsc, thlpcar, presf, &
     !$acc&              presh, exnf, exnh, thetah, &
     !$acc&              qvsl, qvsi, esl, qsat, qth, qlh, &
-    !$acc&              esatmtab, esatitab, esatltab, &
     !$acc&              th0av, thv0, thetah, qth, qlh, &
     !$acc&              precep, thlpmcr, qtpmcr, &
     !$acc&              thlprad, lwd, lwu, swd, swu, lwc, swdir, swdif, &
@@ -121,7 +120,7 @@ contains
                          dudxls, dudyls, dudtls, dvdxls, dvdyls, &
                          dvdtls, dthvdz, qvsl, qvsi, esl, qsat
     use modglobal, only: dzf, dzh, zh, zf, delta, deltai, &
-                         rd, rv, esatmtab, esatitab, esatltab
+                         rd, rv
     use modsurfdata, only: z0m, z0h, obl, tskin, qskin, Cm, Cs, &
                            ustar, dudz, dvdz, thlflux, qtflux, &
                            dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf
@@ -159,7 +158,6 @@ contains
     !$acc&            anis_fac, tsc, thlpcar, presf, &
     !$acc&            presh, exnf, exnh, thetah, &
     !$acc&            qvsl, qvsi, esl, qsat, qth, qlh, &
-    !$acc&            esatmtab, esatitab, esatltab, &
     !$acc&            th0av, thv0, thetah, qth, qlh, &
     !$acc&            precep, thlpmcr, qtpmcr, &
     !$acc&            thlprad, lwd, lwu, swd, swu, lwc, swdir, swdif, &

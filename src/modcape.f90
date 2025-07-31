@@ -121,11 +121,12 @@ contains
 !>Run crosssection.
   subroutine docape
     use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,rk3step,timee,rtimee,dt_lim,grav,eps1,&
-    nsv,ttab,esatltab,esatitab,zf,dzf,tup,tdn,zh,kcb
+    nsv,zf,dzf,tup,tdn,zh,kcb
     use modfields, only : u0,v0,thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf
     use modstat_nc, only : lnetcdf, writestat_nc
     use modgenstat, only : qlmnlast,wthvtmnlast
     use modmicrodata, only : iqr, precep, imicro
+    use modthermodynamics, only: ttab, esatltab, esatitab
     use modmpi
 #if defined(_OPENACC)
     use modgpu, only: update_host

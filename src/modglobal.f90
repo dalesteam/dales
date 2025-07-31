@@ -144,14 +144,8 @@ save
       real :: lambda_crit=100. !< maximum value for the smoothness. This controls if WENO or
 
       ! Tabulated saturation relation
-      real, dimension(1:2000) :: ttab
-      real, dimension(1:2000) :: esatltab
-      real, dimension(1:2000) :: esatitab
-      real, dimension(1:2000) :: esatmtab
       real, dimension(-100:4000) :: mygamma251
       real, dimension(-100:4000) :: mygamma21
-
-      !$acc declare copyin(esatltab, esatitab, esatmtab)
 
       logical :: lmoist   = .true.  !<   switch to calculate moisture fields
       logical :: lnoclouds = .false. !<   switch to enable/disable thl calculations
@@ -339,21 +333,6 @@ contains
 
     ! Global constants
 
-    ! esatltab(m) gives the saturation vapor pressure over water at T corresponding to m
-    ! esatitab(m) is the same over ice
-    ! esatmtab(m) is interpolated between the ice and liquid values with ilratio
-    ! http://www.radiativetransfer.org/misc/atmlabdoc/atmlab/h2o/thermodynamics/e_eq_water_mk.html
-    ! Murphy and Koop 2005 parameterization formula.
-    do m=1,2000
-      ttab(m)=150.+0.2*m
-      esatltab(m)=exp(54.842763-6763.22/ttab(m)-4.21*log(ttab(m))+0.000367*ttab(m)+&
-           tanh(0.0415*(ttab(m)-218.8))*(53.878-1331.22/ttab(m)-9.44523*log(ttab(m))+ 0.014025*ttab(m)))
-
-      esatitab(m)=exp(9.550426-5723.265/ttab(m)+3.53068*log(ttab(m))-0.00728332*ttab(m))
-      ilratio = max(0.,min(1.,(ttab(m)-tdn)/(tup-tdn)))
-      esatmtab(m) = ilratio*esatltab(m) + (1-ilratio)*esatitab(m)
-    end do
-
     mygamma251(-100)=0.
     mygamma21(-100)=0.
     do m=-99,4000
@@ -514,13 +493,13 @@ contains
 !     timeleft=ceiling(runtime/tres)
 
     !$acc enter data copyin(dzf, dzh, dzfi,dzhi, zh, zf, delta, deltai, &
-    !$acc&                  esatmtab, esatitab, esatltab, mygamma251, mygamma21)
+    !$acc&                  mygamma251, mygamma21)
 
   end subroutine initglobal
 !> Clean up when leaving the run
   subroutine exitglobal
     !$acc exit data delete(dzf, dzh, zh, zf, delta, deltai, &
-    !$acc&                 esatmtab, esatitab, esatltab, mygamma251, mygamma21)
+    !$acc&                 mygamma251, mygamma21)
 
     deallocate(dzf,dzh,dzfi,dzhi,zh,zf,delta,deltai)
   end subroutine exitglobal
