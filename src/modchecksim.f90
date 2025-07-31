@@ -318,9 +318,11 @@ contains
       cval = number2string(val)
       if (.not. ieee_is_finite(val)) then
         call print_warning_non_finite(name, step, [i], cval)
-      else if (present(threshold) .and. (val < threshold(1) .or. val > threshold(2))) then
-        call print_warning_out_of_range(name, step, [i], cval, &
-                [number2string(threshold(1)), number2string(threshold(2))])
+      else if (present(threshold)) then
+        if (val < threshold(1) .or. val > threshold(2)) then
+          call print_warning_out_of_range(name, step, [i], cval, &
+                  [number2string(threshold(1)), number2string(threshold(2))])
+        end if
       end if
     end do
 
@@ -345,9 +347,11 @@ contains
       cval = number2string(val)
       if (.not. ieee_is_finite(val)) then
         call print_warning_non_finite(name, step, [i], cval)
-      else if (present(threshold) .and. (val < threshold(1) .or. val > threshold(2))) then
-        call print_warning_out_of_range(name, step, [i], cval, &
-                [number2string(threshold(1)), number2string(threshold(2))])
+      else if (present(threshold)) then
+        if (val < threshold(1) .or. val > threshold(2)) then
+          call print_warning_out_of_range(name, step, [i], cval, &
+                  [number2string(threshold(1)), number2string(threshold(2))])
+        end if
       end if
     end do
 
@@ -399,9 +403,11 @@ contains
         cval = number2string(val)
         if (.not. ieee_is_finite(val)) then
           call print_warning_non_finite(name, step, [i, j], cval)
-        else if (present(threshold) .and. (val < threshold(1) .or. val > threshold(2))) then
-          call print_warning_out_of_range(name, step, [i, j], cval, &
-                  [number2string(threshold(1)), number2string(threshold(2))])
+        else if (present(threshold)) then
+          if (val < threshold(1) .or. val > threshold(2)) then
+            call print_warning_out_of_range(name, step, [i, j], cval, &
+                    [number2string(threshold(1)), number2string(threshold(2))])
+          end if
         end if
       end do
     end do
@@ -428,9 +434,11 @@ contains
         cval = number2string(val)
         if (.not. ieee_is_finite(val)) then
           call print_warning_non_finite(name, step, [i, j], cval)
-        else if (present(threshold) .and. (val < threshold(1) .or. val > threshold(2))) then
-          call print_warning_out_of_range(name, step, [i, j], cval, &
-                  [number2string(threshold(1)), number2string(threshold(2))])
+        else if (present(threshold)) then
+          if (val < threshold(1) .or. val > threshold(2)) then
+            call print_warning_out_of_range(name, step, [i, j], cval, &
+                    [number2string(threshold(1)), number2string(threshold(2))])
+          end if
         end if
       end do
     end do
@@ -492,9 +500,11 @@ contains
           cval = number2string(val)
           if (.not. ieee_is_finite(val)) then
             call print_warning_non_finite(name, step, [i, j, k], cval)
-          else if (present(threshold) .and. (val < threshold(1) .or. val > threshold(2))) then
-            call print_warning_out_of_range(name, step, [i, j, k], cval, &
-                    [number2string(threshold(1)), number2string(threshold(2))])
+          else if (present(threshold)) then
+            if (val < threshold(1) .or. val > threshold(2)) then
+              call print_warning_out_of_range(name, step, [i, j, k], cval, &
+                      [number2string(threshold(1)), number2string(threshold(2))])
+            end if
           else
             cycle
           end if
@@ -529,9 +539,11 @@ contains
           cval = number2string(val)
           if (.not. ieee_is_finite(val)) then
             call print_warning_non_finite(name, step, [i, j, k], cval)
-          else if (present(threshold) .and. (val < threshold(1) .or. val > threshold(2))) then
-            call print_warning_out_of_range(name, step, [i, j, k], cval, &
-                    [number2string(threshold(1)), number2string(threshold(2))])
+          else if (present(threshold)) then
+            if (val < threshold(1) .or. val > threshold(2)) then
+              call print_warning_out_of_range(name, step, [i, j, k], cval, &
+                      [number2string(threshold(1)), number2string(threshold(2))])
+            end if
           else
             cycle
           end if
