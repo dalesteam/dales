@@ -181,6 +181,8 @@ contains
     call D_MPI_BCAST(ltskininp                  ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(min_horv                   ,            1, 0, comm3d, mpierr)
 
+    !$acc update device (xpatches, ypatches)
+
     if(lCO2Ags .and. (.not. lrsAgs)) then
       if(myid==0) print *,"WARNING::: You set lCO2Ags to .true., but lrsAgs to .false."
       if(myid==0) print *,"WARNING::: Since AGS does not run, lCO2Ags will be set to .false. as well."
@@ -1349,7 +1351,7 @@ contains
     if(lmostlocal) then
 
       oblavl = 0.
-
+      !$acc parallel loop collapse(2) default(present)
       do i=2,i1
         do j=2,j1
           thv     =   thl0(i,j,1)  * (1. + (rv/rd - 1.) * qt0(i,j,1))
@@ -1699,6 +1701,7 @@ contains
   end function
 
   function patchynr(ypos)
+    !$acc routine seq
     use modmpi,     only : myidy
     use modglobal,  only : jmax,jtot
     implicit none

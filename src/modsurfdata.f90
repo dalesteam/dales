@@ -313,5 +313,5 @@ SAVE
   logical           :: ltskininp = .false.
   real, allocatable :: tskininp(:,:,:), ttskin(:)
   integer           :: nttskin
-
+  !$acc declare create(xpatches, ypatches)
 end module modsurfdata

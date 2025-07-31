@@ -41,6 +41,7 @@ save
       integer ::  i2
       integer ::  j2
       integer ::  nsv = 0       !< Number of additional scalar fields
+      !$acc declare create (imax, jmax, itot, jtot)
 
       integer ::  ih=3
       integer ::  jh=3
@@ -481,7 +482,8 @@ contains
 !     tnextrestart = trestart/tres
 !     timeleft=ceiling(runtime/tres)
 
-    !$acc enter data copyin(dzf, dzh, dzfi,dzhi, zh, zf, delta, deltai)
+    !$acc enter data copyin(dzf, dzh, dzfi, dzhi, zh, zf, delta, deltai)
+    !$acc update device (imax, jmax, itot, jtot)
 
   end subroutine initglobal
 !> Clean up when leaving the run

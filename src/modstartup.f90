@@ -101,7 +101,7 @@ contains
     use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
     use modmicrophysics,   only : initmicrophysics
     use modsubgrid,        only : initsubgrid
-    use modmpi,            only : initmpi,commwrld,myid,myidx,cmyidy,nprocx,nprocy,mpierr,periods &
+    use modmpi,            only : initmpi,commwrld,myid,myidx,myidy,cmyidy,nprocx,nprocy,mpierr,periods &
                                 , D_MPI_BCAST
     use tstep,             only : inittstep
     use modchem,           only : initchem
@@ -215,6 +215,7 @@ contains
 #if defined(_OPENACC)
     call initgpu(commwrld)
 #endif
+    !$acc update device (myidx,myidy)
 
     ! Ignore user-provided nsv, we take care of it ourselves
     nsv = 0
