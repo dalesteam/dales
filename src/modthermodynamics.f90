@@ -35,17 +35,29 @@ module modthermodynamics
 !   private
   public :: thermodynamics,calc_halflev
   public :: lqlnr
+  public :: ttab
+  public :: esatltab
+  public :: esatitab
+  public :: esatmtab
+
   logical :: lqlnr    = .true. !< switch for ql calc. with Newton-Raphson (on/off)
   real, allocatable :: th0av(:)
   real(field_r), allocatable :: thv0(:,:,:)
   real :: chi_half=0.5  !< set wet, dry or intermediate (default) mixing over the cloud edge
   real, allocatable :: thetah(:), qth(:), qlh(:)
 
+  real(field_r), protected :: ttab(1:2000)
+  real(field_r), protected :: esatltab(1:2000)
+  real(field_r), protected :: esatitab(1:2000)
+  real(field_r), protected :: esatmtab(1:2000)
+
+  !$acc declare create(ttab, esatltab, esatitab, esatmtab)
+
 contains
 
 !> Allocate and initialize arrays
   subroutine initthermodynamics
-    use modglobal, only : ih,i1,jh,j1,k1,tdn,tup,esatltab,esatitab,esatmtab,ttab
+    use modglobal, only : ih,i1,jh,j1,k1,tdn,tup
     use modmicrodata, only: imicro,imicro_bulk3
     implicit none
     real :: ilratio
@@ -79,6 +91,9 @@ contains
           esatmtab(m) = ilratio*esatltab(m) + (1-ilratio)*esatitab(m)
        end if
     end do
+
+    !$acc update device(ttab, esatltab, esatitab, esatmtab)
+
   end subroutine initthermodynamics
 
 !> Do moist thermodynamics.
@@ -667,7 +682,6 @@ contains
 
   ! return esat for ice-liquid mix using table
   pure function esat_tab(T) result(es)
-    use modglobal, only : esatmtab
 
     implicit none
     !$acc routine seq
@@ -687,7 +701,6 @@ contains
 !> seems to be faster than the Magnus formula (on CPU)
   pure function qsat_tab(T, p) result(qsat)
     use modglobal, only : rd,rv
-    use modglobal, only : esatmtab
 
     implicit none
     !$acc routine seq
@@ -741,7 +754,6 @@ contains
     use modglobal, only : i1,j1,k1,rv,rlv,cp,rd
     use modfields, only : qt0,thl0,exnf,presf,ql0
     use modfields, only : tmp0, qsat, esl, qvsl, qvsi          ! consider not storing these
-    use modglobal, only : esatltab, esatitab
 
     implicit none
     integer :: i, j, k
@@ -873,7 +885,6 @@ contains
     use modglobal, only : i1,j1,k1,rv,rlv,cp,rd
     use modfields, only : qt0,thl0,exnf,presf,ql0
     use modfields, only : tmp0, qsat, esl, qvsl, qvsi          ! consider not storing these
-    use modglobal, only : esatltab, esatitab
 
     implicit none
     integer :: i, j, k
@@ -1094,7 +1105,7 @@ contains
 !> Calculates liquid water content.and temperature
 !! \author Steef B\"oing
 
-  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab
+  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp
   use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl,qsat
   implicit none
 
@@ -1202,7 +1213,7 @@ contains
 !> Calculates liquid water content.and temperature
 !! \author Steef B\"oing
 
-  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab
+  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp
   use modfields, only : qt0h,thl0h,exnh,presh,ql0h
   implicit none
 
