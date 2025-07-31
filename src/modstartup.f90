@@ -375,6 +375,9 @@ contains
     call initradiation
     call initchem
     call initsurface
+    PRINT *, thls
+    PRINT *, '=============' 
+
     call initdatetime
     call initemission
     call initlsm
@@ -393,6 +396,7 @@ contains
     call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
     call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
     call initpois ! hypre solver needs grid and baseprofiles
+    
     if(lopenbc) then  ! Correct boundaries and initial field for divergence
       ! Create 1/int(rho) - must be after rhobf has been initialized
       allocate(rhointi(k1))
@@ -422,6 +426,7 @@ contains
       if(myid==0) print *, 'Finished divergence correction initial field'
     endif
 
+
     call inittstep
 
     call checkinitvalues
@@ -429,13 +434,15 @@ contains
     call check_initial_state
 
     call timer_toc('modstartup/startup')
+    PRINT *,'END start up'
+    PRINT *, 'thls: ', thls
 
   end subroutine startup
 
 
   !> Checks whether crucial parameters are set correctly
   subroutine checkinitvalues
-    use modsurfdata, only: wtsurf, wqsurf, ustin, thls, isurf, ps, lhetero
+    use modsurfdata, only: wtsurf, wqsurf, ustin, thls, isurf, ps, lhetero,ltskininp
     use modglobal,   only: itot, jtot, ysize, xsize, dtmax, runtime, &
                            startfile, lwarmstart, eps1, imax, jmax, ih, jh, &
                            lcoriol, lpressgrad
@@ -866,6 +873,7 @@ contains
         Wlm(:,:)    = Wl(:,:)
       case(2)
         tskin(:,:)  = thls
+
       case(3,4)
         thls   = thlprof(1)
         qts    = qtprof(1)
@@ -908,7 +916,10 @@ contains
       v0av(:)   = vprof(:)
 
       svs = svprof(1,:)
-
+      
+      PRINT *, 'call baseprofs'
+      PRINT *, 'thls', thls
+      PRINT *, '============='
       call baseprofs ! call baseprofs before thermodynamics
 
 #if defined(_OPENACC)
@@ -1665,7 +1676,7 @@ contains
     ! They are nevertheless calculated and printed to the stdin/baseprof files for user convenience
     use modfields,         only : rhobf,rhobh,drhobdzf,drhobdzh
     use modglobal,         only : k1,kmax,zf,zh,dzf,dzh,rv,rd,grav,cp,pref0,lwarmstart,ibas_prf,cexpnr,ifinput,ifoutput
-    use modsurfdata,       only : thls,ps,qts
+    use modsurfdata,       only : thls,ps,qts,ltskininp
     use modmpi,            only : myid,comm3d,mpierr,D_MPI_BCAST
     implicit none
 
@@ -1680,6 +1691,11 @@ contains
     real,dimension(4) :: pmat
     real,dimension(4) :: tmat
 
+    PRINT *, '====================='
+    PRINT *, 'base profile'
+    PRINT *, ibas_prf
+    PRINT *, '====================='
+
     allocate (height(k1),pb(k1),tb(k1))
 
     if(myid==0)then
@@ -1688,8 +1704,8 @@ contains
         ibas_prf = 5
         print *, 'WARNING: warm start requires input files for density. ibas_prf defaulted to 5'
       endif
-      if(ibas_prf <= 3 .and. thls < 0) then
-         STOP 'thls has not been initialized but is needed for setting up the base profiles.'
+      if(ibas_prf <= 3 .and. thls < 0)  then
+          STOP 'thls has not been initialized but is needed for setting up the base profiles.'
       end if
 
       if(ibas_prf==1) then !thv constant and hydrostatic balance
@@ -1723,6 +1739,7 @@ contains
         enddo
         close(ifoutput)
       elseif(ibas_prf==3) then! use standard atmospheric lapse rate with surface temperature offset
+        
         tsurf=thls*(ps/pref0)**(rd/cp)
         pmat(1)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
           log(tsurf+zmat(1)*lapserate(1))*grav)/(lapserate(1)*rd))
