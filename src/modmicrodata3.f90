@@ -27,6 +27,7 @@
 !
 
   module modmicrodata3
+    use modmicrodata, only: Nc0 => Nc_0
 
   implicit none
   save
@@ -67,9 +68,8 @@
             ,l_tendencies     = .true.   &  !<- if to write full tendencies TODO: check if there is an existing flag
             ,l_statistics     = .true.      !<- if to write statistics
 
-  real ::  Nc0             = 70.0e6   &  !<- proposed number of droplet in namelist
-             ,xc0_min         = 4.2e-15  &  !<- xcmin  min mean mass of cloud water
-             ,Nccn0           = 100.0e6     !<- proposed initial number of cc
+  real :: xc0_min         = 4.2e-15  &  !<- xcmin  min mean mass of cloud water
+         ,Nccn0           = 100.0e6     !<- proposed initial number of cc
 
   ! addjusting position of species to scalars fields
   ! need to be backward compatible to bulkmicro
@@ -517,18 +517,7 @@
                        ,n_qvsi    = 6 &
                        ,n_w0      = 7
 
-  ! Previously in modmicrodata
-  logical ::             &
-    l_sb = .true.,       &
-    l_mur_cst = .false., &
-    l_rain = .true.,     &
-    l_sedc = .false.,    &
-    l_lognormal
-
-  real ::         &
-    mur_cst = 5,  &
-    k_au,         &
-    sig_gr = 1.5
+  real :: k_au
 
   real, allocatable :: phi(:,:,:)
 

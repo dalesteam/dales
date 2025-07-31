@@ -10,7 +10,7 @@ function calc_mur(qr, rho) result(mu)
   !$acc routine seq
 
   if (.not. l_mur_cst) then
-    mu = min(30.0_field_r, -1 + 0.008_field_r / (qr * rho**0.6_field_r))
+    mu = min(30.0_field_r, -1 + 0.008_field_r / (qr * rho)**0.6_field_r)
   else
       mu = mur_cst
   end if

@@ -163,7 +163,7 @@ program DALES
   use moddatetime,     only : datetime
   use modemission,     only : emission
   use modopenboundary, only : openboundary_ghost,openboundary_tend,openboundary_phasevelocity,openboundary_turb
-  use modstat_profiles, only: init_profiles, sample_profiles, write_profiles
+  use modstat_profiles, only: init_profiles, sample_profiles, write_profiles, exit_profiles
   use modibm,          only : applyibm, zerowallvelocity
   use modibmdata,      only : lpoislast
 !----------------------------------------------------------------
@@ -246,8 +246,6 @@ program DALES
   do while (timeleft>0 .or. rk3step < 3)
     call timer_tic('program/timestep', istep)
 
-    ! Check if we have to sample profiles this time step
-    call sample_profiles
 
     ! Calculate new timestep, and reset tendencies to 0.
     call tstep_update
@@ -255,6 +253,9 @@ program DALES
     call scalarpulse
     call samptend(tend_start,firstterm=.true.)
     call datetime
+
+    ! Check if we have to sample profiles this time step
+    call sample_profiles
 
     call datetime
 
@@ -432,6 +433,7 @@ program DALES
   call exittimestat
   call exitnudgeboundary  !cstep
   call exitmodules
+  call exit_profiles
 
 
 end program DALES

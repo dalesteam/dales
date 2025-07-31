@@ -31,14 +31,13 @@ module modsimpleice
   use modglobal,    only: ifnamopt, checknamelisterror
   use modmpi,       only: myid, D_MPI_BCAST, comm3d, mpierr, print_info_stderr
   use modprecision, only : field_r
-  use modmicrodata, only: Nc_0
-  use modsimpleice_data, only: l_berry, l_graupel, l_warm, l_mp, l_rain, &
+  use modmicrodata, only: Nc_0, l_rain
+  use modsimpleice_data, only: l_berry, l_graupel, l_warm, l_mp, &
                                evapfactor, courantp
   use modtimer
   implicit none
   private
   public initsimpleice, exitsimpleice, simpleice
-  public :: simpleice_read_namelist
   character(len=*), parameter :: modname = "modsimpleice"
   real(field_r) :: gamb1r
   real(field_r) :: gambd1r
@@ -54,46 +53,7 @@ module modsimpleice
   real(field_r) :: gammaddg3
   real(field_r) :: eps_lambda, eps_accr
 
-  namelist /namsimpleice/ l_berry, l_graupel, l_warm, l_mp, l_rain, Nc_0, &
-                          evapfactor, courantp
-
-  contains
-
-  subroutine simpleice_read_namelist(nml_filename)
-
-    character(len=*), intent(in) :: nml_filename
-
-    character(len=*), parameter :: routine = modname//'simpleice_read_namelist'
-
-    integer :: ierr
-
-    if (myid == 0) then
-      open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
-      read(ifnamopt, namsimpleice, iostat=ierr)
-      call checknamelisterror(ierr, ifnamopt, 'namsimpleice')
-      close(ifnamopt)
-    end if
-
-    call D_MPI_BCAST(l_berry, 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(l_graupel, 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(l_warm, 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(l_mp, 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(l_rain, 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(Nc_0, 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(evapfactor, 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(courantp, 1, 0, comm3d, mpierr)
-
-    if (Nc_0 < 1e4) then
-      ! Check that Nc_0 is reasonable.
-      ! It's easy to give it in units of /cm3 by mistake,
-      ! and when run with RRTMG that results in a hard-to-understand crash
-      ! in the short-wave scheme
-      call print_info_stderr(routine, &
-        'Nc_0 is suspiciously small (unit should be number per m3).')
-      error stop 
-    end if
-
-  end subroutine simpleice_read_namelist
+contains
 
   !> Initializes and allocates the arrays
   subroutine initsimpleice

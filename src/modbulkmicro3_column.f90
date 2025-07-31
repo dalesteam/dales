@@ -1,6 +1,7 @@
 module modbulkmicro3_column
   use modglobal,    only: pirhow
   use modmicrodata, only: delt
+  use modbulkmicro_data, only: l_lognormal, l_mur_cst, l_sb, mur_cst, sig_gr
   use modmicrodata3
   implicit none
   private
@@ -371,12 +372,12 @@ subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, precep_hr, tend)
               ! BUG: Dvr_spl unset? reusing the one from l_sb_classic
               Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr_spl
 
-              sed_qr(k) = 1.*sed_flux3(Nr_spl(k),Dgr,log(sig_gr)**2,D_s,3)
-              sed_Nr(k) = 1./pirhow*sed_flux3(Nr_spl(k),Dgr,log(sig_gr)**2,D_s,0)
+              sed_qr(k) = 1.*sed_flux3(Nr_spl(k),Dgr,log(real(sig_gr))**2,D_s,3)
+              sed_Nr(k) = 1./pirhow*sed_flux3(Nr_spl(k),Dgr,log(real(sig_gr))**2,D_s,0)
 
               ! correction for the fact that pwcont .ne. qr_spl
               ! actually in this way for every grid box a fall velocity is determined
-              pwcont = liq_cont3(Nr_spl(k),Dgr,log(sig_gr)**2,D_s,3)         ! note : kg m-3
+              pwcont = liq_cont3(Nr_spl(k),Dgr,log(real(sig_gr))**2,D_s,3)         ! note : kg m-3
               if (pwcont > eps1) then
                 sed_qr(k) = (qr_spl(k)*rhof(k)/pwcont)*sed_qr(k)
               end if

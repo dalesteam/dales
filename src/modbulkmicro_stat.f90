@@ -5,8 +5,8 @@ module modbulkmicro_stat
   use bulkmicro_kk,      only: xrmin_kk => xrmin, xrmax_kk => xrmax
   use modfields,         only: ql0, rhof
   use modglobal,         only: i1, j1, k1, pirhow
-  use modmicrodata,      only: precep
-  use modbulkmicro_data, only: qr, nr, epscloud, epsqr, epsprec, l_sb, l_rain, &
+  use modmicrodata,      only: precep, l_rain
+  use modbulkmicro_data, only: qr, nr, epscloud, epsqr, epsprec, l_sb, &
                                l_sedc, l_mur_cst, mur_cst
   use modstat_profiles,  only: add_profile, sample_field, is_sampling_timestep
   use modprecision,      only: field_r

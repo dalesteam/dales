@@ -22,19 +22,32 @@
 !!  \author Steef B\"oing, TU Delft
 module modmicrophysics
 
-  use modglobal,     only: ifnamopt, checknamelisterror
-  use moddrizzle,    only: drizzle
-  use modbulkmicro,  only: initbulkmicro, bulkmicro_read_namelist, &
-                           exitbulkmicro, bulkmicro
-  use modbulkmicro3, only: initbulkmicro3, bulkmicro3_read_namelist, &
-                           exitbulkmicro3, bulkmicro3
-  use modmicrodata,  only: imicro, lstat
-  use modsimpleice,  only: initsimpleice, simpleice_read_namelist, &
-                           exitsimpleice, simpleice
-  use modsimpleice2, only: initsimpleice2, exitsimpleice2, simpleice2
-  use modmpi,        only: myid, D_MPI_BCAST, comm3d, print_info_stderr
-  use modtimer,      only: timer_tic, timer_toc
-  use moduser,       only: micro_user
+  use modglobal,         only: ifnamopt, checknamelisterror
+  use moddrizzle,        only: drizzle
+  use modbulkmicro,      only: initbulkmicro, &
+                               exitbulkmicro, bulkmicro
+  use modbulkmicro_data, only: l_lognormal, l_mur_cst, l_sb, mur_cst, sig_gr, &
+                               l_sedc
+  use modbulkmicro3,     only: initbulkmicro3, &
+                               exitbulkmicro3, bulkmicro3
+  use modmicrodata3,     only: l_sb_classic, l_sb_dumpall, l_sb_all_or, l_sb_dbg,   &
+                               l_setclouds, l_setccn, l_corr_neg_qt, l_sb_lim_aggr, &
+                               l_sb_stickyice, l_sb_conv_par, l_c_ccn,              &
+                               l_sb_sat_max, l_sb_nuc_sat, l_sb_nuc_expl,           &
+                               l_sb_nuc_diff, l_sb_inuc_sat, l_sb_inuc_expl,        &
+                               l_sb_reisner, N_inuc, n_i_max, tmp_inuc, x_inuc,     &
+                               N_inuc_R, c_inuc_R, a1_inuc_R, a2_inuc_R, c_ccn,     &
+                               n_clmax, kappa_ccn, x_cnuc,sat_max, xc0_min, Nccn0,  &
+                               l_statistics, l_tendencies
+  use modmicrodata,      only: imicro, lstat, l_rain, Nc_0, sig_g
+  use modsimpleice,      only: initsimpleice, &
+                               exitsimpleice, simpleice
+  use modsimpleice2,     only: initsimpleice2, exitsimpleice2, simpleice2
+  use modsimpleice_data, only: l_berry, l_graupel, l_warm, l_mp, evapfactor, &
+                               courantp
+  use modmpi,            only: myid, D_MPI_BCAST, comm3d, print_info_stderr
+  use modtimer,          only: timer_tic, timer_toc
+  use moduser,           only: micro_user
 
   implicit none
 
@@ -56,8 +69,6 @@ module modmicrophysics
     imicro_user = 10,   & !< User-provided microphysics.
     imicro_bulk3 = 11     !< Double-moment mixed-phase microphysics.
 
-  namelist /nammicrophysics/ imicro, lstat
-
 contains
 
   !> Read microphysics namelist entry and broadcast settings.
@@ -65,32 +76,92 @@ contains
 
     character(len=*), intent(in) :: nml_filename
 
+    character(len=*), parameter :: routine = modname//'/microphysics_read_namelist'
+
     integer :: ierr
+
+    namelist /nammicrophysics/ &
+      ! Common options
+      imicro, lstat, l_rain, Nc_0, sig_g,                                       &
+      ! Bulkmicro
+      l_sb, l_sedc, l_mur_cst, l_lognormal, mur_cst, sig_gr,                    &
+      ! Bulkmicro3
+      l_sb_classic, l_sb_dumpall, l_sb_all_or, l_sb_dbg, l_setclouds, l_setccn, &
+      l_corr_neg_qt, l_sb_lim_aggr, l_sb_stickyice, l_sb_conv_par, l_c_ccn,     &
+      l_sb_sat_max, l_sb_nuc_sat, l_sb_nuc_expl, l_sb_nuc_diff, l_sb_inuc_sat,  &
+      l_sb_inuc_expl, l_sb_reisner, N_inuc, n_i_max, tmp_inuc, x_inuc,          &
+      N_inuc_R, c_inuc_R, a1_inuc_R, a2_inuc_R, c_ccn, n_clmax, kappa_ccn,      &
+      x_cnuc,sat_max, xc0_min, Nccn0, l_statistics, l_tendencies,               &
+      ! Simpleice
+      l_berry, l_graupel, l_warm, l_mp, evapfactor, courantp
 
     if (myid == 0) then
       open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
       read(ifnamopt, nammicrophysics, iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'nammicrophysics')
+      write(6, nammicrophysics)
       close(ifnamopt)
     end if
 
+    ! Common
     call D_MPI_BCAST(imicro, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(lstat, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(Nc_0, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(sig_g, 1, 0, comm3d, ierr)
+    ! Bulkmicro
+    call D_MPI_BCAST(l_sb, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_sedc, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_mur_cst, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_lognormal, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(mur_cst, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(sig_gr, 1, 0, comm3d, ierr)
+    ! Bulkmicro3
+    call D_MPI_BCAST(l_sb_classic, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_sb_dumpall, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_sb_all_or, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_sb_dbg, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_corr_neg_qt, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_sb_lim_aggr, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_sb_stickyice, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_sb_conv_par, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_c_ccn, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_sb_sat_max, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_sb_nuc_sat, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_sb_nuc_expl, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_sb_nuc_diff, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_sb_inuc_sat, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_sb_inuc_expl, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_sb_reisner, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_sb_reisner, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(N_inuc_R, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(c_inuc_R, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(a1_inuc_R, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(a2_inuc_R, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(n_i_max, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(N_inuc, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(tmp_inuc, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(x_inuc, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(c_ccn, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(n_clmax, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(kappa_ccn, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(sat_max, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(x_cnuc, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(xc0_min, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(Nccn0, 1, 0, comm3d, ierr)
+    ! Simpleice
+    call D_MPI_BCAST(l_berry, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_graupel, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_warm, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_mp, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(evapfactor, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(courantp, 1, 0, comm3d, ierr)
 
-    ! Read namelist of selected microphysics scheme
-    select case(imicro)
-      case(imicro_none, imicro_drizzle, imicro_user)
-        ! Do nothing
-      case(imicro_bulk)
-        call bulkmicro_read_namelist(nml_filename)
-      case(imicro_sice, imicro_sice2) ! simpleice2 uses the same namelist
-        call simpleice_read_namelist(nml_filename)
-      case(imicro_bulk3)
-        call bulkmicro3_read_namelist(nml_filename) 
-      case default
-        call print_info_stderr(modname, 'invalid option selected for imicro')
-        error stop
-    end select
+    ! Perform some checks
+    if (Nc_0 < 1e4) then
+      call print_info_stderr(routine, &
+        'Nc_0 is suspiciously small (unit should be number per m3).')
+      error stop
+    end if
 
   end subroutine microphysics_read_namelist
 
