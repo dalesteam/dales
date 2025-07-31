@@ -193,7 +193,7 @@ contains
   subroutine exitthermodynamics
     implicit none
     !$acc exit data delete(th0av, thv0, thetah, qth, qlh, ttab, estltab, &
-                           esatitab, esatmtab)
+    !$acc                  esatitab, esatmtab)
     deallocate(th0av, thv0, thetah, qth, qlh)
   end subroutine exitthermodynamics
 
