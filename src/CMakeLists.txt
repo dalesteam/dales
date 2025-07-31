@@ -15,6 +15,8 @@ set( dales_srcs
 	le_drydepos_gas.f90
 	modAGScross.f90
 	modadvection.f90
+	modaerosol.f90
+    modaerosol_types.f90
 	modboundary.f90
 	modbudget.f90
 	modbulkmicro.f90

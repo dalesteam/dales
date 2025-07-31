@@ -80,6 +80,7 @@ contains
 
     integer :: ierr
 
+<<<<<<< Updated upstream
     namelist /nammicrophysics/ &
       ! Common options
       imicro, lstat, l_rain, Nc_0, sig_g,                                       &
