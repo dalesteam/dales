@@ -107,6 +107,7 @@ endif()
 
 # GPU stuff
 include( dales_find_cuda )
+include( dales_find_hip )
 
 if( ENABLE_ACC )
   find_package( OpenACC COMPONENTS Fortran QUIET )
@@ -115,21 +116,28 @@ if( ENABLE_ACC )
     ecbuild_info( "Found OpenACC" )
   endif()
 
+  # Try to find CUDA, if it's not available try HIP instead
+  if( ENABLE_ACC )
+    dales_find_cuda()
+    if( NOT HAVE_CUDA )
+      dales_find_hip()
+    endif()
+  endif()
+
   # For debug builds, enable accelerator info
   if( ${CMAKE_Fortran_COMPILER_ID} MATCHES PGI|NVHPC )
     ecbuild_add_fortran_flags( "-Minfo=accel" BUILD DEBUG ) 
   endif()
 
   add_compile_definitions( DALES_GPU )
+
+  # Disable automatic asynchronious kernel execution on Cray
+  if( ${CMAKE_Fortran_COMPILER_ID} MATCHES Cray )
+    ecbuild_add_fortran_flags( "-h acc_model=auto_async_none" )
+  endif()
 endif()
 
-# For GPU builds and/or NVTX profiling, we need the CUDA toolkit
-if( ENABLE_ACC OR ENABLE_NVTX )
-  dales_find_cuda()
-endif()
-
-# Find the fortran-support library (included). This library can be compiled with
-# OpenACC support, so it's probably best to place it after 
+# Find the fortran-support library (included).
 include ( dales_add_fortran_support )
 
 include( dales_compile_options )
