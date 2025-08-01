@@ -39,16 +39,16 @@ public :: inittimedepsv, timedepsv,ltimedepsv,exittimedepsv
 save
 ! switches for timedependent surface fluxes and large scale forcings
   logical       :: ltimedepsv     = .false. !< Overall switch, input in namoptions
-  logical       :: ltimedepsvz    = .false. !< Switch for large scale forcings
+  logical       :: ltimedepsvz    = .true.  !< Switch for large scale forcings
   logical       :: ltimedepsvsurf = .true.  !< Switch for surface fluxes
 
   integer :: kflux
   integer :: kls
   real, allocatable     :: timesvsurf (:)
-  real, allocatable     :: svst     (:,:) !< Time dependent surface scalar concentration
+  real, allocatable     :: wsvst     (:,:) !< Time dependent surface scalar flux
 
   real, allocatable     :: timesvz  (:)
-  real, allocatable     :: svzt(:,:,:) !< Time dependent, height dependent scalar concentrations
+  real, allocatable     :: dsvdtlst(:,:,:) !< Time dependent, height dependent large-scale scalar tendency
 
 
 
@@ -80,14 +80,14 @@ contains
 
     allocate(height(k1))
     allocate(timesvsurf (0:kflux))
-    allocate(svst  (kflux,nsv))
+    allocate(wsvst  (kflux,nsv))
     allocate(timesvz  (0:kls))
 
-    allocate(svzt(k1,kls,nsv))
+    allocate(dsvdtlst(k1,kls,nsv))
     timesvsurf = 0
-    timesvz   = 0
-    svst       = 0
-    svzt       = 0
+    timesvz    = 0
+    wsvst      = 0
+    dsvdtlst   = 0
 
     if (myid==0) then
 
@@ -110,8 +110,8 @@ contains
       ierr = 0
       do while (timesvsurf(t)< runtime)
         t=t+1
-        read(ifinput,*, iostat = ierr) timesvsurf(t), (svst(t,n),n=1,nsv)
-        write(*,'(f7.1,4e12.4)') timesvsurf(t), (svst(t,n),n=1,nsv)
+        read(ifinput,*, iostat = ierr) timesvsurf(t), (wsvst(t,n),n=1,nsv)
+        write(*,'(f7.1,4e12.4)') timesvsurf(t), (wsvst(t,n),n=1,nsv)
         if (ierr < 0) then
             stop 'STOP: No time dependend data for end of run (surface fluxes of scalar)'
         end if
@@ -141,10 +141,10 @@ contains
         end do
         write (*,*) 'timesvz = ',timesvz(t)
         do k=1,kmax
-          read (ifinput,*) height(k), (svzt(k,t,n),n=1,nsv)
+          read (ifinput,*) height(k), (dsvdtlst(k,t,n),n=1,nsv)
         end do
         do k=kmax,1,-1
-          write (6,outputfmt) height(k),(svzt(k,t,n),n=1,nsv)
+          write (6,outputfmt) height(k),(dsvdtlst(k,t,n),n=1,nsv)
         end do
       end do
 
@@ -159,12 +159,12 @@ contains
 
 
     call D_MPI_BCAST(timesvsurf(1:kflux),kflux,0,comm3d,mpierr)
-    call D_MPI_BCAST(svst             ,kflux*nsv,0,comm3d,mpierr)
+    call D_MPI_BCAST(wsvst             ,kflux*nsv,0,comm3d,mpierr)
     call D_MPI_BCAST(timesvz(1:kls)    ,kls,0,comm3d,mpierr)
     call D_MPI_BCAST(ltimedepsvsurf ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(ltimedepsvz    ,1,0,comm3d,mpierr)
     do n=1,nsv
-         call D_MPI_BCAST(svzt(1:k1,1:kls,n),kmax*kls,0,comm3d,mpierr)
+         call D_MPI_BCAST(dsvdtlst(1:k1,1:kls,n),kmax*kls,0,comm3d,mpierr)
     enddo
     call timedepsv
 
@@ -183,17 +183,34 @@ contains
   end subroutine timedepsv
 
   subroutine timedepsvz
-  implicit none
+    use modfields, only : dsvdtls
+    use modglobal,   only : rtimee,nsv
+
+    use modmpi,      only : myid
+    implicit none
+
+    integer t,n
+    real fac
 
     if(.not.(ltimedepsvz)) return
-    stop 'Modtimedepsv: time dependent scalars at all levels not programmed'
+    
+    !---- interpolate ----
+    t=1
+    do while(rtimee>timesvz(t+1))
+       t=t+1
+    end do
+
+    fac = ( rtimee-timesvz(t) ) / ( timesvz(t+1)-timesvz(t) )
+    do n=1,nsv
+      dsvdtls(:,n)  = dsvdtlst (:,t,n) + fac * ( dsvdtlst (:,t+1,n) - dsvdtlst (:,t,n) )
+    end do
 
     return
   end subroutine timedepsvz
 
   subroutine timedepsvsurf
     use modglobal,   only : rtimee,nsv
-    use modsurfdata,  only : svs
+    use modsurfdata,  only : wsvsurf
     implicit none
     integer t,n
     real fac
@@ -211,7 +228,7 @@ contains
 
     fac = ( rtimee-timesvsurf(t) ) / ( timesvsurf(t+1)-timesvsurf(t))
     do n=1,nsv
-       svs(n) = svst(t,n) + fac * (svst(t+1,n) - svst(t,n))
+       wsvsurf(n) = wsvst(t,n) + fac * (wsvst(t+1,n) - wsvst(t,n))
     enddo
     return
   end subroutine timedepsvsurf
@@ -221,7 +238,7 @@ contains
     use modglobal, only : nsv
     implicit none
     if (nsv==0 .or. .not.ltimedepsv) return
-    deallocate(timesvz,svzt,timesvsurf)
+    deallocate(timesvz,dsvdtlst,timesvsurf)
   end subroutine exittimedepsv
 
 end module modtimedepsv

@@ -391,7 +391,7 @@ contains
     end if
 
     call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
-    call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
+    call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation, and on modtracers
     call initpois ! hypre solver needs grid and baseprofiles
     if(lopenbc) then  ! Correct boundaries and initial field for divergence
       ! Create 1/int(rho) - must be after rhobf has been initialized

@@ -259,7 +259,7 @@ contains
   use modfields, only : up,vp,thlp,qtp,svp,&
                         whls, u0av,v0av,thl0,qt0,sv0,u0,v0,&
                         dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,dqtdxls,dqtdyls, &
-                        dqtdtls, dthldtls, dudtls, dvdtls,&
+                        dqtdtls, dthldtls, dudtls, dvdtls, dsvdtls, &
                         exnf,rhobf,ql0
   use modsprayingdata, only : lwater_spraying, lsalt_spraying,i_loc_spray,j_loc_spray,k_loc_spray,&
                               water_spray_rate,salt_spray_rate,&
@@ -327,10 +327,10 @@ contains
         do j = 1, j1
           do i = 1, i1
             if (whls(k+1).lt.0) then
-              svp(i,j,k,n) = svp(i,j,k,n) - whls(k+1) * (sv0(i,j,k+1,n) - sv0(i,j,k,n))/dzh(k+1)
+              svp(i,j,k,n) = svp(i,j,k,n) - whls(k+1) * (sv0(i,j,k+1,n) - sv0(i,j,k,n))/dzh(k+1) + dsvdtls(k,n)
             else
               if (k > 1) then
-                svp(i,j,k,n) = svp(i,j,k,n) - whls(k) * (sv0(i,j,k,n) - sv0(i,j,k-1,n))/dzh(k)
+                svp(i,j,k,n) = svp(i,j,k,n) - whls(k) * (sv0(i,j,k,n) - sv0(i,j,k-1,n))/dzh(k) + dsvdtls(k,n)
               end if
             end if
           end do
