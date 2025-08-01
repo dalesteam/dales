@@ -481,14 +481,12 @@ contains
 !     tnextrestart = trestart/tres
 !     timeleft=ceiling(runtime/tres)
 
-    !$acc enter data copyin(dzf, dzh, dzfi,dzhi, zh, zf, delta, deltai, &
-    !$acc&                  mygamma251, mygamma21)
+    !$acc enter data copyin(dzf, dzh, dzfi,dzhi, zh, zf, delta, deltai)
 
   end subroutine initglobal
 !> Clean up when leaving the run
   subroutine exitglobal
-    !$acc exit data delete(dzf, dzh, zh, zf, delta, deltai, &
-    !$acc&                 mygamma251, mygamma21)
+    !$acc exit data delete(dzf, dzh, zh, zf, delta, deltai)
 
     deallocate(dzf,dzh,dzfi,dzhi,zh,zf,delta,deltai)
   end subroutine exitglobal
