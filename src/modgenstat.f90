@@ -536,14 +536,16 @@ contains
                           ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi,tup,tdn,lopenbc
     use modmpi,    only : comm3d,mpi_sum,mpierr,slabsum,D_MPI_ALLREDUCE
     use advec_kappa, only : halflev_kappa
-    use modmicrodata, only: iqr
     use modsimpleice_data, only: tuprsg, tdnrsg
     use modthermodynamics, only: qsat_tab
+    use modtracers, only: get_tracer_index
+    use modmicrodata, only : imicro, imicro_sice, imicro_sice2
+
     implicit none
 
     real :: cthl,cqt,den
 
-    integer :: i, j, k, n
+    integer :: i, j, k, n, iqr
     real :: tsurf, c1, c2
     real :: qs0h, t0h, ekhalf, euhalf, evhalf
     real :: wthls, wthlr, wqts, wqtr, wqls, wqlr, wthvs, wthvr
@@ -656,7 +658,7 @@ contains
     if (nsv > 0) then
       !$acc host_data use_device(svmav, svm)
       do n = 1, nsv
-        call slabsum(svmav(1:1,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+        call slabsum(svmav(:,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
       enddo
       !$acc end host_data
     end if
@@ -704,6 +706,7 @@ contains
     cthl = (exnh(1)*cp/rlv)*((1-den)/den)
     cqt = 1./den
 
+    iqr = get_tracer_index("qr")
     !$acc parallel loop collapse(2) default(present) private(upcu, vpcv) &
     !$acc& reduction(+: qlhav(1), wthlsub(1), wqtsub(1), wthvsub(1), uwsub(1), vwsub(1), hurav(1), clwav(1), cliav(1), plwav(1), pliav(1)) async(1)
     do j = 2, j1
@@ -734,9 +737,13 @@ contains
         cliav(1) = cliav(1) + ql0(i,j,1) * (1-ilratio)
 
         if (iqr > 0) then
-           ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,1)-tdnrsg)/(tuprsg-tdnrsg)))
-           plwav(1) = plwav(1) + sv0(i,j,1,iqr) * ilratio
-           pliav(1) = pliav(1) + sv0(i,j,1,iqr) * (1-ilratio)
+           if (imicro == imicro_sice .or. imicro == imicro_sice2) then
+              ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,1)-tdnrsg)/(tuprsg-tdnrsg)))
+              plwav(1) = plwav(1) + sv0(i,j,1,iqr) * ilratio
+              pliav(1) = pliav(1) + sv0(i,j,1,iqr) * (1-ilratio)
+           else
+              plwav(1) = plwav(1) + sv0(i,j,1,iqr)
+           end if
         end if
       end do
     end do
@@ -840,9 +847,13 @@ contains
           cliav_s = cliav_s + ql0(i,j,k) * (1-ilratio)
 
           if (iqr > 0) then
-            ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))
-            plwav_s = plwav_s + sv0(i,j,k,iqr) * ilratio
-            pliav_s = pliav_s + sv0(i,j,k,iqr) * (1-ilratio)
+             if (imicro == imicro_sice .or. imicro == imicro_sice2) then
+                ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))
+                plwav_s = plwav_s + sv0(i,j,k,iqr) * ilratio
+                pliav_s = pliav_s + sv0(i,j,k,iqr) * (1-ilratio)
+             else
+                plwav_s = plwav_s + sv0(i,j,k,iqr)
+             end if
           end if
 
           if (ql0h(i,j,k)>0) then

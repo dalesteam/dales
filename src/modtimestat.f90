@@ -406,7 +406,7 @@ contains
 
     use modglobal,  only : i1,j1, k1,kmax,zf,dzf,cu,cv,rv,rd,eps1, &
                           ijtot,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput
-    use modmicrodata, only : imicro, iqr, imicro_sice, imicro_sice2, imicro_bulk, precep
+    use modmicrodata, only : imicro, imicro_sice, imicro_sice2, imicro_bulk, imicro_bulk3, precep
     use modfields,  only : e120,qt0,ql0,u0av,v0av,rhobf,rhof,u0,v0,w0,sv0
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
                            Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
@@ -421,6 +421,7 @@ contains
 #endif
     use modraddata, only :  lwd,lwu,swd,swu,lwdca,lwuca,swdca,swuca, &
                             iradiation, doclearsky
+    use modtracers, only : get_tracer_index
     implicit none
 
     real(field_r)   :: zbaseavl, ztopavl, ztopmaxl, ztop, zbaseminl
@@ -476,7 +477,7 @@ contains
       s_swu_tom_ca,  & !< TOM upwelling shortwave flux, clear sky
       s_lwu_tom_ca     !< TOM upwelling longwave flux, clear sky
 
-    integer:: i, j, k, ilu
+    integer:: i, j, k, ilu, iqr
 
     if (.not.(ltimestat)) return
     if (rk3step/=3) return
@@ -613,8 +614,12 @@ contains
       end do
     end if
 
-    if (imicro == imicro_sice .or. imicro == imicro_sice2 .or. imicro == imicro_bulk) then
-      !$acc parallel loop collapse(2) default(present) reduction(+:qrintavl) &
+    if (imicro == imicro_sice .or. imicro == imicro_sice2 .or. imicro == imicro_bulk .or. imicro == imicro_bulk3) then
+       iqr = get_tracer_index("qr")
+       if (iqr == 0) then
+          iqr = get_tracer_index("qhr")
+       endif
+       !$acc parallel loop collapse(2) default(present) reduction(+:qrintavl) &
       !$acc& private(qrint) async
       do j = 2, j1
         do i = 2, i1
