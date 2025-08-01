@@ -109,6 +109,8 @@ save
   real(field_r), allocatable :: dvdyls(:)                     !<   large scale y-gradient of v
   real(field_r), allocatable :: dvdtls(:)                     !<   large scale tendency of v
 
+  real(field_r), allocatable :: dsvdtls(:,:)                  !<   large scale tendency of tracers
+
   real(field_r), allocatable :: wfls  (:)                     !<   large scale vertical velocity
   real(field_r), allocatable :: ql0h(:,:,:)
   real(field_r), allocatable :: dthvdz(:,:,:)!<   theta_v at half level

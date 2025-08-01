@@ -28,7 +28,7 @@ module modtracers
   use modglobal,      only: nsv, i1, ih, j1, jh, k1, kmax, cexpnr, iinput, &
                             input_ascii
   use modprecision,   only: field_r
-  use modfields,      only: svm, sv0, svp, sv0av, svprof
+  use modfields,      only: svm, sv0, svp, sv0av, svprof, dsvdtls
   use modmpi,         only: myid, comm3d, d_mpi_bcast, print_info_stderr
   use go,             only: goSplitString_s
   use modstat_nc
@@ -224,19 +224,21 @@ contains
     allocate(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
              sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
              svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
-             sv0av(k1,nsv), svprof(k1,nsv))
+             sv0av(k1,nsv), svprof(k1,nsv), &
+             dsvdtls(k1,nsv))
 
     svm(:,:,:,:) = 0
     sv0(:,:,:,:) = 0
     svp(:,:,:,:) = 0
     sv0av(:,:) = 0
     svprof(:,:) = 0
+    dsvdtls(:,:) = 0
 
     !$acc enter data copyin(svm(2-ih:i1+ih,2-jh:j1+jh,1:k1,1:nsv), &
     !$acc&                  sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,1:nsv), &
     !$acc&                  svp(2-ih:i1+ih,2-jh:j1+jh,1:k1,1:nsv), &
-    !$acc&                  sv0av(1:k1,1:nsv), svprof(1:k1,1:nsv))
-
+    !$acc&                  sv0av(1:k1,1:nsv), svprof(1:k1,1:nsv), &
+    !$acc&                  dsvdtls(1:k1,1:nsv))
   end subroutine allocate_tracers
 
   !> Deallocates all tracers fields
@@ -245,11 +247,12 @@ contains
     !$acc exit data delete(svm(2-ih:i1+ih,2-jh:j1+jh,1:k1,1:nsv), &
     !$acc&                 sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,1:nsv), &
     !$acc&                 svp(2-ih:i1+ih,2-jh:j1+jh,1:k1,1:nsv), &
-    !$acc&                 sv0av(1:k1,1:nsv), svprof(1:k1,1:nsv))
+    !$acc&                 sv0av(1:k1,1:nsv), svprof(1:k1,1:nsv), &
+    !$acc&                 dsvdtls(1:k1,1:nsv))
 
     if (nsv > 0) then
       deallocate(tracer_prop)
-      deallocate(svm, sv0, svp, sv0av, svprof)
+      deallocate(svm, sv0, svp, sv0av, svprof, dsvdtls)
     end if
 
   end subroutine exittracers
