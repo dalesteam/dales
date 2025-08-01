@@ -52,7 +52,7 @@ module modbulkmicro
   use modmicrodata, only: Nc_0, sig_g, qtpmcr, thlpmcr, l_rain
   use modbulkmicro_data, only: qrbase, qrroof, qcbase, qcroof, qcmin, l_sb, &
                           l_sedc, l_mur_cst, l_lognormal, mur_cst, &
-                          sig_gr, c_St
+                          sig_gr, c_St, mygamma21, mygamma251
   use bulkmicro_sb, only: autoconversion_sb, &
                           accretion_sb, evaporation_sb, sedimentation_rain_sb
   use bulkmicro_kk, only: autoconversion_kk, &
@@ -79,6 +79,8 @@ module modbulkmicro
     use modtracers,   only: add_tracer
     implicit none
 
+    integer :: m
+
     ! Setup two tracers for precipitation
     call add_tracer("qr", long_name="rain water mixing ratio", &
                     unit="kg/kg", lmicro=.true., isv=iqr)
@@ -99,6 +101,25 @@ module modbulkmicro
     gamma25=gamma(2.5)
     gamma3=2.
     gamma35=gamma(3.5)
+
+    ! Setup lookup tables for ventilation factor in SB evaporation.
+    ! Entries are computed in double precision, and stored in field_r precision.
+    ! TODO: on GPU, it might be faster to inline the computation.
+    if (l_sb) then
+      mygamma21(-100) = 0.0
+      mygamma251(-100) = 0.0
+
+      do m = -99, 4000
+        mygamma21(m) = max(0.0_field_r, &
+          gamma(m/100.0 + 2.0) / gamma(m/100.0 + 1.0) &
+          * (((m/100.0 + 3.0)*(m/100.0 + 2.0)*(m/100.0 + 1.0))**(-1/3.0)))
+        mygamma251(m) = max(0.0, &
+          gamma(m/100.0 + 2.5) / gamma(m/100.0 + 1.0) &
+          * (((m/100.0 + 3.0)*(m/100.0 + 2.0)*(m/100.0 + 1.0))**(-1/2.0)))
+      end do
+
+      !$acc update device(mygamma21, mygamma251)
+    end if
 
     !$acc enter data copyin(Nr, qr, Nrp, qrp, precep, thlpmcr, qtpmcr)
 
