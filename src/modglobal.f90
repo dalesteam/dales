@@ -143,10 +143,6 @@ save
 
       real :: lambda_crit=100. !< maximum value for the smoothness. This controls if WENO or
 
-      ! Tabulated saturation relation
-      real, dimension(-100:4000) :: mygamma251
-      real, dimension(-100:4000) :: mygamma21
-
       logical :: lmoist   = .true.  !<   switch to calculate moisture fields
       logical :: lnoclouds = .false. !<   switch to enable/disable thl calculations
       logical :: lfast_thermo = .true. !<   switch to enable faster icethermo scheme
@@ -332,13 +328,6 @@ contains
     end if
 
     ! Global constants
-
-    mygamma251(-100)=0.
-    mygamma21(-100)=0.
-    do m=-99,4000
-      mygamma251(m)=max(lacz_gamma(m/100._dp+2.5_dp)/lacz_gamma(m/100._dp+1._dp)*( ((m/100.+3)*(m/100.+2)*(m/100.+1))**(-1./2.) ),0.)
-      mygamma21(m)=max(lacz_gamma(m/100._dp+2._dp)/lacz_gamma(m/100._dp+1._dp)*( ((m/100.+3)*(m/100.+2)*(m/100.+1))**(-1./3.) ),0.)
-    end do
 
     ! Select advection scheme for scalars. If not set in the options file, the momentum scheme is used
     if (iadv_tke<0) iadv_tke = iadv_mom
