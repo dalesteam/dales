@@ -65,8 +65,7 @@ module modsimpleice_data
     l_berry = .true.,   & !< Berry-Hsie autoconversion vs Kessler-Lin.
     l_graupel = .true., & !< Switch for graupel.
     l_warm = .false.,   & !< Run ice micro in warm mode, as a check.
-    l_mp = .true.,      & !< Use Marshall-Palmer distribution for rain.
-    l_rain                !< Switch for rain.
+    l_mp = .true.         !< Use Marshall-Palmer distribution for rain.
 
   real(field_r) ::  &
     evapfactor = 1, & !< Prefactor to reduce evaporation.
