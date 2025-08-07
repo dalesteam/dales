@@ -127,7 +127,7 @@ contains
     use modglobal, only : i1,j1,kmax,k1,rdt,rk3step,timee,tup,tdn
     use modfields, only : sv0,svm,svp,qtp,thlp,rhof,tmp0,rhobf
     use modbulkmicrostat, only : bulkmicrotend
-    use modmicrodata, only: delt, qtpmcr, thlpmcr, iqr
+    use modmicrodata, only: delt, qtpmcr, thlpmcr, iqr, l_rain
     use modsimpleice_data, only : qrp, &
                              qrmin, qr, &
                              ilratio, rsgratio, sgratio, &
@@ -137,7 +137,7 @@ contains
                              ccgz, ccrz, ccsz, &
                              ccrz2, ccsz2, ccgz2, &
                              lambdag, lambdar, lambdas, &
-                             l_graupel, l_rain, l_warm
+                             l_graupel, l_warm
     implicit none
     character(len=*), parameter :: routine = modname//"/simpleice"
     integer:: i,j,k
