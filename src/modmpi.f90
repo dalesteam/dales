@@ -58,6 +58,7 @@ save
   integer  :: nprocy = 0
   integer  :: mpierr
   logical  :: periods(2) = .true.
+  !$acc declare create (myidx, myidy)
 
   real     :: CPU_program    !end time
   real     :: CPU_program0   !start time
@@ -417,7 +418,7 @@ contains
     write(cmyid,'(a,i3.3,a,i3.3)') 'x', myidx, 'y', myidy
     write(cmyidx,'(i3.3)') myidx
     write(cmyidy,'(i3.3)') myidy
-
+    
   end subroutine initmpi
 
 

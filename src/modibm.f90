@@ -32,7 +32,6 @@ module modibm
   use modglobal,    only : rd, rv, grav, ijtot
   use modprecision, only : field_r
   use modsurface,   only : psim, psih
-  use modsurfdata,  only : thvs
   use modibmdata,   only : lapply_ibm,lpoislast, lwallheat, &
                             thlwall, thlroof, qtroof, thlibm, qtibm, &
                             z0m_wall, z0h_wall
@@ -816,7 +815,7 @@ contains
     thvsl = thlroof * (1. + (rv/rd - 1.) * qtroof)
     horv2 = max(uspeed**2, 0.01)
 
-    Rib = grav / thvs * z_MO * (thv - thvsl) / horv2 !! WAAR KOMT THVS vandaan!!!!!!!!
+    Rib = grav / thvsl * z_MO * (thv - thvsl) / horv2
 
     if (Rib == 0) then
         ! Rib can be 0 if there is no surface flux
