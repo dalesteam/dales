@@ -133,7 +133,7 @@ contains
    end do
 
    deallocate(fnudgeglob)
-
+   !$acc enter data copyin(fnudgeloc)
   end subroutine initlateralsponge
 
   subroutine lateralsponge
@@ -147,6 +147,7 @@ contains
        !do isv=1,nsv
        !if (lsv_nudge_at_boundary(isv)) then
     isv = isv_salt  ! TODO: for now only nudge the sprayed salt scalar to 0
+    !$acc parallel loop collapse(3) default(present)
        do k=1,kmax
           do j=2,j1
              do i=2,i1
@@ -165,6 +166,7 @@ contains
 
 
   subroutine exitlateralsponge
+    !$acc exit data delete(fnudgeloc)
     deallocate(fnudgeloc)
   end subroutine exitlateralsponge
 
