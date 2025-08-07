@@ -85,6 +85,7 @@ contains
       if ((dx.ne.dy) .and. myid == 0) stop "The anisotropic diffusion assumes dx=dy."
       deltai    = 1./dzf       !overrules deltai (k) = 1/delta(k) as defined in initglobal
       anis_fac = (dx/dzf)**2  !assumes dx=dy. is used to enhance horizontal diffusion
+      !$acc update device(deltai)
     else
       anis_fac = 1.   !horizontal = vertical diffusion
     endif
