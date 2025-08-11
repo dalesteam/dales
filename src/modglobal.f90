@@ -149,6 +149,7 @@ save
       logical :: lfast_thermo = .true. !<   switch to enable faster icethermo scheme
       logical :: lsgbucorr= .false.  !<   switch to enable subgrid buoyancy flux
       logical :: lconstexner = .false.  !<  switch to use the initial pressure profile in the exner function
+      logical :: lbaseexner = .false.   !<  switch to use the base pressure profile in the exner function
 
       ! Poisson solver: modpois / modhypre
       ! set default solver, can be overridden in namoptions
