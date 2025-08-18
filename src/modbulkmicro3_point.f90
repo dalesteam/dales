@@ -2968,7 +2968,7 @@ subroutine sb_evmelt3(avent0,avent1,bvent0,bvent1,x_bmin,n_e,n_ep,n_em &
   g_me= - k_melt*(ktdtodv*(tmp0-T_3)+dvleorv*(esl/tmp0-eslt3/T_3))
 
   ! calculating real mean particle mass
-  x_er = q_e/n_e
+  x_er  = q_e/(n_e+eps0)
 
   ! calculating N_re Reynolds number
   nrex= D_e*v_e/nu_a
