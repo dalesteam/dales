@@ -39,7 +39,7 @@ module modmicrophysics
                                N_inuc_R, c_inuc_R, a1_inuc_R, a2_inuc_R, c_ccn,     &
                                n_clmax, kappa_ccn, x_cnuc,sat_max, xc0_min, Nccn0,  &
                                l_statistics, l_tendencies
-  use modmicrodata,      only: imicro, lstat, l_rain, Nc_0, sig_g
+  use modmicrodata,      only: imicro, lstat, l_rain, Nc_0, sig_g, l_homogenize
   use modsimpleice,      only: initsimpleice, &
                                exitsimpleice, simpleice
   use modsimpleice2,     only: initsimpleice2, exitsimpleice2, simpleice2
@@ -84,7 +84,7 @@ contains
       ! Common options
       imicro, lstat, l_rain, Nc_0, sig_g,                                       &
       ! Bulkmicro
-      l_sb, l_sedc, l_mur_cst, l_lognormal, mur_cst, sig_gr,                    &
+      l_sb, l_sedc, l_mur_cst, l_lognormal, mur_cst, sig_gr,l_homogenize,       &
       ! Bulkmicro3
       l_sb_classic, l_sb_dumpall, l_sb_all_or, l_sb_dbg, l_setclouds, l_setccn, &
       l_corr_neg_qt, l_sb_lim_aggr, l_sb_stickyice, l_sb_conv_par, l_c_ccn,     &
@@ -108,6 +108,7 @@ contains
     call D_MPI_BCAST(lstat, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(Nc_0, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(sig_g, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_homogenize, 1, 0, comm3d, ierr)
     ! Bulkmicro
     call D_MPI_BCAST(l_sb, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(l_sedc, 1, 0, comm3d, ierr)
