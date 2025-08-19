@@ -644,8 +644,6 @@ contains
 
     !$acc wait(1)
 
-    !$acc host_data use_device(umav, um, vmav, vm, wmav, wm, thlmav, thlm, qtmav, qtm, &
-    !$acc&                     qlmav, ql0, thvmav, thv0, taav, tmp0)
     call slabsum(umav  ,1,k1,um  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(vmav  ,1,k1,vm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(wmav  ,1,k1,wm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -654,13 +652,10 @@ contains
     call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(taav  ,1,k1,tmp0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    !$acc end host_data
     if (nsv > 0) then
-      !$acc host_data use_device(svmav, svm)
       do n = 1, nsv
         call slabsum(svmav(:,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
       enddo
-      !$acc end host_data
     end if
 
     !$acc kernels default(present) async(1)

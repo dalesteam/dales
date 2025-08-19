@@ -163,10 +163,8 @@ contains
     !$acc end kernels
 
     if (.not. lapply_ibm) then
-    !$acc host_data use_device(thvh, thv0h, thvf, thv0)
       call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
       call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    !$acc end host_data
     else
       call slabavg(thv0h,fluid_mask,ih,thvh)
       call slabavg(thv0,fluid_mask,ih,thvf)
@@ -394,8 +392,6 @@ contains
 
   !CvH changed momentum array dimensions to same value as scalars!
   if (.not. lapply_ibm) then
-  !$acc host_data use_device(u0av, u0, v0av, v0, thl0av, thl0, qt0av, qt0, &
-  !$acc&                     ql0av, ql0, sv0av, sv0)
     call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -404,7 +400,6 @@ contains
     do n=1,nsv
       call slabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     end do
-  !$acc end host_data
   else
     call slabavg(u0,fluid_mask,ih,u0av)
     call slabavg(v0,fluid_mask,ih,v0av)

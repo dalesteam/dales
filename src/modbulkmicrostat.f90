@@ -428,11 +428,9 @@ subroutine initbulkmicrostat
       tend_qtp(:) = 0.0
       !$acc end kernels
 
-      !$acc host_data use_device(tend_qrp, qrp, tend_qtp, qtpmcr)
       call slabsum(tend_qrp,1,k1,qrp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
       call slabsum(tend_qtp,1,k1,qtpmcr  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
       ! note qtpmcr has different shape, includes ghost cells
-      !$acc end host_data
 
 
 
