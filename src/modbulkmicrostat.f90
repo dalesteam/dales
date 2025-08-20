@@ -366,12 +366,12 @@ subroutine initbulkmicrostat
         qrav        (k) = qr_sum
       end do
 
-      call MPI_ALLREDUCE(MPI_IN_PLACE, cloudcountav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr, lacc=.true.)
-      call MPI_ALLREDUCE(MPI_IN_PLACE, raincountav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr, lacc=.true.)
-      call MPI_ALLREDUCE(MPI_IN_PLACE, preccountav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr, lacc=.true.)
-      call MPI_ALLREDUCE(MPI_IN_PLACE, prec_prcav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr, lacc=.true.)
-      call MPI_ALLREDUCE(MPI_IN_PLACE, precav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr, lacc=.true.)
-      call MPI_ALLREDUCE(MPI_IN_PLACE, qrav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr, lacc=.true.)
+      call D_MPI_ALLREDUCE(cloudcountav, k1, MPI_SUM, comm3d, mpierr, lacc=.true.)
+      call D_MPI_ALLREDUCE(raincountav, k1, MPI_SUM, comm3d, mpierr, lacc=.true.)
+      call D_MPI_ALLREDUCE(preccountav, k1, MPI_SUM, comm3d, mpierr, lacc=.true.)
+      call D_MPI_ALLREDUCE(prec_prcav, k1, MPI_SUM, comm3d, mpierr, lacc=.true.)
+      call D_MPI_ALLREDUCE(precav, k1, MPI_SUM, comm3d, mpierr, lacc=.true.)
+      call D_MPI_ALLREDUCE(qrav, k1, MPI_SUM, comm3d, mpierr, lacc=.true.)
 
       !$acc kernels default(present)
       cloudcountmn(:) = cloudcountmn(:) +  cloudcountav(:) / ijtot
