@@ -451,11 +451,9 @@ module modcufft
           end do
         end do
 
-        !$acc host_data use_device(workspace_0, workspace_1)
         call D_MPI_ALLTOALL(workspace_0, imax*jmax*konx, &
                             workspace_1, imax*jmax*konx, &
-                            commrow, mpierr)
-        !$acc end host_data
+                            commrow, mpierr, lacc=.true.)
 
         !$acc parallel loop collapse(4) default(present) private(ii)
         do n = 0, nprocx-1
@@ -503,11 +501,9 @@ module modcufft
           end do
         end do
 
-        !$acc host_data use_device(workspace_0, workspace_1)
         call D_MPI_ALLTOALL(workspace_0, imax*jmax*konx, &
                             workspace_1, imax*jmax*konx, &
-                            commrow, mpierr)
-        !$acc end host_data
+                            commrow, mpierr, lacc=.true.)
 
         !$acc parallel loop collapse(4) default(present) private(ii)
         do n = 0, nprocx-1
@@ -566,11 +562,9 @@ module modcufft
           end do
         end do
 
-        !$acc host_data use_device(workspace_0, workspace_1)
         call D_MPI_ALLTOALL(workspace_0, iony*jmax*konx, &
                             workspace_1, iony*jmax*konx, &
-                            commcol, mpierr)
-        !$acc end host_data
+                            commcol, mpierr, lacc=.true.)
 
         !$acc parallel loop collapse(4) default(present) private(ii)
         do n = 0, nprocy-1
@@ -630,11 +624,9 @@ module modcufft
           end do
         end do
 
-        !$acc host_data use_device(workspace_0, workspace_1)
         call D_MPI_ALLTOALL(workspace_0, iony*jmax*konx, &
                             workspace_1, iony*jmax*konx, &
-                            commcol, mpierr)
-        !$acc end host_data
+                            commcol, mpierr, lacc=.true.)
 
         !$acc parallel loop collapse(4) default(present) private(ii)
         do n = 0, nprocy-1
@@ -682,11 +674,9 @@ module modcufft
           end do
         end do
 
-        !$acc host_data use_device(workspace_0, workspace_1)
         call D_MPI_ALLTOALL(workspace_0, iony*jonx*konx, &
                             workspace_1, iony*jonx*konx, &
-                            commrow, mpierr)
-        !$acc end host_data
+                            commrow, mpierr, lacc=.true.)
 
         !$acc parallel loop collapse(4) default(present) private(ii)
         do n = 0, nprocx-1
@@ -735,11 +725,9 @@ module modcufft
           end do
         end do
 
-        !$acc host_data use_device(workspace_0, workspace_1)
         call D_MPI_ALLTOALL(workspace_0, iony*jonx*konx, &
                             workspace_1, iony*jonx*konx, &
-                            commrow, mpierr)
-        !$acc end host_data
+                            commrow, mpierr, lacc=.true.)
 
         !$acc parallel loop collapse(4) default(present) private(ii)
         do n = 0, nprocx-1
