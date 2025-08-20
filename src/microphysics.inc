@@ -31,7 +31,7 @@ function calc_xr(rho, qr, nr, xrmin, xrmax) result(xr)
   real(field_r) :: xr
   !$acc routine seq
 
-  xr = rho * qr / nr
+  xr = rho * qr / (nr + 1e-6)
   xr = min(max(xr, xrmin), xrmax)
 
 end function calc_xr
