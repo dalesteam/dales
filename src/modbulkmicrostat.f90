@@ -281,11 +281,9 @@ subroutine initbulkmicrostat
     use modsimpleice_data,  only  : qr 
     use modfields,  only  : ql0, rhof
     use modmpiinterface
-    use modgpumpiinterface
     use modmpi
 #if defined(_OPENACC)
     use openacc
-    use modgpumpiinterface
 #endif
     implicit none
 
@@ -368,12 +366,12 @@ subroutine initbulkmicrostat
         qrav        (k) = qr_sum
       end do
 
-      call MPI_ALLREDUCE(MPI_IN_PLACE, cloudcountav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
-      call MPI_ALLREDUCE(MPI_IN_PLACE, raincountav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
-      call MPI_ALLREDUCE(MPI_IN_PLACE, preccountav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
-      call MPI_ALLREDUCE(MPI_IN_PLACE, prec_prcav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
-      call MPI_ALLREDUCE(MPI_IN_PLACE, precav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
-      call MPI_ALLREDUCE(MPI_IN_PLACE, qrav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
+      call MPI_ALLREDUCE(MPI_IN_PLACE, cloudcountav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr, lacc=.true.)
+      call MPI_ALLREDUCE(MPI_IN_PLACE, raincountav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr, lacc=.true.)
+      call MPI_ALLREDUCE(MPI_IN_PLACE, preccountav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr, lacc=.true.)
+      call MPI_ALLREDUCE(MPI_IN_PLACE, prec_prcav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr, lacc=.true.)
+      call MPI_ALLREDUCE(MPI_IN_PLACE, precav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr, lacc=.true.)
+      call MPI_ALLREDUCE(MPI_IN_PLACE, qrav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr, lacc=.true.)
 
       !$acc kernels default(present)
       cloudcountmn(:) = cloudcountmn(:) +  cloudcountav(:) / ijtot
