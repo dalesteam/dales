@@ -37,7 +37,6 @@ module modmpi
 use modmpiinterface
 #if defined(_OPENACC)
 use openacc
-use modgpumpiinterface
 #endif
 implicit none
 
