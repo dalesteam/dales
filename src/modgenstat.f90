@@ -644,8 +644,6 @@ contains
 
     !$acc wait(1)
 
-    !$acc host_data use_device(umav, um, vmav, vm, wmav, wm, thlmav, thlm, qtmav, qtm, &
-    !$acc&                     qlmav, ql0, thvmav, thv0, taav, tmp0)
     call slabsum(umav  ,1,k1,um  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(vmav  ,1,k1,vm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(wmav  ,1,k1,wm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -654,13 +652,10 @@ contains
     call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(taav  ,1,k1,tmp0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    !$acc end host_data
     if (nsv > 0) then
-      !$acc host_data use_device(svmav, svm)
       do n = 1, nsv
         call slabsum(svmav(:,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
       enddo
-      !$acc end host_data
     end if
 
     !$acc kernels default(present) async(1)
@@ -973,49 +968,43 @@ contains
 
     ! MPI communication
     !$acc wait(1)
-    !$acc host_data use_device(qlhav, wqlsub, wqlres, wthlsub, wthlres, wthvsub, &
-    !$acc&                     wthvres, uwsub, vwsub, uwres, vwres, u2av, v2av, &
-    !$acc&                     w2av, w3av, w2subav, qt2av, thl2av, thv2av, th2av, &
-    !$acc&                     ql2av, sv2av, wsvsub, wsvres, cfracav, &
-    !$acc&                     hurav, clwav, cliav, plwav, pliav)
-    call D_MPI_ALLREDUCE(qlhav, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wqlsub, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wqlres, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wthlsub, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wthlres, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wqtsub, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wqtres, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wthvsub, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wthvres, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(uwsub, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(vwsub, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(uwres, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(vwres, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(u2av, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(v2av, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(w2av, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(w3av, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(w2subav, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(qt2av, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(thl2av, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(thv2av, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(th2av, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(ql2av, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(cfracav,k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(hurav,k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(clwav,k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(cliav,k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(plwav,k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(pliav,k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(qlhav, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(wqlsub, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(wqlres, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(wthlsub, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(wthlres, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(wqtsub, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(wqtres, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(wthvsub, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(wthvres, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(uwsub, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(vwsub, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(uwres, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(vwres, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(u2av, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(v2av, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(w2av, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(w3av, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(w2subav, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(qt2av, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(thl2av, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(thv2av, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(th2av, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(ql2av, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(cfracav,k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(hurav,k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(clwav,k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(cliav,k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(plwav,k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(pliav,k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
 
     if (nsv > 0) then
       do n = 1, nsv
-        call D_MPI_ALLREDUCE(sv2av(:,n),k1, MPI_SUM, comm3d,mpierr)
-        call D_MPI_ALLREDUCE(wsvsub(:,n), k1, MPI_SUM, comm3d,mpierr)
-        call D_MPI_ALLREDUCE(wsvres(:,n), k1, MPI_SUM, comm3d,mpierr)
+        call D_MPI_ALLREDUCE(sv2av(:,n),k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+        call D_MPI_ALLREDUCE(wsvsub(:,n), k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+        call D_MPI_ALLREDUCE(wsvres(:,n), k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
       end do
     end if
-    !$acc end host_data
 
     !------------
     ! 4 NORMALIZE
