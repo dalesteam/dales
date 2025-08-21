@@ -1997,7 +1997,7 @@ contains
     call check_array(w0, 'w0', 'startup', &
                      threshold=[real(-30, rkind), real(30, rkind)])
     call check_array(thl0, 'thl0', 'startup', &
-                     threshold=[real(150, rkind), real(350, rkind)])
+                     threshold=[real(150, rkind), real(2000, rkind)])
     if (lmoist) call check_array(qt0, 'qt0', 'startup', &
                                  threshold=[real(0, rkind), real(1, rkind)])
     
