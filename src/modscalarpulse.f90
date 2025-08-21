@@ -30,8 +30,12 @@ save
 ! pulse governing variables (from namelist)
   logical :: lscalarpulse     = .false.
   logical :: lcpmip           = .false.
-  integer(kind=longint) :: timepulse
-  real    :: amppulse, kpulse, zminpulse, zmaxpulse, radius
+  integer(kind=longint) :: timepulse = 3600
+  real    :: amppulse  = 0
+  real    :: kpulse    = 1
+  real    :: zminpulse = 0
+  real    :: zmaxpulse = 200
+  real    :: radius    = 1000
   real(field_r), allocatable :: qtav0(:),qtav1(:)
 
 contains
