@@ -1266,6 +1266,7 @@ subroutine integrate_theta_soil
     use modglobal, only : rk3step, rdt, i1, j1, rhow, rlv
     use modsurfdata, only : phiw, phiwm, lambdash, gammash
     use modmpi, only : myidx, myidy
+    use modchecksim, only : check_array
     implicit none
     integer :: i, j, k
     real :: tend, rk3coef, flux_top, fac
@@ -1316,13 +1317,7 @@ subroutine integrate_theta_soil
     end do
 
     ! Range check of phiw
-    if (maxval(phiw) > 1 .or. minval(phiw) < 0) then
-       write(*,*) 'phiw out or range 0...1'
-       write(*,*) 'myid{x,y} =', myidx, myidy
-       write(*,*) 'max', maxval(phiw), 'at', maxloc(phiw)
-       write(*,*) 'min', minval(phiw), 'at', minloc(phiw)
-       !stop
-    end if
+    call check_array(phiw, "phiw", "integrate_theta_soil", [0.0, 1.0])
 
 end subroutine integrate_theta_soil
 
@@ -1595,6 +1590,9 @@ subroutine allocate_fields
 
     ilu_ws = nlu
 
+    ! initialize, especially the un-used halo
+    phiw = 0
+    phiwm = 0
 end subroutine allocate_fields
 
 !
