@@ -63,7 +63,6 @@ contains
       end do
 
       call D_MPI_ALLTOALL(workspace_0, imax*jmax*konx, &
-                          workspace_1, imax*jmax*konx, &
                           commrow, mpierr, lacc=.true.)
 
       !$acc parallel loop collapse(4) default(present) private(ii)
@@ -72,7 +71,7 @@ contains
           do j = 1, jmax
             do i = 1, imax
               ii = i + (j-1)*imax + (k-1)*imax*jmax + n*imax*jmax*konx
-              px(i+n*imax,j,k) = workspace_1(ii)
+              px(i+n*imax,j,k) = workspace_0(ii)
             end do
           end do
         end do
@@ -113,7 +112,6 @@ contains
       end do
 
       call D_MPI_ALLTOALL(workspace_0, imax*jmax*konx, &
-                          workspace_1, imax*jmax*konx, &
                           commrow, mpierr, lacc=.true.)
 
       !$acc parallel loop collapse(4) default(present) private(ii)
@@ -122,7 +120,7 @@ contains
           do j = 2, j1
             do i = 2, i1
               ii = (i-1) + (j-2)*imax + (k-1)*imax*jmax + n*imax*jmax*konx
-              if (k+n*konx <= kmax) p(i,j,k+n*konx) = workspace_1(ii)
+              if (k+n*konx <= kmax) p(i,j,k+n*konx) = workspace_0(ii)
             end do
           end do
         end do
@@ -174,8 +172,8 @@ contains
       end do
 
       call D_MPI_ALLTOALL(workspace_0, iony*jmax*konx, &
-                          workspace_1, iony*jmax*konx, &
                           commcol, mpierr, lacc=.true.)
+
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocy-1
@@ -183,7 +181,7 @@ contains
           do i = 1, iony
             do j = 1, jmax
               ii = i + (j-1)*iony + (k-1)*iony*jmax + n*iony*jmax*konx
-              py(j+n*jmax,k,i) = workspace_1(ii)
+              py(j+n*jmax,k,i) = workspace_0(ii)
             end do
           end do
         end do
@@ -236,7 +234,6 @@ contains
       end do
 
       call D_MPI_ALLTOALL(workspace_0, iony*jmax*konx, &
-                          workspace_1, iony*jmax*konx, &
                           commcol, mpierr, lacc=.true.)
 
       !$acc parallel loop collapse(4) default(present) private(ii)
@@ -245,7 +242,7 @@ contains
           do j = 1, jmax
             do i = 1, iony
               ii = i + (j-1)*iony + (k-1)*iony*jmax + n*iony*jmax*konx
-              if (i+n*iony <= itot) px(i+n*iony,j,k) = workspace_1(ii)
+              if (i+n*iony <= itot) px(i+n*iony,j,k) = workspace_0(ii)
             end do
           end do
         end do
@@ -286,7 +283,6 @@ contains
       end do
 
       call D_MPI_ALLTOALL(workspace_0, iony*jonx*konx, &
-                          workspace_1, iony*jonx*konx, &
                           commrow, mpierr, lacc=.true.)
 
       !$acc parallel loop collapse(4) default(present) private(ii)
@@ -295,7 +291,7 @@ contains
           do j = 1, jonx
             do i = 1, iony
               ii = j + (i-1)*jonx + (k-1)*iony*jonx + n*iony*jonx*konx
-              if (k+n*konx <= kmax) Fp(i,j,k+n*konx) = workspace_1(ii)
+              if (k+n*konx <= kmax) Fp(i,j,k+n*konx) = workspace_0(ii)
             end do
           end do
         end do
@@ -337,7 +333,6 @@ contains
       end do
 
       call D_MPI_ALLTOALL(workspace_0, iony*jonx*konx, &
-                          workspace_1, iony*jonx*konx, &
                           commrow, mpierr, lacc=.true.)
 
       !$acc parallel loop collapse(4) default(present) private(ii)
@@ -346,7 +341,7 @@ contains
           do i = 1, iony
             do j = 1, jonx
               ii = j + (i-1)*jonx + (k-1)*iony*jonx + n*iony*jonx*konx
-              if (j+n*jonx <= jtot) py(j+n*jonx,k,i) = workspace_1(ii)
+              if (j+n*jonx <= jtot) py(j+n*jonx,k,i) = workspace_0(ii)
             end do
           end do
         end do
