@@ -482,6 +482,7 @@ contains
     enddo
 
     if (l_homogenize) then
+      qtpevapdeps = 0
       call slabsum(qtpevapdeps,1,kmax,qtpevapdep,2,i1,2,j1,1,kmax,2,i1,2,j1,1,kmax)
       qtpevapdeps = qtpevapdeps/ijtot
 
