@@ -328,7 +328,7 @@ module modbulkmicro
       ! 3. Evaporation
       if (l_homogenize) then
          ! qt, thl tendencies from rain evaporation are homogenized horizontally
-         allocate(qtp_tmp(2:i1,2:j1,1:k1), thlp_tmp(2:i1,2:j1,1:k1))
+         allocate(qtp_tmp(2-ih:i1+ih,2-jh:j1+jh,1:k1), thlp_tmp(2:i1,2:j1,1:k1)) ! note halo in qtp_tmp only
          !$acc enter data create(qtp_tmp, thlp_tmp)
          call zero_field(qtp_tmp)
          call zero_field(thlp_tmp)
@@ -343,8 +343,8 @@ module modbulkmicro
          end if
          qtpevap = 0
          thlpevap = 0
-         call slabsum(qtpevap,1,k1,qtp_tmp,2,i1,2,j1,1,k1,2,i1,2,j1,1,k1)
-         call slabsum(thlpevap,1,k1,thlp_tmp,2,i1,2,j1,1,k1,2,i1,2,j1,1,k1)
+         call slabsum(qtpevap,1,k1,qtp_tmp,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) !halo
+         call slabsum(thlpevap,1,k1,thlp_tmp,2,i1,2,j1,1,k1,2,i1,2,j1,1,k1)           !no halo
          qtpevap = qtpevap/ijtot
          thlpevap = thlpevap/ijtot
          !$acc exit data delete(qtp_tmp, thlp_tmp)
