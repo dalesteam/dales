@@ -60,8 +60,8 @@ contains
     use modmicrodata, only: qtpmcr, thlpmcr, iqr, precep
     use modsimpleice_data, only : qr, qrp, sed_qr, qr_spl, &
                              ilratio, rsgratio, sgratio, &
-                             lambdar, lambdas, lambdag, &
-                             ccrz, ccsz, ccgz, ccrz2, ccsz2, ccgz2, bbg, bbr, bbs, ddg, ddr, dds
+                             lambdar, lambdas, lambdag, qtpevapdep, &
+                             ccrz, ccsz, ccgz, ccrz2, ccsz2, ccgz2, bbg, bbr, bbs, ddg, ddr, dds, qtpevapdeps
 
     use modglobal, only : ih,i1,jh,j1,k1,lacz_gamma
     use modtracers, only: add_tracer
@@ -82,13 +82,14 @@ contains
              ,sgratio(2:i1,2:j1,k1)   & ! partition ratio snow vs graupel
              ,lambdar(2:i1,2:j1,k1)   & ! slope parameter for rain
              ,lambdas(2:i1,2:j1,k1)   & ! slope parameter for snow
-             ,lambdag(2:i1,2:j1,k1))    ! slope parameter for graupel
-
+             ,lambdag(2:i1,2:j1,k1)   &
+             ,qtpevapdep(2:i1,2:j1,k1)) ! qt tendency of rain avaporation, needed for homogenization
 
     allocate(precep(2:i1,2:j1,k1))      ! precipitation for statistics
 
     allocate(ccrz(k1),ccsz(k1),ccgz(k1))
     allocate(ccrz2(k1),ccsz2(k1),ccgz2(k1))
+    allocate(qtpevapdeps(k1))
 
      gamb1r=lacz_gamma(bbr+1.0)
      gambd1r=lacz_gamma(bbr+ddr+1.0)
@@ -117,19 +118,19 @@ contains
   subroutine exitsimpleice
     use modmicrodata, only: qtpmcr, thlpmcr, precep
     use modsimpleice_data, only : qr,qrp,sed_qr,qr_spl, &
-                             ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag, &
+                             ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag,qtpevapdep,&
                              ccrz,ccsz,ccgz,&
-                             ccrz2,ccsz2,ccgz2
+                             ccrz2,ccsz2,ccgz2,qtpevapdeps
     implicit none
 
     !$acc exit data delete (qrp, qr, thlpmcr, qtpmcr, sed_qr, qr_spl, &
     !$acc&                  ilratio, rsgratio, sgratio, lambdar, lambdas, &
     !$acc&                  lambdag, precep, &
     !$acc&                  ccrz, ccsz, ccgz, ccrz2, ccsz2, ccgz2)
-    deallocate(qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag)
+    deallocate(qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag,qtpevapdep)
     deallocate(precep)
     deallocate(ccrz,ccsz,ccgz)
-    deallocate(ccrz2,ccsz2,ccgz2)
+    deallocate(ccrz2,ccsz2,ccgz2,qtpevapdeps)
 
   end subroutine exitsimpleice
 
@@ -430,18 +431,21 @@ contains
   end subroutine accrete
 
   subroutine evapdep
-    use modglobal, only : i1,j1,kmax,rlv,cp,pi
+    use modglobal, only : i1,j1,kmax,rlv,cp,pi,ijtot
     use modfields, only : qt0,ql0,exnf,rhof,tmp0,qvsl,qvsi,esl
-    use modmicrodata, only: qtpmcr, thlpmcr, delt
+    use modmicrodata, only: qtpmcr, thlpmcr, delt, l_homogenize
     use modsimpleice_data, only : betag, betar, betas, ddg, ddr, dds, &
                              n0rg, n0rr, n0rs, &
                              ccrz2, ccsz2, ccgz2, lambdag, lambdar, lambdas, &
-                             evapfactor, qr, qrp, qrmin
+                             evapfactor, qr, qrp, qrmin, qtpevapdep, qtpevapdeps
+    use modmpi, only: slabsum
     implicit none
     character(len=*), parameter :: routine = modname//"/evapdep"
     real(field_r) :: ssl,ssi,ventr,vents,ventg,&
                      thfun,evapdepr,evapdeps,evapdepg,devap
     integer:: i,j,k
+
+    qtpevapdep = 0 ! Init to zero outside rainy cells
 
     call timer_tic(routine, 1)
     !$acc parallel loop collapse(3) default(present) &
@@ -471,13 +475,37 @@ contains
         ! total growth by deposition and evaporation
         ! limit with qr and ql after accretion and autoconversion
         devap= max(min(evapfactor*(evapdepr+evapdeps+evapdepg),ql0(i,j,k)/delt+qrp(i,j,k)),-qr(i,j,k)/delt-qrp(i,j,k))
-        qrp(i,j,k) = qrp(i,j,k)+devap
-        qtpmcr(i,j,k) = qtpmcr(i,j,k)-devap
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*devap
+        qtpevapdep(i,j,k) = devap
       end if
     enddo
     enddo
     enddo
+
+    if (l_homogenize) then
+      call slabsum(qtpevapdeps,1,kmax,qtpevapdep,2,i1,2,j1,1,kmax,2,i1,2,j1,1,kmax)
+      qtpevapdeps = qtpevapdeps/ijtot
+
+      do k=1,kmax
+      do j=2,j1
+      do i=2,i1
+        qrp(i,j,k) = qrp(i,j,k)+qtpevapdeps(k)
+        qtpmcr(i,j,k) = qtpmcr(i,j,k)-qtpevapdeps(k)
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*qtpevapdeps(k)
+      end do
+      end do
+      end do
+    else
+      do k=1,kmax
+      do j=2,j1
+      do i=2,i1
+        qrp(i,j,k) = qrp(i,j,k)+qtpevapdep(i,j,k)
+        qtpmcr(i,j,k) = qtpmcr(i,j,k)-qtpevapdep(i,j,k)
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*qtpevapdep(i,j,k)
+      end do
+      end do
+      end do
+    endif
+
     call timer_toc(routine)
   end subroutine evapdep
 

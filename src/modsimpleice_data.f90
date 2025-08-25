@@ -83,11 +83,13 @@ module modsimpleice_data
     lambdar(:,:,:),             &
     lambdas(:,:,:),             &
     lambdag(:,:,:),             &
+    qtpevapdep(:,:,:),          &
     ccrz(:),                    &
     ccsz(:),                    &
     ccgz(:),                    &
     ccrz2(:),                   &
     ccsz2(:),                   &
-    ccgz2(:)                      
+    ccgz2(:),                   &
+    qtpevapdeps(:)
 
 end module modsimpleice_data
