@@ -583,7 +583,6 @@ contains
 
     real(field_r), allocatable :: height(:), th0av(:)
     real(field_r), allocatable :: thv0(:,:,:)
-    integer, allocatable :: scalar_indices(:)
 
     character(len=512) :: chmess
     integer, parameter :: maxcol = 50
@@ -595,7 +594,6 @@ contains
     allocate (height(k1))
     allocate (th0av(k1))
     allocate (thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate (scalar_indices(nsv))
 
     if (.not. lwarmstart) then
 
@@ -747,7 +745,6 @@ contains
 
       call D_MPI_BCAST(wsvsurf,        nsv,    0, comm3d, mpierr)
       call D_MPI_BCAST(svprof,         k1*nsv, 0, comm3d, mpierr)
-      call D_MPI_BCAST(scalar_indices, nsv,    0, comm3d, mpierr)
 
       ! Initialize fields
       if(lopenbc .and. linithetero) then! Openboundaries with heterogeneous initialisation
