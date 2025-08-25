@@ -72,12 +72,11 @@ subroutine lsm
     call calc_hydraulic_properties
     ! Calculate tendency due to root water extraction
     call calc_root_water_extraction
-    ! Solve diffusion equation:
-    call integrate_theta_soil
 
     ! Update liquid water reservoir
     call calc_liquid_reservoir
-
+    ! Solve diffusion equation:
+    call integrate_theta_soil
 end subroutine lsm
 
 !
