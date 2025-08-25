@@ -10,12 +10,12 @@ module modtranspose
   private
 
   public :: init_transpose
-  public :: transpose_a1
-  public :: transpose_a1inv
-  public :: transpose_a2
-  public :: transpose_a2inv
-  public :: transpose_a3
-  public :: transpose_a3inv
+  public :: transpose_z_to_x
+  public :: transpose_x_to_z
+  public :: transpose_x_to_y
+  public :: transpose_y_to_x
+  public :: transpose_y_to_z
+  public :: transpose_z_to_y
 
   integer :: iony, jonx, konx
   integer :: mpierr
@@ -31,7 +31,7 @@ contains
 
   end subroutine init_transpose
 
-  subroutine transpose_a1(p, px, buffer)
+  subroutine transpose_z_to_x(p, px, buffer)
 
     real(pois_r), intent(in)  :: p(:,:,:)
     real(pois_r), intent(out) :: px(:,:,:)
@@ -77,9 +77,9 @@ contains
       end do
     end if
 
-  end subroutine transpose_a1
+  end subroutine transpose_z_to_x
 
-  subroutine transpose_a1inv(p, px, buffer)
+  subroutine transpose_x_to_z(p, px, buffer)
 
     real(pois_r), intent(in)  :: px(:,:,:)
     real(pois_r), intent(out) :: p(:,:,:)
@@ -125,9 +125,9 @@ contains
       end do
     end if
 
-  end subroutine transpose_a1inv
+  end subroutine transpose_x_to_z
 
-  subroutine transpose_a2(px, py, buffer)
+  subroutine transpose_x_to_y(px, py, buffer)
 
     real(pois_r), intent(in)  :: px(:,:,:)
     real(pois_r), intent(out) :: py(:,:,:)
@@ -186,9 +186,9 @@ contains
 
     end if
 
-  end subroutine transpose_a2
+  end subroutine transpose_x_to_y
 
-  subroutine transpose_a2inv(px, py, buffer)
+  subroutine transpose_y_to_x(px, py, buffer)
 
     real(pois_r), intent(in)  :: py(:,:,:)
     real(pois_r), intent(out) :: px(:,:,:)
@@ -245,9 +245,9 @@ contains
       end do
     end if
 
-  end subroutine transpose_a2inv
+  end subroutine transpose_y_to_x
 
-  subroutine transpose_a3(py, Fp, buffer)
+  subroutine transpose_y_to_z(py, Fp, buffer)
 
     real(pois_r), intent(in)  :: py(:,:,:)
     real(pois_r), intent(out) :: Fp(:,:,:)
@@ -294,9 +294,9 @@ contains
 
     end if
 
-  end subroutine transpose_a3
+  end subroutine transpose_y_to_z
 
-  subroutine transpose_a3inv(py, Fp, buffer)
+  subroutine transpose_z_to_y(py, Fp, buffer)
 
     real(pois_r), intent(in)  :: Fp(:,:,:)
     real(pois_r), intent(out) :: py(:,:,:)
@@ -342,6 +342,6 @@ contains
       end do
     end if
 
-  end subroutine transpose_a3inv
+  end subroutine transpose_z_to_y
 
 end module modtranspose
