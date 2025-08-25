@@ -3,12 +3,13 @@ module modtranspose
 
   use modglobal,    only: itot, jtot, imax, jmax, kmax, i1, j1
   use modmpi,       only: D_MPI_ALLTOALL, commrow, commcol, nprocs, nprocx, nprocy
-  use modprecision, only: pois_r
+  use modprecision, only: pois_r, longint
 
   implicit none
 
   private
 
+  public :: transpose_get_buffer_size
   public :: init_transpose
   public :: transpose_z_to_x
   public :: transpose_x_to_z
@@ -17,17 +18,49 @@ module modtranspose
   public :: transpose_y_to_z
   public :: transpose_z_to_y
 
+  public :: iony
+  public :: jonx
+  public :: konx
+
   integer :: iony, jonx, konx
   integer :: mpierr
 
 contains
 
-  subroutine init_transpose(iony_, jonx_, konx_)
-    integer, intent(in) :: iony_, jonx_, konx_
+  !> Compute the minimum size of the workspace for transposing.
+  function transpose_get_buffer_size() result(size)
+    integer(longint) :: size_x, size_y, size_z, size
 
-    iony = iony_
-    jonx = jonx_
-    konx = konx_
+    ! x-contiguous pencils
+    size_x = itot * jmax * konx
+
+    ! y-contiguous pencils
+    size_y = iony * jtot * konx
+
+    ! z-contiguous pencils
+    size_z = imax * jmax * kmax
+
+    size = max(size_x, size_y, size_z)
+
+  end function transpose_get_buffer_size
+
+  !> Initialize transposes
+  !!
+  !! @param[out] size Required size of the work space for transposes.
+  subroutine init_transpose(size)
+
+    integer(longint), intent(out) :: size
+
+    konx = kmax / nprocx
+    if (mod(kmax, nprocx) > 0) konx = konx + 1
+
+    iony = itot / nprocy
+    if (mod(itot, nprocy) > 0) iony = iony + 1
+
+    jonx = jtot / nprocx
+    if (mod(jtot, nprocx) > 0) jonx = jonx + 1
+
+    size = transpose_get_buffer_size()
 
   end subroutine init_transpose
 
