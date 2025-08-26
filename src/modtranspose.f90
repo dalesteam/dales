@@ -13,37 +13,58 @@ module modtranspose
 
   character(len=*), parameter :: modname = 'modtranspose'
 
-  public :: transpose_get_buffer_size
-  public :: init_transpose
-  public :: transpose_z_to_x
-  public :: transpose_x_to_z
-  public :: transpose_x_to_y
-  public :: transpose_y_to_x
-  public :: transpose_y_to_z
-  public :: transpose_z_to_y
+  public :: t_transposer
 
-  public :: iony
-  public :: jonx
-  public :: konx
+  interface t_transposer
+    procedure :: build_transposer
+  end interface t_transposer
 
-  integer, protected :: &
-    iony,    & !< Number of cells in the x-direction on y-contiguous pencils.
-    jonx,    & !< Number of cells in the y-direction on x-contiguous pencils.
-    konx       !< Number of cells in the z-direction on x/y-contiguous pencils.
+  ! Derived type that wraps the transpose routines.
+  type :: t_transposer
+    !> Pencil dimensions.
+    integer :: iony, jonx, konx
+  contains
+    procedure :: get_buffer_size => transpose_get_buffer_size
+    procedure :: z_to_x => transpose_z_to_x
+    procedure :: x_to_z => transpose_x_to_z
+    procedure :: x_to_y => transpose_x_to_y
+    procedure :: y_to_x => transpose_y_to_x
+    procedure :: y_to_z => transpose_y_to_z
+    procedure :: z_to_y => transpose_z_to_y
+  end type t_transposer
 
 contains
+
+  !> Initialize transpose object.
+  pure function build_transposer() result(self)
+
+    type(t_transposer) :: self
+
+    self%iony = itot / nprocy
+    if (mod(itot, nprocy) > 0) self%iony = self%iony + 1
+
+    self%jonx = jtot / nprocx
+    if (mod(jtot, nprocx) > 0) self%jonx = self%jonx + 1
+
+    self%konx = kmax / nprocx
+    if (mod(kmax, nprocx) > 0) self%konx = self%konx + 1
+
+  end function build_transposer
 
   !> Compute the minimum size of the workspace for transposing.
   !!
   !! @return minimum buffer size for transposing.
-  function transpose_get_buffer_size() result(size)
+  pure function transpose_get_buffer_size(self) result(size)
+    
+    class(t_transposer), intent(in) :: self
+
     integer(longint) :: size_x, size_y, size_z, size
 
     ! x-contiguous pencils
-    size_x = itot * jmax * konx
+    size_x = itot * jmax * self%konx
 
     ! y-contiguous pencils
-    size_y = iony * jtot * konx
+    size_y = self%iony * jtot * self%konx
 
     ! z-contiguous pencils
     size_z = imax * jmax * kmax
@@ -52,39 +73,17 @@ contains
 
   end function transpose_get_buffer_size
 
-  !> Initialize transposes
-  !!
-  !! @param[out] size Required size of the work space for transposes.
-  subroutine init_transpose(size)
-
-    integer(longint), intent(out) :: size
-
-    konx = kmax / nprocx
-    if (mod(kmax, nprocx) > 0) konx = konx + 1
-
-    iony = itot / nprocy
-    if (mod(itot, nprocy) > 0) iony = iony + 1
-
-    jonx = jtot / nprocx
-    if (mod(jtot, nprocx) > 0) jonx = jonx + 1
-
-    size = transpose_get_buffer_size()
-
-  end subroutine init_transpose
-
-  ! CJ: In cuDecomp, the "vertical" direction is labeled as Y.
-  ! Hence, z_to_x is actually y_to_x in cuDecomp.
-
   !> Tranpose z-contiguous pencils to x-contiguous pencils.
   !!
   !! @param[in] pz Input data.
   !! @param[out] px Output data.
   !! @param[out] buffer Buffer for transposing.
-  subroutine transpose_z_to_x(pz, px, buffer)
+  subroutine transpose_z_to_x(self, pz, px, buffer)
 
-    real(pois_r), intent(in)  :: pz(:,:,:)
-    real(pois_r), intent(out) :: px(:,:,:)
-    real(pois_r), intent(out) :: buffer(:)
+    class(t_transposer), intent(in)  :: self
+    real(pois_r),        intent(in)  :: pz(:,:,:)
+    real(pois_r),        intent(out) :: px(:,:,:)
+    real(pois_r),        intent(out) :: buffer(:)
 
     character(len=*), parameter :: routine = modname//'/transpose_z_to_x'
 
@@ -105,24 +104,24 @@ contains
     else
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
-        do k = 1, konx
+        do k = 1, self%konx
           do j = 2, j1
             do i = 2, i1
-              ii = (i-1) + (j-2)*imax + (k-1)*imax*jmax + n*imax*jmax*konx
-              if (k+n*konx <= kmax) buffer(ii) = pz(i,j,k+n*konx) 
+              ii = (i-1) + (j-2)*imax + (k-1)*imax*jmax + n*imax*jmax*self%konx
+              if (k+n*self%konx <= kmax) buffer(ii) = pz(i,j,k+n*self%konx) 
             end do
           end do
         end do
       end do
 
-      call D_MPI_ALLTOALL(buffer, imax*jmax*konx, commrow, mpierr, lacc=.true.)
+      call D_MPI_ALLTOALL(buffer, imax*jmax*self%konx, commrow, mpierr, lacc=.true.)
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
-        do k = 1, konx
+        do k = 1, self%konx
           do j = 1, jmax
             do i = 1, imax
-              ii = i + (j-1)*imax + (k-1)*imax*jmax + n*imax*jmax*konx
+              ii = i + (j-1)*imax + (k-1)*imax*jmax + n*imax*jmax*self%konx
               px(i+n*imax,j,k) = buffer(ii)
             end do
           end do
@@ -139,11 +138,12 @@ contains
   !! @param[in] px Input data.
   !! @param[out] pz Output data.
   !! @param[out] buffer Buffer for transposing.
-  subroutine transpose_x_to_z(px, pz, buffer)
+  subroutine transpose_x_to_z(self, px, pz, buffer)
 
-    real(pois_r), intent(in)  :: px(:,:,:)
-    real(pois_r), intent(out) :: pz(:,:,:)
-    real(pois_r), intent(out) :: buffer(:)
+    class(t_transposer), intent(in)  :: self
+    real(pois_r),        intent(in)  :: px(:,:,:)
+    real(pois_r),        intent(out) :: pz(:,:,:)
+    real(pois_r),        intent(out) :: buffer(:)
 
     character(len=*), parameter :: routine = modname//'transpose_x_to_z'
 
@@ -164,25 +164,25 @@ contains
     else
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
-        do k = 1, konx
+        do k = 1, self%konx
           do j = 1, jmax
             do i = 1, imax
-              ii = i + (j-1)*imax + (k-1)*imax*jmax + n*imax*jmax*konx
+              ii = i + (j-1)*imax + (k-1)*imax*jmax + n*imax*jmax*self%konx
               buffer(ii) = px(i+n*imax,j,k)
             end do
           end do
         end do
       end do
 
-      call D_MPI_ALLTOALL(buffer, imax*jmax*konx, commrow, mpierr, lacc=.true.)
+      call D_MPI_ALLTOALL(buffer, imax*jmax*self%konx, commrow, mpierr, lacc=.true.)
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
-        do k = 1, konx
+        do k = 1, self%konx
           do j = 2, j1
             do i = 2, i1
-              ii = (i-1) + (j-2)*imax + (k-1)*imax*jmax + n*imax*jmax*konx
-              if (k+n*konx <= kmax) pz(i,j,k+n*konx) = buffer(ii)
+              ii = (i-1) + (j-2)*imax + (k-1)*imax*jmax + n*imax*jmax*self%konx
+              if (k+n*self%konx <= kmax) pz(i,j,k+n*self%konx) = buffer(ii)
             end do
           end do
         end do
@@ -198,11 +198,12 @@ contains
   !! @param[in] px Input data.
   !! @param[out] py Output data.
   !! @param[out] buffer Buffer for transposing.
-  subroutine transpose_x_to_y(px, py, buffer)
+  subroutine transpose_x_to_y(self, px, py, buffer)
 
-    real(pois_r), intent(in)  :: px(:,:,:)
-    real(pois_r), intent(out) :: py(:,:,:)
-    real(pois_r), intent(out) :: buffer(:)
+    class(t_transposer), intent(in)  :: self
+    real(pois_r),        intent(in)  :: px(:,:,:)
+    real(pois_r),        intent(out) :: py(:,:,:)
+    real(pois_r),        intent(out) :: buffer(:)
 
     character(len=*), parameter :: routine = modname//'/transpose_x_to_y'
 
@@ -234,24 +235,24 @@ contains
     else
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocy-1
-        do k = 1, konx
+        do k = 1, self%konx
           do j = 1, jmax
-            do i = 1, iony
-              ii = i + (j-1)*iony + (k-1)*iony*jmax + n*iony*jmax*konx
-              if (i <= itot) buffer(ii) = px(i+n*iony,j,k)
+            do i = 1, self%iony
+              ii = i + (j-1)*self%iony + (k-1)*self%iony*jmax + n*self%iony*jmax*self%konx
+              if (i <= itot) buffer(ii) = px(i+n*self%iony,j,k)
             end do
           end do
         end do
       end do
 
-      call D_MPI_ALLTOALL(buffer, iony*jmax*konx, commcol, mpierr, lacc=.true.)
+      call D_MPI_ALLTOALL(buffer, self%iony*jmax*self%konx, commcol, mpierr, lacc=.true.)
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocy-1
-        do k = 1, konx
-          do i = 1, iony
+        do k = 1, self%konx
+          do i = 1, self%iony
             do j = 1, jmax
-              ii = i + (j-1)*iony + (k-1)*iony*jmax + n*iony*jmax*konx
+              ii = i + (j-1)*self%iony + (k-1)*self%iony*jmax + n*self%iony*jmax*self%konx
               py(j+n*jmax,k,i) = buffer(ii)
             end do
           end do
@@ -268,11 +269,12 @@ contains
   !! @param[in] py Input data.
   !! @param[out] px Output data.
   !! @param[out] buffer Buffer for transposing.
-  subroutine transpose_y_to_x(py, px, buffer)
+  subroutine transpose_y_to_x(self, py, px, buffer)
 
-    real(pois_r), intent(in)  :: py(:,:,:)
-    real(pois_r), intent(out) :: px(:,:,:)
-    real(pois_r), intent(out) :: buffer(:)
+    class(t_transposer), intent(in)  :: self
+    real(pois_r),        intent(in)  :: py(:,:,:)
+    real(pois_r),        intent(out) :: px(:,:,:)
+    real(pois_r),        intent(out) :: buffer(:)
 
     character(len=*), parameter :: routine = modname//'transpose_y_to_x'
 
@@ -304,25 +306,25 @@ contains
     else
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocy-1
-        do k = 1, konx
-          do i = 1, iony
+        do k = 1, self%konx
+          do i = 1, self%iony
             do j = 1, jmax
-              ii = i + (j-1)*iony + (k-1)*iony*jmax + n*iony*jmax*konx
+              ii = i + (j-1)*self%iony + (k-1)*self%iony*jmax + n*self%iony*jmax*self%konx
               buffer(ii) = py(j+n*jmax,k,i)
             end do
           end do
         end do
       end do
 
-      call D_MPI_ALLTOALL(buffer, iony*jmax*konx, commcol, mpierr, lacc=.true.)
+      call D_MPI_ALLTOALL(buffer, self%iony*jmax*self%konx, commcol, mpierr, lacc=.true.)
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocy-1
-        do k = 1, konx
+        do k = 1, self%konx
           do j = 1, jmax
-            do i = 1, iony
-              ii = i + (j-1)*iony + (k-1)*iony*jmax + n*iony*jmax*konx
-              if (i+n*iony <= itot) px(i+n*iony,j,k) = buffer(ii)
+            do i = 1, self%iony
+              ii = i + (j-1)*self%iony + (k-1)*self%iony*jmax + n*self%iony*jmax*self%konx
+              if (i+n*self%iony <= itot) px(i+n*self%iony,j,k) = buffer(ii)
             end do
           end do
         end do
@@ -338,11 +340,12 @@ contains
   !! @param[in] py Input data.
   !! @param[out] pz Output data.
   !! @param[out] buffer Buffer for transposing.
-  subroutine transpose_y_to_z(py, pz, buffer)
+  subroutine transpose_y_to_z(self, py, pz, buffer)
 
-    real(pois_r), intent(in)  :: py(:,:,:)
-    real(pois_r), intent(out) :: pz(:,:,:)
-    real(pois_r), intent(out) :: buffer(:)
+    class(t_transposer), intent(in)  :: self
+    real(pois_r),        intent(in)  :: py(:,:,:)
+    real(pois_r),        intent(out) :: pz(:,:,:)
+    real(pois_r),        intent(out) :: buffer(:)
 
     character(len=*), parameter :: routine = modname//'transpose_y_to_z'
 
@@ -363,25 +366,25 @@ contains
     else
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
-        do k = 1, konx
-          do i = 1, iony
-            do j = 1, jonx
-              ii = j + (i-1)*jonx + (k-1)*iony*jonx + n*iony*jonx*konx
-              if (j+n*jonx <= jtot) buffer(ii) = py(j+n*jonx,k,i)
+        do k = 1, self%konx
+          do i = 1, self%iony
+            do j = 1, self%jonx
+              ii = j + (i-1)*self%jonx + (k-1)*self%iony*self%jonx + n*self%iony*self%jonx*self%konx
+              if (j+n*self%jonx <= jtot) buffer(ii) = py(j+n*self%jonx,k,i)
             end do
           end do
         end do
       end do
 
-      call D_MPI_ALLTOALL(buffer, iony*jonx*konx, commrow, mpierr, lacc=.true.)
+      call D_MPI_ALLTOALL(buffer, self%iony*self%jonx*self%konx, commrow, mpierr, lacc=.true.)
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
-        do k = 1, konx
-          do j = 1, jonx
-            do i = 1, iony
-              ii = j + (i-1)*jonx + (k-1)*iony*jonx + n*iony*jonx*konx
-              if (k+n*konx <= kmax) pz(i,j,k+n*konx) = buffer(ii)
+        do k = 1, self%konx
+          do j = 1, self%jonx
+            do i = 1, self%iony
+              ii = j + (i-1)*self%jonx + (k-1)*self%iony*self%jonx + n*self%iony*self%jonx*self%konx
+              if (k+n*self%konx <= kmax) pz(i,j,k+n*self%konx) = buffer(ii)
             end do
           end do
         end do
@@ -397,13 +400,14 @@ contains
   !! @param[in] py Input data.
   !! @param[out] px Output data.
   !! @param[out] buffer Buffer for transposing.
-  subroutine transpose_z_to_y(pz, py, buffer)
+  subroutine transpose_z_to_y(self, pz, py, buffer)
 
-    real(pois_r), intent(in)  :: pz(:,:,:)
-    real(pois_r), intent(out) :: py(:,:,:)
-    real(pois_r), intent(out) :: buffer(:)
+    class(t_transposer), intent(in)  :: self
+    real(pois_r),        intent(in)  :: pz(:,:,:)
+    real(pois_r),        intent(out) :: py(:,:,:)
+    real(pois_r),        intent(out) :: buffer(:)
 
-    character(len=*), parameter :: routine = module//'transpose_z_to_y'
+    character(len=*), parameter :: routine = modname//'transpose_z_to_y'
 
     integer :: i, j, k, n, ii
     integer :: mpierr
@@ -422,25 +426,25 @@ contains
     else
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
-        do k = 1, konx
-          do j = 1, jonx
-            do i = 1, iony
-              ii = j + (i-1)*jonx + (k-1)*iony*jonx + n*iony*jonx*konx
-              if (k+n*konx <= kmax) buffer(ii) = pz(i,j,k+n*konx)
+        do k = 1, self%konx
+          do j = 1, self%jonx
+            do i = 1, self%iony
+              ii = j + (i-1)*self%jonx + (k-1)*self%iony*self%jonx + n*self%iony*self%jonx*self%konx
+              if (k+n*self%konx <= kmax) buffer(ii) = pz(i,j,k+n*self%konx)
             end do
           end do
         end do
       end do
 
-      call D_MPI_ALLTOALL(buffer, iony*jonx*konx, commrow, mpierr, lacc=.true.)
+      call D_MPI_ALLTOALL(buffer, self%iony*self%jonx*self%konx, commrow, mpierr, lacc=.true.)
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
-        do k = 1, konx
-          do i = 1, iony
-            do j = 1, jonx
-              ii = j + (i-1)*jonx + (k-1)*iony*jonx + n*iony*jonx*konx
-              if (j+n*jonx <= jtot) py(j+n*jonx,k,i) = buffer(ii)
+        do k = 1, self%konx
+          do i = 1, self%iony
+            do j = 1, self%jonx
+              ii = j + (i-1)*self%jonx + (k-1)*self%iony*self%jonx + n*self%iony*self%jonx*self%konx
+              if (j+n*self%jonx <= jtot) py(j+n*self%jonx,k,i) = buffer(ii)
             end do
           end do
         end do
