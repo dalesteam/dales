@@ -17,6 +17,7 @@ module modtimer
   implicit none
   private
   public :: timer_tic,timer_toc,timer_print,timer_cleanup, timer_write, inittimer
+  public :: ltimer
   !
   logical, parameter :: GPU_DEFAULT_SYNC = .true.
   integer, parameter :: max_name_len = 50
@@ -27,7 +28,7 @@ module modtimer
                                            timer_elapsed_max(:)
   logical , allocatable :: timer_is_nvtx(:)
   integer :: ntimers = 0
-  logical :: ltimer = .false. ! Switch for enabling/disabling timings
+  logical, protected :: ltimer = .false. ! Switch for enabling/disabling timings
   logical :: ltimer_print = .true. ! Switch for printing timing results to std out
   logical :: ltimer_write = .false. ! Switch for writing timing results to a csv file
 contains
