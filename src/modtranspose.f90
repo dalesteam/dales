@@ -5,10 +5,13 @@ module modtranspose
   use modmpi,       only: D_MPI_ALLTOALL, commrow, commcol, nprocs, nprocx, &
                           nprocy
   use modprecision, only: pois_r, longint
+  use modtimer,     only: ltimer, timer_tic, timer_toc
 
   implicit none
 
   private
+
+  character(len=*), parameter :: modname = 'modtranspose'
 
   public :: transpose_get_buffer_size
   public :: init_transpose
@@ -83,8 +86,12 @@ contains
     real(pois_r), intent(out) :: px(:,:,:)
     real(pois_r), intent(out) :: buffer(:)
 
+    character(len=*), parameter :: routine = modname//'/transpose_z_to_x'
+
     integer :: i, j, k, n, ii
     integer :: mpierr
+
+    if (ltimer) call timer_tic(routine, 2)
 
     if (nprocs == 1) then
       !$acc parallel loop collapse(3) default(present)
@@ -123,6 +130,8 @@ contains
       end do
     end if
 
+    if(ltimer) call timer_toc(routine)
+
   end subroutine transpose_z_to_x
 
   !> Tranpose x-contiguous pencils to z-contiguous pencils.
@@ -136,8 +145,12 @@ contains
     real(pois_r), intent(out) :: pz(:,:,:)
     real(pois_r), intent(out) :: buffer(:)
 
+    character(len=*), parameter :: routine = modname//'transpose_x_to_z'
+
     integer :: i, j, k, n, ii
     integer :: mpierr
+
+    if (ltimer) call timer_tic(routine, 2)
 
     if (nprocs == 1) then
       !$acc parallel loop collapse(3) default(present)
@@ -176,6 +189,8 @@ contains
       end do
     end if
 
+    if (ltimer) call timer_toc(routine)
+
   end subroutine transpose_x_to_z
 
   !> Tranpose x-contiguous pencils to y-contiguous pencils.
@@ -189,8 +204,12 @@ contains
     real(pois_r), intent(out) :: py(:,:,:)
     real(pois_r), intent(out) :: buffer(:)
 
+    character(len=*), parameter :: routine = modname//'/transpose_x_to_y'
+
     integer :: i, j, k, n, ii
     integer :: mpierr
+
+    if (ltimer) call timer_tic(routine, 2)
 
     if (nprocs == 1) then
       !$acc parallel loop collapse(3) default(present) private(ii)
@@ -227,7 +246,6 @@ contains
 
       call D_MPI_ALLTOALL(buffer, iony*jmax*konx, commcol, mpierr, lacc=.true.)
 
-
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocy-1
         do k = 1, konx
@@ -239,8 +257,9 @@ contains
           end do
         end do
       end do
-
     end if
+
+    if (ltimer) call timer_toc(routine)
 
   end subroutine transpose_x_to_y
 
@@ -255,8 +274,12 @@ contains
     real(pois_r), intent(out) :: px(:,:,:)
     real(pois_r), intent(out) :: buffer(:)
 
+    character(len=*), parameter :: routine = modname//'transpose_y_to_x'
+
     integer :: i, j, k, n, ii
     integer :: mpierr
+
+    if (ltimer) call timer_tic(routine, 2)
 
     if (nprocs == 1) then
       !$acc parallel loop collapse(3) default(present) private(ii)
@@ -306,6 +329,8 @@ contains
       end do
     end if
 
+    if (ltimer) call timer_toc(routine)
+
   end subroutine transpose_y_to_x
 
   !> Tranpose y-contiguous pencils to z-contiguous pencils.
@@ -319,8 +344,12 @@ contains
     real(pois_r), intent(out) :: pz(:,:,:)
     real(pois_r), intent(out) :: buffer(:)
 
+    character(len=*), parameter :: routine = modname//'transpose_y_to_z'
+
     integer :: i, j, k, n, ii
     integer :: mpierr
+
+    if (ltimer) call timer_tic(routine, 2)
 
     if (nprocs == 1) then
       !$acc parallel loop collapse(3) default(present)
@@ -359,6 +388,8 @@ contains
       end do
     end if
 
+    if (ltimer) call timer_toc(routine)
+
   end subroutine transpose_y_to_z
 
   !> Tranpose y-contiguous pencils to x-contiguous pencils.
@@ -372,8 +403,12 @@ contains
     real(pois_r), intent(out) :: py(:,:,:)
     real(pois_r), intent(out) :: buffer(:)
 
+    character(len=*), parameter :: routine = module//'transpose_z_to_y'
+
     integer :: i, j, k, n, ii
     integer :: mpierr
+
+    if (ltimer) call timer_tic(routine, 2)
 
     if (nprocs == 1) then
       !$acc parallel loop collapse(3) default(present)
@@ -411,6 +446,8 @@ contains
         end do
       end do
     end if
+
+    if (ltimer) call timer_toc(routine)
 
   end subroutine transpose_z_to_y
 
