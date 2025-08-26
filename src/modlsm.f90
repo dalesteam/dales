@@ -72,12 +72,11 @@ subroutine lsm
     call calc_hydraulic_properties
     ! Calculate tendency due to root water extraction
     call calc_root_water_extraction
-    ! Solve diffusion equation:
-    call integrate_theta_soil
 
     ! Update liquid water reservoir
     call calc_liquid_reservoir
-
+    ! Solve diffusion equation:
+    call integrate_theta_soil
 end subroutine lsm
 
 !
@@ -740,7 +739,7 @@ subroutine calc_obuk_ustar_ra(tile)
 
     do j=2,j1
         do i=2,i1
-            if (tile%frac(i,j) > 0) then
+            !if (tile%frac(i,j) > 0) then
                 ! Buoyancy difference surface - atmosphere
                 thvs = tile%thlskin(i,j) * (1.+(rv/rd-1.)*tile%qtskin(i,j))
                 tile%db(i,j) = grav/thvs * (thv_1(i,j) - thvs)
@@ -752,17 +751,17 @@ subroutine calc_obuk_ustar_ra(tile)
                 ! Iteratively find Obukhov length
                 tile%obuk(i,j) = calc_obuk_dirichlet( &
                     tile%obuk(i,j), du_tot(i,j), tile%db(i,j), real(zf(1), 8), tile%z0m(i,j), tile%z0h(i,j))
-            end if
+            !end if
         end do
     end do
 
     do j=2,j1
         do i=2,i1
-            if (tile%frac(i,j) > 0) then
+            !if (tile%frac(i,j) > 0) then
                 ! Calculate friction velocity and aerodynamic resistance
                 tile%ustar(i,j) = du_tot(i,j) * fm(real(zf(1), 8), tile%z0m(i,j), tile%obuk(i,j))
                 tile%ra(i,j)    = 1./(tile%ustar(i,j) * fh(real(zf(1), 8), tile%z0h(i,j), tile%obuk(i,j)))
-            end if
+            !end if
         end do
     end do
 
@@ -790,7 +789,9 @@ subroutine calc_tile_bcs(tile)
 
     do j=2, j1
         do i=2, i1
-            if (tile%frac(i,j) > 0) then
+           ! if (tile%frac(i,j) > 0) then
+           ! perhaps not necessary to calculate if frac is 0,
+           ! this way all tiles are up to date
 
                 ! Disable canopy resistance in case of dew fall
                 Ts    = tile%thlskin(i,j) * exnh(1)
@@ -844,7 +845,7 @@ subroutine calc_tile_bcs(tile)
                 ! Calculate surface values
                 tile%thlskin(i,j) = thl0(i,j,1) + tile%wthl(i,j) * tile%ra(i,j)
                 tile%qtskin (i,j) = qt0 (i,j,1) + tile%wqt (i,j) * tile%ra(i,j)
-            end if
+!            end if
         end do
     end do
 
@@ -866,7 +867,7 @@ subroutine calc_water_bcs(tile)
 
     do j=2, j1
       do i=2, i1
-        if (tile%frac(i,j) > 0) then
+        !if (tile%frac(i,j) > 0) then
             !! Calculate BCs. `tile_aq%tskin` is fixed in time (for now...)
             !tile_aq%thlskin(i,j) = tile_aq%tskin(i,j) / exnh(1)
             !esats = 0.611e3 * exp(17.2694 * (tile_aq%tskin(i,j) - 273.16) / (tile_aq%tskin(i,j) - 35.86))
@@ -894,7 +895,7 @@ subroutine calc_water_bcs(tile)
             tile%H (i,j) = tile%wthl(i,j) * rhof(1) * cp
             tile%LE(i,j) = tile%wqt (i,j) * rhof(1) * rlv
             tile%G (i,j) = 0.
-        end if
+        !end if
       end do
     end do
 
@@ -971,17 +972,6 @@ subroutine calc_bulk_bcs
             dudz(i,j) = ustar(i,j) / (fkar * zf(1)) * phim(zf(1)/obl(i,j)) * (ucu/du_tot(i,j))
             dvdz(i,j) = ustar(i,j) / (fkar * zf(1)) * phim(zf(1)/obl(i,j)) * (vcv/du_tot(i,j))
 
-            ! Cyclic BCs where needed.
-            ustar_3D(1:i2,1:j2,1:1) => ustar
-
-            if(lopenbc) then ! Only use periodicity for non-domain boundaries when openboundaries are used
-              call openboundary_excjs(ustar_3D, 2,i1,2,j1,1,1,1,1, &
-                   & (.not.lboundary(1:4)).or.lperiodic(1:4))
-           else
-              !call excjs(ustar,2,i1,2,j1,1,1,1,1)
-              call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
-           endif
-
             ! Just for diagnostics (modlsmcrosssection)
             do ilu=1,nlu
               !if (trim(tile(ilu)%lushort) == 'ws') then
@@ -1019,6 +1009,16 @@ subroutine calc_bulk_bcs
             end do
         end do
     end do
+
+    ! Cyclic BCs where needed.
+    ustar_3D(1:i2,1:j2,1:1) => ustar
+    if(lopenbc) then ! Only use periodicity for non-domain boundaries when openboundaries are used
+       call openboundary_excjs(ustar_3D, 2,i1,2,j1,1,1,1,1, &
+            & (.not.lboundary(1:4)).or.lperiodic(1:4))
+    else
+       !call excjs(ustar,2,i1,2,j1,1,1,1,1)
+       call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
+    endif
 
 end subroutine calc_bulk_bcs
 
@@ -1265,6 +1265,7 @@ subroutine integrate_theta_soil
     use modglobal, only : rk3step, rdt, i1, j1, rhow, rlv
     use modsurfdata, only : phiw, phiwm, lambdash, gammash
     use modmpi, only : myidx, myidy
+    use modchecksim, only : check_array
     implicit none
     integer :: i, j, k
     real :: tend, rk3coef, flux_top, fac
@@ -1315,13 +1316,7 @@ subroutine integrate_theta_soil
     end do
 
     ! Range check of phiw
-    if (maxval(phiw) > 1 .or. minval(phiw) < 0) then
-       write(*,*) 'phiw out or range 0...1'
-       write(*,*) 'myid{x,y} =', myidx, myidy
-       write(*,*) 'max', maxval(phiw), 'at', maxloc(phiw)
-       write(*,*) 'min', minval(phiw), 'at', minloc(phiw)
-       !stop
-    end if
+    call check_array(phiw, "phiw", "integrate_theta_soil", [0.0, 1.0])
 
 end subroutine integrate_theta_soil
 
@@ -1594,6 +1589,9 @@ subroutine allocate_fields
 
     ilu_ws = nlu
 
+    ! initialize, especially the un-used halo
+    phiw = 0
+    phiwm = 0
 end subroutine allocate_fields
 
 !
@@ -1966,7 +1964,7 @@ subroutine init_heterogeneous_nc
     use modmpi,      only : myid, myidx, myidy
     use modglobal,   only : imax, jmax, itot, jtot, ldrydep
 
-    use modsurfdata, only : tsoil, phiw, wl, wlm, wmax
+    use modsurfdata, only : tsoil, tskin, phiw, wl, wlm, wmax
     implicit none
 
     !integer       :: ilu_lv, ilu_hv, ilu_aq, ilu_ap, ilu_ws, ilu_bs
@@ -2070,7 +2068,7 @@ subroutine init_heterogeneous_nc
     tile(nlu)%H = 0
     tile(nlu)%LE = 0
     tile(nlu)%G = 0
-
+    tile(nlu)%ustar = 0
 
     ! 2D surface fields
     do ilu=1,nlu-1
@@ -2089,6 +2087,7 @@ subroutine init_heterogeneous_nc
       tile(ilu)%H = 0
       tile(ilu)%LE = 0
       tile(ilu)%G = 0
+      tile(ilu)%ustar = 0
 
       write(*,*) 'reading variables for LU type: ', trim(tile(ilu)%lushort)
       ! LU cover
@@ -2258,8 +2257,8 @@ subroutine init_heterogeneous_nc
     tile(ilu_ws)%base_frac(:,:) = 0.
 
     ! Set properties wet skin tile
-    tile(ilu_ws)%z0m(:,:) = 0
-    tile(ilu_ws)%z0h(:,:) = 0
+    tile(ilu_ws)%z0m(:,:) = 1e-4
+    tile(ilu_ws)%z0h(:,:) = 1e-4
     tile(ilu_ws)%lambda_stable(:,:) = 0
     tile(ilu_ws)%lambda_unstable(:,:) = 0
 
@@ -2307,6 +2306,12 @@ subroutine init_heterogeneous_nc
     enddo
     wl_max(:,:) = wl_max(:,:) * wmax/land_frac(:,:)
     where (wl_max == 0) wl_max = eps1
+
+    ! initialize tskin
+    tskin(:,:) = 0
+    do ilu=1,nlu
+       tskin(:,:) = tskin(:,:) + tile(ilu)%base_frac(:,:) * tile(ilu)%tskin(:,:)
+    end do
 
     ! initialize frac to base_frac (for now the dynamic wet skin is not done unless ldrydep is true)
     do ilu=1,nlu

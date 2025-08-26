@@ -73,13 +73,14 @@ contains
                                   lwarmstart,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,&
                                   lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,cu,cv,&
-                                  ifnamopt,fname_options,llsadv,lconstexner,&
+                                  ifnamopt,fname_options,llsadv,lconstexner,lbaseexner, &
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,&
                                   lnoclouds,lfast_thermo,lrigidlid,unudge,ntimedep,&
                                   solver_id, maxiter, maxiter_precond, tolerance, n_pre, n_post, precond_id, checknamelisterror, &
                                   loutdirs, output_prefix, &
-                                  lopenbc,linithetero,lperiodic,dxint,dyint,dzint,dxturb,dyturb,taum,tauh,pbc,lsynturb,nmodes,tau,lambda,lambdas,lambdas_x,lambdas_y,lambdas_z,iturb, &
-                                  hypre_logging,rdt,rk3step,i1,j1,k1,ih,jh,lboundary,lconstexner, iinput,dzf
+                                  lopenbc,linithetero,lperiodic,dxint,dyint,dzint,dxturb,dyturb,taum,tauh,pbc,&
+                                  lsynturb,nmodes,tau,lambda,lambdas,lambdas_x,lambdas_y,lambdas_z,iturb, &
+                                  hypre_logging,rdt,rk3step,i1,j1,k1,ih,jh,lboundary,iinput,dzf
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -139,7 +140,7 @@ contains
         z0,ustin,wtsurf,wqsurf,ps,thls,lmoist,isurf,chi_half,&
         lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,ltimedep,ltimedepuv,ltimedepsv,ntimedep,&
         irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
-        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge,lfast_thermo,lconstexner
+        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge,lfast_thermo,lconstexner,lbaseexner
     namelist/DYNAMICS/ &
         llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
     namelist/SOLVER/ &
@@ -271,7 +272,7 @@ contains
     call D_MPI_BCAST(unudge      ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lfast_thermo,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lconstexner ,1,0,commwrld,mpierr)
-
+    call D_MPI_BCAST(lbaseexner  ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(irad       ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(timerad    ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(iradiation ,1,0,commwrld,mpierr)
@@ -547,7 +548,7 @@ contains
                                   rtimee,timee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
-                                  trestart, ladaptive,llsadv,tnextrestart,longint,lconstexner,lopenbc, linithetero, &
+                                  trestart, ladaptive,llsadv,tnextrestart,longint,lconstexner,lbaseexner,lopenbc,linithetero, &
                                   iinput, input_netcdf, input_ascii, lcoriol
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
@@ -582,7 +583,6 @@ contains
 
     real(field_r), allocatable :: height(:), th0av(:)
     real(field_r), allocatable :: thv0(:,:,:)
-    integer, allocatable :: scalar_indices(:)
 
     character(len=512) :: chmess
     integer, parameter :: maxcol = 50
@@ -594,7 +594,6 @@ contains
     allocate (height(k1))
     allocate (th0av(k1))
     allocate (thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate (scalar_indices(nsv))
 
     if (.not. lwarmstart) then
 
@@ -746,7 +745,6 @@ contains
 
       call D_MPI_BCAST(wsvsurf,        nsv,    0, comm3d, mpierr)
       call D_MPI_BCAST(svprof,         k1*nsv, 0, comm3d, mpierr)
-      call D_MPI_BCAST(scalar_indices, nsv,    0, comm3d, mpierr)
 
       ! Initialize fields
       if(lopenbc .and. linithetero) then! Openboundaries with heterogeneous initialisation
@@ -966,12 +964,14 @@ contains
       host_is_updated = .false.
 #endif
 
-      if (lconstexner) then
-        exnf(:) = (initial_presf(:)/pref0)**(rd/cp)
-        exnh(:) = (initial_presh(:)/pref0)**(rd/cp)
-      else
-        exnf(:) = (presf(:)/pref0)**(rd/cp)
-        exnh(:) = (presh(:)/pref0)**(rd/cp)
+      if (.not. lbaseexner) then
+         if (lconstexner) then
+            exnf(:) = (initial_presf(:)/pref0)**(rd/cp)
+            exnh(:) = (initial_presh(:)/pref0)**(rd/cp)
+         else
+            exnf(:) = (presf(:)/pref0)**(rd/cp)
+            exnh(:) = (presh(:)/pref0)**(rd/cp)
+         endif
       endif
 
       do k = 2, k1
@@ -1664,7 +1664,7 @@ contains
     ! Calculates the profiles corresponding to the base state
     ! In the current implementation, neither the base pressure, nor the base virtual temperature plays a role in the dynamics
     ! They are nevertheless calculated and printed to the stdin/baseprof files for user convenience
-    use modfields,         only : rhobf,rhobh,drhobdzf,drhobdzh
+    use modfields,         only : rhobf,rhobh,drhobdzf,drhobdzh,exnf,exnh
     use modglobal,         only : k1,kmax,zf,zh,dzf,dzh,rv,rd,grav,cp,pref0,lwarmstart,ibas_prf,cexpnr,ifinput,ifoutput
     use modsurfdata,       only : thls,ps,qts
     use modmpi,            only : myid,comm3d,mpierr,D_MPI_BCAST
@@ -1672,16 +1672,16 @@ contains
 
     real :: thvb,prsb ! for calculating moist adiabat
     integer :: j,k
-    real, allocatable :: height(:),pb(:),tb(:)
+    real(field_r), allocatable :: height(:),pb(:),tb(:),pbh(:)
     character(80) chmess
     real :: zsurf=0.
     real :: tsurf
-    real,dimension(4) :: zmat=(/11000.,20000.,32000.,47000./)
-    real,dimension(4) :: lapserate=(/-6.5/1000.,0.,1./1000,2.8/1000/)
-    real,dimension(4) :: pmat
-    real,dimension(4) :: tmat
+    real(field_r),dimension(4) :: zmat=(/11000.,20000.,32000.,47000./)
+    real(field_r),dimension(4) :: lapserate=(/-6.5/1000.,0.,1./1000,2.8/1000/)
+    real(field_r),dimension(4) :: pmat
+    real(field_r),dimension(4) :: tmat
 
-    allocate (height(k1),pb(k1),tb(k1))
+    allocate (height(k1),pb(k1),tb(k1),pbh(k1))
 
     if(myid==0)then
 
@@ -1840,9 +1840,11 @@ contains
 
       do k = 2, k1
         rhobh(k) = (rhobf(k)*dzf(k-1)+rhobf(k-1)*dzf(k))/(dzf(k)+dzf(k-1))
+        pbh(k)   = (   pb(k)*dzf(k-1)+   pb(k-1)*dzf(k))/(dzf(k)+dzf(k-1)) ! interpolate base half-level pressure like half-level base rho 
       end do
 
       rhobh(1) = rhobf(1)-(rhobf(2)-rhobf(1))*(zf(1)-zh(1))/(zf(2)-zf(1))
+      pbh(1)   = ps
 
       ! calculate derivatives
       do k = 1, kmax
@@ -1873,6 +1875,11 @@ contains
                 drhobdzh (k)
       end do
 
+    ! exner function from base profiles
+    ! these are overwritten in modthermodynamics unless lbaseexner is true
+    exnf = (pb/pref0)**(rd/cp)
+    exnh = (pbh/pref0)**(rd/cp)
+
     end if ! ENDIF MYID=0
 
     ! MPI broadcast variables
@@ -1880,8 +1887,10 @@ contains
     call D_MPI_BCAST(rhobh       ,k1,0,comm3d,mpierr)
     call D_MPI_BCAST(drhobdzf    ,k1,0,comm3d,mpierr)
     call D_MPI_BCAST(drhobdzh    ,k1,0,comm3d,mpierr)
+    call D_MPI_BCAST(exnf        ,k1,0,comm3d,mpierr)
+    call D_MPI_BCAST(exnh        ,k1,0,comm3d,mpierr)
 
-    deallocate(height,pb,tb)
+    deallocate(height,pb,tb,pbh)
 
   end subroutine baseprofs
 
@@ -1985,7 +1994,7 @@ contains
     call check_array(w0, 'w0', 'startup', &
                      threshold=[real(-30, rkind), real(30, rkind)])
     call check_array(thl0, 'thl0', 'startup', &
-                     threshold=[real(150, rkind), real(350, rkind)])
+                     threshold=[real(150, rkind), real(2000, rkind)])
     if (lmoist) call check_array(qt0, 'qt0', 'startup', &
                                  threshold=[real(0, rkind), real(1, rkind)])
     

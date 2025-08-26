@@ -288,7 +288,7 @@ contains
 
     character(len=*), intent(in) :: step
 
-    call check_array(qtp, "qtp", step, [-0.01_field_r, -0.01_field_r])
+    call check_array(qtp, "qtp", step, [-0.01_field_r, 0.01_field_r])
     call check_array(thlp, "thlp", step, [-20.0_field_r, 20.0_field_r])
   
   end subroutine checktend

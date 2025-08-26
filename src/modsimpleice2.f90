@@ -108,6 +108,9 @@ module modsimpleice2
     !$acc&                  lambdag, precep, &
     !$acc&                  ccrz, ccsz, ccgz, ccrz2, ccsz2, ccgz2)
 
+    !$acc kernels default(present)
+    precep=0
+    !$acc end kernels
   end subroutine initsimpleice2
 
 !> Cleaning up after the run

@@ -358,7 +358,7 @@ contains
 !!     qt,ql,exner,pressure and the density
 !! \author      Pier Siebesma   K.N.M.I.     06/01/1995
   subroutine diagfld
-  use modglobal,  only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0,timee,lconstexner
+  use modglobal,  only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0,timee,lconstexner,lbaseexner
   use modfields,  only : u0,v0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
                         presf,presh,exnf,exnh,rhof,thvf
   use modsurfdata,only : thls,ps
@@ -421,7 +421,7 @@ contains
     sv0av  = sv0av /ijtot
     !$acc end kernels
   end if
-  if (timee < 0.01 .or. .not. lconstexner) then
+  if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
     !$acc kernels default(present)
     exnf   = 1-grav*zf/(cp*thls)
     exnh   = 1-grav*zh/(cp*thls)
@@ -442,7 +442,7 @@ contains
 
    !$acc kernels default(present)
    th0av = thl0av + (rlv/cp)*ql0av/exnf
-   if (timee < 0.01 .or. .not. lconstexner) then
+   if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
       exnf = (presf/pref0)**(rd/cp)
    endif
    !$acc end kernels
@@ -457,7 +457,7 @@ contains
 !***********************************************************
 
 !  3.1 determine exner
-   if (timee < 0.01 .or. .not. lconstexner) then
+   if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
      !$acc serial default(present) async(1)
      exnh(1) = (ps/pref0)**(rd/cp)
      exnf(1) = (presf(1)/pref0)**(rd/cp)

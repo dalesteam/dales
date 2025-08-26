@@ -98,6 +98,7 @@ module modbulkmicro
     allocate(thlpmcr  (2:i1,2:j1,k1)  & !
             ,qtpmcr(2-ih:i1+ih,2-jh:j1+jh,k1))  ! ghost cells added here for modvarbudget
 
+    precep = 0
     gamma25=gamma(2.5)
     gamma3=2.
     gamma35=gamma(3.5)
