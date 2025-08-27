@@ -145,7 +145,7 @@ contains
     real(pois_r),        intent(out) :: pz(:,:,:)
     real(pois_r),        intent(out) :: buffer(:)
 
-    character(len=*), parameter :: routine = modname//'transpose_x_to_z'
+    character(len=*), parameter :: routine = modname//'/transpose_x_to_z'
 
     integer :: i, j, k, n, ii
     integer :: mpierr
@@ -276,7 +276,7 @@ contains
     real(pois_r),        intent(out) :: px(:,:,:)
     real(pois_r),        intent(out) :: buffer(:)
 
-    character(len=*), parameter :: routine = modname//'transpose_y_to_x'
+    character(len=*), parameter :: routine = modname//'/transpose_y_to_x'
 
     integer :: i, j, k, n, ii
     integer :: mpierr
@@ -347,7 +347,7 @@ contains
     real(pois_r),        intent(out) :: pz(:,:,:)
     real(pois_r),        intent(out) :: buffer(:)
 
-    character(len=*), parameter :: routine = modname//'transpose_y_to_z'
+    character(len=*), parameter :: routine = modname//'/transpose_y_to_z'
 
     integer :: i, j, k, n, ii
     integer :: mpierr
@@ -407,7 +407,7 @@ contains
     real(pois_r),        intent(out) :: py(:,:,:)
     real(pois_r),        intent(out) :: buffer(:)
 
-    character(len=*), parameter :: routine = modname//'transpose_z_to_y'
+    character(len=*), parameter :: routine = modname//'/transpose_z_to_y'
 
     integer :: i, j, k, n, ii
     integer :: mpierr
