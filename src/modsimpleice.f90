@@ -489,7 +489,7 @@ contains
       do k=1,kmax
       do j=2,j1
       do i=2,i1
-        qrp(i,j,k) = qrp(i,j,k)+qtpevapdeps(k)
+        qrp(i,j,k) = qrp(i,j,k)+qtpevapdep(i,j,k)
         qtpmcr(i,j,k) = qtpmcr(i,j,k)-qtpevapdeps(k)
         thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*qtpevapdeps(k)
       end do
