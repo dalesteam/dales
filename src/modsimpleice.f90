@@ -473,8 +473,8 @@ contains
         evapdeps=(4*pi/(betas*rhof(k)))*(ssi-1)*vents*thfun
         evapdepg=(4*pi/(betag*rhof(k)))*(ssi-1)*ventg*thfun
         ! total growth by deposition and evaporation
-        ! limit with qr and ql after accretion and autoconversion
-        devap= max(min(evapfactor*(evapdepr+evapdeps+evapdepg),ql0(i,j,k)/delt+qrp(i,j,k)),-qr(i,j,k)/delt-qrp(i,j,k))
+        ! limit with qr after accretion and autoconversion
+        devap= max(evapfactor*(evapdepr+evapdeps+evapdepg),-qr(i,j,k)/delt-qrp(i,j,k))
         qtpevapdep(i,j,k) = devap
       end if
     enddo
