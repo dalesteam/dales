@@ -56,6 +56,8 @@ contains
     self%konx = kmax / nprocx
     if (mod(kmax, nprocx) > 0) self%konx = self%konx + 1
 
+    !$acc enter data copyin(self)
+
   end function build_transposer
 
   !> Compute the minimum size of the workspace for transposing.
