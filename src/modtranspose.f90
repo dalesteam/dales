@@ -2,8 +2,9 @@
 module modtranspose
 
   use modglobal,    only: itot, jtot, imax, jmax, kmax, i1, j1
-  use modmpi,       only: D_MPI_ALLTOALL, commrow, commcol, nprocs, nprocx, &
-                          nprocy
+  use modmpi,       only: MPI_ALLTOALL, commrow, commcol, nprocs, nprocx, &
+                          nprocy, MPI_REAL4, MPI_REAL8, MPI_DATATYPE, &
+                          MPI_IN_PLACE
   use modprecision, only: pois_r, longint
   use modtimer,     only: ltimer, timer_tic, timer_toc
 
@@ -32,6 +33,12 @@ module modtranspose
     procedure :: y_to_z => transpose_y_to_z
     procedure :: z_to_y => transpose_z_to_y
   end type t_transposer
+
+#if POIS_PRECISION == 64
+  type(MPI_DATATYPE), parameter :: MPI_DTYPE = MPI_REAL8
+#else
+  type(MPI_DATATYPE), parameter :: MPI_DTYPE = MPI_REAL4
+#endif
 
 contains
 
@@ -114,7 +121,10 @@ contains
         end do
       end do
 
-      call D_MPI_ALLTOALL(buffer, imax*jmax*self%konx, commrow, mpierr, lacc=.true.)
+      !$acc host_data use_device(buffer)
+      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_DTYPE, &
+                        buffer, imax*jmax*self%konx, MPI_DTYPE, commrow, mpierr)
+      !$acc end host_data
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
@@ -174,7 +184,10 @@ contains
         end do
       end do
 
-      call D_MPI_ALLTOALL(buffer, imax*jmax*self%konx, commrow, mpierr, lacc=.true.)
+      !$acc host_data use_device(buffer)
+      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_DTYPE, &
+                        buffer, imax*jmax*self%konx, MPI_DTYPE, commrow, mpierr)
+      !$acc end host_data
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
@@ -245,7 +258,11 @@ contains
         end do
       end do
 
-      call D_MPI_ALLTOALL(buffer, self%iony*jmax*self%konx, commcol, mpierr, lacc=.true.)
+      !$acc host_data use_device(buffer)
+      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_DTYPE, &
+                        buffer, self%iony*jmax*self%konx, MPI_DTYPE, &
+                        commcol, mpierr)
+      !$acc end host_data
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocy-1
@@ -316,7 +333,11 @@ contains
         end do
       end do
 
-      call D_MPI_ALLTOALL(buffer, self%iony*jmax*self%konx, commcol, mpierr, lacc=.true.)
+      !$acc host_data use_device(buffer)
+      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_DTYPE, &
+                        buffer, self%iony*jmax*self%konx, MPI_DTYPE, &
+                        commcol, mpierr)
+      !$acc end host_data
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocy-1
@@ -376,7 +397,11 @@ contains
         end do
       end do
 
-      call D_MPI_ALLTOALL(buffer, self%iony*self%jonx*self%konx, commrow, mpierr, lacc=.true.)
+      !$acc host_data use_device(buffer)
+      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_DTYPE, &
+                        buffer, self%iony*self%jonx*self%konx, MPI_DTYPE, &
+                        commrow, mpierr)
+      !$acc end host_data
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
@@ -436,7 +461,11 @@ contains
         end do
       end do
 
-      call D_MPI_ALLTOALL(buffer, self%iony*self%jonx*self%konx, commrow, mpierr, lacc=.true.)
+      !$acc host_data use_device(buffer)
+      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_DTYPE, &
+                        buffer, self%iony*self%jonx*self%konx, MPI_DTYPE, &
+                        commrow, mpierr)
+      !$acc end host_data
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
