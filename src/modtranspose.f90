@@ -43,35 +43,35 @@ module modtranspose
 contains
 
   !> Initialize transpose object.
-  pure function build_transposer() result(self)
+  pure function build_transposer() result(this)
 
-    type(t_transposer) :: self
+    type(t_transposer) :: this
 
-    self%iony = itot / nprocy
-    if (mod(itot, nprocy) > 0) self%iony = self%iony + 1
+    this%iony = itot / nprocy
+    if (mod(itot, nprocy) > 0) this%iony = this%iony + 1
 
-    self%jonx = jtot / nprocx
-    if (mod(jtot, nprocx) > 0) self%jonx = self%jonx + 1
+    this%jonx = jtot / nprocx
+    if (mod(jtot, nprocx) > 0) this%jonx = this%jonx + 1
 
-    self%konx = kmax / nprocx
-    if (mod(kmax, nprocx) > 0) self%konx = self%konx + 1
+    this%konx = kmax / nprocx
+    if (mod(kmax, nprocx) > 0) this%konx = this%konx + 1
 
   end function build_transposer
 
   !> Compute the minimum size of the workspace for transposing.
   !!
   !! @return minimum buffer size for transposing.
-  pure function transpose_get_buffer_size(self) result(size)
+  pure function transpose_get_buffer_size(this) result(size)
     
-    class(t_transposer), intent(in) :: self
+    class(t_transposer), intent(in) :: this
 
     integer(longint) :: size_x, size_y, size_z, size
 
     ! x-contiguous pencils
-    size_x = itot * jmax * self%konx
+    size_x = itot * jmax * this%konx
 
     ! y-contiguous pencils
-    size_y = self%iony * jtot * self%konx
+    size_y = this%iony * jtot * this%konx
 
     ! z-contiguous pencils
     size_z = imax * jmax * kmax
@@ -85,9 +85,9 @@ contains
   !! @param[in] pz Input data.
   !! @param[out] px Output data.
   !! @param[out] buffer Buffer for transposing.
-  subroutine transpose_z_to_x(self, pz, px, buffer)
+  subroutine transpose_z_to_x(this, pz, px, buffer)
 
-    class(t_transposer), intent(in)  :: self
+    class(t_transposer), intent(in)  :: this
     real(pois_r),        intent(in)  :: pz(:,:,:)
     real(pois_r),        intent(out) :: px(:,:,:)
     real(pois_r),        intent(out) :: buffer(:)
@@ -113,7 +113,7 @@ contains
 
       n1 = imax
       n2 = jmax
-      n3 = self%konx
+      n3 = this%konx
       
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
@@ -154,9 +154,9 @@ contains
   !! @param[in] px Input data.
   !! @param[out] pz Output data.
   !! @param[out] buffer Buffer for transposing.
-  subroutine transpose_x_to_z(self, px, pz, buffer)
+  subroutine transpose_x_to_z(this, px, pz, buffer)
 
-    class(t_transposer), intent(in)  :: self
+    class(t_transposer), intent(in)  :: this
     real(pois_r),        intent(in)  :: px(:,:,:)
     real(pois_r),        intent(out) :: pz(:,:,:)
     real(pois_r),        intent(out) :: buffer(:)
@@ -182,7 +182,7 @@ contains
       
       n1 = imax
       n2 = jmax
-      n3 = self%konx
+      n3 = this%konx
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
@@ -223,9 +223,9 @@ contains
   !! @param[in] px Input data.
   !! @param[out] py Output data.
   !! @param[out] buffer Buffer for transposing.
-  subroutine transpose_x_to_y(self, px, py, buffer)
+  subroutine transpose_x_to_y(this, px, py, buffer)
 
-    class(t_transposer), intent(in)  :: self
+    class(t_transposer), intent(in)  :: this
     real(pois_r),        intent(in)  :: px(:,:,:)
     real(pois_r),        intent(out) :: py(:,:,:)
     real(pois_r),        intent(out) :: buffer(:)
@@ -260,9 +260,9 @@ contains
       end do
     else
 
-      n1 = self%iony
+      n1 = this%iony
       n2 = jmax
-      n3 = self%konx
+      n3 = this%konx
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocy-1
@@ -304,9 +304,9 @@ contains
   !! @param[in] py Input data.
   !! @param[out] px Output data.
   !! @param[out] buffer Buffer for transposing.
-  subroutine transpose_y_to_x(self, py, px, buffer)
+  subroutine transpose_y_to_x(this, py, px, buffer)
 
-    class(t_transposer), intent(in)  :: self
+    class(t_transposer), intent(in)  :: this
     real(pois_r),        intent(in)  :: py(:,:,:)
     real(pois_r),        intent(out) :: px(:,:,:)
     real(pois_r),        intent(out) :: buffer(:)
@@ -341,9 +341,9 @@ contains
       end do
     else
 
-      n1 = self%iony
+      n1 = this%iony
       n2 = jmax
-      n3 = self%konx
+      n3 = this%konx
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocy-1
@@ -385,9 +385,9 @@ contains
   !! @param[in] py Input data.
   !! @param[out] pz Output data.
   !! @param[out] buffer Buffer for transposing.
-  subroutine transpose_y_to_z(self, py, pz, buffer)
+  subroutine transpose_y_to_z(this, py, pz, buffer)
 
-    class(t_transposer), intent(in)  :: self
+    class(t_transposer), intent(in)  :: this
     real(pois_r),        intent(in)  :: py(:,:,:)
     real(pois_r),        intent(out) :: pz(:,:,:)
     real(pois_r),        intent(out) :: buffer(:)
@@ -411,9 +411,9 @@ contains
       end do
     else
 
-      n1 = self%jonx
-      n2 = self%iony
-      n3 = self%konx
+      n1 = this%jonx
+      n2 = this%iony
+      n3 = this%konx
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
@@ -455,9 +455,9 @@ contains
   !! @param[in] py Input data.
   !! @param[out] px Output data.
   !! @param[out] buffer Buffer for transposing.
-  subroutine transpose_z_to_y(self, pz, py, buffer)
+  subroutine transpose_z_to_y(this, pz, py, buffer)
 
-    class(t_transposer), intent(in)  :: self
+    class(t_transposer), intent(in)  :: this
     real(pois_r),        intent(in)  :: pz(:,:,:)
     real(pois_r),        intent(out) :: py(:,:,:)
     real(pois_r),        intent(out) :: buffer(:)
@@ -481,9 +481,9 @@ contains
       end do
     else
 
-      n1 = self%jonx
-      n2 = self%iony
-      n3 = self%konx
+      n1 = this%jonx
+      n2 = this%iony
+      n3 = this%konx
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
