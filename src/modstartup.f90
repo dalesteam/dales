@@ -351,7 +351,7 @@ contains
     call D_MPI_BCAST(lambdas_z,  1, 0,commwrld,mpierr)
 
     ! Read all namelists
-    call read_namelists(fname_options)    
+    call read_namelists(fname_options)
 
     call testwctime
     ! Allocate and initialize core modules
@@ -570,7 +570,7 @@ contains
     use go,                only : goSplitString_s
     use utils,             only : to_lower
     use modslabaverage,    only : slabavg
-    
+
 #if defined(_OPENACC)
     use modgpu, only: update_gpu, update_host, host_is_updated, update_gpu_surface
 #endif
@@ -845,8 +845,8 @@ contains
                     sv0(i,j,k,n) = 0.
                     svm(i,j,k,n) = 0.
                   end do
-                end if 
-              end if  
+                end if
+              end if
             end do
           end do
         end do
@@ -1034,7 +1034,7 @@ contains
         do n=1,nsv
           call slabavg(sv0(:,:,:,n),fluid_mask,ih,sv0av(:,n))
         end do
-      end if 
+      end if
 
       th0av(:) = thl0av(:) + (rlv/cp) * ql0av(:) / exnf(:)
       thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
@@ -1090,7 +1090,7 @@ contains
           read (ifinput,'(a80)') chmess
 
           ! if coriolis force, read in 2nd and 3rd columns as ug and vg
-          if (lcoriol) then 
+          if (lcoriol) then
             do  k=1,kmax
               read (ifinput,*) &
                   height (k), &
@@ -1114,7 +1114,7 @@ contains
                   dqtdtls(k), &
                   thlpcar(k)
             end do
-          end if 
+          end if
           close(ifinput)
         end if
 
@@ -1148,7 +1148,7 @@ contains
                 dqtdtls(k), &
                 thlpcar(k)
         end do
-      end if 
+      end if
 
     end if ! end myid==0
 
@@ -1665,7 +1665,8 @@ contains
     ! In the current implementation, neither the base pressure, nor the base virtual temperature plays a role in the dynamics
     ! They are nevertheless calculated and printed to the stdin/baseprof files for user convenience
     use modfields,         only : rhobf,rhobh,drhobdzf,drhobdzh,exnf,exnh
-    use modglobal,         only : k1,kmax,zf,zh,dzf,dzh,rv,rd,grav,cp,pref0,lwarmstart,ibas_prf,cexpnr,ifinput,ifoutput
+    use modglobal,         only : k1,kmax,zf,zh,dzf,dzh,rv,rd,grav,cp,pref0,lwarmstart,ibas_prf,cexpnr,ifinput,ifoutput,&
+                                  lbaseexner
     use modsurfdata,       only : thls,ps,qts
     use modmpi,            only : myid,comm3d,mpierr,D_MPI_BCAST
     implicit none
@@ -1840,7 +1841,7 @@ contains
 
       do k = 2, k1
         rhobh(k) = (rhobf(k)*dzf(k-1)+rhobf(k-1)*dzf(k))/(dzf(k)+dzf(k-1))
-        pbh(k)   = (   pb(k)*dzf(k-1)+   pb(k-1)*dzf(k))/(dzf(k)+dzf(k-1)) ! interpolate base half-level pressure like half-level base rho 
+        pbh(k)   = (   pb(k)*dzf(k-1)+   pb(k-1)*dzf(k))/(dzf(k)+dzf(k-1)) ! interpolate base half-level pressure like half-level base rho
       end do
 
       rhobh(1) = rhobf(1)-(rhobf(2)-rhobf(1))*(zf(1)-zh(1))/(zf(2)-zf(1))
@@ -1875,10 +1876,12 @@ contains
                 drhobdzh (k)
       end do
 
-    ! exner function from base profiles
-    ! these are overwritten in modthermodynamics unless lbaseexner is true
-    exnf = (pb/pref0)**(rd/cp)
-    exnh = (pbh/pref0)**(rd/cp)
+      ! exner function from base profiles
+      ! TODO: pb is not available here on warm start
+      if (lbaseexner) then
+         exnf = (pb/pref0)**(rd/cp)
+         exnh = (pbh/pref0)**(rd/cp)
+      end if
 
     end if ! ENDIF MYID=0
 
@@ -1887,8 +1890,11 @@ contains
     call D_MPI_BCAST(rhobh       ,k1,0,comm3d,mpierr)
     call D_MPI_BCAST(drhobdzf    ,k1,0,comm3d,mpierr)
     call D_MPI_BCAST(drhobdzh    ,k1,0,comm3d,mpierr)
-    call D_MPI_BCAST(exnf        ,k1,0,comm3d,mpierr)
-    call D_MPI_BCAST(exnh        ,k1,0,comm3d,mpierr)
+
+    if (lbaseexner) then
+       call D_MPI_BCAST(exnf        ,k1,0,comm3d,mpierr)
+       call D_MPI_BCAST(exnh        ,k1,0,comm3d,mpierr)
+    end if
 
     deallocate(height,pb,tb,pbh)
 
@@ -1997,11 +2003,11 @@ contains
                      threshold=[real(150, rkind), real(2000, rkind)])
     if (lmoist) call check_array(qt0, 'qt0', 'startup', &
                                  threshold=[real(0, rkind), real(1, rkind)])
-    
+
     do s = 1, size(sv0, dim=4)
       call check_array(sv0(:,:,:,s), 'sv0('//number2string(s)//')', 'startup')
     end do
-    
+
   end subroutine check_initial_state
 
 end module modstartup
