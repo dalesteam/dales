@@ -56,8 +56,6 @@ contains
     self%konx = kmax / nprocx
     if (mod(kmax, nprocx) > 0) self%konx = self%konx + 1
 
-    !$acc enter data copyin(self)
-
   end function build_transposer
 
   !> Compute the minimum size of the workspace for transposing.
@@ -97,6 +95,7 @@ contains
     character(len=*), parameter :: routine = modname//'/transpose_z_to_x'
 
     integer :: i, j, k, n, ii
+    integer :: n1, n2, n3
     integer :: mpierr
 
     if (ltimer) call timer_tic(routine, 2)
@@ -111,13 +110,18 @@ contains
         end do
       end do
     else
+
+      n1 = imax
+      n2 = jmax
+      n3 = self%konx
+      
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
-        do k = 1, self%konx
-          do j = 2, j1
-            do i = 2, i1
-              ii = (i-1) + (j-2)*imax + (k-1)*imax*jmax + n*imax*jmax*self%konx
-              if (k+n*self%konx <= kmax) buffer(ii) = pz(i,j,k+n*self%konx) 
+        do k = 1, n3
+          do j = 1, n2
+            do i = 1, n1
+              ii = i + (j-1)*n1 + (k-1)*n1*n2 + n*n1*n2*n3
+              if (k+n*n3 <= kmax) buffer(ii) = pz(i+1,j+1,k+n*n3) 
             end do
           end do
         end do
@@ -125,16 +129,16 @@ contains
 
       !$acc host_data use_device(buffer)
       call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_DTYPE, &
-                        buffer, imax*jmax*self%konx, MPI_DTYPE, commrow, mpierr)
+                        buffer, n1*n2*n3, MPI_DTYPE, commrow, mpierr)
       !$acc end host_data
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
-        do k = 1, self%konx
-          do j = 1, jmax
-            do i = 1, imax
-              ii = i + (j-1)*imax + (k-1)*imax*jmax + n*imax*jmax*self%konx
-              px(i+n*imax,j,k) = buffer(ii)
+        do k = 1, n3
+          do j = 1, n2
+            do i = 1, n1
+              ii = i + (j-1)*n1 + (k-1)*n1*n2 + n*n1*n2*n3
+              px(i+n*n1,j,k) = buffer(ii)
             end do
           end do
         end do
@@ -160,6 +164,7 @@ contains
     character(len=*), parameter :: routine = modname//'/transpose_x_to_z'
 
     integer :: i, j, k, n, ii
+    integer :: n1, n2, n3
     integer :: mpierr
 
     if (ltimer) call timer_tic(routine, 2)
@@ -174,13 +179,18 @@ contains
         end do
       end do
     else
+      
+      n1 = imax
+      n2 = jmax
+      n3 = self%konx
+
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
-        do k = 1, self%konx
-          do j = 1, jmax
-            do i = 1, imax
-              ii = i + (j-1)*imax + (k-1)*imax*jmax + n*imax*jmax*self%konx
-              buffer(ii) = px(i+n*imax,j,k)
+        do k = 1, n3
+          do j = 1, n2
+            do i = 1, n1
+              ii = i + (j-1)*n1 + (k-1)*n1*n2 + n*n1*n2*n3
+              buffer(ii) = px(i+n*n1,j,k)
             end do
           end do
         end do
@@ -188,16 +198,16 @@ contains
 
       !$acc host_data use_device(buffer)
       call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_DTYPE, &
-                        buffer, imax*jmax*self%konx, MPI_DTYPE, commrow, mpierr)
+                        buffer, n1*n2*n3, MPI_DTYPE, commrow, mpierr)
       !$acc end host_data
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
-        do k = 1, self%konx
-          do j = 2, j1
-            do i = 2, i1
-              ii = (i-1) + (j-2)*imax + (k-1)*imax*jmax + n*imax*jmax*self%konx
-              if (k+n*self%konx <= kmax) pz(i,j,k+n*self%konx) = buffer(ii)
+        do k = 1, n3
+          do j = 1, n2
+            do i = 1, n1
+              ii = i + (j-1)*n1 + (k-1)*n1*n2 + n*n1*n2*n3
+              if (k+n*n3 <= kmax) pz(i+1,j+1,k+n*n3) = buffer(ii)
             end do
           end do
         end do
@@ -223,6 +233,7 @@ contains
     character(len=*), parameter :: routine = modname//'/transpose_x_to_y'
 
     integer :: i, j, k, n, ii
+    integer :: n1, n2, n3
     integer :: mpierr
 
     if (ltimer) call timer_tic(routine, 2)
@@ -248,13 +259,18 @@ contains
         end do
       end do
     else
+
+      n1 = self%iony
+      n2 = jmax
+      n3 = self%konx
+
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocy-1
-        do k = 1, self%konx
-          do j = 1, jmax
-            do i = 1, self%iony
-              ii = i + (j-1)*self%iony + (k-1)*self%iony*jmax + n*self%iony*jmax*self%konx
-              if (i <= itot) buffer(ii) = px(i+n*self%iony,j,k)
+        do k = 1, n3
+          do j = 1, n2
+            do i = 1, n1
+              ii = i + (j-1)*n1 + (k-1)*n1*n2 + n*n1*n2*n3
+              if (i+n*n1 <= itot) buffer(ii) = px(i+n*n1,j,k)
             end do
           end do
         end do
@@ -262,17 +278,17 @@ contains
 
       !$acc host_data use_device(buffer)
       call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_DTYPE, &
-                        buffer, self%iony*jmax*self%konx, MPI_DTYPE, &
+                        buffer, n1*n2*n3, MPI_DTYPE, &
                         commcol, mpierr)
       !$acc end host_data
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocy-1
-        do k = 1, self%konx
-          do i = 1, self%iony
-            do j = 1, jmax
-              ii = i + (j-1)*self%iony + (k-1)*self%iony*jmax + n*self%iony*jmax*self%konx
-              py(j+n*jmax,k,i) = buffer(ii)
+        do k = 1, n3
+          do i = 1, n1
+            do j = 1, n2
+              ii = i + (j-1)*n1 + (k-1)*n1*n2 + n*n1*n2*n3
+              py(j+n*n2,k,i) = buffer(ii)
             end do
           end do
         end do
@@ -298,6 +314,7 @@ contains
     character(len=*), parameter :: routine = modname//'/transpose_y_to_x'
 
     integer :: i, j, k, n, ii
+    integer :: n1, n2, n3
     integer :: mpierr
 
     if (ltimer) call timer_tic(routine, 2)
@@ -323,13 +340,18 @@ contains
         end do
       end do
     else
+
+      n1 = self%iony
+      n2 = jmax
+      n3 = self%konx
+
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocy-1
-        do k = 1, self%konx
-          do i = 1, self%iony
-            do j = 1, jmax
-              ii = i + (j-1)*self%iony + (k-1)*self%iony*jmax + n*self%iony*jmax*self%konx
-              buffer(ii) = py(j+n*jmax,k,i)
+        do k = 1, n3
+          do i = 1, n1
+            do j = 1, n2
+              ii = i + (j-1)*n1 + (k-1)*n1*n2 + n*n1*n2*n3
+              buffer(ii) = py(j+n*n2,k,i)
             end do
           end do
         end do
@@ -337,17 +359,17 @@ contains
 
       !$acc host_data use_device(buffer)
       call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_DTYPE, &
-                        buffer, self%iony*jmax*self%konx, MPI_DTYPE, &
+                        buffer, n1*n2*n3, MPI_DTYPE, &
                         commcol, mpierr)
       !$acc end host_data
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocy-1
-        do k = 1, self%konx
-          do j = 1, jmax
-            do i = 1, self%iony
-              ii = i + (j-1)*self%iony + (k-1)*self%iony*jmax + n*self%iony*jmax*self%konx
-              if (i+n*self%iony <= itot) px(i+n*self%iony,j,k) = buffer(ii)
+        do k = 1, n3
+          do j = 1, n2
+            do i = 1, n1
+              ii = i + (j-1)*n1 + (k-1)*n1*n2 + n*n1*n2*n3
+              if (i+n*n1 <= itot) px(i+n*n1,j,k) = buffer(ii)
             end do
           end do
         end do
@@ -373,6 +395,7 @@ contains
     character(len=*), parameter :: routine = modname//'/transpose_y_to_z'
 
     integer :: i, j, k, n, ii
+    integer :: n1, n2, n3
     integer :: mpierr
 
     if (ltimer) call timer_tic(routine, 2)
@@ -387,13 +410,18 @@ contains
         end do
       end do
     else
+
+      n1 = self%jonx
+      n2 = self%iony
+      n3 = self%konx
+
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
-        do k = 1, self%konx
-          do i = 1, self%iony
-            do j = 1, self%jonx
-              ii = j + (i-1)*self%jonx + (k-1)*self%iony*self%jonx + n*self%iony*self%jonx*self%konx
-              if (j+n*self%jonx <= jtot) buffer(ii) = py(j+n*self%jonx,k,i)
+        do k = 1, n3
+          do i = 1, n2
+            do j = 1, n1
+              ii = j + (i-1)*n1 + (k-1)*n1*n2 + n*n1*n2*n3
+              if (j+n*n1 <= jtot) buffer(ii) = py(j+n*n1,k,i)
             end do
           end do
         end do
@@ -401,17 +429,17 @@ contains
 
       !$acc host_data use_device(buffer)
       call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_DTYPE, &
-                        buffer, self%iony*self%jonx*self%konx, MPI_DTYPE, &
+                        buffer, n1*n2*n3, MPI_DTYPE, &
                         commrow, mpierr)
       !$acc end host_data
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
-        do k = 1, self%konx
-          do j = 1, self%jonx
-            do i = 1, self%iony
-              ii = j + (i-1)*self%jonx + (k-1)*self%iony*self%jonx + n*self%iony*self%jonx*self%konx
-              if (k+n*self%konx <= kmax) pz(i,j,k+n*self%konx) = buffer(ii)
+        do k = 1, n3
+          do j = 1, n1
+            do i = 1, n2
+              ii = j + (i-1)*n1 + (k-1)*n1*n2 + n*n1*n2*n3
+              if (k+n*n3 <= kmax) pz(i,j,k+n*n3) = buffer(ii)
             end do
           end do
         end do
@@ -437,6 +465,7 @@ contains
     character(len=*), parameter :: routine = modname//'/transpose_z_to_y'
 
     integer :: i, j, k, n, ii
+    integer :: n1, n2, n3
     integer :: mpierr
 
     if (ltimer) call timer_tic(routine, 2)
@@ -451,13 +480,18 @@ contains
         end do
       end do
     else
+
+      n1 = self%jonx
+      n2 = self%iony
+      n3 = self%konx
+
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
-        do k = 1, self%konx
-          do j = 1, self%jonx
-            do i = 1, self%iony
-              ii = j + (i-1)*self%jonx + (k-1)*self%iony*self%jonx + n*self%iony*self%jonx*self%konx
-              if (k+n*self%konx <= kmax) buffer(ii) = pz(i,j,k+n*self%konx)
+        do k = 1, n3
+          do j = 1, n1
+            do i = 1, n2
+              ii = j + (i-1)*n1 + (k-1)*n1*n2 + n*n1*n2*n3
+              if (k+n*n3 <= kmax) buffer(ii) = pz(i,j,k+n*n3)
             end do
           end do
         end do
@@ -465,17 +499,17 @@ contains
 
       !$acc host_data use_device(buffer)
       call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_DTYPE, &
-                        buffer, self%iony*self%jonx*self%konx, MPI_DTYPE, &
+                        buffer, n1*n2*n3, MPI_DTYPE, &
                         commrow, mpierr)
       !$acc end host_data
 
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
-        do k = 1, self%konx
-          do i = 1, self%iony
-            do j = 1, self%jonx
-              ii = j + (i-1)*self%jonx + (k-1)*self%iony*self%jonx + n*self%iony*self%jonx*self%konx
-              if (j+n*self%jonx <= jtot) py(j+n*self%jonx,k,i) = buffer(ii)
+        do k = 1, n3
+          do i = 1, n2
+            do j = 1, n1
+              ii = j + (i-1)*n1 + (k-1)*n1*n2 + n*n1*n2*n3
+              if (j+n*n1 <= jtot) py(j+n*n1,k,i) = buffer(ii)
             end do
           end do
         end do
