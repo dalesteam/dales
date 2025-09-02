@@ -87,10 +87,10 @@ contains
   !! @param[out] buffer Buffer for transposing.
   subroutine transpose_z_to_x(this, pz, px, buffer)
 
-    class(t_transposer), intent(in)  :: this
-    real(pois_r),        intent(in)  :: pz(:,:,:)
-    real(pois_r),        intent(out) :: px(:,:,:)
-    real(pois_r),        intent(out) :: buffer(:)
+    class(t_transposer),          intent(in)  :: this
+    real(pois_r),        pointer, intent(in)  :: pz(:,:,:)
+    real(pois_r),        pointer, intent(in)  :: px(:,:,:)
+    real(pois_r),                 intent(out) :: buffer(:)
 
     character(len=*), parameter :: routine = modname//'/transpose_z_to_x'
 
@@ -156,10 +156,10 @@ contains
   !! @param[out] buffer Buffer for transposing.
   subroutine transpose_x_to_z(this, px, pz, buffer)
 
-    class(t_transposer), intent(in)  :: this
-    real(pois_r),        intent(in)  :: px(:,:,:)
-    real(pois_r),        intent(out) :: pz(:,:,:)
-    real(pois_r),        intent(out) :: buffer(:)
+    class(t_transposer),          intent(in)  :: this
+    real(pois_r),        pointer, intent(in)  :: px(:,:,:)
+    real(pois_r),        pointer, intent(in)  :: pz(:,:,:)
+    real(pois_r),                 intent(out) :: buffer(:)
 
     character(len=*), parameter :: routine = modname//'/transpose_x_to_z'
 
@@ -225,10 +225,10 @@ contains
   !! @param[out] buffer Buffer for transposing.
   subroutine transpose_x_to_y(this, px, py, buffer)
 
-    class(t_transposer), intent(in)  :: this
-    real(pois_r),        intent(in)  :: px(:,:,:)
-    real(pois_r),        intent(out) :: py(:,:,:)
-    real(pois_r),        intent(out) :: buffer(:)
+    class(t_transposer),          intent(in)  :: this
+    real(pois_r),        pointer, intent(in)  :: px(:,:,:)
+    real(pois_r),        pointer, intent(in)  :: py(:,:,:)
+    real(pois_r),                 intent(out) :: buffer(:)
 
     character(len=*), parameter :: routine = modname//'/transpose_x_to_y'
 
@@ -306,10 +306,10 @@ contains
   !! @param[out] buffer Buffer for transposing.
   subroutine transpose_y_to_x(this, py, px, buffer)
 
-    class(t_transposer), intent(in)  :: this
-    real(pois_r),        intent(in)  :: py(:,:,:)
-    real(pois_r),        intent(out) :: px(:,:,:)
-    real(pois_r),        intent(out) :: buffer(:)
+    class(t_transposer),          intent(in)  :: this
+    real(pois_r),        pointer, intent(in)  :: py(:,:,:)
+    real(pois_r),        pointer, intent(in)  :: px(:,:,:)
+    real(pois_r),                 intent(out) :: buffer(:)
 
     character(len=*), parameter :: routine = modname//'/transpose_y_to_x'
 
@@ -387,10 +387,10 @@ contains
   !! @param[out] buffer Buffer for transposing.
   subroutine transpose_y_to_z(this, py, pz, buffer)
 
-    class(t_transposer), intent(in)  :: this
-    real(pois_r),        intent(in)  :: py(:,:,:)
-    real(pois_r),        intent(out) :: pz(:,:,:)
-    real(pois_r),        intent(out) :: buffer(:)
+    class(t_transposer),          intent(in)  :: this
+    real(pois_r),        pointer, intent(in)  :: py(:,:,:)
+    real(pois_r),        pointer, intent(in)  :: pz(:,:,:)
+    real(pois_r),                 intent(out) :: buffer(:)
 
     character(len=*), parameter :: routine = modname//'/transpose_y_to_z'
 
@@ -457,10 +457,10 @@ contains
   !! @param[out] buffer Buffer for transposing.
   subroutine transpose_z_to_y(this, pz, py, buffer)
 
-    class(t_transposer), intent(in)  :: this
-    real(pois_r),        intent(in)  :: pz(:,:,:)
-    real(pois_r),        intent(out) :: py(:,:,:)
-    real(pois_r),        intent(out) :: buffer(:)
+    class(t_transposer),          intent(in)  :: this
+    real(pois_r),        pointer, intent(in)  :: pz(:,:,:)
+    real(pois_r),        pointer, intent(in)  :: py(:,:,:)
+    real(pois_r),                 intent(out) :: buffer(:)
 
     character(len=*), parameter :: routine = modname//'/transpose_z_to_y'
 
