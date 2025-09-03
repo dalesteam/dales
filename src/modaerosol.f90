@@ -1,4 +1,7 @@
 module modaerosol
+
+  use, intrinsic :: iso_fortran_env
+
   use modglobal,      only: ifnamopt, fname_options, checknamelisterror, &
                             cexpnr, i1, j1, k1, ih, jh, pi, nsv, rhow, kmax
   use modmicrodata,   only: qcmin
@@ -72,6 +75,11 @@ module modaerosol
     iBC = 4,  &
     iDU = 5
 
+  interface erfcinv
+    module procedure :: erfcinv_real32
+    module procedure :: erfcinv_real64
+  end interface
+
   type :: mode_connection_t
     logical              :: ldoshift   !< Do shift for this mode
     integer, allocatable :: itarget(:) !< Index of species in target mode
@@ -136,6 +144,8 @@ module modaerosol
     blc_tab_n
 
 contains
+
+  include 'erfcinv.inc'
 
   function aerosol_get_index_in_mode(itype, mode) result(idx)
 
@@ -687,7 +697,7 @@ contains
               num = m_cos%n(i,j,k)
               fn = dNcdt * delt / (num + eps)
               fn = max(min(fn, 1.0_field_r), 0.0_field_r)
-              fm = 1 - 0.5_field_r * erfc(erfinv(1 - (2 * fn)) &
+              fm = 1 - 0.5_field_r * erfc(erfcinv(2 * fn) &
                 - 3 * m_cos%sig_g / sqrt(2.0_field_r))
               fm = merge(1.0_field_r, fm, fn > 1.0_field_r)
 
@@ -716,7 +726,7 @@ contains
               fn = dNcdt * delt / (num + eps)
               fn = max(min(fn, 1.0_field_r), 0.0_field_r)
               fm = 1 - 0.5_field_r * &
-                erfc(erfinv(1- (2 * fn)) - 3 * m_acs%sig_g / sqrt(2.0_field_r))
+                erfc(erfcinv(2 * fn) - 3 * m_acs%sig_g / sqrt(2.0_field_r))
               fm = merge(1.0_field_r, fm, fn > 1.0_field_r)
 
               tend_n = fn * num / delt
@@ -743,7 +753,7 @@ contains
               fn = dNcdt * delt / (num + eps)
               fn = max(min(fn, 1.0_field_r), 0.0_field_r)
               fm = 1 - 0.5_field_r * &
-                erfc(erfinv(1 - (2 * fn)) - 3 * m_ais%sig_g / sqrt(2.0_field_r))
+                erfc(erfcinv(2 * fn) - 3 * m_ais%sig_g / sqrt(2.0_field_r))
               fm = merge(1.0_field_r, fm, fn > 1.0_field_r)
 
               tend_n = fn * num / delt
@@ -1028,9 +1038,5 @@ contains
     end do
 
   end subroutine scavenging_rain
-
-  include 'math.inc'
-
-
 
 end module modaerosol
