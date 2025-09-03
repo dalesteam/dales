@@ -84,8 +84,8 @@ module modaerosol
     integer                 :: nspecies    !< Number of aerosol species
     real(field_r)           :: sig_g       !< Geometric standard deviation
     real(field_r)           :: rho(maxspecies)     !< Aerosol densities
-    real(field_r)           :: itrac(maxspecies)    !< Tracer index
-    real(field_r)           :: itype(maxspecies)    !< Aerosol type
+    integer                 :: itrac(maxspecies)    !< Tracer index
+    integer                 :: itype(maxspecies)    !< Aerosol type
     real(field_r), pointer  :: n(:,:,:)    !< Number concentration
     real(field_r), pointer  :: q(:,:,:,:)  !< Mass concentration
     real(field_r), pointer  :: np(:,:,:)   !< Number concentration tendency
