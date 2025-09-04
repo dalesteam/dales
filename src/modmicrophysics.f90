@@ -22,6 +22,7 @@
 !!  \author Steef B\"oing, TU Delft
 module modmicrophysics
 
+  use modaerosol,        only: init_aerosol, laerosol
   use modglobal,         only: ifnamopt, checknamelisterror
   use moddrizzle,        only: drizzle
   use modbulkmicro,      only: initbulkmicro, &
@@ -178,6 +179,8 @@ contains
       case(imicro_bulk3)
         call initbulkmicro3
     end select
+
+    if(laerosol) call init_aerosol()
 
   end subroutine initmicrophysics
 
