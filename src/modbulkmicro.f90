@@ -144,10 +144,10 @@ module modbulkmicro
     use modbulkmicrostat, only : bulkmicrotend
     use modmpi,    only : myid
     use modbulkmicro_data, only : Nr, qr, Nrp, qrp,  &
-                             l_sedc, l_mur_cst, l_lognormal, l_rain, &
+                             l_sedc, l_mur_cst, l_lognormal,&
                              qrmin, qcmin, &
                              mur_cst, l_sb
-    use modmicrodata, only: iqr, inr, lstat, precep, delt, qtpmcr, thlpmcr
+    use modmicrodata, only: iqr, inr, lstat, precep, delt, qtpmcr, thlpmcr, l_rain
     use modmicroutil, only: zero_field, sum_fields
     use modstat_profiles, only: sample_field
     implicit none
