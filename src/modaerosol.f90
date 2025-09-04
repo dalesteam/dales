@@ -220,7 +220,6 @@ contains
     character(3)  :: name
     character(64) :: long_name
     character(27) :: modes_str
-    real(field_r) :: rho, kappa
     character(3)  :: modes_list(maxmodes)
     integer       :: aero_idx_in_mode
     real(field_r), parameter :: sigma_g(maxmodes) = (/ 1.59, 1.59, 1.59, 2.00, &
@@ -253,8 +252,9 @@ contains
     if (lso4) then
       block
         integer :: my_modes(4) = [iNUS, iAIS, iACS, iCOS]
+        real(field_r) :: rho = 1841
         do imod = 1, size(my_modes)
-          call mode_add_aerosol(modes(my_modes(imod)), itype=iso4)
+          call mode_add_aerosol(modes(my_modes(imod)), iso4, rho)
         end do
         call add_tracer('so4_c', long_name='so4 in-cloud mass concentration', unit='kg/kg')
         call add_tracer('so4_r', long_name='so4 in-rain mass concentration', unit='kg/kg')
@@ -265,8 +265,9 @@ contains
     if (lss) then
       block
         integer :: my_modes(2) = [iACS, iCOS]
+        real(field_r) :: rho = 2165
         do imod = 1, size(my_modes)
-          call mode_add_aerosol(modes(my_modes(imod)), itype=iss)
+          call mode_add_aerosol(modes(my_modes(imod)), iss, rho)
         end do
         call add_tracer('ss_c', long_name='sea salt in-cloud mass concentration', unit='kg/kg')
         call add_tracer('ss_r', long_name='sea salt in-rain mass concentration', unit='kg/kg')
@@ -277,8 +278,9 @@ contains
     if (lpom) then
       block
         integer :: my_modes(4) = [iAIS, iACS, iCOS, iAII]
+        real(field_r) :: rho = 1800
         do imod = 1, size(my_modes)
-          call mode_add_aerosol(modes(my_modes(imod)), itype=ipom)
+          call mode_add_aerosol(modes(my_modes(imod)), ipom, rho)
         end do
         call add_tracer('pom_c', long_name='organic matter in-cloud mass concentration', unit='kg/kg')
         call add_tracer('pom_r', long_name='organic matter in-rain mass concentration', unit='kg/kg')
@@ -289,8 +291,9 @@ contains
     if (lbc) then
       block
         integer :: my_modes(4) = [iAIS, iACS, iCOS, iAII]
+        real(field_r) :: rho = 1300
         do imod = 1, size(my_modes)
-          call mode_add_aerosol(modes(my_modes(imod)), itype=ibc)
+          call mode_add_aerosol(modes(my_modes(imod)), ibc, rho)
         end do
         call add_tracer('bc_c', long_name='black carbon in-cloud mass concentration', unit='kg/kg')
         call add_tracer('bc_r', long_name='black carbon in-rain mass concentration', unit='kg/kg')
@@ -301,8 +304,9 @@ contains
     if (ldu) then
       block
         integer :: my_modes(4) = [iACS, iCOS, iACI, iCOI]
+        real(field_r) :: rho = 2560
         do imod = 1, size(my_modes)
-          call mode_add_aerosol(modes(my_modes(imod)), itype=idu)
+          call mode_add_aerosol(modes(my_modes(imod)), idu, rho)
         end do
         call add_tracer('du_c', long_name='mineral dust in-cloud mass concentration', unit='kg/kg')
         call add_tracer('du_r', long_name='mineral dust in-rain mass concentration', unit='kg/kg')
@@ -469,9 +473,10 @@ contains
 
   end subroutine mode_construct
 
-  subroutine mode_add_aerosol(self, itype)
+  subroutine mode_add_aerosol(self, itype, rho)
     class(mode_t), intent(inout) :: self
     integer, intent(in) :: itype
+    real(field_r), intent(in) :: rho
 
     integer :: isv
 
@@ -485,6 +490,7 @@ contains
       long_name=aerosol_longnames(itype), isv=isv)
 
     self%itrac(self%nspecies) = isv
+    self%rho(self%nspecies) = rho
 
   end subroutine mode_add_aerosol
 
