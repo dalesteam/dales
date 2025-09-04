@@ -25,7 +25,7 @@ module modaerosol
 
   public :: laerosol
 
-
+  public :: aerosol_read_namelist
   public :: init_aerosol
   public :: aerosol_prepare
   public :: aerosol_finalize
@@ -187,6 +187,31 @@ contains
 
   end function aerosol_get_type_in_cloud
 
+  subroutine aerosol_read_namelist(nml_filename)
+
+    character(len=*), intent(in) :: nml_filename
+
+    integer :: ierr
+
+    namelist /NAMAEROSOL/ laerosol, lso4, lss, lpom, lbc, ldu
+
+    if (myid == 0) then
+      ! Namelist
+      open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
+      read(ifnamopt, NAMAEROSOL, iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'NAMAEROSOL')
+      close(ifnamopt)
+    end if
+
+    call d_mpi_bcast(laerosol, 1, 0, commwrld, mpierr)
+    call d_mpi_bcast(lso4, 1, 0, commwrld, mpierr)
+    call d_mpi_bcast(lss, 1, 0, commwrld, mpierr)
+    call d_mpi_bcast(lpom, 1, 0, commwrld, mpierr)
+    call d_mpi_bcast(lbc, 1, 0, commwrld, mpierr)
+    call d_mpi_bcast(ldu, 1, 0, commwrld, mpierr)
+
+  end subroutine aerosol_read_namelist
+
   subroutine init_aerosol()
 
     character(len=*), parameter :: routine = modname//"/initaerosol"
@@ -208,24 +233,6 @@ contains
 
     ! Values for lookup tables
     include "scavenging.inc"
-
-    namelist /NAMAEROSOL/ laerosol, lso4, lss, lpom, lbc, ldu
-
-    ! Read input
-    if (myid == 0) then
-      ! Namelist
-      open(ifnamopt, file=fname_options, status='old', iostat=ierr)
-      read(ifnamopt, NAMAEROSOL, iostat=ierr)
-      call checknamelisterror(ierr, ifnamopt, 'NAMAEROSOL')
-      close(ifnamopt)
-    end if
-
-    call d_mpi_bcast(laerosol, 1, 0, commwrld, mpierr)
-    call d_mpi_bcast(lso4, 1, 0, commwrld, mpierr)
-    call d_mpi_bcast(lss, 1, 0, commwrld, mpierr)
-    call d_mpi_bcast(lpom, 1, 0, commwrld, mpierr)
-    call d_mpi_bcast(lbc, 1, 0, commwrld, mpierr)
-    call d_mpi_bcast(ldu, 1, 0, commwrld, mpierr)
 
     if (.not. laerosol) return
 
