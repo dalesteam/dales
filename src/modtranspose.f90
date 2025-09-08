@@ -65,7 +65,7 @@ contains
     
     class(t_transposer), intent(in) :: this
 
-    integer(longint) :: size_x, size_y, size_z, size
+    integer(longint) :: size_x, size_y, size_z, size_z2, size
 
     ! x-contiguous pencils
     size_x = itot * jmax * this%konx
@@ -76,7 +76,10 @@ contains
     ! z-contiguous pencils
     size_z = imax * jmax * kmax
 
-    size = max(size_x, size_y, size_z)
+    ! z-contiguious pencils, other flavour
+    size_z2 = this%iony * this%jonx * this%konx * nprocx
+
+    size = max(size_x, size_y, size_z, size_z2)
 
   end function transpose_get_buffer_size
 
