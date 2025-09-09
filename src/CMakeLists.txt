@@ -10,6 +10,7 @@ set( dales_srcs
 	bulkmicro_kk.f90
 	bulkmicro_sb.f90
 	daleslib.f90
+	debug.c
 	fftnew.f90
 	go.f90
 	le_drydepos_gas.f90

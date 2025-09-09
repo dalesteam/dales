@@ -276,6 +276,9 @@ save
       logical :: ldrydep = .false.         !< On/Off switch dry deposition
 
       character(80) :: author='', version='DALES 4.4.2'
+
+      ! We are running with a debugger
+      logical :: ldebug = .false.
 contains
 
 !> Initialize global settings.

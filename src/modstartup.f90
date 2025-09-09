@@ -58,6 +58,12 @@ interface ! interface to use UNIX C mkdir function. Otherwise different compiler
    end function mkdir
 end interface
 
+  interface
+    subroutine wait_for_attach(myid) bind(c, name="waitForAttach") 
+      integer, value :: myid
+    end subroutine wait_for_attach
+  end interface
+
 contains
   subroutine startup(path)
 
@@ -79,7 +85,7 @@ contains
                                   solver_id, maxiter, maxiter_precond, tolerance, n_pre, n_post, precond_id, checknamelisterror, &
                                   loutdirs, output_prefix, &
                                   lopenbc,linithetero,lperiodic,dxint,dyint,dzint,dxturb,dyturb,taum,tauh,pbc,lsynturb,nmodes,tau,lambda,lambdas,lambdas_x,lambdas_y,lambdas_z,iturb, &
-                                  hypre_logging,rdt,rk3step,i1,j1,k1,ih,jh,lboundary,lconstexner, iinput,dzf
+                                  hypre_logging,rdt,rk3step,i1,j1,k1,ih,jh,lboundary,lconstexner, iinput,dzf, ldebug
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -129,7 +135,7 @@ contains
         iexpnr,lwarmstart,startfile,ltotruntime, runtime,dtmax,wctime,dtav_glob,timeav_glob,&
         trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author,&
         krandumin, krandumax, randu,&
-        nprocx,nprocy,loutdirs, iinput
+        nprocx,nprocy,loutdirs, iinput, ldebug
     namelist/DOMAIN/ &
         itot,jtot,kmax,kmax_soil,&
         xsize,ysize,&
@@ -234,6 +240,7 @@ contains
     call D_MPI_BCAST(nsv        ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(loutdirs   ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(iinput, 1, 0, commwrld, mpierr)
+    call D_MPI_BCAST(ldebug, 1, 0, commwrld, mpierr)
 
     call D_MPI_BCAST(itot       ,1,0,commwrld,mpierr) ! DOMAIN
     call D_MPI_BCAST(jtot       ,1,0,commwrld,mpierr)
@@ -347,6 +354,8 @@ contains
     call D_MPI_BCAST(lambdas_x,  1, 0,commwrld,mpierr)
     call D_MPI_BCAST(lambdas_y,  1, 0,commwrld,mpierr)
     call D_MPI_BCAST(lambdas_z,  1, 0,commwrld,mpierr)
+
+    if (ldebug) call wait_for_attach(myid)
 
     ! Read all namelists
     call read_namelists(fname_options)    
