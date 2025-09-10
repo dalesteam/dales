@@ -587,6 +587,40 @@ contains
     !$acc end host_data
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_ALLTOALL_REAL64_R1
+  subroutine D_MPI_ALLTOALL_REAL32_IP_R1(recvbuf, recvcount, comm, ierror, lacc)
+    implicit none
+    real(real32), contiguous, intent(inout)   :: recvbuf(:)
+    integer        :: recvcount, ierror
+    logical, optional :: lacc
+    type(MPI_COMM) :: comm
+    logical :: xlacc
+    if (present(lacc)) then
+      xlacc = lacc
+    else
+      xlacc = .false.
+    end if
+    !$acc host_data use_device(recvbuf) if(xlacc)
+    call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL4, recvbuf, recvcount, MPI_REAL4, comm, ierror)
+    !$acc end host_data
+    if (ierror /= MPI_SUCCESS) call abort
+  end subroutine D_MPI_ALLTOALL_REAL32_IP_R1
+  subroutine D_MPI_ALLTOALL_REAL64_IP_R1(recvbuf, recvcount, comm, ierror, lacc)
+    implicit none
+    real(real64), contiguous, intent(inout)   :: recvbuf(:)
+    integer        :: recvcount, ierror
+    logical, optional :: lacc
+    type(MPI_COMM) :: comm
+    logical :: xlacc
+    if (present(lacc)) then
+      xlacc = lacc
+    else
+      xlacc = .false.
+    end if
+    !$acc host_data use_device(recvbuf) if(xlacc)
+    call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL8, recvbuf, recvcount, MPI_REAL8, comm, ierror)
+    !$acc end host_data
+    if (ierror /= MPI_SUCCESS) call abort
+  end subroutine D_MPI_ALLTOALL_REAL64_IP_R1
 
 !>D_MPI_REDUCE
   subroutine D_MPI_REDUCE_REAL32_R1(sendbuf, recvbuf, count, op, root, comm, ierror)

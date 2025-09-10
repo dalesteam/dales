@@ -136,6 +136,8 @@ interface D_MPI_ISEND
   interface D_MPI_ALLTOALL
     procedure :: D_MPI_ALLTOALL_REAL32_R1
     procedure :: D_MPI_ALLTOALL_REAL64_R1
+    procedure :: D_MPI_ALLTOALL_REAL32_IP_R1
+    procedure :: D_MPI_ALLTOALL_REAL64_IP_R1
   end interface
   interface D_MPI_REDUCE
     procedure :: D_MPI_REDUCE_REAL32_R1
