@@ -701,9 +701,8 @@ contains
     cthl = (exnh(1)*cp/rlv)*((1-den)/den)
     cqt = 1./den
 
-    iqr = get_tracer_index("qr")
-    !$acc parallel loop collapse(2) default(present) private(upcu, vpcv) &
-    !$acc& reduction(+: qlhav(1), wthlsub(1), wqtsub(1), wthvsub(1), uwsub(1), vwsub(1), hurav(1), clwav(1), cliav(1), plwav(1), pliav(1)) async(1)
+    !$acc parallel loop collapse(2) default(present) private(upcu, vpcv, ilratio) &
+    !$acc& reduction(+: qlhav(1), wthlsub(1), wqtsub(1), wthvsub(1), uwsub(1), vwsub(1), hurav(1), clwav(1), cliav(1)) async(1)
     do j = 2, j1
       do i = 2, i1
         qlhav(1) = qlhav(1) + ql0h(i,j,1)
@@ -730,16 +729,6 @@ contains
         ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,1)-tdn) / (tup-tdn)))
         clwav(1) = clwav(1) + ql0(i,j,1) * ilratio
         cliav(1) = cliav(1) + ql0(i,j,1) * (1-ilratio)
-
-        if (iqr > 0) then
-           if (imicro == imicro_sice .or. imicro == imicro_sice2) then
-              ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,1)-tdnrsg)/(tuprsg-tdnrsg)))
-              plwav(1) = plwav(1) + sv0(i,j,1,iqr) * ilratio
-              pliav(1) = pliav(1) + sv0(i,j,1,iqr) * (1-ilratio)
-           else
-              plwav(1) = plwav(1) + sv0(i,j,1,iqr)
-           end if
-        end if
       end do
     end do
 
@@ -773,10 +762,10 @@ contains
 
       !$acc loop collapse(2) &
       !$acc& private(qs0h, t0h, den, cthl, cqt, a_dry, b_dry, a_moist, b_moist, ekhalf, euhalf, evhalf, wthls, wthlr, &
-      !$acc&         wqts, wqtr, wqls, wqlr, wthvs, wthvr, uwr, vwr, uws, vws) &
+      !$acc&         wqts, wqtr, wqls, wqlr, wthvs, wthvr, uwr, vwr, uws, vws, ilratio) &
       !$acc& reduction(+:qlhav_s, wqlsub_s, wqlres_s, wthlsub_s, wthlres_s, wthvsub_s, wthvres_s, &
       !$acc&             wqtsub_s, wqtres_s, uwres_s, vwres_s, uwsub_s, vwsub_s, &
-      !$acc&             hurav_s, clwav_s, cliav_s, plwav_s, pliav_s)
+      !$acc&             hurav_s, clwav_s, cliav_s)
       do j = 2, j1
         do i = 2, i1
           !------------------------------------------------------
@@ -841,16 +830,6 @@ contains
           clwav_s = clwav_s + ql0(i,j,k) * ilratio
           cliav_s = cliav_s + ql0(i,j,k) * (1-ilratio)
 
-          if (iqr > 0) then
-             if (imicro == imicro_sice .or. imicro == imicro_sice2) then
-                ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))
-                plwav_s = plwav_s + sv0(i,j,k,iqr) * ilratio
-                pliav_s = pliav_s + sv0(i,j,k,iqr) * (1-ilratio)
-             else
-                plwav_s = plwav_s + sv0(i,j,k,iqr)
-             end if
-          end if
-
           if (ql0h(i,j,k)>0) then
             wqlsub_s = wqlsub_s + wqls
           end if
@@ -888,9 +867,39 @@ contains
       hurav(k) = hurav_s
       clwav(k) = clwav_s
       cliav(k) = cliav_s
-      plwav(k) = plwav_s
-      pliav(k) = pliav_s
     end do
+
+    ! precip statistics: separate liquid (plw) and ice (pli) content specifically for simpleice
+    ! provide plw also for warm microphysics for compatibility
+    ! todo: move to microstat
+    iqr = get_tracer_index("qr")
+
+    if (iqr > 0) then
+       !$acc parallel loop gang default(present) private(plwav_s, pliav_s, ilratio) async(1)
+       do k = 1, kmax
+          if (imicro == imicro_sice .or. imicro == imicro_sice2) then
+             !$acc loop collapse(2) &
+             !$acc& reduction(+:plwav_s, pliav_s)
+             do j = 2, j1
+                do i = 2, i1
+                   ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))
+                   plwav_s = plwav_s + sv0(i,j,k,iqr) * ilratio
+                   pliav_s = pliav_s + sv0(i,j,k,iqr) * (1-ilratio)
+                end do
+             end do
+          else
+             !$acc loop collapse(2) &
+             !$acc& reduction(+:plwav_s)
+             do j = 2, j1
+                do i = 2, i1
+                   plwav_s = plwav_s + sv0(i,j,k,iqr)
+                end do
+             end do
+          end if
+          plwav(k) = plwav_s
+          pliav(k) = pliav_s
+       end do
+    end if
 
     !------------
     ! 2.3 MOMENTS
