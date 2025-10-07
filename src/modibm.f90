@@ -29,7 +29,7 @@
 !
 
 module modibm
-  use modglobal,    only : rd, rv, grav, ijtot
+  use modglobal,    only : rd, rv, grav, ijtot, iinput, input_netcdf
   use modprecision, only : field_r
   use modsurface,   only : psim, psih
   use modibmdata,   only : lapply_ibm,lpoislast, lwallheat, &
@@ -173,30 +173,35 @@ contains
     fluid_mask (:,:,:)    = .true.
 
     ! Definition of obstacles
-    if (myid==0) then
+    if (iinput == input_netcdf) then
+      call init_ibm_from_nc(bc_height)
+    else
+      if (myid==0) then
 
-      write (6,*) 'Reading inputfile ibm.inp.',cexpnr
+        write (6,*) 'Reading inputfile ibm.inp.',cexpnr
 
-      open (ifinput,file='ibm.inp.'//cexpnr)
-        do k=1,7
-          read (ifinput,'(a100)') readstring
-          write (6,*) readstring
-        end do
-
-        do j=jtot+1,2,-1
-          do i=2,itot+1
-            read(ifinput,'(F6.1)') bc_height(i,j)
+        open (ifinput,file='ibm.inp.'//cexpnr)
+          do k=1,7
+            read (ifinput,'(a100)') readstring
+            write (6,*) readstring
           end do
-        end do
 
-      close(ifinput)
+          do j=jtot+1,2,-1
+            do i=2,itot+1
+              read(ifinput,'(F6.1)') bc_height(i,j)
+            end do
+          end do
 
-      write(6,*) 'Succesfully read inputfile in modibm'
+        close(ifinput)
 
-    end if
+        write(6,*) 'Succesfully read inputfile in modibm'
 
-    !> Broadcast building heights to all ranks
-    call D_MPI_BCAST(bc_height, (itot+1)*(jtot+1), 0, comm3d, mpierr)
+      end if
+      !> Broadcast building heights to all ranks
+      call D_MPI_BCAST(bc_height, (itot+1)*(jtot+1), 0, comm3d, mpierr)
+    end if 
+
+
 
     !> Determine obstacle cells. Use obstacle height is above midpoint of vertical cell (= full levels). Corresponds to >50% of cell being filled.
     Nobst = 0
@@ -347,6 +352,51 @@ contains
 
     return
   end subroutine exitibm
+
+  subroutine init_ibm_from_nc(bc_height)
+
+    use netcdf
+    use modnetcdf,   only : check
+    use modglobal,   only : i1, j1, iexpnr
+    use modmpi,      only : myid, myidx, myidy
+    use modglobal,   only : imax, jmax, itot, jtot
+    implicit none
+
+    real(field_r),  intent(out) :: bc_height(:,:)
+
+    character(32) :: input_file = 'ibm.inp_xxx.nc'
+    integer       :: ncid, varid, len_x, len_y
+
+    write(input_file(9:11), '(i3.3)') iexpnr
+
+    write(6,"(A18, A32)") "Reading IBM input: ", input_file
+    write(6, * ) "Expecting dimensions x,y and variable bc_height(:,:)"
+    call check( nf90_open(input_file, nf90_nowrite, ncid), input_file, __LINE__)
+
+    if (myid==0) then
+      ! check if dimensions of ibm.inp_xxx.nc agree with the DALES domain
+      call check( nf90_inq_dimid(ncid, 'x', varid), input_file, __LINE__ )
+      call check( nf90_inquire_dimension(ncid, varid, len=len_x), input_file, __LINE__ )
+      if (len_x /= itot) then
+        write(6,"(A62, i3, A3, i3)") "STOPPED. x-dimension of ibm.inp differs from DALES domain: ", len_x, " /=", itot
+        stop
+      end if
+      call check( nf90_inq_dimid(ncid, 'y', varid), input_file, __LINE__ )
+      call check( nf90_inquire_dimension(ncid, varid, len=len_y), input_file, __LINE__ )
+      if (len_y /= jtot) then
+        write(6,"(A62, i3, A3, i3)") "STOPPED. y-dimension of ibm.inp differs from DALES domain: ", len_y, " /=", jtot
+        stop
+      end if
+    end if
+
+    ! get variable bc height from nc file
+    call check( nf90_inq_varid( ncid, 'bc_height', varid), input_file, __LINE__ )
+    call check( nf90_get_var(ncid, varid, bc_height(2:i1, 2:j1) , &
+                              start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                              count = (/imax, jmax/) ), input_file, __LINE__ )
+    call check( nf90_close(ncid), input_file, __LINE__ )
+
+  end subroutine init_ibm_from_nc
 
   subroutine applyibm
     use modfields,      only : um, vm, wm, thlm, qtm, e12m, svm, &
