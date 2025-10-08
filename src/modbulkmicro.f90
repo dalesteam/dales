@@ -444,7 +444,10 @@ module modbulkmicro
 
     call timer_tic(routine, 1)
 
-    if (qcbase > qcroof) return
+    if (qcbase > qcroof) then
+       call timer_toc(routine)
+       return
+    endif
 
     csed = c_St*(3./(4.*pi*rhow))**(2./3.)*exp(5.*log(sig_g)**2.)
 
