@@ -802,6 +802,7 @@ contains
                           MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(zbaseminl, zbasemin, 1, &
                           MPI_MIN, comm3d,mpierr)
+    prav = 0
     if (imicro == imicro_sice .or. imicro == imicro_sice2 .or. imicro == imicro_bulk) then
        pravl = 0
        !$acc parallel loop collapse(2) default(present) reduction(+:pravl)

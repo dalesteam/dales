@@ -32,14 +32,14 @@ module modchecksim
   use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
 
   use modprecision,   only: field_r
-  use modglobal,      only: longint, i1, j1,ih, jh, kmax, dtmax, dx, dy, dzf, dzh, &
+  use modglobal,      only: longint, i1, j1,ih, jh, ijtot, kmax, dtmax, dx, dy, dzf, dzh, &
                             dt_reason, ifnamopt, checknamelisterror, tres, btime, &
-                            ladaptive, timee, rtimee, rk3step, rdt, fname_options
+                            ladaptive, timee, rtimee, rk3step, rdt, fname_options, timeleft, ntrun
   use modfields,      only: u0, v0, w0, qt0, thl0, e120, qtp, thlp, rhobf, rhobh
   use modsubgriddata, only: ekm
   use modstringutils, only: number2string
   use modmpi,         only: myid, comm3d, mpierr, mpi_sum, mpi_max, D_MPI_ALLREDUCE, &
-                            D_MPI_BCAST
+                            D_MPI_BCAST, MPI_Wtime, nprocx, nprocy
   use modtimer
 
   implicit none
@@ -77,7 +77,10 @@ module modchecksim
 
   integer(longint) :: &
     tnext = 3600,     &
-    itcheck
+    itcheck,          &
+    prevtimeleft
+
+    integer :: prevntrun
 
   ! explanations for dt_limit, determined in tstep_update()
   character (len=15) :: dt_reasons(0:5) = [character(len=15) :: &
@@ -85,6 +88,8 @@ module modchecksim
 
   logical :: lchecktend
   logical :: lstop
+
+  real :: wtime
 
   real(field_r), allocatable :: &
     courx(:),                   &
@@ -138,9 +143,18 @@ contains
 
     !$acc enter data create(courx, coury, courz, courtot, peclettot)
 
+    call initETA_stat
     call timer_toc(routine)
 
   end subroutine initchecksim
+  
+  subroutine initETA_stat
+
+    wtime = MPI_Wtime()
+    prevtimeleft = timeleft
+    prevntrun = ntrun
+    
+  end subroutine initETA_stat
 
   !> Deallocate checksim arrays.
   subroutine exitchecksim
@@ -173,10 +187,11 @@ contains
 
     if (myid == 0) then
       call date_and_time(time=timeday)
-      write (*,*) '================================================================='
+      write (*,*) '=============================================================================='
       write (*,'(7A,F11.2,A,F9.4)') 'Time of Day: ', timeday(1:2), ':', &
-        timeday(3:4), ':', timeday(5:10),' Time of Simulation: ', &
-        rtimee, '    dt: ',dtmn
+      timeday(3:4), ':', timeday(5:10),' Time of Simulation: ', &
+      rtimee, '    dt: ',dtmn
+      call ETA_stat
     end if
 
     call calccourantandpeclet
@@ -188,6 +203,36 @@ contains
     call timer_toc('modchecksim/checksim')
 
   end subroutine checksim
+
+  !> Calculates the remaining time left in hh:mm:ss, iteration speed
+  !! and a core scaling number, it/s * (gridcells / core)
+  subroutine ETA_stat
+
+    real                 :: checksimtimeinterval, iterationpersecond, scalingspeed, wallcockpersimsecond
+
+    integer              :: remainingtime, hh, mm, ss
+
+    checksimtimeinterval = (MPI_Wtime() - wtime)
+
+    wallcockpersimsecond = checksimtimeinterval / ((prevtimeleft - timeleft) * tres)
+
+    remainingtime = int(wallcockpersimsecond * (timeleft * tres))
+    iterationpersecond = real(ntrun - prevntrun) / checksimtimeinterval
+
+    scalingspeed = (iterationpersecond * (ijtot * kmax)) / (nprocx * nprocy)
+    prevtimeleft = timeleft
+    prevntrun = ntrun
+    wtime = MPI_Wtime()
+
+    hh = remainingtime / 3600
+    mm = mod(remainingtime, 3600) / 60
+    ss = mod(remainingtime, 60)
+    
+    write (*,'(A,I4.2,A,I2.2,A,I2.2,A,F5.2,A,ES10.2E2,A)') 'ETA: ', &
+           hh, ':', mm, ':', ss, ' ', 1/wallcockpersimsecond, ' sim_sec/s   Scaling: ', &
+           scalingspeed, ' (it/s)(gridpoints/cores)'
+
+  end subroutine ETA_stat
 
   !> Calculates the courant number as in max(w)*deltat/deltaz
   !! and peclet number as max(ekm) *deltat/deltax**2

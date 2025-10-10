@@ -35,6 +35,7 @@
 
 module modmpi
 use modmpiinterface
+use ieee_exceptions
 #if defined(_OPENACC)
 use openacc
 #endif
@@ -212,6 +213,9 @@ contains
     type(MPI_COMM), intent(in),optional  :: comm
     logical                              :: init
 
+    logical :: saved_fpe_mode(size(ieee_all))
+    call ieee_get_halting_mode(ieee_all, saved_fpe_mode)
+    call ieee_set_halting_mode(ieee_all, .false.)
     call MPI_INITIALIZED(init,mpierr)
     call checkmpierror(mpierr, 'MPI_INITIALIZED')
 
@@ -240,6 +244,7 @@ contains
     call checkmpierror(mpierr, 'MPI_COMM_RANK')
     call MPI_COMM_SIZE( commwrld, nprocs, mpierr )
     call checkmpierror(mpierr, 'MPI_COMM_SIZE')
+    call ieee_set_halting_mode(ieee_all, saved_fpe_mode)
   end subroutine initmpicomm
 
 
