@@ -323,7 +323,7 @@ contains
         print*,'WARNING: malformed timer: ', timer_names(i)
       end if
     end do
-    if (.not.allocated(timer_names)) then
+    if (allocated(timer_names)) then
       deallocate(timer_names,timer_counts,timer_counter,timer_elapsed_acc,timer_elapsed_min,timer_elapsed_max)
     end if
   end subroutine timer_cleanup
