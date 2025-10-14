@@ -143,7 +143,10 @@ contains
     call D_MPI_BCAST(z0h_wall           ,    1, 0, comm3d, mpierr)
 
     !< Step out of further subroutine when IBM is switched off
-    if (.not. (lapply_ibm)) return
+    if (.not. (lapply_ibm)) then
+       call timer_toc('modibm/initibm')
+       return
+    endif
 
     ! TODO change to allow for wall dependent roughness
     ! Calculate law-of-wall coefficients for vertical walls (constant; no stability correction on vertical walls)
