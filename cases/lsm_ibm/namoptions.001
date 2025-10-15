@@ -1,0 +1,116 @@
+&run
+    iexpnr = 1
+    lwarmstart = .false.
+    irandom = 1
+    startfile = 'initd_latest_x000y000.001'
+    runtime = 600
+    trestart = 1800
+    ladaptive = .true.
+    randthl = 0.1
+    randqt = 2.5e-05
+    randu = 0.0
+    iinput = 2
+    nsv = 1
+/
+
+&domain
+    itot = 64
+    jtot = 64
+    kmax = 128
+    xsize = 640
+    ysize = 640
+    kmax_soil = 4
+    xlat = 52.25
+    xlon = 5.45
+    xtime = 0
+    xday = 265
+    xyear = 2025
+/
+
+&physics
+    z0 = 0.001
+    ps = 100974.68032932281
+    lmoist = .true.
+    lcoriol = .true.
+    iradiation = 4
+    timerad = 60
+/
+
+&namsurface
+    wtsurf = 0.0
+    wqsurf = 0.0
+    isurf = 11
+    z0mav = 0.0001
+    z0hav = 0.0001
+    albedoav = 0.17
+/
+
+&namlsm
+    lheterogeneous = .true.
+    lfreedrainage = .true.
+    dz_soil = 1.89, 0.72, 0.21, 0.07
+    iinterp_t = 3
+    iinterp_theta = 4
+    nlu = 10
+    lags = .false.
+/
+
+&namradstat
+    lstat = .true.
+    dtav = 60
+    timeav = 60
+/
+
+&namchecksim
+    tcheck = 60
+/
+
+&namtimestat
+    ltimestat = .true.
+    dtav = 60
+/
+
+&namgenstat
+    lstat = .true.
+    dtav = 60
+    timeav = 60
+/
+
+&namfielddump
+    lfielddump = .true.
+    dtav = 10
+    ldiracc = .false.
+/
+
+&namcape
+    lcape = .true.
+    dtav = 60
+/
+
+&namlsmcrosssection
+    lcross = .true.
+    dtav = 60
+    crossheight = 1
+/
+
+&namnetcdfstats
+    lsync = .true.
+/
+
+&namibm
+    lapply_ibm = .true.
+    lwallheat = .false.
+    thlibm = 301
+    thlwall = 301
+    thlroof = 301
+    qtibm = 0.001
+/
+
+&dynamics
+    iadv_mom = 2
+    iadv_tke = 2
+    iadv_thl = 2
+    iadv_qt = 2
+    iadv_sv = 2
+    ibas_prf = 2
+/
