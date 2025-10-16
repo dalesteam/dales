@@ -811,6 +811,7 @@ contains
       case (10) ! User defined surface scheme
         call surf_user
       case (11) ! New LSM, handled by modlsm
+        call timer_toc('modsurface/surface')
         return
       case default
         stop "Invalid option selected for isurf"
