@@ -400,8 +400,8 @@ program DALES
 !-------------------------------------------------------
 
   call timer_print
-  call timer_cleanup
   call timer_write
+  call timer_cleanup
 
 !--------------------------------------------------------
 !    4    FINALIZE ADD ONS AND THE MAIN PROGRAM
