@@ -163,15 +163,15 @@ contains
                 fname1(15:17) = cmyidx
                 fname1(19:21) = cexpnr
                 call nctiminfo(tncname1(1,:))
-                call ncinfo(ncname1( 1,:),      'uxz', 'xz crosssection of the west-east velocity',                'm/s',     'm0tt')
-                call ncinfo(ncname1( 2,:),      'vxz', 'xz crosssection of the south-north velocity',              'm/s',     't0tt')
-                call ncinfo(ncname1( 3,:),      'wxz', 'xz crosssection of the vertical velocity',                 'm/s',     't0mt')
-                call ncinfo(ncname1( 4,:),    'thlxz', 'xz crosssection of the liquid water potential temperature','K',       't0tt')
-                call ncinfo(ncname1( 5,:),    'thvxz', 'xz crosssection of the virtual potential temperature',     'K',       't0tt')
-                call ncinfo(ncname1( 6,:),     'qtxz', 'xz crosssection of the total water specific humidity',     'kg/kg',   't0tt')
-                call ncinfo(ncname1( 7,:),     'qlxz', 'xz crosssection of the liquid water specific humidity',    'kg/kg',   't0tt')
-                call ncinfo(ncname1( 8,:),   'buoyxz', 'xz crosssection of the buoyancy',                          'K',       't0tt')
-                call ncinfo(ncname1( 9,:),   'e120xz', 'xz crosssection of sqrt(turbulent kinetic energy)',        'm^2/s^2', 't0tt')
+                call ncinfo(ncname1( 1,:),      'u', 'xz crosssection of the west-east velocity',                'm/s',     'm0tt')
+                call ncinfo(ncname1( 2,:),      'v', 'xz crosssection of the south-north velocity',              'm/s',     't0tt')
+                call ncinfo(ncname1( 3,:),      'w', 'xz crosssection of the vertical velocity',                 'm/s',     't0mt')
+                call ncinfo(ncname1( 4,:),    'thl', 'xz crosssection of the liquid water potential temperature','K',       't0tt')
+                call ncinfo(ncname1( 5,:),    'thv', 'xz crosssection of the virtual potential temperature',     'K',       't0tt')
+                call ncinfo(ncname1( 6,:),     'qt', 'xz crosssection of the total water specific humidity',     'kg/kg',   't0tt')
+                call ncinfo(ncname1( 7,:),     'ql', 'xz crosssection of the liquid water specific humidity',    'kg/kg',   't0tt')
+                call ncinfo(ncname1( 8,:),   'buoy', 'xz crosssection of the buoyancy',                          'K',       't0tt')
+                call ncinfo(ncname1( 9,:),   'e120', 'xz crosssection of sqrt(turbulent kinetic energy)',        'm/s',     't0tt')
                 do n = 1,nsv
                   call ncinfo(ncname1(9+n,:), trim(tracer_prop(n)%tracname), trim(tracer_prop(n)%traclong), trim(tracer_prop(n)%unit), 't0tt')
                 enddo
@@ -193,15 +193,15 @@ contains
               fname2(23:25) = cexpnr
               
               call nctiminfo(tncname2(1,:))
-              call ncinfo(ncname2( 1,:),       'uxy', 'xy crosssection of the west-east velocity',                 'm/s',     'mt0t')
-              call ncinfo(ncname2( 2,:),       'vxy', 'xy crosssection of the south-north velocity',               'm/s',     'tm0t')
-              call ncinfo(ncname2( 3,:),       'wxy', 'xy crosssection of the vertical velocity',                  'm/s',     'tt0t')
-              call ncinfo(ncname2( 4,:),     'thlxy', 'xy crosssection of the liquid water potential temperature', 'K',       'tt0t')
-              call ncinfo(ncname2( 5,:),     'thvxy', 'xy crosssection of the virtual potential temperature',      'K',       'tt0t')
-              call ncinfo(ncname2( 6,:),      'qtxy', 'xy crosssection of the total water specific humidity',      'kg/kg',   'tt0t')
-              call ncinfo(ncname2( 7,:),      'qlxy', 'xy crosssection of the liquid water specific humidity',     'kg/kg',   'tt0t')
-              call ncinfo(ncname2( 8,:),    'buoyxy', 'xy crosssection of the buoyancy',                           'K',       'tt0t')
-              call ncinfo(ncname2( 9,:),    'e120xy', 'xy crosssection of sqrt(turbulent kinetic energy)',         'm^2/s^2', 'tt0t')
+              call ncinfo(ncname2( 1,:),       'u', 'xy crosssection of the west-east velocity',                 'm/s',     'mt0t')
+              call ncinfo(ncname2( 2,:),       'v', 'xy crosssection of the south-north velocity',               'm/s',     'tm0t')
+              call ncinfo(ncname2( 3,:),       'w', 'xy crosssection of the vertical velocity',                  'm/s',     'tt0t')
+              call ncinfo(ncname2( 4,:),     'thl', 'xy crosssection of the liquid water potential temperature', 'K',       'tt0t')
+              call ncinfo(ncname2( 5,:),     'thv', 'xy crosssection of the virtual potential temperature',      'K',       'tt0t')
+              call ncinfo(ncname2( 6,:),      'qt', 'xy crosssection of the total water specific humidity',      'kg/kg',   'tt0t')
+              call ncinfo(ncname2( 7,:),      'ql', 'xy crosssection of the liquid water specific humidity',     'kg/kg',   'tt0t')
+              call ncinfo(ncname2( 8,:),    'buoy', 'xy crosssection of the buoyancy',                           'K',       'tt0t')
+              call ncinfo(ncname2( 9,:),    'e120', 'xy crosssection of sqrt(turbulent kinetic energy)',         'm/s',     'tt0t')
               do n = 1,nsv
                 call ncinfo(ncname2(9+n,:), trim(tracer_prop(n)%tracname), trim(tracer_prop(n)%traclong), trim(tracer_prop(n)%unit), 'tt0t')
               enddo
@@ -223,15 +223,15 @@ contains
                  fname3(15:17) = cmyidy
                  fname3(19:21) = cexpnr
                  call nctiminfo(tncname3(1,:))
-                 call ncinfo(ncname3( 1,:),       'uyz', 'yz crosssection of the west-east velocity',                 'm/s',    '0ttt')
-                 call ncinfo(ncname3( 2,:),       'vyz', 'yz crosssection of the south-north velocity',               'm/s',    '0mtt')
-                 call ncinfo(ncname3( 3,:),       'wyz', 'yz crosssection of the vertical velocity',                  'm/s',    '0tmt')
-                 call ncinfo(ncname3( 4,:),     'thlyz', 'yz crosssection of the liquid water potential temperature', 'K',      '0ttt')
-                 call ncinfo(ncname3( 5,:),     'thvyz', 'yz crosssection of the virtual potential temperature',      'K',      '0ttt')
-                 call ncinfo(ncname3( 6,:),      'qtyz', 'yz crosssection of the total water specific humidity',      'kg/kg',  '0ttt')
-                 call ncinfo(ncname3( 7,:),      'qlyz', 'yz crosssection of the liquid water specific humidity',     'kg/kg',  '0ttt')
-                 call ncinfo(ncname3( 8,:),    'buoyyz', 'yz crosssection of the buoyancy',                           'K',      '0ttt')
-                 call ncinfo(ncname3( 9,:),    'e120yz', 'yz crosssection of sqrt(turbulent kinetic energy)',         'm^2/s^2','0ttt')
+                 call ncinfo(ncname3( 1,:),       'u', 'yz crosssection of the west-east velocity',                 'm/s',    '0ttt')
+                 call ncinfo(ncname3( 2,:),       'v', 'yz crosssection of the south-north velocity',               'm/s',    '0mtt')
+                 call ncinfo(ncname3( 3,:),       'w', 'yz crosssection of the vertical velocity',                  'm/s',    '0tmt')
+                 call ncinfo(ncname3( 4,:),     'thl', 'yz crosssection of the liquid water potential temperature', 'K',      '0ttt')
+                 call ncinfo(ncname3( 5,:),     'thv', 'yz crosssection of the virtual potential temperature',      'K',      '0ttt')
+                 call ncinfo(ncname3( 6,:),      'qt', 'yz crosssection of the total water specific humidity',      'kg/kg',  '0ttt')
+                 call ncinfo(ncname3( 7,:),      'ql', 'yz crosssection of the liquid water specific humidity',     'kg/kg',  '0ttt')
+                 call ncinfo(ncname3( 8,:),    'buoy', 'yz crosssection of the buoyancy',                           'K',      '0ttt')
+                 call ncinfo(ncname3( 9,:),    'e120', 'yz crosssection of sqrt(turbulent kinetic energy)',         'm/s',    '0ttt')
                  do n = 1,nsv
                     call ncinfo(ncname3(9+n,:), trim(tracer_prop(n)%tracname), trim(tracer_prop(n)%traclong), trim(tracer_prop(n)%unit), '0ttt')
                  enddo
