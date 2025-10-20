@@ -977,7 +977,7 @@ contains
         tskin_patch    = patchsum_1level(tskin   (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
       endif
     else if (isurf == 11) then
-      Qnet(:,:) = swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1)
+      Qnet(2:i1,2:j1) = swd(2:i1,2:j1,1) + swu(2:i1,2:j1,1) + lwd(2:i1,2:j1,1) + lwu(2:i1,2:j1,1)
 
       ! TODO: replace mean_2d with slabsum?
       Qnetav = mean_2d(Qnet)
