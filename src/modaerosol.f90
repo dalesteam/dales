@@ -29,7 +29,7 @@ module modaerosol
   public :: init_aerosol
   public :: aerosol_prepare
   public :: aerosol_finalize
-  public :: activation_interface
+  public :: activation
   public :: aerosol_cloud_to_rain
   public :: aerosol_redistribute
 
@@ -602,11 +602,6 @@ contains
 
   end subroutine mode_finalize
 
-  subroutine activation_interface()
-    use modfields, only: ql0, w0
-    use modmicrodata, only: Nc, delt, Ncp
-    call activation(ql0, w0, Nc, delt, modes(iAIS), modes(iACS), modes(iCOS), Ncp, qap_inc)
-  end subroutine activation_interface
 
   !> \brief Aerosol activation based on updraft velocity
   !!
@@ -618,165 +613,132 @@ contains
   !! \param m_inc In-cloud mode.
   !! \param w Vertical velocity.
   !! \param delt Time step size.
-  subroutine activation(ql, w, nc, delt, m_ais, m_acs, m_cos, ncp, qap_inc)
+  subroutine activation(ql, w, nc, delt, ncp)
 
-    real(field_r), intent(in)    :: ql(2-ih:,2-jh:,:)
-    real(field_r), intent(in)    :: w(2-ih:,2-jh:,:)
-    real(field_r), intent(in)    :: nc(2:,2:,:)
-    real(field_r), intent(in)    :: delt
-    type(mode_t),  intent(inout) :: m_ais
-    type(mode_t),  intent(inout) :: m_acs
-    type(mode_t),  intent(inout) :: m_cos
-    real(field_r), intent(inout) :: ncp(2:,2:,:)
-    real(field_r), intent(inout) :: qap_inc(2:,2:,:,:)
-
-    integer :: i, j, k, s
-    integer :: imod, iaer
-    integer :: my_number, my_target
+    real(field_r), intent(in) :: &
+      ql(2-ih:,2-jh:,:),         &
+      w(2-ih:,2-jh:,:),          &
+      nc(2:,2:,:),               &
+      delt
+    real(field_r), intent(inout) :: &
+      ncp(2:,2:,:)
 
     character(*),  parameter :: routine = modname//"::activation_pn15"
-    real(field_r), parameter :: r_crit = 35E-9
+
+    real(field_r), parameter :: r_crit = 35E-9 ! Critical radius for activation.
+
+    integer :: &
+      i, j, k, s, & ! Loop indices.
+      my_target     ! Target index in in-cloud mode.
 
     real(field_r) :: &
-      mode_total_mass, &
-      mode_mean_rho, &
-      mode_median_diameter, &
-      f_activated, &
-      N_activated, &
-      dNcdt
-    real(field_r) :: fn, fm, tend_n, tend_m
-    real(field_r) :: mass, num, rho
-    real(field_r) :: w0
+      dm,            & ! Median diameter.
+      n_act,         & ! Number of activated particles.
+      dncdt,         & ! Potential activation tendency.
+      fn,            & ! Activated fraction of number concentration.
+      fm,            & ! Activated fraciton of mass concentrattion.
+      tend_n,        & ! Real tendency of number concentration.
+      tend_m,        & ! Real tendency of mass concentration.
+      w0               ! Updraft velocity.
 
     call timer_tic(routine, 1)
 
-    !$acc parallel loop collapse(3) default(present) &
-    !$acc private(N_activated, mode_total_mass, mode_mean_rho, &
-    !$acc         mode_median_diameter, f_activated, N_activated, dNcdt, fn, &
-    !$acc         fm, tend_n, tend_m, mass, num, rho, w0, my_number, my_target)
-    do k = 1, k1
+    associate(m_cos => modes(iCOS), m_acs => modes(iACS), m_ais => modes(iAIS))
+
+    do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
           if (ql(i,j,k) > qcmin) then
-            N_activated = 0
-
-            ! Step 1: compute how much particles can activate in the AIS mode
             if (m_ais%lactive) then
-              mode_total_mass = 0
-              mode_mean_rho = 0
-
-              ! Inner loop, perhaps better to reorder arrays to (isv,k,j,i)
-              !$acc loop seq
-              do s = 1, m_ais%nspecies
-                mass = m_ais%q(i,j,k,s)
-                rho = m_ais%rho(s)
-                mode_total_mass = mode_total_mass + mass
-                mode_mean_rho = mode_mean_rho + mass / rho
-              end do
-
-              mode_mean_rho = mode_total_mass / (mode_mean_rho + eps)
-
-              num = m_ais%n(i,j,k)
-
-              mode_median_diameter = ((6 * mode_total_mass) / (pi * &
-                num * mode_mean_rho + &
-                eps))**(1.0_field_r/3) &
-                * exp((-3 * log(m_ais%sig_g)**2) / 2)
-              f_activated = 1 - 0.5_field_r * erfc(-log(2 * r_crit / &
-                mode_median_diameter) / sqrt(2.0_field_r)) * m_ais%sig_g
-              N_activated = 1E-6 * f_activated * num
+              dm = calc_median_diameter(m_ais%n(i,j,k), m_ais%q(i,j,k,:), &
+                                        m_ais%rho, m_ais%sig_g)
+              if (dm > 0) then
+              fn = 1 - 0.5_field_r * erfc(-log(2 * r_crit / &
+                   dm + eps) / (sqrt(2.0_field_r) * log(m_ais%sig_g)))
+            end if
             end if
 
-            ! Step 2: compute tendency of CCN
-            if (m_acs%lactive) then
-              N_activated = N_activated + 1E-6 * m_acs%n(i,j,k)
-            end if
-
-            if (m_cos%lactive) then
-              N_activated = N_activated + 1E-6 * m_cos%n(i,j,k)
-            end if
+            n_act = 1E-6 * (m_acs%n(i,j,k) + m_cos%n(i,j,k) + &
+                            fn * m_ais%n(i,j,k))
 
             w0 = max(0.0_field_r, w(i,j,k))
-            N_activated = max(0.0_field_r, N_activated)
-            dNcdt = 1E6 / delt * (0.1 * (w0 * 100 * N_activated / (w0 * 100 + &
-              0.023_field_r * N_activated + eps)))**1.27_field_r &
+            dncdt = 1E6 / delt * &
+                      (0.1 * (w0 * 100 * n_act / &
+                              (w0 * 100 + 0.023_field_r * n_act + eps)))**1.27_field_r &
               - 1E-6 * Nc(i,j,k)
-            dNcdt = max(dNcdt, 0.0_field_r)
+            dncdt = max(dncdt, 0.0_field_r)
 
-            ! Step 3: move aerosol mass + number from free modes to the in-cloud
-            !         mode, starting from the largest mode
-            ! COS mode
-            if (m_cos%lactive) then
-              num = m_cos%n(i,j,k)
-              fn = dNcdt * delt / (num + eps)
+            fn = dncdt * delt / (m_cos%n(i,j,k)+ eps)
               fn = max(min(fn, 1.0_field_r), 0.0_field_r)
+            if (fn >= 1.0_field_r) then
+              fm = 1.0_field_r
+            elseif (fn <= 0.0_field_r) then
+              fm = 0.0_field_r
+            else
               fm = 1 - 0.5_field_r * erfc(erfcinv(2 * fn) &
-                - 3 * m_cos%sig_g / sqrt(2.0_field_r))
-              fm = merge(1.0_field_r, fm, fn > 1.0_field_r)
+                - 3 * log(m_cos%sig_g) / sqrt(2.0_field_r))
+            end if
 
-              tend_n = fn * num / delt
+            tend_n = fn * m_cos%n(i,j,k) / delt
               tend_n = max(0.0_field_r, tend_n)
               m_cos%np(i,j,k) = m_cos%np(i,j,k) - tend_n
               Ncp(i,j,k) = Ncp(i,j,k) + tend_n
 
-              !$acc loop seq
               do s = 1, m_cos % nspecies
-                mass = m_cos%q(i,j,k,s)
-                tend_m = max(0.0_field_r, fm * mass / delt)
+              tend_m = max(0.0_field_r, fm * m_cos%q(i,j,k,s) / delt)
                 my_target = inc_idx(m_cos%itype(s))
                 m_cos%qp(i,j,k,s) = m_cos%qp(i,j,k,s) - tend_m
                 qap_inc(i,j,k,my_target) = qap_inc(i,j,k,my_target) + tend_m
               end do
 
-              ! dNcdt = dNcdt - tend_n?
-              dNcdt = merge(dNcdt - num / delt, 0.0_field_r, &
-                dNcdt * delt > num)
-            end if
+            dncdt = dncdt - tend_n
+            dncdt = max(0.0_field_r, dncdt)
 
-            ! ACS mode
-            if (m_acs%lactive) then
-              num = m_acs%n(i,j,k)
-              fn = dNcdt * delt / (num + eps)
+            if (m_acs%lactive .and. dncdt > 0) then
+              fn = dncdt * delt / (m_acs%n(i,j,k) + eps)
               fn = max(min(fn, 1.0_field_r), 0.0_field_r)
-              fm = 1 - 0.5_field_r * &
-                erfc(erfcinv(2 * fn) - 3 * m_acs%sig_g / sqrt(2.0_field_r))
-              fm = merge(1.0_field_r, fm, fn > 1.0_field_r)
+              if (fn >= 1.0_field_r) then
+                fm = 1.0_field_r
+              elseif (fn <= 0.0_field_r) then
+                fm = 0.0_field_r
+              else
+                fm = 1 - 0.5_field_r * erfc(erfcinv(2 * fn) &
+                  - 3 * log(m_acs%sig_g) / sqrt(2.0_field_r))
+              end if
 
-              tend_n = fn * num / delt
+              tend_n = fn * m_acs%n(i,j,k) / delt
               tend_n = max(0.0_field_r, tend_n)
+
               m_acs%np(i,j,k) = m_acs%np(i,j,k) - tend_n
               Ncp(i,j,k) = Ncp(i,j,k) + tend_n
 
               do s = 1, m_acs % nspecies
-                mass = m_acs%q(i,j,k,s)
-                tend_m = fm * mass / delt
+                tend_m = fm * m_acs%q(i,j,k,s) / delt
                 tend_m = max(0.0_field_r, tend_m)
                 my_target = inc_idx(m_acs%itype(s))
                 m_acs%qp(i,j,k,s) = m_acs%qp(i,j,k,s) - tend_m
                 qap_inc(i,j,k,my_target) = qap_inc(i,j,k,my_target) + tend_m
               end do
 
-              dNcdt = merge(dNcdt - num / delt, 0.0_field_r, &
-                dNcdt * delt > num)
+              dncdt = dncdt - tend_n
+              dncdt = max(0.0_field_r, dncdt)
             end if
 
-            ! AIS mode
-            if (m_ais%lactive) then
-              num = m_ais%n(i,j,k)
-              fn = dNcdt * delt / (num + eps)
+            if (m_ais%lactive .and. dncdt > 0) then
+              fn = dncdt * delt / (m_ais%n(i,j,k) + eps)
               fn = max(min(fn, 1.0_field_r), 0.0_field_r)
               fm = 1 - 0.5_field_r * &
-                erfc(erfcinv(2 * fn) - 3 * m_ais%sig_g / sqrt(2.0_field_r))
+                erfc(erfcinv(2 * fn) - 3 * log(m_ais%sig_g) / sqrt(2.0_field_r))
               fm = merge(1.0_field_r, fm, fn > 1.0_field_r)
 
-              tend_n = fn * num / delt
+              tend_n = fn * m_ais%n(i,j,k) / delt
               tend_n = max(0.0_field_r, tend_n)
+
               m_ais%np(i,j,k) = m_ais%np(i,j,k) - tend_n
               Ncp(i,j,k) = Ncp(i,j,k) + tend_n
 
               do s = 1, m_ais%nspecies
-                mass = m_ais%q(i,j,k,s)
-                tend_m = fm * mass / delt
+                tend_m = fm * m_ais%q(i,j,k,s) / delt
                 tend_m = max(0.0_field_r, tend_m)
                 my_target = inc_idx(m_ais%itype(s))
                 m_ais%qp(i,j,k,s) = m_ais%qp(i,j,k,s) - tend_m
@@ -787,6 +749,8 @@ contains
         end do
       end do
     end do
+
+    end associate
 
     call timer_toc(routine)
 
