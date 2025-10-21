@@ -108,6 +108,10 @@ if( ENABLE_RRTMG )
   add_compile_definitions( USE_RRTMG )
 endif()
 
+if( ENABLE_ZSTANDARD )
+  add_compile_definitions( NC_ZSTANDARD )
+endif()
+
 # GPU stuff
 
 include( dales_find_cuda )
