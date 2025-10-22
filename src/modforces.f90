@@ -66,10 +66,10 @@ contains
   use modglobal, only : kmax,dzh,dzf,grav, lpressgrad, lcoriol
   use modfields, only : sv0,up,vp,wp,thv0h,dpdxl,dpdyl,thvh
   use moduser,   only : force_user
-  use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice, imicro_sice2, iqr
+  use modtracers, only : get_tracer_index
   implicit none
 
-  integer k
+  integer k,iqr
 
   call timer_tic('modforces/forces', 0)
 
@@ -85,7 +85,9 @@ contains
     !$acc end kernels
   end if
 
-  if((imicro==imicro_sice).or.(imicro==imicro_sice2).or.(imicro==imicro_bulk).or.(imicro==imicro_bin)) then
+  ! we check if tracer qr exists, otherwise we don't use it. Should be functionally identical to checking microphysics schem.
+  iqr = get_tracer_index("qr")
+  if(iqr>0) then
     !$acc kernels default(present) async(2)
     do k=2,kmax
        wp(:,:,k) = wp(:,:,k) + grav*(thv0h(:,:,k)-thvh(k))/thvh(k) - &
