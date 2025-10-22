@@ -1338,7 +1338,7 @@ subroutine initlsm
 
     character(len=*), parameter :: routine = modname//'/initlsm'
 
-    integer :: ierr
+    integer :: ierr, ilu
     logical :: lheterogeneous
 
     ! Namelist definition
@@ -1408,6 +1408,30 @@ subroutine initlsm
 
     end if
 
+    do ilu=1,nlu
+       if (trim(tile(ilu)%lushort) == 'bs') then
+          tile(ilu)%lunum = lu_bs
+       else if (trim(tile(ilu)%lushort) == 'brn') then
+          tile(ilu)%lunum = lu_brn
+       else
+          tile(ilu)%lunum = lu_default
+       endif
+    enddo
+
+    !$acc enter data copyin(tile)
+    do ilu=1,nlu
+       !$acc enter data copyin(tile(ilu))
+       !$acc enter data copyin(tile(ilu)%gD)
+       !$acc enter data copyin(tile(ilu)%root_frac)
+       !$acc enter data copyin(tile(ilu)%phiw_mean)
+       !$acc enter data copyin(tile(ilu)%f2)
+       !$acc enter data copyin(tile(ilu)%f3)
+       !$acc enter data copyin(tile(ilu)%rs)
+       !$acc enter data copyin(tile(ilu)%rs_min)
+       !$acc enter data copyin(tile(ilu)%lai)
+       !$acc enter data copyin(tile(ilu)%rs)
+    enddo
+
 end subroutine initlsm
 
 !
@@ -1422,6 +1446,8 @@ subroutine exitlsm
     implicit none
 
     if (.not. llsm) return
+
+    !$acc exit data delete(soil_index, theta_wp, theta_fc, f1, f2b, cveg)
 
     ! Allocated from `read_soil_table`:
     deallocate( theta_res, theta_wp, theta_fc, theta_sat, gamma_theta_sat, vg_a, vg_l, vg_n )
@@ -1549,10 +1575,14 @@ subroutine allocate_fields
     allocate(interception(i2, j2))
 
     allocate(f1(i2, j2))
+    !$acc enter data create(f1)
     allocate(f2b(i2, j2))
+    !$acc enter data create(f2b)
 
     allocate(du_tot(i2, j2))
+    !$acc enter data create(du_tot)
     allocate(thv_1(i2, j2))
+    !$acc enter data create(thv_1)
     allocate(land_frac(i2, j2))
     allocate(cveg(i2, j2))
 
@@ -1691,6 +1721,10 @@ end subroutine allocate_tile
 subroutine deallocate_tile(tile)
     implicit none
     type(T_lsm_tile), intent(inout) :: tile
+    !$acc exit data delete(tile%thlskin, tile%qtskin, tile%obuk)
+    !$acc exit data delete(tile%root_frac, tile%phiw_mean)
+    !$acc exit data delete(tile%f2,tile%f3,tile%gD)
+
     deallocate( tile%z0m, tile%z0h, tile%base_frac, tile%frac )
     deallocate( tile%obuk, tile%ustar, tile%ra )
     deallocate( tile%lambda_stable, tile%lambda_unstable )
@@ -1720,6 +1754,7 @@ subroutine init_lsm_tiles
       tile(ilu) % thlskin(:,:) = thlprof(1)
       tile(ilu) % qtskin (:,:) = qtprof(1)
       tile(ilu) % obuk   (:,:) = -0.1
+      !$acc enter data copyin(tile(ilu)%thlskin, tile(ilu)%qtskin, tile(ilu)%obuk)
     end do
 
 end subroutine init_lsm_tiles
@@ -1956,6 +1991,10 @@ subroutine init_homogeneous
 
     ! Cleanup!
     deallocate(t_soil_p, theta_soil_p, soil_index_p)
+
+    !$acc enter data copyin(soil_index)
+    !$acc enter data copyin(phiw)
+    !$acc enter data copyin(cveg)
 
 end subroutine init_homogeneous
 
@@ -2351,6 +2390,10 @@ subroutine init_heterogeneous_nc
     ! write(*,*) 'wmax     ', wmax
     ! !call flush()
 
+    !$acc enter data copyin(soil_index)
+    !$acc enter data copyin(phiw)
+    !$acc enter data copyin(cveg)
+
 end subroutine init_heterogeneous_nc
 
 !
@@ -2417,6 +2460,8 @@ subroutine read_soil_table
     call D_MPI_BCAST(vg_a,            table_size, 0, comm3d, mpierr)
     call D_MPI_BCAST(vg_l,            table_size, 0, comm3d, mpierr)
     call D_MPI_BCAST(vg_n,            table_size, 0, comm3d, mpierr)
+
+    !$acc enter data copyin(theta_res,theta_wp,theta_fc)
 
 end subroutine read_soil_table
 

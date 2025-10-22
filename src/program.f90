@@ -277,7 +277,9 @@ program DALES
 !-----------------------------------------------------
 !   3.3   THE SURFACE LAYER / LAND-SURFACE
 !-----------------------------------------------------
+    call timer_tic('lsm', 0)
     call lsm
+    call timer_toc('lsm')
     call drydep
     call surface
 
