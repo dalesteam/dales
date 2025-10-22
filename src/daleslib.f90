@@ -157,15 +157,12 @@ module daleslib
             call inittimestat  ! Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
             call initgenstat   ! Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
             !call inittilt
-            call initsampling
             call initquadrant
             call initcrosssection
             call initAGScross
             call initlsmcrosssection
             !call initprojection
             call initcloudfield
-            call initfielddump
-            call initsamptend
             call initradstat
             call initradfield
             call initlsmstat
@@ -177,12 +174,15 @@ module daleslib
             call initvarbudget
             !call initstressbudget
             call initchem
+            call initsampling
+            call initfielddump
+            call initsamptend
             call initheterostats
             call initcanopy
-
+            
             !call initspectra2
             call initcape
-
+            
             !Set additional library information
             my_task=myid
             master_task=0

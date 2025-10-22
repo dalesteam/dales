@@ -530,9 +530,9 @@ subroutine initsamptend
                           cp,rv,rlv,rd,&
                           timee,rk3step,dt_lim,ijtot,nsv,rdt
     use modfields, only : up,vp,wp,thlp,qtp,svp,w0,thl0,ql0,exnf,qt0,u0,v0,sv0
-    use modmicrodata, only : iqr,inr
     use modstat_nc, only : lnetcdf
     use modchecksim, only: lchecktend, checktend
+    use modtracers, only : get_tracer_index
     implicit none
     integer, intent(in)           :: tendterm !< name of the term to write down
     logical, intent(in), optional :: lastterm !< true if this is the last term of the equations; the write routine is entered.
@@ -540,7 +540,7 @@ subroutine initsamptend
     real, allocatable, dimension(:,:,:) :: w0f
     real, allocatable, dimension(:,:,:) :: thv0
     real, allocatable, dimension(:) :: thvav
-    integer :: i,j,k
+    integer :: i,j,k,iqr,inr
 
     if (lchecktend) call checktend(tendnames(tendterm))
 
@@ -552,6 +552,13 @@ subroutine initsamptend
       dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
       return
     end if
+    ! in initsampling we have already checked if iqr,inr!=0, so we can safely assume that they are nonzero here
+    if (lsamptendqr) then
+      iqr = get_tracer_index("qr")
+    endif
+    if (lsamptendnr) then
+      inr = get_tracer_index("Nr")
+    endif
 
     IF (present(firstterm)) THEN
     IF (firstterm) THEN
@@ -833,17 +840,24 @@ subroutine initsamptend
     ! Terms/variables needed to scale-decompose the advection terms, for each selected budget
     use modglobal, only : i1,imax,j1,jmax,k1,dzhi,dzf,dzh
     use modfields, only : w0,thl0,thl0h,qt0,qt0h,u0,v0,sv0, ql0, ql0h
-    use modmicrodata, only : iqr,inr
     use modsubgriddata, only : ekh
     use modsurfdata,only: thlflux,qtflux,svflux
+    use modtracers, only : get_tracer_index
     implicit none
     real :: ekhalf, thlhav, qthav, qrhav, qr0h, nrhav, nr0h, qlhav
     real :: thlwavr, thlsavr, qtwavr, qtsavr
     real :: qrwavr, qrsavr, nrwavr, nrsavr, qlwavr, qlsavr
     real :: wthlavr, wqtavr, wqravr, wnravr, wqlavr
-    integer :: i,j,k
+    integer :: i,j,k,inr,iqr
 
     if(.not.(ltenddec)) return
+      ! in initsampling we have already checked if iqr,inr!=0, so we can safely assume that they are nonzero here
+      if (lsamptendqr) then
+        iqr = get_tracer_index("qr")
+      endif
+      if (lsamptendnr) then
+        inr = get_tracer_index("nr")
+      endif
 
       uwavr = 0.
       vsavr = 0.
@@ -1082,16 +1096,25 @@ subroutine initsamptend
                           cp,rv,rlv,rd,&
                           ijtot
     use modfields, only : w0,thl0,ql0,exnf,qt0,u0,v0,sv0
-    use modmicrodata, only : iqr,inr
+    use modtracers, only : get_tracer_index
     implicit none
     real, allocatable, dimension(:,:,:) :: w0f
     real, allocatable, dimension(:,:,:) :: thv0
     real, allocatable, dimension(:) :: thvav
-    integer :: i,j,k
+    integer :: i,j,k,iqr,inr
 
 
     if (.not. lsamptend) return
     if(.not.(ldosamptendleib)) return
+
+    ! in initsampling we have already checked if iqr,inr!=0, so we can safely assume that they are nonzero here
+    if (lsamptendqr) then
+      iqr = get_tracer_index("qr")
+    endif
+    if (lsamptendnr) then
+      inr = get_tracer_index("nr")
+    endif
+
     ldosamptendleib=.false.
     tendmask=.false.
     nrsampnew=0
