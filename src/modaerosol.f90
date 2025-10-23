@@ -796,49 +796,96 @@ contains
 
   end subroutine aerosol_cloud_to_rain
 
-  !> Redistribute aerosols over ACS and COS modes after evaporation of rain/cloud water
-  subroutine aerosol_redistribute(q, qp, np, delt)
+  !> Resuspend aerosols from evaporated rain drops.
+  !!
+  !! Aerosols are resuspended over the ACS and COS modes. Only rain drops that 
+  !! fully evaporate should resuspend an aerosol particle, so the resuspended
+  !! aerosol mass is corrected using a correction factor.
+  !!
+  !! @see https://doi.org/10.1016/j.atmosres.2005.10.012
+  !!
+  !! @param[in] qr Rain water content.
+  !! @param[in] qrp Tendency of rain water content from evaporation.
+  !! @param[in] nrp Tendency of rain number concentration from evaporation.
+  !! @param[in] delt Time step size.
+  subroutine aerosol_resuspend_rain(qr, qrp, nrp, delt)
 
-    real(field_r), intent(in)    :: q(2:,2:,:)
-    real(field_r), intent(in)    :: qp(2:,2:,:)
-    real(field_r), intent(in)    :: np(2:,2:,:)
-    real(field_r), intent(in)    :: delt
+    real(field_r), intent(in) :: &
+      qr(2:,2:,:),               &
+      qrp(2:,2:,:),              &
+      nrp(2:,2:,:),              &
+      delt
 
     character(len=*), parameter :: routine = modname//'/aero_redistribute'
-    real(field_r), parameter :: Dc = 1
+    real(field_r),    parameter :: Dc = 1E-9 ! Median diameter of resuspended aerosol.
 
-    integer               :: i, j, k, s, itype, target_idx
-    real(field_r)         :: f_evp, eps, evapt
-    real(field_r)         :: m_evp, v_evp, rho_evp, n_evp, dn, dm, fn, fm
+    integer :: &
+      i, j, k, s, & ! Loop indices.
+      itype,      & ! Aerosol type.
+      target_idx    ! Index in target mode.
+
+    real(field_r) :: &
+      f_evp,             & ! Fraction of evaporated rain water.
+      eps,               & ! Correction factor.
+      evapm(maxspecies), & ! Mass of evaporated aerosol.
+      evapn,             & ! Number of evaporated aerosol.
+      dn,                & ! Number median diameter of evaporated aerosol.
+      dm,                & ! Mass median diameter of evaporated aerosol.
+      fn,                & ! Number fraction of aerosol resuspended in ACS mode.
+      fm                   ! Mass fraction of aerosol resuspended in COS mode.
+
+    call timer_tic(routine, 1)
 
     associate(m_acs => modes(iACS), m_cos => modes(iCOS))
 
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
-          f_evp = (- qp(i,j,k) * delt) / (q(i,j,k))
+          if (qr(i,j,k) > 0) then
+            f_evp = (-qrp(i,j,k) * delt) / (qr(i,j,k) + 1E-40)
           f_evp = max(min(f_evp, 1.0_field_r), 0.0_field_r)
 
-          ! Correction factor from Gong et al. (2006)
+            ! Correction factor from Gong et al. (2006).
+            ! Evaluates to 1 for f_evp = 1
           eps = (1 - exp(-2 * sqrt(f_evp)) * (1 + 2 * sqrt(f_evp) &
             + 2 * f_evp + (4.0_field_r/3) * f_evp**(3.0_field_r/2))) &
             * (1 - f_evp) + f_evp * f_evp
 
-          ! Compute the mass and volume of the evaporated aerosol
-          m_evp = 0
-          v_evp = 0
-          do s = 1, n_species_active
-            evapt = eps * f_evp * qa_inr(i,j,k,s) / delt
-            qap_inr(i,j,k,s) = qap_inr(i,j,k,s) - evapt
+            evapm(:) = eps * f_evp * qa_inr(i,j,k,:) / delt
+            evapn = -1 * nrp(i,j,k)
 
-            evapt = max(0.0_field_r, evapt)
+            ! Compute the median diameter of the resuspended aerosol.
+            dn = calc_median_diameter(evapn, evapm(:), rho, 1.5_field_r)
+            dm = dn * exp(3 * log(1.5_field_r)**2)
 
-            m_evp = m_evp + evapt
-            v_evp = v_evp + evapt / (s)
+            fn = 0.5_field_r * erfc(-log(dc/(dn + 1E-40)) &
+                                    / (log(1.5_field_r) * sqrt(2.0_field_r)))
+            fm = 0.5_field_r * erfc(-log(dc/(dm + 1E-40)) &
+                                    / (log(1.5_field_r) * sqrt(2.0_field_r)))
+
+            m_acs%np(i,j,k) = m_acs%np(i,j,k) + fn * evapn
+            m_cos%np(i,j,k) = m_cos%np(i,j,k) + (1 - fn) * evapn
+
+            do s = 1, n_species_active
+              itype = aerosol_get_type_in_cloud(s)
+              target_idx = aerosol_get_index_in_mode(itype, m_acs)
+              m_acs%qp(i,j,k,target_idx) = m_acs%qp(i,j,k,target_idx) &
+                                           + fm * evapm(s)
+              target_idx = aerosol_get_index_in_mode(itype, m_cos)
+              m_cos%qp(i,j,k,target_idx) = m_cos%qp(i,j,k,target_idx) &
+                                           + (1 - fm) * evapm(s)
+              qap_inr(i,j,k,s) = qap_inr(i,j,k,s) - evapm(s)
+            end do
+          end if
+        end do
+      end do
           end do
 
-          rho_evp = m_evp / (v_evp + 1E-20)
-          n_evp = max(0.0_field_r, -1 * np(i,j,k))
+    end associate
+
+    call timer_toc(routine)
+
+  end subroutine aerosol_resuspend_rain
 
           dn = 1E6 * (6 * m_evp / (pi * n_evp * rho_evp))**(1.0_field_r / 3) &
             * exp(-(3.0_field_r / 2) * log(1.5_field_r)**2)
