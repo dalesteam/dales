@@ -2,6 +2,7 @@ module modaerosol
 
   use, intrinsic :: iso_fortran_env
 
+  use modaerosol_mode_t, only: mode_t
   use modglobal,      only: ifnamopt, fname_options, checknamelisterror, &
                             cexpnr, i1, j1, k1, ih, jh, pi, nsv, rhow, kmax
   use modmicrodata,   only: qcmin
@@ -79,36 +80,6 @@ module modaerosol
     module procedure :: erfcinv_real32
     module procedure :: erfcinv_real64
   end interface
-
-  type :: mode_connection_t
-    logical              :: ldoshift   !< Do shift for this mode
-    integer, allocatable :: itarget(:) !< Index of species in target mode
-  end type mode_connection_t
-
-  type, public :: mode_t
-    logical                 :: lactive     !< Mode is active
-    character(len=3)        :: name        !< Short name
-    character(len=27)       :: longname    !< Long name
-    integer                 :: nspecies    !< Number of aerosol species
-    real(field_r)           :: sig_g       !< Geometric standard deviation
-    real(field_r)           :: rho(maxspecies)     !< Aerosol densities
-    integer                 :: itrac(maxspecies)    !< Tracer index
-    integer                 :: itype(maxspecies)    !< Aerosol type
-    real(field_r), pointer  :: n(:,:,:)    !< Number concentration
-    real(field_r), pointer  :: q(:,:,:,:)  !< Mass concentration
-    real(field_r), pointer  :: np(:,:,:)   !< Number concentration tendency
-    real(field_r), pointer  :: qp(:,:,:,:) !< Mass concentration tendency
-    type(mode_connection_t) :: shift2cloud
-    type(mode_connection_t) :: shift2larger
-    type(mode_connection_t) :: shift2free
-    type(mode_connection_t) :: shift2soluble
-  contains
-    procedure :: construct => mode_construct
-    procedure :: add_aerosol => mode_add_aerosol
-    procedure :: allocate => mode_allocate
-    procedure :: prepare => mode_prepare
-    procedure :: finalize => mode_finalize
-  end type mode_t
 
   ! Public variables
   logical :: &
@@ -456,151 +427,25 @@ contains
 
   end subroutine aerosol_finalize
 
-  !> Construct a mode
-  !!
-  !! \param name Short name.
-  !! \param long_name Long name.
-  !! \param sigma_g Geometric standard deviation.
-  subroutine mode_construct(self, name, long_name, sig_g)
-    class(mode_t), intent(inout) :: self
-    character(3),  intent(in)    :: name
-    character(*),  intent(in)    :: long_name
-    real(field_r), intent(in)    :: sig_g
 
-    self % name = trim(name)
-    self % longname = trim(long_name)
-    self % sig_g = sig_g
 
-  end subroutine mode_construct
 
-  subroutine mode_add_aerosol(self, itype, rho)
-    class(mode_t), intent(inout) :: self
-    integer, intent(in) :: itype
-    real(field_r), intent(in) :: rho
 
-    integer :: isv
 
-    self%lactive = .true.
 
-    self%nspecies = self%nspecies + 1
-    self%itype(self%nspecies) = itype
 
-    ! Setup a tracer for the mass concentration
-    call add_tracer(trim(aerosol_names(itype))//"_"//self%name, &
-      long_name=aerosol_longnames(itype), isv=isv)
-
-    self%itrac(self%nspecies) = isv
-    self%rho(self%nspecies) = rho
-
-  end subroutine mode_add_aerosol
-
-  !> Allocate memory for mass/number concentrations and tendencies.
-  subroutine mode_allocate(self)
-    class(mode_t), intent(inout) :: self
-
-    ! Make sure static data is available on GPU, even if we don't use this mode
-    !$acc enter data copyin(self, self%enabled)
-
-    if (self%nspecies < 1) return
-
-    allocate(self%n(2:i1,2:j1,1:k1), self%np(2:i1,2:j1,1:k1), &
-      self%q(2:i1,2:j1,1:k1,self%nspecies), &
-      self%qp(2:i1,2:j1,1:k1,self%nspecies))
-
-    self%n(:,:,:) = 0
-    self%np(:,:,:) = 0
-    self%q(:,:,:,:) = 0
-    self%qp(:,:,:,:) = 0
-
-    !$acc enter data copyin(self%n, self%np, self%q, self%qp)
-
-  end subroutine mode_allocate
-
-  !> Copies aerosol fields to work space.
-  !!
-  !! \param sv Tracer fields.
-  subroutine mode_prepare(self, sv)
-    class(mode_t), intent(inout) :: self
-    real(field_r), intent(in)    :: sv(2-ih:i1+ih,2-jh:j1+jh,1:k1,1:nsv)
-
-    integer :: iaer, sv_idx
-    integer :: i, j, k
-
-    if (self % nspecies < 1) return
-
-    sv_idx = get_tracer_index(self%name//'_n')
-
-    !$acc parallel loop gang vector collapse(3) default(present) async
-    do k = 1, k1
-      do j = 2, j1
-        do i = 2, i1
-          self%n(i,j,k) = max(sv(i,j,k,sv_idx), 0.0_field_r)
-        end do
-      end do
     end do
 
-    ! And the mass concentrations
-    do iaer = 1, self%nspecies
-      sv_idx = get_tracer_index(trim(aerosol_names(self%itype(iaer)))//'_'//self%name)
-      !$acc parallel loop gang vector collapse(3) default(present) async
-      do k = 1, k1
-        do j = 2, j1
-          do i = 2, i1
-            self%q(i,j,k,iaer) = max(sv(i,j,k,sv_idx), 0.0_field_r)
-          end do
-        end do
-      end do
+
+
+
+
+
+
     end do
 
-    !$acc wait
 
-  end subroutine mode_prepare
 
-  !> Copies computed tendencies to svp fields.
-  !!
-  !! \param svp Tracer tendency fields.
-  subroutine mode_finalize(self, svp, svm, delt)
-    class(mode_t), intent(inout) :: self
-    real(field_r), intent(inout) :: svp(2-ih:i1+ih,2-jh:j1+jh,1:k1,1:nsv)
-    real(field_r), intent(in)    :: svm(2-ih:i1+ih,2-jh:j1+jh,1:k1,1:nsv)
-    real(field_r), intent(in)    :: delt
-
-    integer :: iaer, sv_idx
-    integer :: i, j, k
-    character(3) :: name
-
-    if (self % nspecies < 1) return
-
-    sv_idx = get_tracer_index(self%name//'_n')
-
-    !$acc parallel loop gang vector collapse(3) default(present) async
-    do k = 1, k1
-      do j = 2, j1
-        do i = 2, i1
-          svp(i,j,k,sv_idx) = svp(i,j,k,sv_idx) + &
-            max(self%np(i,j,k), -svm(i,j,k,sv_idx) / delt)
-          self%np(i,j,k) = 0
-        end do
-      end do
-    end do
-
-    do iaer = 1, self%nspecies
-      sv_idx = get_tracer_index(trim(aerosol_names(self%itype(iaer)))//'_'//self%name)
-      !$acc parallel loop gang vector collapse(3) default(present) async
-      do k = 1, k1
-        do j = 2, j1
-          do i = 2, i1
-            svp(i,j,k,sv_idx) = svp(i,j,k,sv_idx) + &
-              max(self%qp(i,j,k,iaer), -svm(i,j,k,sv_idx) / delt)
-            self%qp(i,j,k,iaer) = 0
-          end do
-        end do
-      end do
-    end do
-
-    !$acc wait
-
-  end subroutine mode_finalize
 
 
   !> \brief Aerosol activation based on updraft velocity

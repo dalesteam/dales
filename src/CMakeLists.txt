@@ -18,6 +18,7 @@ set( dales_srcs
 	modadvection.f90
 	modaerosol.f90
     modaerosol_types.f90
+	modaerosol_mode_t.f90
 	modboundary.f90
 	modbudget.f90
 	modbulkmicro.f90
