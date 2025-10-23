@@ -1127,4 +1127,117 @@ contains
 
   end subroutine scavenging_rain
 
+  !> Compute flux of in-rain aerosols due to sedimentation of rain drops.
+  !!
+  !! @param[in] qr Rain water content.
+  !! @param[in] nr Rain number concentration.
+  !! @param[in] rho Air density.
+  !! @param[in] dzf Thickness of vertical levels.
+  !! @param[in] qrbase Lowest level with rain.
+  !! @param[in] qrroof Highest level with rain.
+  !! @param[in] delt Time step size.
+  subroutine aerosol_sedimentation_rain(qr, nr, rho, dzf, qrbase, qrroof, delt)
+
+    real(field_r), intent(in)  :: &
+      qr(2:,2:,:),                &
+      nr(2:,2:,:),                &
+      rho(:),                     &
+      dzf(:),                     &
+      delt
+
+    integer, intent(in)  :: &
+      qrbase,               &
+      qrroof
+
+    integer ::    &
+      i, j, k, s, & ! Loop indices.
+      ts,         & ! Time index.
+      n_spl         ! Number of sub-timesteps.
+
+    real(field_r) :: &
+      dt_spl,        & ! Sub-timestep size.
+      sed_nr           ! Sedimentation rate of number concentration.
+
+    real(field_r), pointer :: &
+      qr_spl(:,:,:),          & ! Rain water content at sub-timesteps.
+      nr_spl(:,:,:),          & ! Rain number concentration at sub-timesteps.
+      qa_spl(:,:,:,:)           ! Aerosol mass at sub-timesteps.
+
+    allocate(qr_spl(2:i1,2:j1,1:k1), nr_spl(2:i1,2:j1,1:k1), &
+             qa_spl(1:n_species_active,2:i1,2:j1,1:k1))
+
+    n_spl = ceiling(9.9 * delt / minval(dzf))
+    dt_spl = delt / real(n_spl, kind=field_r)
+
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
+          qr_spl(i,j,k) = qr(i,j,k)
+          nr_spl(i,j,k) = nr(i,j,k)
+        end do
+      end do
+    end do
+
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
+          do s = 1, n_species_active
+            qa_spl(s,i,j,k) = qa_inr(i,j,k,s)
+          end do
+        end do
+      end do
+    end do
+
+    do ts = 1, n_spl
+      do k = qrbase, qrroof
+        do j = 2, j1 
+          do i = 2, i1
+            if (qr_spl(i,j,k) > qrmin .and. nr_spl(i,j,k) > 0) then
+              if (l_sb) then
+                sed_qr(i,j,k) = calc_sed_qr_sb(qr_spl(i,j,k), nr_spl(i,j,k), &
+                                               rho(k))
+                sed_nr = calc_sed_nr_sb(qr_spl(i,j,k), nr_spl(i,j,k), rho(k))
+              else
+                sed_qr(i,j,k) = calc_sed_qr_kk(qr_spl(i,j,k), nr_spl(i,j,k), &
+                                               rho(k))
+                sed_nr = calc_sed_nr_kk(qr_spl(i,j,k), nr_spl(i,j,k), rho(k))
+              end if
+              qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr(i,j,k) * dt_spl &
+                              / (dzf(k) * rho(k))
+              nr_spl(i,j,k) = nr_spl(i,j,k) - sed_nr * dt_spl / dzf(k)
+              if (k > 1) then
+                qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr(i,j,k) * dt_spl &
+                                  / (dzf(k-1) * rho(k-1))
+                nr_spl(i,j,k-1) = nr_spl(i,j,k-1) + sed_nr * dt_spl / dzf(k-1)
+              end if
+              do s = 1, n_species_active
+                qa_spl(s,i,j,k) = qa_spl(s,i,j,k) - sed_qr(i,j,k) / qr_spl(i,j,k) &
+                                  * qa_spl(s,i,j,k) * dt_spl / (dzf(k) * rho(k))
+                if (k > 1) then
+                  qa_spl(s,i,j,k-1) = qa_spl(s,i,j,k-1) + sed_qr(i,j,k) &
+                                      / qr_spl(i,j,k) * qa_spl(s,i,j,k) &
+                                      * dt_spl / (dzf(k-1) * rho(k-1))
+                end if
+              end do
+            end if
+          end do
+        end do
+      end do
+    end do
+
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
+          do s = 1, n_species_active
+            qap_inr(i,j,k,s) = qap_inr(i,j,k,s) + &
+                               (qa_spl(s,i,j,k) - qa_inr(i,j,k,s)) / delt
+          end do
+        end do
+      end do
+    end do
+
+    deallocate(qr_spl, nr_spl, qa_spl)
+
+  end subroutine aerosol_sedimentation_rain
+
 end module modaerosol
