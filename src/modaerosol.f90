@@ -887,23 +887,77 @@ contains
 
   end subroutine aerosol_resuspend_rain
 
-          dn = 1E6 * (6 * m_evp / (pi * n_evp * rho_evp))**(1.0_field_r / 3) &
-            * exp(-(3.0_field_r / 2) * log(1.5_field_r)**2)
+  subroutine aerosol_resuspend_cloud(qlm, ql, nc, delt, ncp)
+
+    real(field_r), intent(in) :: &
+      qlm(2-ih:,2-jh:,:),        &
+      ql(2-ih:,2-jh:,:),         &
+      nc(2:,2:,:),               &
+      delt
+
+    real(field_r), intent(inout) :: &
+      ncp(2:,2:,:)
+
+    character(len=*), parameter :: routine = modname//'/aero_redistribute'
+    real(field_r),    parameter :: Dc = 1E-9
+
+    integer :: &
+      i, j, k, s, & ! Loop indices.
+      itype,      & ! Aerosol type.
+      target_idx    ! Index in target mode.
+
+    real(field_r) :: &
+      f_evp,             & ! Fraction of evaporated rain water.
+      eps,               & ! Correction factor.
+      evapm(maxspecies), & ! Mass of evaporated aerosol.
+      evapn,             & ! Number of evaporated aerosol.
+      dn,                & ! Number median diameter of evaporated aerosol.
+      dm,                & ! Mass median diameter of evaporated aerosol.
+      fn,                & ! Number fraction of aerosol resuspended in ACS mode.
+      fm                   ! Mass fraction of aerosol resuspended in COS mode.
+
+    associate(m_acs => modes(iACS), m_cos => modes(iCOS))
+
+    do k = 1, kmax
+      do j = 2, j1
+        do i = 2, i1
+          f_evp = (qlm(i,j,k) - ql(i,j,k)) / (qlm(i,j,k) + 1E-40)
+          f_evp = max(min(f_evp, 1.0_field_r), 0.0_field_r)
+
+          ! If no more cloud is in this grid cell, evaporate all aerosol.
+          f_evp = merge(f_evp, 1.0_field_r, ql(i,j,k) > 0.0_field_r)
+
+          ! Correction factor from Gong et al. (2006).
+          ! Evaluates to 1 for f_evp = 1
+          eps = (1 - exp(-2 * sqrt(f_evp)) * (1 + 2 * sqrt(f_evp) &
+                + 2 * f_evp + (4.0_field_r/3) * f_evp**(3.0_field_r/2))) &
+                * (1 - f_evp) + f_evp * f_evp
+          
+          evapm(:) = eps * f_evp * qa_inc(i,j,k,:) / delt
+          evapn = f_evp * nc(i,j,k) / delt
+
+          ! Compute the median diameter of the resuspended aerosol.
+          dn = calc_median_diameter(evapn, evapm(:), rho, 1.5_field_r)
           dm = dn * exp(3 * log(1.5_field_r)**2)
 
-          fn = 0.5_field_r * erfc(-log(dc/dn) / log(1.5_field_r) / sqrt(2.0_field_r))
-          fm = 0.5_field_r * erfc(-log(dc/dm) / log(1.5_field_r) / sqrt(2.0_field_r))
+          fn = 0.5_field_r * erfc(-log(dc/(dn + 1E-40)) &
+                                  / (log(1.5_field_r) * sqrt(2.0_field_r)))
+          fm = 0.5_field_r * erfc(-log(dc/(dm + 1E-40)) &
+                                  / (log(1.5_field_r) * sqrt(2.0_field_r)))
 
-          m_acs%np(i,j,k) = m_acs%np(i,j,k) + Fn * n_evp
-          m_cos%np(i,j,k) = m_cos%np(i,j,k) + (1 - fn) * n_evp
+          m_acs%np(i,j,k) = m_acs%np(i,j,k) + fn * evapn
+          m_cos%np(i,j,k) = m_cos%np(i,j,k) + (1 - fn) * evapn
+          ncp(i,j,k) = ncp(i,j,k) - evapn
 
           do s = 1, n_species_active
-            evapt = eps * f_evp * qa_inr(i,j,k,s) / delt
             itype = aerosol_get_type_in_cloud(s)
             target_idx = aerosol_get_index_in_mode(itype, m_acs)
-            m_acs%qp(i,j,k,target_idx) = m_acs%qp(i,j,k,target_idx) + fm * evapt
+            m_acs%qp(i,j,k,target_idx) = m_acs%qp(i,j,k,target_idx) &
+                                         + fm * evapm(s)
             target_idx = aerosol_get_index_in_mode(itype, m_cos)
-            m_cos%qp(i,j,k,target_idx) = m_cos%qp(i,j,k,target_idx) + (1 - fm) * evapt
+            m_cos%qp(i,j,k,target_idx) = m_cos%qp(i,j,k,target_idx) &
+                                         + (1 - fm) * evapm(s)
+            qap_inc(i,j,k,s) = qap_inc(i,j,k,s) - evapm(s)
           end do
         end do
       end do
@@ -911,7 +965,7 @@ contains
 
     end associate
 
-  end subroutine aerosol_redistribute
+  end subroutine aerosol_resuspend_cloud
 
   subroutine scavenging_cloud(ql, Nc, rhof)
 
