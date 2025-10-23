@@ -756,15 +756,24 @@ contains
 
   end subroutine activation
 
+  !> Move aerosol from in-cloud to in-rain mode based on the tendency of some
+  !! rain generation process.
+  !!
+  !! @param[in] qc Cloud water content.
+  !! @param[in] qrp Tendency of rain water content.
   subroutine aerosol_cloud_to_rain(qc, qrp)
 
-    real(field_r), intent(in) :: qc(2:,2:,:)
-    real(field_r), intent(in) :: qrp(2:,2:,:)
+    real(field_r), intent(in) :: &
+      qc(2-ih:,2-jh:,:),         &
+      qrp(2:,2:,:)
 
     character(len=*), parameter :: routine = modname//'/aerosol_cloud_to_rain'
 
-    integer       :: i, j, k, s
-    real(field_r) :: dqadt
+    integer :: &
+      i, j, k, s ! Loop indices
+
+    real(field_r) :: &
+      dqadt ! Tendency of in-rain aerosol
 
     call timer_tic(routine, 1)
 
@@ -773,10 +782,11 @@ contains
       do k = 1, kmax
         do j = 2, j1
           do i = 2, i1
+            if (qrp(i,j,k) > 0) then
             dqadt = qrp(i,j,k) / qc(i,j,k) * qa_inc(i,j,k,s)
-            dqadt = merge(dqadt, 0.0_field_r, qc(i,j,k) > qcmin)
             qap_inc(i,j,k,s) = qap_inc(i,j,k,s) - dqadt
             qap_inr(i,j,k,s) = qap_inr(i,j,k,s) + dqadt
+            end if
           end do
         end do
       end do
