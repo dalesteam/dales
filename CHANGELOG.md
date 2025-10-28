@@ -1,6 +1,50 @@
 Changes in DALES
 ================
 
+Version 5.0.0-beta
+------------------
+
+This is a major update to DALES, adding support for running with open boundary conditions and with detailed maps of surface properties and emission.
+
+* [New manual](https://dalesteam.github.io/dalesdocs/intro.html), under development
+
+### New features
+
+- [immersed boundary conditions](https://dalesteam.github.io/dalesdocs/running/ibm.html), by Stephan de Roode, Steven van der Linden, Jasper Tomas
+- land surface model based on hTessel, by Bart van Stratum
+- dry deposition of chemicals, by Ruud Janssen and Leon Geers
+- open boundary conditions, by Frans Liqui Lung, Pedro Costa, and Fredrik Jansson
+- [GPU acceleration](https://dalesteam.github.io/dalesdocs/running/gpu.html) with OpenACC, by Caspar Jungbacker, Laurent Soucasse, and Lucas Esclapez
+- RRTMGP radiation scheme, by Laurent Soucasse
+- emission sources (time-dependent, both surface map and point sources),
+  by Arseni Doyennel and Marco de Bruine
+- coarse-grained statistics (per-processor profile and tendency output),
+  by Marloes van Driel and Martin Janssens
+- M7 aerosol scheme, by Caspar Jungbacker and Marco de Bruine
+- modtimer, measures time spent in different subroutines, by Laurent Soucasse
+
+See also the section on
+[changes](https://dalesteam.github.io/dalesdocs/running/changes.html)
+in the manual, including tips for modifying a case for this version.
+
+### Changes
+
+- scalars are now accessesd by name and not by index,
+improving compatibility among different processes that
+use scalars. See [changes](https://dalesteam.github.io/dalesdocs/running/changes.html).
+- using the FFTW library is now the default. The built-in FFT is still available.
+- `lmostlocal` is now true by default - the Obukhov length is calculated per grid point.
+- `PHYSICS/lfast_thermo` is now true by default for faster thermodynamics.
+- the cmake compilation script has been rewritten, and the options renamed. See [compilation](https://dalesteam.github.io/dalesdocs/running/compilation.html) in the manual.
+
+### Limitations
+
+- The GPU support is not complete. The following features do not work on GPU:
+    * open boundary conditions
+    * immersed boundary conditions
+    * chemistry
+
+
 Version 4.4.2
 -------------
 
