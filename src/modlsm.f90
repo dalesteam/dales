@@ -31,55 +31,130 @@ module modlsm
 
 contains
 
+subroutine update_device
+    ! CPU
+    use modsurfdata, only : phiw, phiwm, lambda, lambdah, tsoil, tsoilm, lambdash, gammas, gammash, wl, wlm
+    ! modsurfdata not on gpu: cliq, rsveg, rssoil
+    ! GPU
+    use modfields,   only : thl0, qt0, exnf, presf, rhof, u0, v0, thvh, exnh
+    use modraddata,  only : swd, swu, lwd, lwu
+    use modsurfdata, only : &
+        tskin, qskin, thlflux, qtflux, dthldz, dqtdz, &
+        dudz, dvdz, ustar, obl, ra
+    use modmicrodata, only : precep
+    implicit none
+
+    !$acc update device(phiw)
+
+    !$acc update host(thl0, qt0, exnf, presf, rhof, u0, v0, thvh, exnh)
+    !$acc update host(swd, swu, lwd, lwu)
+    !$acc update host(tskin, qskin, thlflux, qtflux, dthldz, dqtdz, dudz, dvdz, ustar, obl, ra)
+    !$acc update host(precep)
+
+end subroutine update_device
+
 subroutine lsm
   use modglobal, only : ldrydep
+  use modtimer,  only : timer_tic, timer_toc
   implicit none
 
     if (.not. llsm) return
+    call timer_tic('lsm', 0)
+
+    call update_device()
 
     ! Calculate dynamic tile fractions,
     ! based on the amount of liquid water on vegetation.
     ! For now only do this when dry deposition is on
     ! warning: the wet surface tile has no z0h, z0m - will break in Obukhov length calculation
     if (ldrydep) then
+       call timer_tic('lsm_calc_tile_fractions', 0)
+#ifdef _OPENACC
+       stop "acc: unsupported calc_tile_fractions"
+#endif
        call calc_tile_fractions
+       call timer_toc('lsm_calc_tile_fractions')
     end if
 
     ! Calculate root fraction weighted mean soil water content.
+    call timer_tic('lsm_calc_theta_mean', 0)
     do ilu=1,nlu
       if (tile(ilu)%lveg) then
         call calc_theta_mean(tile(ilu))
       end if
     end do
 
+    !$acc wait(1)
+    do ilu=1,nlu
+       if (tile(ilu)%lveg) then
+          !$acc update self(tile(ilu)%phiw_mean)
+       endif
+    enddo
+    call timer_toc('lsm_calc_theta_mean')
+
     ! Calculate canopy/soil resistances.
     if (lags) then
+        call timer_tic('lsm_calc_canopy_resistance_ags', 0)
+#ifdef _OPENACC
+       stop "acc: unsupported calc_canopy_resistance_ags"
+#endif
         call calc_canopy_resistance_ags
+        call timer_toc('lsm_calc_canopy_resistance_ags')
     else
+        call timer_tic('lsm_calc_canopy_resistance_js', 0)
         call calc_canopy_resistance_js
+
+        !$acc wait(1)
+        !$acc update host (f1)
+        !$acc update host (f2b)
+        do ilu=1,nlu
+           !$acc update host(tile(ilu)%f2)
+           !$acc update host(tile(ilu)%f3)
+           !$acc update host(tile(ilu)%rs)
+        enddo
+
+        call timer_toc('lsm_calc_canopy_resistance_js')
     endif
 
     ! Calculate aerodynamic resistance (and u*, obuk).
+    call timer_tic('lsm_calc_stability', 0)
     call calc_stability
+    call timer_toc('lsm_calc_stability')
 
     ! Set grid point averaged boundary conditions (thls, qts, gradients, ..)
+    call timer_tic('lsm_calc_bulk_bcs', 0)
     call calc_bulk_bcs
+    call timer_toc('lsm_calc_bulk_bcs')
 
     ! Calculate soil tendencies
     ! Calc diffusivity heat:
+    call timer_tic('lsm_calc_thermal_properties', 0)
     call calc_thermal_properties
+    call timer_toc('lsm_calc_thermal_properties')
     ! Solve diffusion equation:
+    call timer_tic('lsm_integrate_t_soil', 0)
     call integrate_t_soil
+    call timer_toc('lsm_integrate_t_soil')
 
     ! Calc diffusivity and conductivity soil moisture:
+    call timer_tic('lsm_calc_hydraulic_properties', 0)
     call calc_hydraulic_properties
+    call timer_toc('lsm_calc_hydraulic_properties')
     ! Calculate tendency due to root water extraction
+    call timer_tic('lsm_calc_root_water_extraction', 0)
     call calc_root_water_extraction
+    call timer_toc('lsm_calc_root_water_extraction')
 
     ! Update liquid water reservoir
+    call timer_tic('lsm_calc_liquid_reservoir', 0)
     call calc_liquid_reservoir
+    call timer_toc('lsm_calc_liquid_reservoir')
     ! Solve diffusion equation:
+    call timer_tic('lsm_integrate_theta_soil', 0)
     call integrate_theta_soil
+    call timer_toc('lsm_integrate_theta_soil')
+
+    call timer_toc('lsm')
 end subroutine lsm
 
 !
@@ -227,9 +302,12 @@ subroutine calc_theta_mean(tile)
     integer :: i, j, k, si
     real :: theta_lim
 
+    !$acc kernels default(present) async(1)
     tile%phiw_mean(:,:) = 0.
+    !$acc end kernels
 
     do k=1, kmax_soil
+        !$acc parallel loop collapse(2) default(present) async(1)
         do j=2,j1
             do i=2,i1
                 si = soil_index(i,j,k)
@@ -248,9 +326,10 @@ end subroutine calc_theta_mean
 subroutine calc_canopy_resistance_js
     use modglobal,   only : i1, j1
     use modfields,   only : thl0, qt0, exnf, presf
-    use modsurface,  only : ps
     use modraddata,  only : swd
     use modsurfdata, only : phiw
+    use modprecision, only : field_r
+
     implicit none
 
     integer :: i, j, k, si
@@ -262,13 +341,22 @@ subroutine calc_canopy_resistance_js
     real, parameter :: c_f1 = 0.05
 
     k = kmax_soil
+
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
         do i=2,i1
-            si = soil_index(i,j,k)
+            ! si = soil_index(i,j,k)
 
             ! f1: reduction vegetation resistance as f(sw_in):
             swd_pos = max(0._field_r, -swd(i,j,1))
             f1(i,j) = 1./min(1., (b_f1*swd_pos + c_f1) / (a_f1 * (b_f1*swd_pos + 1.)))
+
+        enddo
+    enddo
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
 
             ! f2: reduction vegetation resistance as f(theta):
             do ilu=1,nlu
@@ -276,6 +364,13 @@ subroutine calc_canopy_resistance_js
                 tile(ilu)%f2(i,j) = 1./min(1., max(1.e-9, tile(ilu)%phiw_mean(i,j)))
               endif
             enddo
+
+        enddo
+    enddo
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
 
             ! f3: reduction vegetation resistance as f(VPD) (high veg only):
             T    = thl0(i,j,1) * exnf(1)
@@ -288,16 +383,30 @@ subroutine calc_canopy_resistance_js
               endif
             enddo
 
+        enddo
+    enddo
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
+            si = soil_index(i,j,k)
+
             ! f2b: reduction soil resistance as f(theta)
             theta_min = cveg(i,j) * theta_wp(si) + (1.-cveg(i,j)) * theta_res(si);
             theta_rel = (phiw(i,j,k) - theta_min) / (theta_fc(si) - theta_min);
             f2b(i,j)  = 1./min(1., max(1.e-9, theta_rel))
 
+        enddo
+    enddo
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
             ! Calculate canopy and soil resistance
             do ilu=1,nlu
               if (tile(ilu)%lveg) then
                 tile(ilu)%rs(i,j) = tile(ilu)%rs_min(i,j) / tile(ilu)%lai(i,j) * tile(ilu)%f2(i,j) * tile(ilu)%f3(i,j) * f1(i,j)
-              else if (trim(tile(ilu)%lushort) == 'bs' .or. trim(tile(ilu)%lushort) == 'brn') then !TODO; special function for bare soil
+              else if (tile(ilu)%lunum == lu_bs .or. tile(ilu)%lunum == lu_brn) then !TODO; special function for bare soil
                 tile(ilu)%rs(i,j) = tile(ilu)%rs_min(i,j) / f2b(i,j)
               else if (ilu == ilu_ws) then
                 tile(ilu)%rs(i,j) = 10
@@ -746,9 +855,11 @@ subroutine calc_obuk_ustar_ra(tile)
                 thvs = tile%thlskin(i,j) * (1.+(rv/rd-1.)*tile%qtskin(i,j))
                 tile%db(i,j) = grav/thvs * (thv_1(i,j) - thvs)
 
+#ifndef _OPENACC
                 if (tile%z0m(i,j) < 1e-6 .or. tile%z0h(i,j) < 1e-6) then
                    write (*,*) 'z0 warning:', tile%lushort, i, j, tile%z0m(i,j), tile%z0h(i,j)
                 end if
+#endif
 
                 ! Iteratively find Obukhov length
                 tile%obuk(i,j) = calc_obuk_dirichlet( &
@@ -1408,6 +1519,7 @@ subroutine initlsm
 
     end if
 
+    ! NOTE: we can't use trim in GPU kernels, use an integer flag instead
     do ilu=1,nlu
        if (trim(tile(ilu)%lushort) == 'bs') then
           tile(ilu)%lunum = lu_bs
