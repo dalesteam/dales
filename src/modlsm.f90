@@ -51,6 +51,10 @@ subroutine update_device
     !$acc update host(tskin, qskin, thlflux, qtflux, dthldz, dqtdz, dudz, dvdz, ustar, obl, ra)
     !$acc update host(precep)
 
+    do ilu=1, nlu
+       !$acc update device(tile(ilu)%thlskin,tile(ilu)%qtskin)
+    enddo
+
 end subroutine update_device
 
 subroutine lsm
@@ -119,6 +123,12 @@ subroutine lsm
     ! Calculate aerodynamic resistance (and u*, obuk).
     call timer_tic('lsm_calc_stability', 0)
     call calc_stability
+
+    !$acc wait(1)
+    !$acc update host(du_tot, thv_1)
+    do ilu=1, nlu
+       !$acc update host(tile(ilu)%db,tile(ilu)%obuk,tile(ilu)%ustar,tile(ilu)%ra)
+    enddo
     call timer_toc('lsm_calc_stability')
 
     ! Set grid point averaged boundary conditions (thls, qts, gradients, ..)
@@ -822,6 +832,7 @@ subroutine calc_stability
 
   ! Calculate properties shared by all tiles:
   ! Absolute wind speed difference, and virtual potential temperature atmosphere
+  !$acc parallel loop collapse(2) default(present) async(1)
   do j=2,j1
       do i=2,i1
           du = 0.5*(u0(i,j,1) + u0(i+1,j,1)) + cu
@@ -835,6 +846,7 @@ subroutine calc_stability
   do ilu=1, nlu
     call calc_obuk_ustar_ra(tile(ilu))
   end do
+
 end subroutine calc_stability
 
 !
@@ -848,6 +860,7 @@ subroutine calc_obuk_ustar_ra(tile)
     integer :: i, j
     real :: thvs
 
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
         do i=2,i1
             !if (tile%frac(i,j) > 0) then
@@ -868,6 +881,7 @@ subroutine calc_obuk_ustar_ra(tile)
         end do
     end do
 
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
         do i=2,i1
             !if (tile%frac(i,j) > 0) then
@@ -1542,6 +1556,10 @@ subroutine initlsm
        !$acc enter data copyin(tile(ilu)%rs_min)
        !$acc enter data copyin(tile(ilu)%lai)
        !$acc enter data copyin(tile(ilu)%rs)
+       !$acc enter data copyin(tile(ilu)%z0h)
+       !$acc enter data copyin(tile(ilu)%z0m)
+       !$acc enter data copyin(tile(ilu)%ustar)
+       !$acc enter data copyin(tile(ilu)%ra)
     enddo
 
 end subroutine initlsm
@@ -1780,6 +1798,7 @@ subroutine allocate_tile(tile)
 
     ! Buoyancy difference surface-atmosphere
     allocate(tile % db(i2, j2))
+    !$acc enter data create(tile%db)
 
     ! Vegetation properties:
     allocate(tile % lai(i2, j2))
@@ -1833,9 +1852,9 @@ end subroutine allocate_tile
 subroutine deallocate_tile(tile)
     implicit none
     type(T_lsm_tile), intent(inout) :: tile
-    !$acc exit data delete(tile%thlskin, tile%qtskin, tile%obuk)
+    !$acc exit data delete(tile%thlskin, tile%qtskin, tile%obuk, tile%ra)
     !$acc exit data delete(tile%root_frac, tile%phiw_mean)
-    !$acc exit data delete(tile%f2,tile%f3,tile%gD)
+    !$acc exit data delete(tile%f2,tile%f3,tile%gD,tile%z0h,tile%z0m,tile%ustar,tile%db)
 
     deallocate( tile%z0m, tile%z0h, tile%base_frac, tile%frac )
     deallocate( tile%obuk, tile%ustar, tile%ra )
@@ -2668,6 +2687,7 @@ function calc_obuk_dirichlet(L_in, du, db_in, zsl, z0m, z0h) result(res)
 
     integer :: m, n, nlim
     real :: res, L, db, Lmax, L0, Lstart, Lend, fx0, fxdif
+    !$acc routine seq
 
     m = 0
     nlim = 10
@@ -2740,8 +2760,10 @@ function calc_obuk_dirichlet(L_in, du, db_in, zsl, z0m, z0h) result(res)
     end do
 
     if (m > 1) then
+#ifndef _OPENACC
         print*,'WARNING: convergence has not been reached in Obukhov length iteration'
         print*,'Input: ', L_in, du, db_in, zsl, z0m, z0h
+#endif
         !stop
         res = 1e-9
         return
