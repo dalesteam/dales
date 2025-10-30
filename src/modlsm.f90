@@ -32,28 +32,32 @@ module modlsm
 contains
 
 subroutine update_device
-    ! CPU
+    ! data that should reside on CPU
     use modsurfdata, only : phiw, phiwm, lambda, lambdah, tsoil, tsoilm, lambdash, gammas, gammash, wl, wlm
-    ! modsurfdata not on gpu: cliq, rsveg, rssoil
-    ! GPU
-    use modfields,   only : thl0, qt0, exnf, presf, rhof, u0, v0, thvh, exnh
-    use modraddata,  only : swd, swu, lwd, lwu
-    use modsurfdata, only : &
-        tskin, qskin, thlflux, qtflux, dthldz, dqtdz, &
-        dudz, dvdz, ustar, obl, ra
+
+    ! data that should reside on GPU
+    use modfields, only : svm, thl0, qt0, exnf, presf, rhof, u0, v0, thvh, exnh
+    use modglobal, only: zf
+    use modsurfdata, only : tskin, qskin, thlflux, qtflux, dthldz, dqtdz, dudz, dvdz, ustar, obl, ra, svflux
+    use modraddata, only : swd, swu, lwd, lwu
     use modmicrodata, only : precep
+
     implicit none
 
     !$acc update device(phiw,tsoil)
 
-    !$acc update host(thl0, qt0, exnf, presf, rhof, u0, v0, thvh, exnh)
-    !$acc update host(swd, swu, lwd, lwu)
-    !$acc update host(tskin, qskin, thlflux, qtflux, dthldz, dqtdz, dudz, dvdz, ustar, obl, ra)
-    !$acc update host(precep)
-
     do ilu=1, nlu
        !$acc update device(tile(ilu)%thlskin,tile(ilu)%qtskin)
     enddo
+
+    ! NOTE: these are updated in update_gpu so I assume they are located in GPU
+    ! when lsm is called
+
+    !$acc update host(svm, thl0, qt0, exnf, presf, rhof, u0, v0, thvh, exnh)
+    !$acc update host(zf)
+    !$acc update host(tskin, qskin, thlflux, qtflux, dthldz, dqtdz, dudz, dvdz, ustar, obl, ra, svflux)
+    !$acc update host(swd, swu, lwd, lwu)
+    !$acc update host(precep)
 
 end subroutine update_device
 
@@ -1068,8 +1072,7 @@ subroutine calc_bulk_bcs
     enddo
 
     !read
-    ! !$acc update device(H, LE, G0, ustar, tskin, qskin, rsveg, rssoil, thlflux, &
-    ! !$acc& qtflux, obl, du_tot, land_frac, thl0, cveg, thvh, zf, u0, v0)
+    ! !$acc update device(du_tot, land_frac, thl0, cveg, thvh, zf, u0, v0)
     ! do ilu=1,nlu
     !    !$acc update device(tile(ilu)%frac, tile(ilu)%H, tile(ilu)%LE, tile(ilu)%G, tile(ilu)%ustar, tile(ilu)%thlskin, &
     !    !$acc& tile(ilu)%qtskin, tile(ilu)%rs, tile(ilu)%lveg, tile(ilu)%laqu)
@@ -1097,6 +1100,8 @@ subroutine calc_bulk_bcs
 
       !    enddo
       ! enddo
+      ! !!$acc wait(1)
+      ! !!$acc update host(H,LE,G0,ustar,tskin,qskin,rsveg,rssoil)
       ! do j=2,j1
       !    do i=2,i1
 
@@ -1602,18 +1607,18 @@ subroutine allocate_on_device()
 
   integer :: ilu
 
-  !!$acc enter data copyin(cliq)
+  !$acc enter data copyin(cliq)
   !$acc enter data copyin(cveg)
   !$acc enter data copyin(du_tot)
   !$acc enter data copyin(f1)
   !$acc enter data copyin(f2b)
-  !!$acc enter data copyin(G0)
-  !!$acc enter data copyin(H)
-  !!$acc enter data copyin(land_frac)
-  !!$acc enter data copyin(LE)
+  !$acc enter data copyin(G0)
+  !$acc enter data copyin(H)
+  !$acc enter data copyin(land_frac)
+  !$acc enter data copyin(LE)
   !$acc enter data copyin(phiw)
-  !!$acc enter data copyin(rssoil)
-  !!$acc enter data copyin(rsveg)
+  !$acc enter data copyin(rssoil)
+  !$acc enter data copyin(rsveg)
   !$acc enter data copyin(soil_index)
   !$acc enter data copyin(theta_fc)
   !$acc enter data copyin(theta_res)
