@@ -44,7 +44,7 @@ subroutine update_device
     use modmicrodata, only : precep
     implicit none
 
-    !$acc update device(phiw)
+    !$acc update device(phiw,tsoil)
 
     !$acc update host(thl0, qt0, exnf, presf, rhof, u0, v0, thvh, exnh)
     !$acc update host(swd, swu, lwd, lwu)
@@ -914,6 +914,7 @@ subroutine calc_tile_bcs(tile)
     rhocp_i = 1. / (rhof(1) * cp)
     rholv_i = 1. / (rhof(1) * rlv)
 
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2, j1
         do i=2, i1
            ! if (tile%frac(i,j) > 0) then
@@ -992,6 +993,7 @@ subroutine calc_water_bcs(tile)
     integer :: i, j
     real :: esats
 
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2, j1
       do i=2, i1
         !if (tile%frac(i,j) > 0) then
@@ -1060,6 +1062,20 @@ subroutine calc_bulk_bcs
       endif
     enddo
 
+    do ilu=1,nlu
+       !$acc wait(1)
+       !$acc update host(tile(ilu)%tskin,tile(ilu)%H,tile(ilu)%LE,tile(ilu)%G,tile(ilu)%wthl,tile(ilu)%wqt,tile(ilu)%thlskin,tile(ilu)%qtskin)
+    enddo
+
+    !read
+    ! !$acc update device(H, LE, G0, ustar, tskin, qskin, rsveg, rssoil, thlflux, &
+    ! !$acc& qtflux, obl, du_tot, land_frac, thl0, cveg, thvh, zf, u0, v0)
+    ! do ilu=1,nlu
+    !    !$acc update device(tile(ilu)%frac, tile(ilu)%H, tile(ilu)%LE, tile(ilu)%G, tile(ilu)%ustar, tile(ilu)%thlskin, &
+    !    !$acc& tile(ilu)%qtskin, tile(ilu)%rs, tile(ilu)%lveg, tile(ilu)%laqu)
+    ! enddo
+
+    !!$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
         do i=2,i1
             H(i,j) = 0
@@ -1079,9 +1095,19 @@ subroutine calc_bulk_bcs
               qskin(i,j)  = qskin(i,j) + tile(ilu)%frac(i,j) * tile(ilu)%qtskin(i,j)
             enddo
 
+      !    enddo
+      ! enddo
+      ! do j=2,j1
+      !    do i=2,i1
+
             ! Kinematic surface fluxes
             thlflux(i,j) =  H(i,j)  * rhocp_i
             qtflux (i,j) =  LE(i,j) * rholv_i
+
+      !    enddo
+      ! enddo
+      ! do j=2,j1
+      !    do i=2,i1
 
             ! Calculate mean Obukhov length from mean fluxes
             bflux = grav/thvh(1) * (thlflux(i,j) * (1.-(1.-rv/rd)*qskin(i,j)) - &
@@ -1092,12 +1118,22 @@ subroutine calc_bulk_bcs
             dthldz(i,j) = -thlflux(i,j) / (fkar * zf(1) * ustar(i,j)) * phih(zf(1)/obl(i,j))
             dqtdz (i,j) = -qtflux (i,j) / (fkar * zf(1) * ustar(i,j)) * phih(zf(1)/obl(i,j))
 
+      !    enddo
+      ! enddo
+      ! do j=2,j1
+      !    do i=2,i1
+
             ! NOTE: dudz, dvdz are at the grid center (full level), not the velocity locations.
             ucu = 0.5*(u0(i,j,1) + u0(i+1,j,1))+cu
             vcv = 0.5*(v0(i,j,1) + v0(i,j+1,1))+cv
 
             dudz(i,j) = ustar(i,j) / (fkar * zf(1)) * phim(zf(1)/obl(i,j)) * (ucu/du_tot(i,j))
             dvdz(i,j) = ustar(i,j) / (fkar * zf(1)) * phim(zf(1)/obl(i,j)) * (vcv/du_tot(i,j))
+
+      !    enddo
+      ! enddo
+      ! do j=2,j1
+      !    do i=2,i1
 
             ! Just for diagnostics (modlsmcrosssection)
             do ilu=1,nlu
@@ -1106,6 +1142,11 @@ subroutine calc_bulk_bcs
                 cliq(i,j) = tile(ilu)%frac(i,j) / land_frac(i,j)
               endif
             enddo
+
+      !    enddo
+      ! enddo
+      ! do j=2,j1
+      !    do i=2,i1
 
             ! Calculate ra consistent with mean flux and temperature difference:
             ra(i,j) = (tskin(i,j) - thl0(i,j,1)) / thlflux(i,j)
@@ -1136,6 +1177,11 @@ subroutine calc_bulk_bcs
             end do
         end do
     end do
+
+    !write
+    !!$acc wait(1)
+    !!$acc update host(H, LE, G0, ustar, tskin, qskin, cliq, thlflux, qtflux, obl, &
+    !!$acc& dthldz, dqtdz, dudz, dvdz, ra, rsveg, rssoil)
 
     ! Cyclic BCs where needed.
     ustar_3D(1:i2,1:j2,1:1) => ustar
@@ -1544,25 +1590,93 @@ subroutine initlsm
        endif
     enddo
 
-    !$acc enter data copyin(tile)
-    do ilu=1,nlu
-       !$acc enter data copyin(tile(ilu))
-       !$acc enter data copyin(tile(ilu)%gD)
-       !$acc enter data copyin(tile(ilu)%root_frac)
-       !$acc enter data copyin(tile(ilu)%phiw_mean)
-       !$acc enter data copyin(tile(ilu)%f2)
-       !$acc enter data copyin(tile(ilu)%f3)
-       !$acc enter data copyin(tile(ilu)%rs)
-       !$acc enter data copyin(tile(ilu)%rs_min)
-       !$acc enter data copyin(tile(ilu)%lai)
-       !$acc enter data copyin(tile(ilu)%rs)
-       !$acc enter data copyin(tile(ilu)%z0h)
-       !$acc enter data copyin(tile(ilu)%z0m)
-       !$acc enter data copyin(tile(ilu)%ustar)
-       !$acc enter data copyin(tile(ilu)%ra)
-    enddo
+    call allocate_on_device()
 
 end subroutine initlsm
+
+subroutine allocate_on_device()
+
+  use modsurfdata, only : tsoil, phiw, H, LE, G0, rssoil, rsveg, cliq
+
+  implicit none
+
+  integer :: ilu
+
+  !!$acc enter data copyin(cliq)
+  !$acc enter data copyin(cveg)
+  !$acc enter data copyin(du_tot)
+  !$acc enter data copyin(f1)
+  !$acc enter data copyin(f2b)
+  !!$acc enter data copyin(G0)
+  !!$acc enter data copyin(H)
+  !!$acc enter data copyin(land_frac)
+  !!$acc enter data copyin(LE)
+  !$acc enter data copyin(phiw)
+  !!$acc enter data copyin(rssoil)
+  !!$acc enter data copyin(rsveg)
+  !$acc enter data copyin(soil_index)
+  !$acc enter data copyin(theta_fc)
+  !$acc enter data copyin(theta_res)
+  !$acc enter data copyin(theta_wp)
+  !$acc enter data copyin(thv_1)
+  !$acc enter data copyin(tsoil)
+
+  !$acc enter data copyin(tile)
+  do ilu=1,nlu
+     !$acc enter data copyin(tile(ilu))
+
+     !$acc enter data copyin(tile(ilu)%db)
+     !$acc enter data copyin(tile(ilu)%f2)
+     !$acc enter data copyin(tile(ilu)%f3)
+     !$acc enter data copyin(tile(ilu)%frac)
+     !$acc enter data copyin(tile(ilu)%G)
+     !$acc enter data copyin(tile(ilu)%gD)
+     !$acc enter data copyin(tile(ilu)%H)
+     !$acc enter data copyin(tile(ilu)%lai)
+     !$acc enter data copyin(tile(ilu)%lambda_stable)
+     !$acc enter data copyin(tile(ilu)%lambda_unstable)
+     !$acc enter data copyin(tile(ilu)%laqu)
+     !$acc enter data copyin(tile(ilu)%LE)
+     !$acc enter data copyin(tile(ilu)%lveg)
+     !$acc enter data copyin(tile(ilu)%laqu)
+     !$acc enter data copyin(tile(ilu)%obuk)
+     !$acc enter data copyin(tile(ilu)%phiw_mean)
+     !$acc enter data copyin(tile(ilu)%qtskin)
+     !$acc enter data copyin(tile(ilu)%qtskin)
+     !$acc enter data copyin(tile(ilu)%ra)
+     !$acc enter data copyin(tile(ilu)%root_frac)
+     !$acc enter data copyin(tile(ilu)%rs)
+     !$acc enter data copyin(tile(ilu)%rs_min)
+     !$acc enter data copyin(tile(ilu)%thlskin)
+     !$acc enter data copyin(tile(ilu)%thlskin)
+     !$acc enter data copyin(tile(ilu)%tskin)
+     !$acc enter data copyin(tile(ilu)%ustar)
+     !$acc enter data copyin(tile(ilu)%wqt)
+     !$acc enter data copyin(tile(ilu)%wthl)
+     !$acc enter data copyin(tile(ilu)%z0h)
+     !$acc enter data copyin(tile(ilu)%z0m)
+  enddo
+end subroutine allocate_on_device
+
+subroutine deallocate_from_device()
+
+  use modsurfdata, only : tsoil, phiw, H, LE, G0, rssoil, rsveg, cliq
+
+  implicit none
+
+  integer :: ilu
+
+  return
+
+  !XXX: fill
+
+  do ilu=1,nlu
+     !XXX: fill
+
+     !$acc exit data delete(tile(ilu))
+  enddo
+  !$acc exit data delete(tile)
+end subroutine deallocate_from_device
 
 !
 ! Cleanup (deallocate) the land-surface model
@@ -1577,7 +1691,7 @@ subroutine exitlsm
 
     if (.not. llsm) return
 
-    !$acc exit data delete(soil_index, theta_wp, theta_fc, f1, f2b, cveg)
+    call deallocate_from_device()
 
     ! Allocated from `read_soil_table`:
     deallocate( theta_res, theta_wp, theta_fc, theta_sat, gamma_theta_sat, vg_a, vg_l, vg_n )
@@ -1705,14 +1819,10 @@ subroutine allocate_fields
     allocate(interception(i2, j2))
 
     allocate(f1(i2, j2))
-    !$acc enter data create(f1)
     allocate(f2b(i2, j2))
-    !$acc enter data create(f2b)
 
     allocate(du_tot(i2, j2))
-    !$acc enter data create(du_tot)
     allocate(thv_1(i2, j2))
-    !$acc enter data create(thv_1)
     allocate(land_frac(i2, j2))
     allocate(cveg(i2, j2))
 
@@ -1798,7 +1908,6 @@ subroutine allocate_tile(tile)
 
     ! Buoyancy difference surface-atmosphere
     allocate(tile % db(i2, j2))
-    !$acc enter data create(tile%db)
 
     ! Vegetation properties:
     allocate(tile % lai(i2, j2))
@@ -1852,9 +1961,6 @@ end subroutine allocate_tile
 subroutine deallocate_tile(tile)
     implicit none
     type(T_lsm_tile), intent(inout) :: tile
-    !$acc exit data delete(tile%thlskin, tile%qtskin, tile%obuk, tile%ra)
-    !$acc exit data delete(tile%root_frac, tile%phiw_mean)
-    !$acc exit data delete(tile%f2,tile%f3,tile%gD,tile%z0h,tile%z0m,tile%ustar,tile%db)
 
     deallocate( tile%z0m, tile%z0h, tile%base_frac, tile%frac )
     deallocate( tile%obuk, tile%ustar, tile%ra )
@@ -1885,7 +1991,6 @@ subroutine init_lsm_tiles
       tile(ilu) % thlskin(:,:) = thlprof(1)
       tile(ilu) % qtskin (:,:) = qtprof(1)
       tile(ilu) % obuk   (:,:) = -0.1
-      !$acc enter data copyin(tile(ilu)%thlskin, tile(ilu)%qtskin, tile(ilu)%obuk)
     end do
 
 end subroutine init_lsm_tiles
@@ -2122,10 +2227,6 @@ subroutine init_homogeneous
 
     ! Cleanup!
     deallocate(t_soil_p, theta_soil_p, soil_index_p)
-
-    !$acc enter data copyin(soil_index)
-    !$acc enter data copyin(phiw)
-    !$acc enter data copyin(cveg)
 
 end subroutine init_homogeneous
 
@@ -2521,10 +2622,6 @@ subroutine init_heterogeneous_nc
     ! write(*,*) 'wmax     ', wmax
     ! !call flush()
 
-    !$acc enter data copyin(soil_index)
-    !$acc enter data copyin(phiw)
-    !$acc enter data copyin(cveg)
-
 end subroutine init_heterogeneous_nc
 
 !
@@ -2592,7 +2689,6 @@ subroutine read_soil_table
     call D_MPI_BCAST(vg_l,            table_size, 0, comm3d, mpierr)
     call D_MPI_BCAST(vg_n,            table_size, 0, comm3d, mpierr)
 
-    !$acc enter data copyin(theta_res,theta_wp,theta_fc)
 
 end subroutine read_soil_table
 
