@@ -2,10 +2,12 @@ module modaerosol
 
   use, intrinsic :: iso_fortran_env
 
-  use modaerosol_mode_t, only: mode_t
+  use modaerosol_mode_t, only: aerosol_mode_t, &
+                               hydrometeor_mode_t, mode_t, mode_container_t, &
+                               connect_modes
+  use modaerosol_common, only: aerosol_names, mode_names
   use modglobal,      only: ifnamopt, fname_options, checknamelisterror, &
                             cexpnr, i1, j1, k1, ih, jh, pi, nsv, rhow, kmax
-  use modmicrodata,   only: qcmin
   use modfields,      only: sv0, svp, svm
   use modmicrodata,   only: qcmin, delt
   use modmpi,         only: myid, D_MPI_BCAST, commwrld, mpierr
@@ -17,6 +19,10 @@ module modaerosol
   use modtimer,       only: timer_tic, timer_toc
   use modlookuptable, only: LT2_t, LT2_create, LT2_set_col, LT2_get_col, &
                             LT2_get_col_inline
+  use modstat_profiles, only: add_profile, sample_field
+  use modbulkmicro_data, only: l_sb, qrmin
+  use bulkmicro_sb,   only: calc_sed_qr_sb, calc_sed_nr_sb
+  use bulkmicro_kk,   only: calc_sed_nr_kk, calc_sed_qr_kk
 
   implicit none
 
@@ -32,16 +38,19 @@ module modaerosol
   public :: aerosol_finalize
   public :: activation
   public :: aerosol_cloud_to_rain
-  public :: aerosol_redistribute
-
-  public :: scavenging_cloud
+  public :: aerosol_resuspend_rain
+  public :: aerosol_resuspend_cloud
+  public :: aerosol_sedimentation_rain
+  public :: aerosol_samptend_sample
 
   ! Metadata for the modes and aerosols
-  integer,           parameter :: &
+  integer, parameter :: &
     maxmodes = 7, &
     maxspecies = 5
+
   character(len=3),  parameter :: modenames(maxmodes) = &
-    ['nus', 'ais', 'acs', 'cos', 'aii', 'aci', 'coi' ]
+    ['nus', 'ais', 'acs', 'cos', 'aii', 'aci', 'coi']!, 'inc', 'inr']
+
   character(len=22), parameter :: longnames(maxmodes) = [ &
     'soluble nucleation    ', &
     'soluble Aitken        ', &
@@ -49,32 +58,38 @@ module modaerosol
     'soluble coarse        ', &
     'insoluble Aitken      ', &
     'insoluble accumulation', &
-    'insoluble coarse      ' ]
-  character(len=3),  parameter :: aerosol_names(maxspecies) = &
-    [ 'so4', 'ss ', 'pom', 'bc ', 'du ' ]
+    'insoluble coarse      ']!, &
+    !'in-cloud              ', &
+    !'in-rain               ' ]
+
   character(len=26), parameter :: aerosol_longnames(maxspecies) = [ &
     'sulfate                   ', &
     'sea salt                  ', &
     'particulate organic matter', &
     'black carbon              ', &
     'dust                      ' ]
+
   real(field_r), parameter :: eps = 1e-18
 
-  ! Static indices
+  ! Indices of modes in mode list.
   integer, parameter :: &
-    iNUS = 1, &
-    iAIS = 2, &
-    iACS = 3, &
-    iCOS = 4, &
-    iAII = 5, &
-    iACI = 6, &
-    iCOI = 7
+    iNUS = 1, & ! Nucleation mode.
+    iAIS = 2, & ! Aitken soluble mode.
+    iACS = 3, & ! Accumulation soluble mode.
+    iCOS = 4, & ! Coarse soluble mode.
+    iAII = 5, & ! Aitken insoluble mode.
+    iACI = 6, & ! Accumulation insoluble mode.
+    iCOI = 7, & ! Coarse insoluble mode.
+    iINC = 8, & ! In-cloud mode.
+    iINR = 9    ! In-rain mode.
+
+  ! Aerosol types.
   integer, parameter :: &
-    iSO4 = 1, &
-    iSS = 2,  &
-    iPOM = 3, &
-    iBC = 4,  &
-    iDU = 5
+    iSO4 = 1, & ! Sulfate.
+    iSS = 2,  & ! Sea salt.
+    iPOM = 3, & ! Primary organic matter.
+    iBC = 4,  & ! Black carbon.
+    iDU = 5     ! Dust.
 
   interface erfcinv
     module procedure :: erfcinv_real32
@@ -90,18 +105,16 @@ module modaerosol
     lbc,      & !< Switch for enabling black carbon
     ldu         !< Switch for enabling dust
 
-  ! Data
-  type(mode_t), target :: &
-    modes(maxmodes)
-  ! TODO: make a mode type for these again
-  ! and separate soluble from insoluble
   logical :: &
     species_active(maxspecies)
+
   integer :: &
     n_species_active,     &
     inc_type(maxspecies), &
     inc_idx(maxspecies)
+
   real(field_r), pointer :: &
+    sed_qr(:,:,:), &
     qa_inc(:,:,:,:), &
     qa_inr(:,:,:,:), &
     qap_inc(:,:,:,:), &
@@ -114,49 +127,21 @@ module modaerosol
     blc_tab_m, &
     blc_tab_n
 
+  logical :: &
+    mode_config(maxspecies,9) = .false.
+
+  type(mode_container_t) :: &
+    modes(9)
+
+  type(aerosol_mode_t), target :: &
+    modes_f(7) ! List of free aerosol modes.
+
+  type(hydrometeor_mode_t), target :: &
+    modes_h(iINC:iINR) ! List of in-hydrometeor modes. (currently only cloud and rain)
+
 contains
 
   include 'erfcinv.inc'
-
-  function aerosol_get_index_in_mode(itype, mode) result(idx)
-
-    integer,      intent(in) :: itype
-    type(mode_t), intent(in) :: mode
-    !$acc routine seq
-
-    integer :: idx
-
-    ! Linear search
-    do idx = 1, mode%nspecies
-      if (itype == mode%itype(idx)) return
-    end do
-
-    idx = -1
-
-  end function aerosol_get_index_in_mode
-
-  !> Get array index of aerosol in the in-cloud and in-rain categories
-  function aerosol_get_index_in_cloud(itype) result(idx)
-
-    integer, intent(in) :: itype
-    !$acc routine seq
-
-    integer :: idx
-
-    idx = inc_idx(itype)
-
-  end function aerosol_get_index_in_cloud
-
-  function aerosol_get_type_in_cloud(idx) result(itype)
-
-    integer, intent(in) :: idx
-    !$acc routine seq
-
-    integer :: itype
-
-    itype = inc_type(idx)
-
-  end function aerosol_get_type_in_cloud
 
   subroutine aerosol_read_namelist(nml_filename)
 
@@ -191,161 +176,55 @@ contains
     character(3)  :: name
     character(64) :: long_name
     character(27) :: modes_str
-    character(3)  :: modes_list(maxmodes)
     integer       :: aero_idx_in_mode
-    real(field_r), parameter :: sigma_g(maxmodes) = (/ 1.59, 1.59, 1.59, 2.00, &
-      1.59, 1.59, 2.00/)
-    real(field_r), parameter :: cldrad(10) = log([5., 10., 15., 20., 25., 30., &
-      35., 40., 45., 50.])
-    real(field_r), parameter :: rainrate(5) = log([0.01, 0.1, 1., 10., 100.])
+
+    real(field_r), parameter :: &
+      sigma_g(7) = [1.59, 1.59, 1.59, 2.00, 1.59, 1.59, 2.00]
 
     integer, allocatable :: varids(:)
 
-    ! Values for lookup tables
-    include "scavenging.inc"
-
     if (.not. laerosol) return
 
-    ! Setup the modes
-    do imod = 1, maxmodes
-      call mode_construct(modes(imod), name=modenames(imod), &
-        long_name=longnames(imod), sig_g=sigma_g(imod))
+    do imod = 1, 7
+      modes(imod)%p => modes_f(imod)
     end do
 
-    !                | NUS | AIS | ACS | COS | AII | ACI | COI
-    ! SO4            |  x  |  x  |  x  |  x  |     |     |
-    ! Sea Salt       |     |     |  x  |  x  |     |     |
-    ! Organic Matter |     |  x  |  x  |  x  |  x  |     |
-    ! Black Carbon   |     |  x  |  x  |  x  |  x  |     |
-    ! Dust           |     |     |  x  |  x  |     |  x  |  x
-
-    ! Sulphuric acid
-    if (lso4) then
-      block
-        integer :: my_modes(4) = [iNUS, iAIS, iACS, iCOS]
-        real(field_r) :: rho = 1841
-        do imod = 1, size(my_modes)
-          call mode_add_aerosol(modes(my_modes(imod)), iso4, rho)
-        end do
-        call add_tracer('so4_c', long_name='so4 in-cloud mass concentration', unit='kg/kg')
-        call add_tracer('so4_r', long_name='so4 in-rain mass concentration', unit='kg/kg')
-      end block
-    end if
-
-    ! Sea salt
-    if (lss) then
-      block
-        integer :: my_modes(2) = [iACS, iCOS]
-        real(field_r) :: rho = 2165
-        do imod = 1, size(my_modes)
-          call mode_add_aerosol(modes(my_modes(imod)), iss, rho)
-        end do
-        call add_tracer('ss_c', long_name='sea salt in-cloud mass concentration', unit='kg/kg')
-        call add_tracer('ss_r', long_name='sea salt in-rain mass concentration', unit='kg/kg')
-      end block
-    end if
-
-    ! Particulate organic matter
-    if (lpom) then
-      block
-        integer :: my_modes(4) = [iAIS, iACS, iCOS, iAII]
-        real(field_r) :: rho = 1800
-        do imod = 1, size(my_modes)
-          call mode_add_aerosol(modes(my_modes(imod)), ipom, rho)
-        end do
-        call add_tracer('pom_c', long_name='organic matter in-cloud mass concentration', unit='kg/kg')
-        call add_tracer('pom_r', long_name='organic matter in-rain mass concentration', unit='kg/kg')
-      end block
-    end if
-
-    ! Black carbon
-    if (lbc) then
-      block
-        integer :: my_modes(4) = [iAIS, iACS, iCOS, iAII]
-        real(field_r) :: rho = 1300
-        do imod = 1, size(my_modes)
-          call mode_add_aerosol(modes(my_modes(imod)), ibc, rho)
-        end do
-        call add_tracer('bc_c', long_name='black carbon in-cloud mass concentration', unit='kg/kg')
-        call add_tracer('bc_r', long_name='black carbon in-rain mass concentration', unit='kg/kg')
-      end block
-    end if
-
-    ! Mineral dust
-    if (ldu) then
-      block
-        integer :: my_modes(4) = [iACS, iCOS, iACI, iCOI]
-        real(field_r) :: rho = 2560
-        do imod = 1, size(my_modes)
-          call mode_add_aerosol(modes(my_modes(imod)), idu, rho)
-        end do
-        call add_tracer('du_c', long_name='mineral dust in-cloud mass concentration', unit='kg/kg')
-        call add_tracer('du_r', long_name='mineral dust in-rain mass concentration', unit='kg/kg')
-      end block
-    end if
-
-    ! Compute indices of aerosols in the array of in-cloud mass
-    block
-
-      integer :: i, j
-      integer :: index
-
-      species_active(1) = lso4
-      species_active(2) = lss
-      species_active(3) = lpom
-      species_active(4) = lbc
-      species_active(5) = ldu
-
-      n_species_active = count(species_active, dim=1)
-
-      do i = 1, maxspecies
-        index = 0
-        if (.not. species_active(i)) cycle
-        do j = 1, i
-          index = index + merge(1, 0, species_active(j))
-        end do
-        inc_idx(i) = index
-        if (index > 0) inc_type(index) = i
-      end do
-
-    end block
-
-    ! Finally, allocate memory
-    do imod = 1, maxmodes
-      call mode_allocate(modes(imod))
+    do imod = iINC, iINR
+      modes(imod)%p => modes_h(imod)
     end do
 
-    ! "Temporary" arrays for in-cloud and in-rain categories of aerosol
-    allocate(qa_inc(2:i1,2:j1,k1,n_species_active), &
-             qa_inr(2:i1,2:j1,k1,n_species_active), &
-             qap_inc(2:i1,2:j1,k1,n_species_active), &
-             qap_inr(2:i1,2:j1,k1,n_species_active))
+    !                | NUS | AIS | ACS | COS | AII | ACI | COI | INC | INR |
+    ! SO4            |  x  |  x  |  x  |  x  |     |     |     |  x  |  x  |
+    ! Sea Salt       |     |     |  x  |  x  |     |     |     |  x  |  x  |
+    ! Organic Matter |     |  x  |  x  |  x  |  x  |     |     |  x  |  x  |
+    ! Black Carbon   |     |  x  |  x  |  x  |  x  |     |     |  x  |  x  |
+    ! Dust           |     |     |  x  |  x  |     |  x  |  x  |  x  |  x  |
 
-    qa_inc = 0
-    qa_inr = 0
-    qap_inc = 0
-    qap_inr = 0
+    if (lso4) mode_config(iSO4,:) = [.true., .true., .true., .true., .false., &
+                                     .false., .false., .true., .true.]
+    if (lss)  mode_config(iSS,:)  = [.false., .false., .true., .true., &
+                                     .false., .false., .false., .true., .true.]
+    if (lpom) mode_config(iPOM,:) = [.false., .true., .true., .true., .true., &
+                                     .false., .false., .true., .true.]
+    if (lbc)  mode_config(iBC,:)  = [.false., .true., .true., .true., .true., &
+                                     .false., .false., .true., .true.]
+    if (ldu)  mode_config(iDU,:)  = [.false., .false., .true., .true., &
+                                     .false., .true., .true., .true., .true.]
 
-    ! Setup the lookup tables for scavenging routines
-    inc_tab_m = LT2_create([cldrad(1), aerrad(1)], [cldrad(10), aerrad(60)], &
-                           [10, 60], 1)
-    call LT2_set_col(inc_tab_m, 1, cldrad, aerrad, scavenging_eff_incloud_m)
+    do imod = 1, maxmodes + 2
+      call modes(imod)%p%init(imod, mode_config(:,imod))
+    end do
 
-    inc_tab_n = LT2_create([cldrad(1), aerrad(1)], [cldrad(10), aerrad(60)], &
-                           [10, 60], 1)
-    call LT2_set_col(inc_tab_n, 1, cldrad, aerrad, scavenging_eff_incloud_n)
+    ! Connect free aerosol modes to in-hydrometeor modes
+    do imod = 1, 7
+      select type(mode => modes(imod)%p)
+        class is (aerosol_mode_t)
+          call connect_modes(mode, modes(iINC)%p, mode%to_hydro)
+          print *, mode%name, " ", mode%to_hydro%cnct
+      end select
+    end do
 
-    blc_tab_m = LT2_create([rainrate(1), aerrad_blc(1)], &
-                           [rainrate(5), aerrad_blc(100)], &
-                           [5, 100], 1)
-    call LT2_set_col(blc_tab_m, 1, rainrate, aerrad_blc, &
-                     scavenging_eff_belowcloud_m)
-
-    blc_tab_n = LT2_create([rainrate(1), aerrad_blc(1)], &
-                           [rainrate(5), aerrad_blc(100)], &
-                           [5, 100], 1)
-    call LT2_set_col(blc_tab_n, 1, rainrate, aerrad_blc, &
-                     scavenging_eff_belowcloud_n)
+    allocate(sed_qr(2:i1,2:j1,k1))
 
   end subroutine init_aerosol
 
@@ -366,26 +245,8 @@ contains
     ! or: copy them while transposing to (s,k,j,i)
 
     ! Copy ambient mass and number concentrations to temp fields
-    do imod = 1, maxmodes
-      call modes(imod)%prepare(sv0)
-    end do
-
-    do s = 1, n_species_active
-      itype = aerosol_get_type_in_cloud(s)
-      idx_c = get_tracer_index(trim(aerosol_names(itype))//"_c")
-      idx_r = get_tracer_index(trim(aerosol_names(itype))//"_r")
-      do k = 1, kmax
-        do j = 2, j1
-          do i = 2, i1
-            ! Copy mass concentrations
-            qa_inc(i,j,k,s) = max(sv0(i,j,k,idx_c), 0.0_field_r)
-            qa_inr(i,j,k,s) = max(sv0(i,j,k,idx_r), 0.0_field_r)
-            ! Reset tendency fields
-            qap_inc(i,j,k,s) = 0
-            qap_inr(i,j,k,s) = 0
-          end do
-        end do
-      end do
+    do imod = 1, 9
+      call modes(imod)%p%prepare(sv0)
     end do
 
     call timer_toc(routine)
@@ -404,60 +265,106 @@ contains
     call timer_tic(routine, 1)
 
     if (laerosol) then
-      do imod = 1, maxmodes
-        call modes(imod)%finalize(svp, svm, delt)
+      do imod = 1, 9
+        call modes(imod)%p%finish(svp)
       end do
     end if
-
-    do s = 1, n_species_active
-      itype = aerosol_get_type_in_cloud(s)
-      idx_c = get_tracer_index(trim(aerosol_names(itype))//"_c")
-      idx_r = get_tracer_index(trim(aerosol_names(itype))//"_r")
-      do k = 1, k1
-        do j = 2, j1
-          do i = 2, i1
-            svp(i,j,k,idx_c) = svp(i,j,k,idx_c) + qap_inc(i,j,k,s)
-            svp(i,j,k,idx_r) = svp(i,j,k,idx_r) + qap_inr(i,j,k,s)
-          end do
-        end do
-      end do
-    end do
 
     call timer_toc(routine)
 
   end subroutine aerosol_finalize
 
+  subroutine aerosol_samptend_init
 
+    integer :: s
 
-
-
-
-
-
+    do s = 1, n_species_active
+      call add_profile(trim(aerosol_names(modes_h(iINC)%itype(s)))//"caccr", "dummy", "kg/kg/s", "tt")
+      call add_profile(trim(aerosol_names(modes_h(iINC)%itype(s)))//"cacti", "dummy", "kg/kg/s", "tt")
+      call add_profile(trim(aerosol_names(modes_h(iINC)%itype(s)))//"cauto", "dummy", "kg/kg/s", "tt")
+      call add_profile(trim(aerosol_names(modes_h(iINC)%itype(s)))//"cevpc", "dummy", "kg/kg/s", "tt")
+      call add_profile(trim(aerosol_names(modes_h(iINC)%itype(s)))//"cscvc", "dummy", "kg/kg/s", "tt")
+      call add_profile(trim(aerosol_names(modes_h(iINC)%itype(s)))//"revpr", "dummy", "kg/kg/s", "tt")
+      call add_profile(trim(aerosol_names(modes_h(iINC)%itype(s)))//"rscvr", "dummy", "kg/kg/s", "tt")
+      call add_profile(trim(aerosol_names(modes_h(iINC)%itype(s)))//"rsedr", "dummy", "kg/kg/s", "tt")
     end do
 
+  end subroutine aerosol_samptend_init
 
+  subroutine aerosol_samptend_sample(htype, proc)
 
+    character(len=1), intent(in) :: htype
+    character(len=4), intent(in) :: proc
 
+    integer :: imod, s
+    character(len=32) :: name
 
-
-
+    do s = 1, n_species_active
+      if (htype == 'c') then
+        name = trim(aerosol_names(modes_h(iINC)%itype(s)))//'c'//proc
+        call sample_field(name, qap_inc(:,:,:,s))
+      else if (htype == 'h') then
+        name = trim(aerosol_names(modes_h(iINC)%itype(s)))//'r'//proc
+        call sample_field(name, qap_inr(:,:,:,s))
+      end if
     end do
 
+  end subroutine aerosol_samptend_sample
 
-
-
-
-  !> \brief Aerosol activation based on updraft velocity
+  !> Compute the median diameter of a log-normal distribution.
   !!
-  !! \see https://doi.org/10.5194/acp-15-9217-2015
+  !! @param[in] n Number concentration.
+  !! @param[in] q Mass concentration (dim=nspecies).
+  !! @param[in] rho Aerosol densities (dim=nspecies).
+  !! @param[in] sig_g Geometric standard deviation of the distribution.
+  function calc_median_diameter(n, q, rho, sig_g) result(dm)
+
+    real(field_r), intent(in) :: n, q(:), rho(:), sig_g
+
+    !$acc routine seq
+
+    real(field_r) :: m, rho_m, dm
+    integer :: s
+
+    m = 0
+    rho_m = 0
+
+    do s = 1, size(q)
+      m = m + q(s)
+      rho_m = rho_m + q(s) / rho(s)
+    end do
+
+    rho_m = m / (rho_m + 1E-30)
+
+    dm = ((6 * m) / (pi * n * rho_m + 1E-20))**(1.0_field_r / 3) &
+         * exp(- 0.5_field_r * 3 * log(sig_g) * log(sig_g))
+
+    dm = max(0.0_field_r, dm)
+
+  end function calc_median_diameter
+
+  !> Driver for (most) aerosol dynamics.
+  subroutine aerosols
+
+    integer :: &
+      imod
+
+    do imod = 1, 9
+      call modes(imod)%p%prepare(sv0)
+    end do
+
+  end subroutine
+
+  !> @brief Aerosol activation based on updraft velocity
   !!
-  !! \param m_ais Aitken soluble mode.
-  !! \param m_acs Accumulation soluble mode.
-  !! \param m_cos Coarse soluble mode.
-  !! \param m_inc In-cloud mode.
-  !! \param w Vertical velocity.
-  !! \param delt Time step size.
+  !! @see https://doi.org/10.5194/acp-15-9217-2015
+  !!
+  !! @param m_ais Aitken soluble mode.
+  !! @param m_acs Accumulation soluble mode.
+  !! @param m_cos Coarse soluble mode.
+  !! @param m_inc In-cloud mode.
+  !! @param w Vertical velocity.
+  !! @param delt Time step size.
   subroutine activation(ql, w, nc, delt, ncp)
 
     real(field_r), intent(in) :: &
@@ -465,6 +372,7 @@ contains
       w(2-ih:,2-jh:,:),          &
       nc(2:,2:,:),               &
       delt
+
     real(field_r), intent(inout) :: &
       ncp(2:,2:,:)
 
@@ -472,9 +380,17 @@ contains
 
     real(field_r), parameter :: r_crit = 35E-9 ! Critical radius for activation.
 
+    class(aerosol_mode_t), pointer :: &
+      m_ais,                          &
+      m_acs,                          &
+      m_cos
+
+    class(hydrometeor_mode_t), pointer :: &
+      m_inc
+
     integer :: &
-      i, j, k, s, & ! Loop indices.
-      my_target     ! Target index in in-cloud mode.
+      i, j, k, s, m, & ! Loop indices.
+      st               ! Target index in in-cloud mode.
 
     real(field_r) :: &
       dm,            & ! Median diameter.
@@ -488,19 +404,22 @@ contains
 
     call timer_tic(routine, 1)
 
-    associate(m_cos => modes(iCOS), m_acs => modes(iACS), m_ais => modes(iAIS))
+    m_ais => modes_f(iAIS)
+    m_acs => modes_f(iACS)
+    m_cos => modes_f(iCOS)
+    m_inc => modes_h(iINC)
 
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
           if (ql(i,j,k) > qcmin) then
-            if (m_ais%lactive) then
+            if (m_ais%nspecies > 0) then
               dm = calc_median_diameter(m_ais%n(i,j,k), m_ais%q(i,j,k,:), &
                                         m_ais%rho, m_ais%sig_g)
               if (dm > 0) then
               fn = 1 - 0.5_field_r * erfc(-log(2 * r_crit / &
                    dm + eps) / (sqrt(2.0_field_r) * log(m_ais%sig_g)))
-            end if
+              end if
             end if
 
             n_act = 1E-6 * (m_acs%n(i,j,k) + m_cos%n(i,j,k) + &
@@ -508,13 +427,13 @@ contains
 
             w0 = max(0.0_field_r, w(i,j,k))
             dncdt = 1E6 / delt * &
-                      (0.1 * (w0 * 100 * n_act / &
-                              (w0 * 100 + 0.023_field_r * n_act + eps)))**1.27_field_r &
-              - 1E-6 * Nc(i,j,k)
+                    (0.1 * (w0 * 100 * n_act / &
+                     (w0 * 100 + 0.023_field_r * n_act + eps)))**1.27_field_r &
+                    - 1E-6 * Nc(i,j,k)
             dncdt = max(dncdt, 0.0_field_r)
 
             fn = dncdt * delt / (m_cos%n(i,j,k)+ eps)
-              fn = max(min(fn, 1.0_field_r), 0.0_field_r)
+            fn = max(min(fn, 1.0_field_r), 0.0_field_r)
             if (fn >= 1.0_field_r) then
               fm = 1.0_field_r
             elseif (fn <= 0.0_field_r) then
@@ -525,21 +444,21 @@ contains
             end if
 
             tend_n = fn * m_cos%n(i,j,k) / delt
-              tend_n = max(0.0_field_r, tend_n)
-              m_cos%np(i,j,k) = m_cos%np(i,j,k) - tend_n
-              Ncp(i,j,k) = Ncp(i,j,k) + tend_n
+            tend_n = max(0.0_field_r, tend_n)
+            m_cos%np(i,j,k) = m_cos%np(i,j,k) - tend_n
+            Ncp(i,j,k) = Ncp(i,j,k) + tend_n
 
-              do s = 1, m_cos % nspecies
+            do s = 1, m_cos%nspecies
               tend_m = max(0.0_field_r, fm * m_cos%q(i,j,k,s) / delt)
-                my_target = inc_idx(m_cos%itype(s))
-                m_cos%qp(i,j,k,s) = m_cos%qp(i,j,k,s) - tend_m
-                qap_inc(i,j,k,my_target) = qap_inc(i,j,k,my_target) + tend_m
-              end do
+              st = m_cos%to_hydro%cnct(2,s)
+              m_cos%qp(i,j,k,s) = m_cos%qp(i,j,k,s) - tend_m
+              m_inc%qp(i,j,k,st) = m_inc%qp(i,j,k,st) + tend_m
+            end do
 
             dncdt = dncdt - tend_n
             dncdt = max(0.0_field_r, dncdt)
 
-            if (m_acs%lactive .and. dncdt > 0) then
+            if (m_acs%nspecies > 0 .and. dncdt > 0) then
               fn = dncdt * delt / (m_acs%n(i,j,k) + eps)
               fn = max(min(fn, 1.0_field_r), 0.0_field_r)
               if (fn >= 1.0_field_r) then
@@ -557,19 +476,18 @@ contains
               m_acs%np(i,j,k) = m_acs%np(i,j,k) - tend_n
               Ncp(i,j,k) = Ncp(i,j,k) + tend_n
 
-              do s = 1, m_acs % nspecies
-                tend_m = fm * m_acs%q(i,j,k,s) / delt
-                tend_m = max(0.0_field_r, tend_m)
-                my_target = inc_idx(m_acs%itype(s))
+              do s = 1, m_acs%nspecies
+                tend_m = max(0.0_field_r, fm * m_acs%q(i,j,k,s) / delt)
+                st = m_acs%to_hydro%cnct(2,s)
                 m_acs%qp(i,j,k,s) = m_acs%qp(i,j,k,s) - tend_m
-                qap_inc(i,j,k,my_target) = qap_inc(i,j,k,my_target) + tend_m
+                m_inc%qp(i,j,k,st) = m_inc%qp(i,j,k,st) + tend_m
               end do
 
               dncdt = dncdt - tend_n
               dncdt = max(0.0_field_r, dncdt)
             end if
 
-            if (m_ais%lactive .and. dncdt > 0) then
+            if (m_ais%nspecies > 0 .and. dncdt > 0) then
               fn = dncdt * delt / (m_ais%n(i,j,k) + eps)
               fn = max(min(fn, 1.0_field_r), 0.0_field_r)
               fm = 1 - 0.5_field_r * &
@@ -583,20 +501,17 @@ contains
               Ncp(i,j,k) = Ncp(i,j,k) + tend_n
 
               do s = 1, m_ais%nspecies
-                tend_m = fm * m_ais%q(i,j,k,s) / delt
-                tend_m = max(0.0_field_r, tend_m)
-                my_target = inc_idx(m_ais%itype(s))
+                tend_m = max(0.0_field_r, fm * m_ais%q(i,j,k,s) / delt)
+                st = m_ais%to_hydro%cnct(2,s)
                 m_ais%qp(i,j,k,s) = m_ais%qp(i,j,k,s) - tend_m
-                qap_inc(i,j,k,my_target) = qap_inc(i,j,k,my_target) + tend_m
+                m_inc%qp(i,j,k,st) = m_inc%qp(i,j,k,st) + tend_m
               end do
             end if
           end if
         end do
       end do
     end do
-
-    end associate
-
+ 
     call timer_toc(routine)
 
   end subroutine activation
@@ -614,6 +529,10 @@ contains
 
     character(len=*), parameter :: routine = modname//'/aerosol_cloud_to_rain'
 
+    class(hydrometeor_mode_t), pointer :: &
+      m_inc,                              &
+      m_inr
+
     integer :: &
       i, j, k, s ! Loop indices
 
@@ -622,15 +541,18 @@ contains
 
     call timer_tic(routine, 1)
 
+    m_inc => modes_h(iINC)
+    m_inr => modes_h(iINR)
+
     !$acc parallel loop collapse(4) default(present) private(dqadt)
     do s = 1, n_species_active
       do k = 1, kmax
         do j = 2, j1
           do i = 2, i1
             if (qrp(i,j,k) > 0) then
-            dqadt = qrp(i,j,k) / qc(i,j,k) * qa_inc(i,j,k,s)
-            qap_inc(i,j,k,s) = qap_inc(i,j,k,s) - dqadt
-            qap_inr(i,j,k,s) = qap_inr(i,j,k,s) + dqadt
+              dqadt = qrp(i,j,k) / qc(i,j,k) * m_inc%q(i,j,k,s)
+              m_inc%qp(i,j,k,s) = m_inc%qp(i,j,k,s) - dqadt
+              m_inr%qp(i,j,k,s) = m_inr%qp(i,j,k,s) + dqadt
             end if
           end do
         end do
@@ -664,6 +586,13 @@ contains
     character(len=*), parameter :: routine = modname//'/aero_redistribute'
     real(field_r),    parameter :: Dc = 1E-9 ! Median diameter of resuspended aerosol.
 
+    class(aerosol_mode_t), pointer :: &
+      m_acs,                          &
+      m_cos
+
+    class(hydrometeor_mode_t), pointer :: &
+      m_inr
+
     integer :: &
       i, j, k, s, & ! Loop indices.
       itype,      & ! Aerosol type.
@@ -681,26 +610,28 @@ contains
 
     call timer_tic(routine, 1)
 
-    associate(m_acs => modes(iACS), m_cos => modes(iCOS))
+    m_acs => modes_f(iACS)
+    m_cos => modes_f(iCOS)
+    m_inr => modes_h(iINR)
 
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
           if (qr(i,j,k) > 0) then
             f_evp = (-qrp(i,j,k) * delt) / (qr(i,j,k) + 1E-40)
-          f_evp = max(min(f_evp, 1.0_field_r), 0.0_field_r)
+            f_evp = max(min(f_evp, 1.0_field_r), 0.0_field_r)
 
             ! Correction factor from Gong et al. (2006).
             ! Evaluates to 1 for f_evp = 1
-          eps = (1 - exp(-2 * sqrt(f_evp)) * (1 + 2 * sqrt(f_evp) &
-            + 2 * f_evp + (4.0_field_r/3) * f_evp**(3.0_field_r/2))) &
-            * (1 - f_evp) + f_evp * f_evp
-
-            evapm(:) = eps * f_evp * qa_inr(i,j,k,:) / delt
+            eps = (1 - exp(-2 * sqrt(f_evp)) * (1 + 2 * sqrt(f_evp) &
+                  + 2 * f_evp + (4.0_field_r/3) * f_evp**(3.0_field_r/2))) &
+                  * (1 - f_evp) + f_evp * f_evp
+          
+            evapm(:) = eps * f_evp * m_inr%q(i,j,k,:) / delt
             evapn = -1 * nrp(i,j,k)
 
             ! Compute the median diameter of the resuspended aerosol.
-            dn = calc_median_diameter(evapn, evapm(:), rho, 1.5_field_r)
+            dn = calc_median_diameter(evapn, evapm(:), m_inr%rho, 1.5_field_r)
             dm = dn * exp(3 * log(1.5_field_r)**2)
 
             fn = 0.5_field_r * erfc(-log(dc/(dn + 1E-40)) &
@@ -711,22 +642,15 @@ contains
             m_acs%np(i,j,k) = m_acs%np(i,j,k) + fn * evapn
             m_cos%np(i,j,k) = m_cos%np(i,j,k) + (1 - fn) * evapn
 
-            do s = 1, n_species_active
-              itype = aerosol_get_type_in_cloud(s)
-              target_idx = aerosol_get_index_in_mode(itype, m_acs)
-              m_acs%qp(i,j,k,target_idx) = m_acs%qp(i,j,k,target_idx) &
-                                           + fm * evapm(s)
-              target_idx = aerosol_get_index_in_mode(itype, m_cos)
-              m_cos%qp(i,j,k,target_idx) = m_cos%qp(i,j,k,target_idx) &
-                                           + (1 - fm) * evapm(s)
-              qap_inr(i,j,k,s) = qap_inr(i,j,k,s) - evapm(s)
+            do s = 1, m_inr%nspecies
+              m_inr%qp(i,j,k,s) = m_inr%qp(i,j,k,s) - evapm(s)
+              m_acs%qp(i,j,k,s) = m_acs%qp(i,j,k,s) + fm * evapm(s)
+              m_cos%qp(i,j,k,s) = m_cos%qp(i,j,k,s) + (1 - fm) * evapm(s)
             end do
           end if
         end do
       end do
-          end do
-
-    end associate
+    end do
 
     call timer_toc(routine)
 
@@ -746,6 +670,13 @@ contains
     character(len=*), parameter :: routine = modname//'/aero_redistribute'
     real(field_r),    parameter :: Dc = 1E-9
 
+    class(aerosol_mode_t), pointer :: &
+      m_acs,                          &
+      m_cos
+
+    class(hydrometeor_mode_t), pointer :: &
+      m_inc
+
     integer :: &
       i, j, k, s, & ! Loop indices.
       itype,      & ! Aerosol type.
@@ -761,7 +692,9 @@ contains
       fn,                & ! Number fraction of aerosol resuspended in ACS mode.
       fm                   ! Mass fraction of aerosol resuspended in COS mode.
 
-    associate(m_acs => modes(iACS), m_cos => modes(iCOS))
+    m_acs => modes_f(iACS)
+    m_cos => modes_f(iCOS)
+    m_inc => modes_h(iINC)
 
     do k = 1, kmax
       do j = 2, j1
@@ -778,11 +711,11 @@ contains
                 + 2 * f_evp + (4.0_field_r/3) * f_evp**(3.0_field_r/2))) &
                 * (1 - f_evp) + f_evp * f_evp
           
-          evapm(:) = eps * f_evp * qa_inc(i,j,k,:) / delt
+          evapm(:) = eps * f_evp * m_inc%q(i,j,k,:) / delt
           evapn = f_evp * nc(i,j,k) / delt
 
           ! Compute the median diameter of the resuspended aerosol.
-          dn = calc_median_diameter(evapn, evapm(:), rho, 1.5_field_r)
+          dn = calc_median_diameter(evapn, evapm(:), m_inc%rho, 1.5_field_r)
           dm = dn * exp(3 * log(1.5_field_r)**2)
 
           fn = 0.5_field_r * erfc(-log(dc/(dn + 1E-40)) &
@@ -790,187 +723,21 @@ contains
           fm = 0.5_field_r * erfc(-log(dc/(dm + 1E-40)) &
                                   / (log(1.5_field_r) * sqrt(2.0_field_r)))
 
-          m_acs%np(i,j,k) = m_acs%np(i,j,k) + fn * evapn
-          m_cos%np(i,j,k) = m_cos%np(i,j,k) + (1 - fn) * evapn
           ncp(i,j,k) = ncp(i,j,k) - evapn
 
-          do s = 1, n_species_active
-            itype = aerosol_get_type_in_cloud(s)
-            target_idx = aerosol_get_index_in_mode(itype, m_acs)
-            m_acs%qp(i,j,k,target_idx) = m_acs%qp(i,j,k,target_idx) &
-                                         + fm * evapm(s)
-            target_idx = aerosol_get_index_in_mode(itype, m_cos)
-            m_cos%qp(i,j,k,target_idx) = m_cos%qp(i,j,k,target_idx) &
-                                         + (1 - fm) * evapm(s)
-            qap_inc(i,j,k,s) = qap_inc(i,j,k,s) - evapm(s)
+          m_acs%np(i,j,k) = m_acs%np(i,j,k) + fn * evapn
+          m_cos%np(i,j,k) = m_cos%np(i,j,k) + (1 - fn) * evapn
+
+          do s = 1, m_inc%nspecies
+            m_inc%qp(i,j,k,s) = m_inc%qp(i,j,k,s) - evapm(s)
+            m_acs%qp(i,j,k,s) = m_acs%qp(i,j,k,s) + fm * evapm(s)
+            m_cos%qp(i,j,k,s) = m_cos%qp(i,j,k,s) + (1 - fm) * evapm(s)
           end do
         end do
       end do
     end do
-
-    end associate
 
   end subroutine aerosol_resuspend_cloud
-
-  subroutine scavenging_cloud(ql, Nc, rhof)
-
-    real(field_r), intent(in) :: &
-      ql(:,:,:) !> Test
-    real(field_r), intent(in) :: Nc(:,:,:)
-    real(field_r), intent(in) :: rhof(:)
-       
-    integer               :: &
-      i, j, k, m, s,         & !< Loop indices
-      target_idx               !< temp
-    real(field_r)         :: &
-      m_mass,                & !< Mode mean mass.
-      m_dens,                & !< Mode mean density.
-      dia_a,                 & !< Mean diameter of aerosol.
-      dia_c,                 & !< Mean diameter of cloud droplets.
-      tend_m,                & !< Tendency of mass concentration.
-      tend_n,                & !< Tendency of number concentration.
-      fs_m,                  & !< Fraction of mass that is washed out.
-      fs_n                     !< Fraction of number that is washed out.
-    type(mode_t), pointer :: &
-      mode                     !< Pointer to current mode.
-
-    do m = 1, size(modes)
-      mode => modes(m)
-      do k = 1, kmax
-        do j = 2, j1
-          do i = 2, i1
-            if (ql(i,j,k) > qcmin) then
-              ! Mode mean properties
-              m_mass = 0
-              m_dens = 0
-
-              do s = 1, mode%nspecies
-                m_mass = m_mass + mode%q(i,j,k,s)
-                m_dens = m_dens + (mode%q(i,j,k,s) / mode%rho(s))
-              end do
-
-              m_dens = m_mass / (m_dens + eps)
-
-              ! Compute mean cloud droplet diameter and rain rate.
-              ! Make sure both stay within the bounds of the lookup table
-              dia_c = max( &
-                1E6_field_r * (3 * ql(i,j,k) * rhof(k) / &
-                  (4 * pi * nc(i,j,k) * rhow + eps)), &
-                5.001_field_r &
-                )
-              dia_c = min(dia_c, 49.999_field_r)
-
-              ! Compute mean aerosol radius in this mode
-              dia_a = 0.5 * (6 * m_mass / (pi * mode%n(i,j,k) * m_dens + eps)) &
-                      **(1.0_field_r / 3) * exp((-3 * log(mode%sig_g)**2) / 2)
-              dia_a = min(100 * dia_a, 8E-3_field_r)
-              dia_a = max(dia_a, 1E-8_field_r)
-
-              ! Compute how much aerosol is washed out (number and mass)
-              fs_m = LT2_get_col_inline(inc_tab_m, 1, log(dia_c), log(dia_a))
-              fs_m = 1E-6 * Nc(i,j,k) * fs_m
-
-              fs_n = LT2_get_col_inline(inc_tab_n, 1, log(dia_c), log(dia_a))
-              fs_n = 1E-6 * Nc(i,j,k) * fs_n
-
-              fs_m = merge(1 / delt, fs_m, fs_m * delt > 1 .or. fs_n * delt > 1)
-              fs_n = merge(1 / delt, fs_n, fs_m * delt > 1 .or. fs_n * delt > 1)
-
-              ! Remove aerosol from the free modes
-              tend_n = fs_n * max(0.0_field_r, mode%n(i,j,k))
-              mode%np(i,j,k) = mode%np(i,j,k) - tend_n
-
-              do s = 1, mode%nspecies
-                tend_m  = fs_m * max(0.0_field_r, mode%q(i,j,k,s))
-                mode%qp(i,j,k,s) = mode%qp(i,j,k,s) - tend_m
-                target_idx = inc_idx(mode%itype(s))
-                qap_inc(i,j,k,target_idx) = qap_inc(i,j,k,target_idx) + tend_m
-              end do
-            end if
-          end do
-        end do
-      end do
-    end do
-
-  end subroutine scavenging_cloud
-
-  subroutine scavenging_rain(qr, sed_qr)
-
-    real(field_r), intent(in) :: qr(:,:,:)     !< Rain water mixing ratio.
-    real(field_r), intent(in) :: sed_qr(:,:,:) !< Sedimentation rate.
-
-    integer :: &
-      i, j, k, m, s, & !< Loop indices.
-      target_idx 
-    real(field_r) :: &
-      m_mass, &
-      m_dens, &
-      rainrate, &
-      radi_a, &
-      fs_m, &
-      fs_n, &
-      tend_m, &
-      tend_n
-    type(mode_t), pointer :: &
-      mode
-
-    do m = 1, size(modes)
-      mode => modes(m)
-      do k = 1, kmax
-        do j = 2, j1
-          do i = 2, i1 
-            if (qr(i,j,k) > 0 .and. sed_qr(i,j,k)*3600 > 0.01_field_r) then
-              ! Mode mean properties
-              m_mass = 0
-              m_dens = 0
-
-              do s = 1, mode%nspecies
-                m_mass = m_mass + mode%q(i,j,k,s)
-                m_dens = m_dens + (mode%q(i,j,k,s) / mode%rho(s))
-              end do
-
-              m_dens = m_mass / (m_dens + eps)
-
-              rainrate = sed_qr(i,j,k) * 3600
-              rainrate = max(rainrate, 0.01001_field_r)
-              rainrate = min(rainrate, 99.999_field_r)
-
-              ! Compute mean aerosol radius in this mode
-              radi_a = 0.5 * (6 * m_mass / &
-                (pi * mode%n(i,j,k)* m_dens + eps)) &
-                **(1.0_field_r / 3) &
-                * exp((-3 * log(mode%sig_g)**2) / 2)
-
-              radi_a = (3 * m_mass / (pi * mode%n(i,j,k) * m_dens + eps))**(1.0_field_r / 3) &
-                       * exp((-3 * log(mode%sig_g)**2) / 2)
-
-              radi_a = min(0.9999E3_field_r, radi_a * 1E6_field_r)
-              radi_a = max(radi_a, 1.001E-3_field_r)
-
-              ! Compute how much aerosol is washed out (number and mass)
-              fs_m = LT2_get_col_inline(blc_tab_m, 1, log(rainrate), log(radi_a))
-              fs_m = merge(1 / delt, fs_m, fs_m * delt > 1 .or. fs_n * delt > 1)
-
-              fs_n = LT2_get_col_inline(blc_tab_n, 1, log(rainrate), log(radi_a))
-              fs_n = merge(1 / delt, fs_n, fs_m * delt > 1 .or. fs_n * delt > 1)
-
-              ! Remove aerosol from the free modes
-              tend_n = fs_n * max(0.0_field_r, mode%n(i,j,k))
-              mode%np(i,j,k) = mode%np(i,j,k) - tend_n
-
-              do s = 1, mode%nspecies
-                tend_m  = fs_m * max(0.0_field_r, mode%q(i,j,k,s))
-                target_idx = inc_idx(mode%itype(s))
-                mode%qp(i,j,k,s) = mode%qp(i,j,k,s) - tend_m
-                qap_inr(i,j,k,target_idx) = qap_inr(i,j,k,target_idx) + tend_m
-              end do
-            end if
-          end do
-        end do
-      end do
-    end do
-
-  end subroutine scavenging_rain
 
   !> Compute flux of in-rain aerosols due to sedimentation of rain drops.
   !!
@@ -994,6 +761,9 @@ contains
       qrbase,               &
       qrroof
 
+    class(hydrometeor_mode_t), pointer :: &
+      m_inr
+
     integer ::    &
       i, j, k, s, & ! Loop indices.
       ts,         & ! Time index.
@@ -1007,6 +777,8 @@ contains
       qr_spl(:,:,:),          & ! Rain water content at sub-timesteps.
       nr_spl(:,:,:),          & ! Rain number concentration at sub-timesteps.
       qa_spl(:,:,:,:)           ! Aerosol mass at sub-timesteps.
+
+    m_inr => modes_h(iINR)
 
     allocate(qr_spl(2:i1,2:j1,1:k1), nr_spl(2:i1,2:j1,1:k1), &
              qa_spl(1:n_species_active,2:i1,2:j1,1:k1))
@@ -1027,7 +799,7 @@ contains
       do j = 2, j1
         do i = 2, i1
           do s = 1, n_species_active
-            qa_spl(s,i,j,k) = qa_inr(i,j,k,s)
+            qa_spl(s,i,j,k) = m_inr%q(i,j,k,s)
           end do
         end do
       end do
@@ -1074,8 +846,8 @@ contains
       do j = 2, j1
         do i = 2, i1
           do s = 1, n_species_active
-            qap_inr(i,j,k,s) = qap_inr(i,j,k,s) + &
-                               (qa_spl(s,i,j,k) - qa_inr(i,j,k,s)) / delt
+            m_inr%qp(i,j,k,s) = m_inr%qp(i,j,k,s) + &
+                               (qa_spl(s,i,j,k) - m_inr%q(i,j,k,s)) / delt
           end do
         end do
       end do
@@ -1084,5 +856,11 @@ contains
     deallocate(qr_spl, nr_spl, qa_spl)
 
   end subroutine aerosol_sedimentation_rain
+
+  !subroutine aerosol_scavenging_rain
+
+
+
+  !end subroutine aerosol_scavenging_rain
 
 end module modaerosol
