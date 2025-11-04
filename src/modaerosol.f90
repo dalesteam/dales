@@ -29,7 +29,7 @@ module modaerosol
   public :: aerosol_read_namelist
   public :: init_aerosol
   public :: aerosol_prepare
-  public :: aerosol_finalize
+  public :: aerosol_finish
   public :: aerosol_activation
   public :: aerosol_cloud_to_rain
   public :: aerosol_resuspend_rain
