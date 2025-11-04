@@ -54,9 +54,11 @@ module modbulkmicro
                           l_sedc, l_mur_cst, l_lognormal, mur_cst, &
                           sig_gr, c_St
   use bulkmicro_sb, only: autoconversion_sb, &
-                          accretion_sb, evaporation_sb, sedimentation_rain_sb
+                          accretion_sb, evaporation_sb, sedimentation_rain_sb, &
+                          calc_sed_qr_sb, calc_sed_nr_sb
   use bulkmicro_kk, only: autoconversion_kk, &
-                          accretion_kk, evaporation_kk, sedimentation_rain_kk
+                          accretion_kk, evaporation_kk, sedimentation_rain_kk, &
+                          calc_sed_qr_kk, calc_sed_nr_kk
   use modbulkmicro_stat, only: init_bulkmicro_stat, bulkmicro_stat
   use modmpi, only: myid, D_MPI_BCAST, comm3d, mpierr, print_info_stderr
   implicit none
@@ -375,13 +377,8 @@ module modbulkmicro
       call zero_field(nrp_tmp)
 
       ! 4. Sedimentation
-      if (l_sb) then
-        call sedimentation_rain_sb(qr, Nr, rhof, dzf, qrbase, qrroof, &
-                                   l_lognormal, delt, qrp_tmp, Nrp_tmp, precep)
-      else
-        call sedimentation_rain_kk(qr, Nr, rhof, dzf, qrbase, qrroof, delt, &
-                                   qrp_tmp, Nrp_tmp, precep)
-      end if
+      call sedimentation_rain(qr, nr, rhof, dzf, qrbase, qrroof, delt, &
+                              qrp_tmp, nrp_tmp, precep)
 
       if (lstat) then
         call sample_field('qrpsed', qrp_tmp)
@@ -526,5 +523,96 @@ module modbulkmicro
     call timer_toc(routine)
 
   end subroutine sedimentation_cloud
+
+  subroutine sedimentation_rain(qr, nr, rho, dzf, qrbase, qrroof, delt, qrp, nrp, precep)
+
+    real(field_r), intent(in)    :: qr(2:,2:,:), nr(2:,2:,:), rho(:), dzf(:), delt
+    integer,       intent(inout) :: qrbase
+    integer,       intent(in)    :: qrroof
+    real(field_r), intent(inout) :: qrp(2:,2:,:), nrp(2:,2:,:)
+    real(field_r), intent(out)   :: precep(2:,2:,:)
+
+    character(len=*), parameter :: routine = modname//'/sedimentation_rain'
+    real(field_r), parameter :: wfallmax = 9.9
+
+    integer :: &
+      i, j, k, &
+      n_spl,   &
+      ts
+    real(field_r) :: &
+      sed_qr,        &
+      sed_nr,        &
+      dt_spl
+    real(field_r), pointer :: &
+      qr_spl(:,:,:),          &
+      nr_spl(:,:,:)
+
+    n_spl = ceiling(wfallmax * delt / minval(dzf))
+    dt_spl = delt / real(n_spl, kind=field_r)
+
+    allocate(qr_spl(2:i1,2:j1,1:k1), nr_spl(2:i1,2:j1,1:k1))
+
+    !$acc enter data create(qr_spl, nr_spl)
+
+    !$acc parallel loop collapse(3) default(present)
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
+          qr_spl(i,j,k) = qr(i,j,k)
+          nr_spl(i,j,k) = nr(i,j,k)
+        end do
+      end do
+    end do
+
+    do ts = 1, n_spl ! Time splitting loop
+      ! TODO: check if compiler succesfully unswitches and inlines function calls.
+      !$acc parallel loop gang vector collapse(3) default(present)
+      do k = qrbase, qrroof
+        do j = 2, j1
+          do i = 2, i1
+            if (qr_spl(i,j,k) > qrmin .and. nr(i,j,k) > 0) then
+              if (l_sb) then
+                sed_qr = calc_sed_qr_sb(qr_spl(i,j,k), nr_spl(i,j,k), rho(k))
+                sed_nr = calc_sed_nr_sb(qr_spl(i,j,k), nr_spl(i,j,k), rho(k))
+              else
+                sed_qr = calc_sed_qr_kk(qr_spl(i,j,k), nr_spl(i,j,k), rho(k))
+                sed_nr = calc_sed_nr_kk(qr_spl(i,j,k), nr_spl(i,j,k), rho(k))
+              end if
+              !$acc atomic update
+              qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr * dt_spl / (dzf(k) * rho(k))
+              nr_spl(i,j,k) = nr_spl(i,j,k) - sed_nr * dt_spl / dzf(k)
+              if (k > 1) then
+                qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr * dt_spl &
+                                  / (dzf(k-1) * rho(k-1))
+                nr_spl(i,j,k-1) = nr_spl(i,j,k-1) + sed_nr * dt_spl / dzf(k-1)
+              end if
+              !$acc end atomic
+              if (ts == 1) then
+                precep(i,j,k) = sed_qr / rho(k)
+              end if
+            end if
+          end do
+        end do
+      end do
+      ! Lower the rain base by one level to include the rain fall from the
+      ! previous step
+      qrbase = max(1, qrbase - 1)
+    end do
+
+    !$acc parallel loop collapse(3) default(present)
+    do k = qrbase, qrroof
+      do j = 2, j1
+        do i = 2, i1
+          qrp(i,j,k) = qrp(i,j,k) + (qr_spl(i,j,k) - qr(i,j,k)) / delt
+          nrp(i,j,k) = nrp(i,j,k) + (nr_spl(i,j,k) - nr(i,j,k)) / delt
+        end do
+      end do
+    end do
+
+    !$acc exit data delete(qr_spl, nr_spl)
+
+    deallocate(qr_spl, nr_spl)
+
+  end subroutine sedimentation_rain
 
 end module modbulkmicro

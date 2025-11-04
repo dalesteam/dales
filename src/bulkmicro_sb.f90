@@ -32,6 +32,8 @@ module bulkmicro_sb
   public :: accretion_sb
   public :: evaporation_sb
   public :: sedimentation_rain_sb
+  public :: calc_sed_qr_sb
+  public :: calc_sed_nr_sb
   public :: xrmin, xrmax
 
   ! Constants
@@ -362,6 +364,58 @@ contains
     call timer_toc('bulkmicro_sb/evaporation')
 
   end subroutine evaporation_sb
+
+  !> Calculate the sedimentation rate of the rain water content.
+  !!
+  !! @param[in] qr Rain water content.
+  !! @param[in] nr Rain droplet number concentration.
+  !! @param[in] rho Air density.
+  !!
+  !! @returns sedimentation rate of qr.
+  elemental function calc_sed_qr_sb(qr, nr, rho) result(sed_qr)
+
+    real(field_r), intent(in) :: qr, nr, rho
+    
+    real(field_r) :: xr, dvr, mur, lbdr, wfall_qr, sed_qr
+
+    !$acc routine seq
+
+    xr = calc_xr(rho, qr, nr, xrmin, xrmax)
+    dvr = calc_dvr(xr)
+    mur = calc_mur(qr, rho)
+    lbdr = calc_lbdr(mur, dvr)
+
+    wfall_qr = max(0._field_r, (a_tvsb - b_tvsb * (1 + c_tvsb / lbdr)**(-1 * (mur+4))))
+
+    sed_qr  = wfall_qr * qr * rho ! m/s * kg/m3
+
+  end function calc_sed_qr_sb
+
+  !> Calculate the sedimentation rate of the rain water content.
+  !!
+  !! @param[in] qr Rain water content.
+  !! @param[in] nr Rain droplet number concentration.
+  !! @param[in] rho Air density.
+  !!
+  !! @returns sedimentation rate of nr.
+  elemental function calc_sed_nr_sb(qr, nr, rho) result(sed_nr)
+
+    real(field_r), intent(in) :: qr, nr, rho
+    
+    real(field_r) :: xr, dvr, mur, lbdr, wfall_nr, sed_nr
+
+    !$acc routine seq
+
+    xr = calc_xr(rho, qr, nr, xrmin, xrmax)
+    dvr = calc_dvr(xr)
+    mur = calc_mur(qr, rho)
+    lbdr = calc_lbdr(mur, dvr)
+
+    wfall_nr = max(0._field_r, (a_tvsb - b_tvsb * (1 + c_tvsb / lbdr)**(-1 * (mur+1))))
+
+    sed_nr  = wfall_nr * nr
+
+  end function calc_sed_nr_sb
 
   !> Calculate the sedimentation term.
   !!
