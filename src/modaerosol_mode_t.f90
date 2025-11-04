@@ -142,7 +142,6 @@ contains
       if (lspecies(s)) then
         this%itype(i) = s
         i = i + 1
-        this%rho(s) = aerosol_densities(this%itype(s))
       end if
     end do
 
@@ -150,6 +149,7 @@ contains
     call add_tracer(this%name//'_n', isv=this%itrac_n)
 
     do s = 1, this%nspecies
+      this%rho(s) = aerosol_densities(this%itype(s))
       call add_tracer(trim(aerosol_names(this%itype(s)))//'_'//this%name, &
                       isv=this%itrac_q(s))
     end do
