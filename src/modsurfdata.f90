@@ -209,7 +209,7 @@ SAVE
   real              :: gDav = -1
 
   ! Turbulent exchange variables
-  logical           :: lmostlocal  = .false.  !<  Switch to apply MOST locally to get local Obukhov length
+  logical           :: lmostlocal  = .true.   !<  Switch to apply MOST locally to get local Obukhov length
   logical           :: lsmoothflux = .false.  !<  Create uniform sensible and latent heat flux over domain
   logical           :: lneutral    = .false.  !<  Disable stability corrections
   real, allocatable :: obl   (:,:)            !<  Obukhov length [m]
