@@ -1,8 +1,8 @@
 # Compiler flag presets for some frequently used compilers
 if( CMAKE_Fortran_COMPILER_ID MATCHES GNU )
   ecbuild_add_fortran_flags( "-cpp -W -Wall -Wno-tabs -Wno-compare-reals -fdefault-real-8 -fdefault-double-8 -march=native -ffree-line-length-none -std=gnu -Werror=implicit-interface" )
-  ecbuild_add_fortran_flags( "-funroll-all-loops -fno-f2c -Ofast -g -fbacktrace -fopt-info-inline -fopt-info-loop" BUILD RELEASE )
-  ecbuild_add_fortran_flags( "-finit-real=nan -fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" BUILD DEBUG )
+  ecbuild_add_fortran_flags( "-funroll-all-loops -fno-f2c -Ofast -g -fbacktrace" BUILD RELEASE )
+  ecbuild_add_fortran_flags( "-finit-real=snan -fcheck=all -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" BUILD DEBUG )
 elseif( CMAKE_Fortran_COMPILER_ID MATCHES Intel )
   ecbuild_add_fortran_flags( "-cpp -r8 -ftz" )
   ecbuild_add_fortran_flags( "-O3" BUILD RELEASE )

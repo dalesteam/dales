@@ -90,8 +90,6 @@ contains
     allocate(ccrz(k1),ccsz(k1),ccgz(k1))
     allocate(ccrz2(k1),ccsz2(k1),ccgz2(k1))
 
-    precep=0
-
      gamb1r=lacz_gamma(bbr+1.0)
      gambd1r=lacz_gamma(bbr+ddr+1.0)
      gamb1s=lacz_gamma(bbs+1.0)
@@ -105,6 +103,14 @@ contains
      gammadds3=lacz_gamma(3.+dds)
      gammaddg3=lacz_gamma(3.+ddg)
 
+    !$acc enter data create(qrp, qr, thlpmcr, qtpmcr, sed_qr, qr_spl, &
+    !$acc&                  ilratio, rsgratio, sgratio, lambdar, lambdas, &
+    !$acc&                  lambdag, precep, &
+    !$acc&                  ccrz, ccsz, ccgz, ccrz2, ccsz2, ccgz2)
+
+    !$acc kernels default(present)
+    precep=0
+    !$acc end kernels
   end subroutine initsimpleice
 
 !> Cleaning up after the run
@@ -115,6 +121,11 @@ contains
                              ccrz,ccsz,ccgz,&
                              ccrz2,ccsz2,ccgz2
     implicit none
+
+    !$acc exit data delete (qrp, qr, thlpmcr, qtpmcr, sed_qr, qr_spl, &
+    !$acc&                  ilratio, rsgratio, sgratio, lambdar, lambdas, &
+    !$acc&                  lambdag, precep, &
+    !$acc&                  ccrz, ccsz, ccgz, ccrz2, ccsz2, ccgz2)
     deallocate(qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag)
     deallocate(precep)
     deallocate(ccrz,ccsz,ccgz)
@@ -127,7 +138,7 @@ contains
     use modglobal, only : i1,j1,kmax,k1,rdt,rk3step,timee,tup,tdn
     use modfields, only : sv0,svm,svp,qtp,thlp,rhof,tmp0,rhobf
     use modbulkmicrostat, only : bulkmicrotend
-    use modmicrodata, only: delt, qtpmcr, thlpmcr, iqr
+    use modmicrodata, only: delt, qtpmcr, thlpmcr, iqr, l_rain
     use modsimpleice_data, only : qrp, &
                              qrmin, qr, &
                              ilratio, rsgratio, sgratio, &
@@ -137,7 +148,7 @@ contains
                              ccgz, ccrz, ccsz, &
                              ccrz2, ccsz2, ccgz2, &
                              lambdag, lambdar, lambdas, &
-                             l_graupel, l_rain, l_warm
+                             l_graupel, l_warm
     implicit none
     character(len=*), parameter :: routine = modname//"/simpleice"
     integer:: i,j,k
@@ -153,11 +164,15 @@ contains
     qrsum=0
     qrsmall=0
     ! reset microphysics tendencies
+
+    !$acc kernels default(present)
     qrp=0
     thlpmcr=0
     qtpmcr=0
+    !$acc end kernels
 
     ! Density corrected fall speed parameters, see Tomita 2008
+    !$acc parallel loop default(present)
     do k=1,k1
        ccrz(k)=ccr*(1.29/rhobf(k))**0.5
        ccsz(k)=ccs*(1.29/rhobf(k))**0.5
@@ -169,6 +184,7 @@ contains
        ccgz2(k) = gam2dg*.27*n0rg*sqrt(ccgz(k)/2.e-5)
     end do
 
+    !$acc parallel loop collapse(3) default(present) reduction(+: qrsum,qrsmall)
     do k=1,k1
     do j=2,j1
     do i=2,i1
@@ -190,6 +206,7 @@ contains
 
 
     if(l_warm) then !partitioning and determination of intercept parameter
+      !$acc parallel loop collapse(3) default(present)
       do k=1,kmax
       do j=2,j1
       do i=2,i1
@@ -198,6 +215,7 @@ contains
       enddo
       enddo
     else
+      !$acc parallel loop collapse(3) default(present)
       do k=1,kmax
       do j=2,j1
       do i=2,i1
@@ -208,6 +226,7 @@ contains
     end if
 
     if(l_warm) then !partitioning and determination of intercept parameter
+      !$acc parallel loop collapse(3) default(present)
       do k=1,kmax
       do j=2,j1
       do i=2,i1
@@ -222,6 +241,7 @@ contains
       enddo
       enddo
     elseif(l_graupel) then
+      !$acc parallel loop collapse(3) default(present)
       do k=1,kmax
       do j=2,j1
       do i=2,i1
@@ -236,6 +256,7 @@ contains
       enddo
       enddo
     else
+      !$acc parallel loop collapse(3) default(present)
       do k=1,kmax
       do j=2,j1
       do i=2,i1
@@ -310,6 +331,7 @@ contains
 
     call timer_tic(routine, 1)
     if(l_berry.eqv..true.) then ! Berry/Hsie autoconversion
+    !$acc parallel loop collapse(3) default(present) private(qll,qli,ddisp,lwc,autl,tc,times,auti,aut)
     do k=1,kmax
     do j=2,j1
     do i=2,i1
@@ -332,6 +354,7 @@ contains
       enddo
       enddo
     else ! Lin/Kessler autoconversion as in Khairoutdinov and Randall, 2006
+      !$acc parallel loop collapse(3) default(present) private(qll,qli,tc,autl,auti,aut)
       do k=1,kmax
       do j=2,j1
       do i=2,i1
@@ -370,6 +393,8 @@ contains
     integer:: i,j,k
 
     call timer_tic(routine, 1)
+    !$acc parallel loop collapse(3) default(present) private(qll,qli,qrr,qrs,qrg,&
+    !$acc&             gaccrl,gaccsl,gaccgl,gaccri,gaccsi,gaccgi,accr,accs,accg,acc)
     do k=1,kmax
     do j=2,j1
     do i=2,i1
@@ -419,6 +444,8 @@ contains
     integer:: i,j,k
 
     call timer_tic(routine, 1)
+    !$acc parallel loop collapse(3) default(present) &
+    !$acc& private(ssl,ssi,ventr,vents,ventg,thfun,evapdepr,evapdeps,evapdepg,devap)
     do k=1,kmax
     do j=2,j1
     do i=2,i1
@@ -476,8 +503,11 @@ contains
     n_spl = ceiling(wfallmax*delt/(minval(dzf)*courantp))
     dt_spl = delt/real(n_spl) !fixed time step
 
+    !$acc kernels default(present)
     sed_qr = 0 ! reset sedimentation fluxes
+    !$acc end kernels
 
+    !$acc parallel loop collapse(3) default(present) private(vtr,vts,vtg,vtf)
     do k=1,kmax
     do j=2,j1
     do i=2,i1
@@ -499,6 +529,7 @@ contains
     enddo
 
     !  advect precipitation using upwind scheme
+    !$acc parallel loop collapse(3) default(present)
     do k=1,kmax
     do j=2,j1
     do i=2,i1
@@ -512,7 +543,11 @@ contains
       DO jn = 2 , n_spl
 
         ! reset fluxes at each step of loop
+        !$acc kernels default(present)
         sed_qr = 0
+        !$acc end kernels
+
+        !$acc parallel loop collapse(3) default(present)
         do k=1,kmax
         do j=2,j1
         do i=2,i1
@@ -534,6 +569,7 @@ contains
         enddo
         enddo
 
+        !$acc parallel loop collapse(3) default(present)
         do k=1,kmax
         do j=2,j1
         do i=2,i1
@@ -547,6 +583,7 @@ contains
     ENDIF
 
     ! no thl and qt tendencies build in, implying no heat transfer between precipitation and air
+    !$acc parallel loop collapse(3) default(present)
     do k=1,kmax
     do j=2,j1
     do i=2,i1

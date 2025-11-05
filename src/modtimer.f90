@@ -17,17 +17,19 @@ module modtimer
   implicit none
   private
   public :: timer_tic,timer_toc,timer_print,timer_cleanup, timer_write, inittimer
+  public :: ltimer
   !
   logical, parameter :: GPU_DEFAULT_SYNC = .true.
   integer, parameter :: max_name_len = 50
   character(max_name_len), allocatable :: timer_names(:)
   integer , allocatable :: timer_counts(:)
+  integer , allocatable :: timer_counter(:)
   real(dp), allocatable :: timer_tictoc(:),timer_elapsed_acc(:), &
                                            timer_elapsed_min(:), &
                                            timer_elapsed_max(:)
   logical , allocatable :: timer_is_nvtx(:)
   integer :: ntimers = 0
-  logical :: ltimer = .false. ! Switch for enabling/disabling timings
+  logical, protected :: ltimer = .false. ! Switch for enabling/disabling timings
   logical :: ltimer_print = .true. ! Switch for printing timing results to std out
   logical :: ltimer_write = .false. ! Switch for writing timing results to a csv file
 contains
@@ -191,10 +193,11 @@ contains
     !@cuf integer :: istat
 
     if (.not. ltimer) return
-    
+
     if(.not.allocated(timer_names)) then
       allocate(timer_names(      0), &
                timer_counts(     0), &
+               timer_counter(    0), &
                timer_tictoc(     0), &
                timer_elapsed_acc(0), &
                timer_elapsed_min(0), &
@@ -207,6 +210,7 @@ contains
       ntimers = ntimers + 1
       call concatenate_c(timer_names,timer_name)
       timer_counts      = [timer_counts     ,0          ]
+      timer_counter     = [timer_counter    ,0          ]
       timer_tictoc      = [timer_tictoc     ,0._dp      ]
       timer_elapsed_acc = [timer_elapsed_acc,0._dp      ]
       timer_elapsed_min = [timer_elapsed_min,huge(0._dp)]
@@ -214,6 +218,7 @@ contains
       timer_is_nvtx     = [timer_is_nvtx    ,.false.    ]
       idx = ntimers
     end if
+    timer_counter(idx)     = timer_counter(idx) + 1
     timer_tictoc(idx) = MPI_WTIME()
 #if defined(USE_NVTX)
     is_nvtx = .false.
@@ -280,6 +285,7 @@ contains
       timer_elapsed_min(idx) = min(timer_elapsed_min(idx),timer_tictoc(idx))
       timer_elapsed_max(idx) = max(timer_elapsed_max(idx),timer_tictoc(idx))
       timer_counts(idx)      = timer_counts(idx) + 1
+      timer_counter(idx)     = timer_counter(idx) - 1
       if(timer_is_nvtx(idx)) then
         is_gpu_sync = GPU_DEFAULT_SYNC
         if(present(nvtx_gpu_stream)) then
@@ -311,8 +317,14 @@ contains
     end if
   end subroutine timer_toc
   subroutine timer_cleanup
-    if (.not.allocated(timer_names)) then
-      deallocate(timer_names,timer_counts,timer_elapsed_acc,timer_elapsed_min,timer_elapsed_max)
+    integer :: i
+    do i = 1,ntimers
+      if (timer_counter(i) .ne. 0) then
+        print*,'WARNING: malformed timer: ', timer_names(i)
+      end if
+    end do
+    if (allocated(timer_names)) then
+      deallocate(timer_names,timer_counts,timer_counter,timer_elapsed_acc,timer_elapsed_min,timer_elapsed_max)
     end if
   end subroutine timer_cleanup
   integer function timer_search(timer_name)

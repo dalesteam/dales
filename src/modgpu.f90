@@ -49,7 +49,7 @@ contains
                          dudxls, dudyls, dudtls, dvdxls, dvdyls, &
                          dvdtls, dthvdz, qvsl, qvsi, esl, qsat
     use modglobal, only: dzf, dzh, zh, zf, delta, deltai, &
-                         rd, rv, esatmtab, esatitab, esatltab
+                         rd, rv
     use modsurfdata, only: z0m, z0h, obl, tskin, qskin, Cm, Cs, &
                            ustar, dudz, dvdz, thlflux, qtflux, &
                            dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf
@@ -62,7 +62,6 @@ contains
     use modthermodynamics, only: th0av, thv0, thetah, qth, qlh
     use modboundary, only: tsc
     use modmicrodata, only: precep, thlpmcr, qtpmcr
-    use modchecksim, only: courxl, couryl, courzl, courtotl, peclettotl
     use modibm,      only: fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p
 
     implicit none
@@ -86,7 +85,6 @@ contains
     !$acc&              anis_fac, tsc, thlpcar, presf, &
     !$acc&              presh, exnf, exnh, thetah, &
     !$acc&              qvsl, qvsi, esl, qsat, qth, qlh, &
-    !$acc&              esatmtab, esatitab, esatltab, &
     !$acc&              th0av, thv0, thetah, qth, qlh, &
     !$acc&              precep, thlpmcr, qtpmcr, &
     !$acc&              thlprad, lwd, lwu, swd, swu, lwc, swdir, swdif, &
@@ -122,7 +120,7 @@ contains
                          dudxls, dudyls, dudtls, dvdxls, dvdyls, &
                          dvdtls, dthvdz, qvsl, qvsi, esl, qsat
     use modglobal, only: dzf, dzh, zh, zf, delta, deltai, &
-                         rd, rv, esatmtab, esatitab, esatltab
+                         rd, rv
     use modsurfdata, only: z0m, z0h, obl, tskin, qskin, Cm, Cs, &
                            ustar, dudz, dvdz, thlflux, qtflux, &
                            dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf
@@ -135,7 +133,6 @@ contains
     use modthermodynamics, only: th0av, thv0, thetah, qth, qlh
     use modboundary, only: tsc
     use modmicrodata, only: precep, thlpmcr, qtpmcr
-    use modchecksim, only: courxl, couryl, courzl, courtotl, peclettotl
     use modibm,      only: fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p
 
     implicit none
@@ -161,7 +158,6 @@ contains
     !$acc&            anis_fac, tsc, thlpcar, presf, &
     !$acc&            presh, exnf, exnh, thetah, &
     !$acc&            qvsl, qvsi, esl, qsat, qth, qlh, &
-    !$acc&            esatmtab, esatitab, esatltab, &
     !$acc&            th0av, thv0, thetah, qth, qlh, &
     !$acc&            precep, thlpmcr, qtpmcr, &
     !$acc&            thlprad, lwd, lwu, swd, swu, lwc, swdir, swdif, &

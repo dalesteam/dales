@@ -29,10 +29,9 @@
 !
 
 module modibm
-  use modglobal,    only : rd, rv, grav, ijtot
+  use modglobal,    only : rd, rv, grav, ijtot, iinput, input_netcdf
   use modprecision, only : field_r
   use modsurface,   only : psim, psih
-  use modsurfdata,  only : thvs
   use modibmdata,   only : lapply_ibm,lpoislast, lwallheat, &
                             thlwall, thlroof, qtroof, thlibm, qtibm, &
                             z0m_wall, z0h_wall
@@ -144,7 +143,10 @@ contains
     call D_MPI_BCAST(z0h_wall           ,    1, 0, comm3d, mpierr)
 
     !< Step out of further subroutine when IBM is switched off
-    if (.not. (lapply_ibm)) return
+    if (.not. (lapply_ibm)) then
+       call timer_toc('modibm/initibm')
+       return
+    endif
 
     ! TODO change to allow for wall dependent roughness
     ! Calculate law-of-wall coefficients for vertical walls (constant; no stability correction on vertical walls)
@@ -172,29 +174,33 @@ contains
 
     ! Definition of obstacles
     if (myid==0) then
+      if (iinput == input_netcdf) then
+        call init_ibm_from_nc(bc_height)
+      else
 
-      write (6,*) 'Reading inputfile ibm.inp.',cexpnr
+        write (6,*) 'Reading inputfile ibm.inp.',cexpnr
 
-      open (ifinput,file='ibm.inp.'//cexpnr)
-        do k=1,7
-          read (ifinput,'(a100)') readstring
-          write (6,*) readstring
-        end do
-
-        do j=jtot+1,2,-1
-          do i=2,itot+1
-            read(ifinput,'(F6.1)') bc_height(i,j)
+        open (ifinput,file='ibm.inp.'//cexpnr)
+          do k=1,7
+            read (ifinput,'(a100)') readstring
+            write (6,*) readstring
           end do
-        end do
 
-      close(ifinput)
+          do j=jtot+1,2,-1
+            do i=2,itot+1
+              read(ifinput,'(F6.1)') bc_height(i,j)
+            end do
+          end do
 
-      write(6,*) 'Succesfully read inputfile in modibm'
+        close(ifinput)
 
-    end if
+        write(6,*) 'Succesfully read inputfile in modibm'
 
+      end if
+    end if 
     !> Broadcast building heights to all ranks
     call D_MPI_BCAST(bc_height, (itot+1)*(jtot+1), 0, comm3d, mpierr)
+
 
     !> Determine obstacle cells. Use obstacle height is above midpoint of vertical cell (= full levels). Corresponds to >50% of cell being filled.
     Nobst = 0
@@ -345,6 +351,48 @@ contains
 
     return
   end subroutine exitibm
+
+  subroutine init_ibm_from_nc(bc_height)
+
+    use netcdf
+    use modnetcdf,   only : check
+    use modglobal,   only : iexpnr
+    use modglobal,   only : itot, jtot
+    implicit none
+
+    real(field_r),  intent(out) :: bc_height(:,:)
+
+    character(32) :: input_file = 'ibm.inp_xxx.nc'
+    integer       :: ncid, varid, len_x, len_y
+
+    write(input_file(9:11), '(i3.3)') iexpnr
+
+    write(6,"(A18, A32)") "Reading IBM input: ", input_file
+    write(6, * ) "Expecting dimensions x,y and variable bc_height(:,:)"
+    call check( nf90_open(input_file, nf90_nowrite, ncid), input_file, __LINE__)
+    ! check if dimensions of ibm.inp_xxx.nc agree with the DALES domain
+    call check( nf90_inq_dimid(ncid, 'x', varid), input_file, __LINE__ )
+    call check( nf90_inquire_dimension(ncid, varid, len=len_x), input_file, __LINE__ )
+    if (len_x /= itot) then
+      write(6,"(A62, i3, A3, i3)") "STOPPED. x-dimension of ibm.inp differs from DALES domain: ", len_x, " /=", itot
+      stop
+    end if
+    call check( nf90_inq_dimid(ncid, 'y', varid), input_file, __LINE__ )
+    call check( nf90_inquire_dimension(ncid, varid, len=len_y), input_file, __LINE__ )
+    if (len_y /= jtot) then
+      write(6,"(A62, i3, A3, i3)") "STOPPED. y-dimension of ibm.inp differs from DALES domain: ", len_y, " /=", jtot
+      stop
+    end if
+
+    ! get variable bc height from nc file
+    call check( nf90_inq_varid( ncid, 'bc_height', varid), input_file, __LINE__ )
+    call check( nf90_get_var(ncid, varid, bc_height(2:itot+1,2:jtot+1) , &
+                              count = (/itot, jtot/) ), input_file, __LINE__ )
+    call check( nf90_close(ncid), input_file, __LINE__ )
+
+    write(6,*) 'Succesfully read netCDF inputfile in modibm'
+
+  end subroutine init_ibm_from_nc
 
   subroutine applyibm
     use modfields,      only : um, vm, wm, thlm, qtm, e12m, svm, &
@@ -816,7 +864,7 @@ contains
     thvsl = thlroof * (1. + (rv/rd - 1.) * qtroof)
     horv2 = max(uspeed**2, 0.01)
 
-    Rib = grav / thvs * z_MO * (thv - thvsl) / horv2 !! WAAR KOMT THVS vandaan!!!!!!!!
+    Rib = grav / thvsl * z_MO * (thv - thvsl) / horv2
 
     if (Rib == 0) then
         ! Rib can be 0 if there is no surface flux

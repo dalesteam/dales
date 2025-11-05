@@ -51,7 +51,6 @@ set( dales_srcs
 	modgenstat.f90
 	modglobal.f90
 	modgpu.f90
-	modgpumpiinterface.f90
 	modheterostats.f90
 	modhypre.f90
 	modlookuptable.f90
@@ -110,8 +109,9 @@ set( dales_srcs
 	modtimedepsv.f90
 	modtimer.f90
 	modtimestat.f90
-        modtracer_type.f90
-        modtracers.f90
+  modtracer_type.f90
+  modtracers.f90
+	modtranspose.f90
 	moduser.f90
 	modvarbudget.f90
 	program.f90
@@ -237,11 +237,6 @@ add_custom_target( tag_git_version ALL
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/modversion.f90
 )
-
-# Temporary, because we use CUDA-Fortran in these places
-if( ENABLE_ACC )
-  set_source_files_properties( modmpi.f90 modgpumpiinterface.f90 PROPERTIES COMPILE_OPTIONS -cuda )
-endif()
 
 # Stand-alone DALES program
 ecbuild_add_executable( TARGET dales

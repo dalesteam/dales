@@ -181,6 +181,8 @@ contains
     call D_MPI_BCAST(ltskininp                  ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(min_horv                   ,            1, 0, comm3d, mpierr)
 
+    !$acc update device (xpatches, ypatches)
+
     if(lCO2Ags .and. (.not. lrsAgs)) then
       if(myid==0) print *,"WARNING::: You set lCO2Ags to .true., but lrsAgs to .false."
       if(myid==0) print *,"WARNING::: Since AGS does not run, lCO2Ags will be set to .false. as well."
@@ -755,6 +757,7 @@ contains
 
     dqtdz = 0 ! need to initialize, otherwise undefined in the first call to thermodynamics, before call surface (cold start)
     ustar = 0 ! need to initialize, otherwise undefined values in the corners in the first exchange
+    obl = 1e5 ! initialize since used as starting point for iteration
 
     !$acc enter data copyin(z0m, z0h, obl, tskin, qskin, Cm, Cs, &
     !$acc&                  ustar, dudz, dvdz, thlflux, qtflux, &
@@ -808,6 +811,7 @@ contains
       case (10) ! User defined surface scheme
         call surf_user
       case (11) ! New LSM, handled by modlsm
+        call timer_toc('modsurface/surface')
         return
       case default
         stop "Invalid option selected for isurf"
@@ -909,7 +913,7 @@ contains
     integer :: Npatch(xpatches, ypatches), SNpatch(xpatches, ypatches)
 
     ! TODO: check if splitting these loops speeds things up on the GPU (async)
-    !$acc parallel loop collapse(2) default(present) 
+    !$acc parallel loop collapse(2) default(present)
     do j = 2, j1
       do i = 2, i1
         tskin(i,j) = min(max(thlflux(i,j) / (Cs(i,j) * horv(i,j)), -10.), 10.) + thl0(i,j,1)
@@ -1047,13 +1051,15 @@ contains
         end do
       end do
     end if
-    
+
+    !$acc update self(ustar)
     if ( lopenbc ) then
       call openboundary_excjs(ustar_3D, 2,i1,2,j1,1,1,1,1, &
                              (.not.lboundary(1:4)).or.lperiodic(1:4))
     else
        call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
     endif
+    !$acc update device(ustar)
   end subroutine calc_friction_velocity
 
   !> Prescribes the friction velocity \f$u_*\f$
@@ -1072,7 +1078,7 @@ contains
         end do
       end do
     else
-      !$acc parallel loop collapse(2) default(present) 
+      !$acc parallel loop collapse(2) default(present)
       do j = 2, j1
         do i = 2, i1
           ustar(i,j) = ustin
@@ -1080,13 +1086,15 @@ contains
         end do
       end do
     end if
-    
+
+   !$acc update self(ustar)
     if ( lopenbc ) then
       call openboundary_excjs(ustar_3D, 2,i1,2,j1,1,1,1,1, &
                              (.not.lboundary(1:4)).or.lperiodic(1:4))
     else
        call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
     endif
+    !$acc update device(ustar)
   end subroutine presc_friction_velocity
 
   !> Calculates the surfaces fluxes using the scalar values at the surface and
@@ -1350,6 +1358,7 @@ contains
 
       oblavl = 0.
 
+      !$acc parallel loop collapse(2) default(present)
       do i=2,i1
         do j=2,j1
           thv     =   thl0(i,j,1)  * (1. + (rv/rd - 1.) * qt0(i,j,1))
@@ -1364,7 +1373,7 @@ contains
             patchy = patchynr(j)
             Rib    = grav / thvs_patch(patchx,patchy) * zf(1) * (thv - thvsl) / horv2
           else
-            Rib    = grav / thvs * zf(1) * (thv - thvsl) / horv2
+            Rib    = grav / thvsl * zf(1) * (thv - thvsl) / horv2
           endif
 
           if (Rib == 0) then
@@ -1624,7 +1633,7 @@ contains
 
     return
   end function phim
-  
+
   ! stability function Phi for heat.
   function phih(zeta)
     !$acc routine seq
@@ -1699,6 +1708,7 @@ contains
   end function
 
   function patchynr(ypos)
+    !$acc routine seq
     use modmpi,     only : myidy
     use modglobal,  only : jmax,jtot
     implicit none

@@ -35,10 +35,9 @@
 
 module modmpi
 use modmpiinterface
-use modgpumpiinterface
+use ieee_exceptions
 #if defined(_OPENACC)
 use openacc
-use modgpumpiinterface
 #endif
 implicit none
 
@@ -58,6 +57,7 @@ save
   integer  :: nprocy = 0
   integer  :: mpierr
   logical  :: periods(2) = .true.
+  !$acc declare create (myidx, myidy)
 
   real     :: CPU_program    !end time
   real     :: CPU_program0   !start time
@@ -85,29 +85,15 @@ interface D_MPI_ISEND
     procedure :: D_MPI_ISEND_REAL32_R1
     procedure :: D_MPI_ISEND_REAL64_R1
     procedure :: D_MPI_ISEND_LOGICAL_R1
-#if defined(_OPENACC)
-    procedure :: D_MPI_ISEND_REAL32_R1_GPU
-    procedure :: D_MPI_ISEND_REAL64_R1_GPU
-    procedure :: D_MPI_ISEND_LOGICAL_R1_GPU
-#endif
   end interface
   interface D_MPI_IRECV
     procedure :: D_MPI_IRECV_REAL32_R1
     procedure :: D_MPI_IRECV_REAL64_R1
     procedure :: D_MPI_IRECV_LOGICAL_R1
-#if defined(_OPENACC)
-    procedure :: D_MPI_IRECV_REAL32_R1_GPU
-    procedure :: D_MPI_IRECV_REAL64_R1_GPU
-    procedure :: D_MPI_IRECV_LOGICAL_R1_GPU
-#endif
   end interface
   interface D_MPI_RECV
     procedure :: D_MPI_RECV_REAL32_R1
     procedure :: D_MPI_RECV_REAL64_R1
-#if defined(_OPENACC)
-    procedure :: D_MPI_RECV_REAL32_R1_GPU
-    procedure :: D_MPI_RECV_REAL64_R1_GPU
-#endif
   end interface
   interface D_MPI_BCAST
     procedure :: D_MPI_BCAST_LOGICAL_S
@@ -127,19 +113,6 @@ interface D_MPI_ISEND
     procedure :: D_MPI_BCAST_LOGICAL_R1
     procedure :: D_MPI_BCAST_STRING
     procedure :: D_MPI_BCAST_STRING_R1
-#if defined(_OPENACC)
-    procedure :: D_MPI_BCAST_LOGICAL_S_GPU
-    procedure :: D_MPI_BCAST_REAL64_S_GPU
-    procedure :: D_MPI_BCAST_REAL32_S_GPU
-    procedure :: D_MPI_BCAST_INT32_S_GPU
-    procedure :: D_MPI_BCAST_REAL32_R1_GPU
-    procedure :: D_MPI_BCAST_REAL32_R2_GPU
-    procedure :: D_MPI_BCAST_REAL64_R1_GPU
-    procedure :: D_MPI_BCAST_REAL64_R2_GPU
-    procedure :: D_MPI_BCAST_INT32_R1_GPU
-    procedure :: D_MPI_BCAST_INT32_R2_GPU
-    procedure :: D_MPI_BCAST_LOGICAL_R1_GPU
-#endif
   end interface
   interface D_MPI_ALLREDUCE
     procedure :: D_MPI_ALLREDUCE_REAL32_S
@@ -153,37 +126,19 @@ interface D_MPI_ISEND
     procedure :: D_MPI_ALLREDUCE_REAL64_R3
     procedure :: D_MPI_ALLREDUCE_INT32_R1
     procedure :: D_MPI_ALLREDUCE_INT32_R2
+    procedure :: D_MPI_ALLREDUCE_REAL32_IP_S
+    procedure :: D_MPI_ALLREDUCE_REAL64_IP_S
+    procedure :: D_MPI_ALLREDUCE_INT32_IP_S
     procedure :: D_MPI_ALLREDUCE_REAL32_IP
     procedure :: D_MPI_ALLREDUCE_REAL64_IP
     procedure :: D_MPI_ALLREDUCE_REAL32_IP_R2
     procedure :: D_MPI_ALLREDUCE_REAL64_IP_R2
-#if defined(_OPENACC)
-    procedure :: D_MPI_ALLREDUCE_REAL32_S_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL64_S_GPU
-    procedure :: D_MPI_ALLREDUCE_INT32_S_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL32_R1_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL32_R2_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL32_R3_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL64_R1_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL64_R2_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL64_R3_GPU
-    procedure :: D_MPI_ALLREDUCE_INT32_R1_GPU
-    procedure :: D_MPI_ALLREDUCE_INT32_R2_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL32_IP_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL64_IP_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL32_IP_R2_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL64_IP_R2_GPU
-#endif
   end interface
   interface D_MPI_ALLTOALL
     procedure :: D_MPI_ALLTOALL_REAL32_R1
     procedure :: D_MPI_ALLTOALL_REAL64_R1
-#if defined(_OPENACC)
-    procedure :: D_MPI_ALLTOALL_REAL32_R1_GPU
-    procedure :: D_MPI_ALLTOALL_REAL64_R1_GPU
-    procedure :: D_MPI_ALLTOALL_REAL32_R1_IP_GPU
-    procedure :: D_MPI_ALLTOALL_REAL64_R1_IP_GPU
-#endif
+    procedure :: D_MPI_ALLTOALL_REAL32_IP_R1
+    procedure :: D_MPI_ALLTOALL_REAL64_IP_R1
   end interface
   interface D_MPI_REDUCE
     procedure :: D_MPI_REDUCE_REAL32_R1
@@ -196,26 +151,10 @@ interface D_MPI_ISEND
     procedure :: D_MPI_REDUCE_REAL32_IP_R2 ! only on root process
     procedure :: D_MPI_REDUCE_REAL64_IP_R1
     procedure :: D_MPI_REDUCE_REAL64_IP_R2
-#if defined(_OPENACC)
-    procedure :: D_MPI_REDUCE_REAL32_R1_GPU
-    procedure :: D_MPI_REDUCE_REAL32_R2_GPU
-    procedure :: D_MPI_REDUCE_REAL32_R3_GPU
-    procedure :: D_MPI_REDUCE_REAL64_R1_GPU
-    procedure :: D_MPI_REDUCE_REAL64_R2_GPU
-    procedure :: D_MPI_REDUCE_REAL64_R3_GPU
-    procedure :: D_MPI_REDUCE_REAL32_IP_R1_GPU
-    procedure :: D_MPI_REDUCE_REAL32_IP_R2_GPU
-    procedure :: D_MPI_REDUCE_REAL64_IP_R1_GPU
-    procedure :: D_MPI_REDUCE_REAL64_IP_R2_GPU
-#endif
   end interface
   interface D_MPI_GATHER
     procedure :: D_MPI_GATHER_REAL32_R1
     procedure :: D_MPI_GATHER_REAL64_R1
-#if defined(_OPENACC)
-    procedure :: D_MPI_GATHER_REAL32_R1_GPU
-    procedure :: D_MPI_GATHER_REAL64_R1_GPU
-#endif
   end interface
   interface excjs
     procedure :: excjs_real32
@@ -231,10 +170,6 @@ interface D_MPI_ISEND
   interface slabsum
     procedure :: slabsum_real32
     procedure :: slabsum_real64
-#if defined(_OPENACC)
-    procedure :: slabsum_real32_gpu
-    procedure :: slabsum_real64_gpu
-#endif
   end interface
   interface slabsum_multi
     procedure :: slabsum_real32_5fields
@@ -245,16 +180,6 @@ interface D_MPI_ISEND
     procedure :: slabsum_real64_4fields
     procedure :: slabsum_real64_3fields
     procedure :: slabsum_real64_2fields
-#if defined(_OPENACC)
-    procedure :: slabsum_real32_5fields_gpu
-    procedure :: slabsum_real32_4fields_gpu
-    procedure :: slabsum_real32_3fields_gpu
-    procedure :: slabsum_real32_2fields_gpu
-    procedure :: slabsum_real64_5fields_gpu
-    procedure :: slabsum_real64_4fields_gpu
-    procedure :: slabsum_real64_3fields_gpu
-    procedure :: slabsum_real64_2fields_gpu
-#endif
   end interface
 
 
@@ -288,6 +213,9 @@ contains
     type(MPI_COMM), intent(in),optional  :: comm
     logical                              :: init
 
+    logical :: saved_fpe_mode(size(ieee_all))
+    call ieee_get_halting_mode(ieee_all, saved_fpe_mode)
+    call ieee_set_halting_mode(ieee_all, .false.)
     call MPI_INITIALIZED(init,mpierr)
     call checkmpierror(mpierr, 'MPI_INITIALIZED')
 
@@ -316,6 +244,7 @@ contains
     call checkmpierror(mpierr, 'MPI_COMM_RANK')
     call MPI_COMM_SIZE( commwrld, nprocs, mpierr )
     call checkmpierror(mpierr, 'MPI_COMM_SIZE')
+    call ieee_set_halting_mode(ieee_all, saved_fpe_mode)
   end subroutine initmpicomm
 
 
@@ -414,7 +343,7 @@ contains
     write(cmyid,'(a,i3.3,a,i3.3)') 'x', myidx, 'y', myidy
     write(cmyidx,'(i3.3)') myidx
     write(cmyidy,'(i3.3)') myidy
-
+    
   end subroutine initmpi
 
 
@@ -487,16 +416,12 @@ contains
     end do
 
     !   Send north/south
-    !$acc host_data use_device(sendn, sends)
-    call D_MPI_ISEND(sendn, nssize, nbrnorth, 4, comm3d, reqn, mpierr)
-    call D_MPI_ISEND(sends, nssize, nbrsouth, 5, comm3d, reqs, mpierr)
-    !$acc end host_data
+    call D_MPI_ISEND(sendn, nssize, nbrnorth, 4, comm3d, reqn, mpierr, lacc=.true.)
+    call D_MPI_ISEND(sends, nssize, nbrsouth, 5, comm3d, reqs, mpierr, lacc=.true.)
 
     !   Receive south/north
-    !$acc host_data use_device(recvs, recvn)
-    call D_MPI_IRECV(recvs, nssize, nbrsouth, 4, comm3d, reqrs, mpierr)
-    call D_MPI_IRECV(recvn, nssize, nbrnorth, 5, comm3d, reqrn, mpierr)
-    !$acc end host_data
+    call D_MPI_IRECV(recvs, nssize, nbrsouth, 4, comm3d, reqrs, mpierr, lacc=.true.)
+    call D_MPI_IRECV(recvn, nssize, nbrnorth, 5, comm3d, reqrn, mpierr, lacc=.true.)
 
     ! Wait until data is received
     call MPI_WAIT(reqrs, status, mpierr)
@@ -542,16 +467,12 @@ contains
     end do
 
     !   Send east/west
-    !$acc host_data use_device(sende, sendw)
-    call D_MPI_ISEND(sende, ewsize, nbreast, 6, comm3d, reqe, mpierr)
-    call D_MPI_ISEND(sendw, ewsize, nbrwest, 7, comm3d, reqw, mpierr)
-    !$acc end host_data
+    call D_MPI_ISEND(sende, ewsize, nbreast, 6, comm3d, reqe, mpierr, lacc=.true.)
+    call D_MPI_ISEND(sendw, ewsize, nbrwest, 7, comm3d, reqw, mpierr, lacc=.true.)
 
     !   Receive west/east
-    !$acc host_data use_device(recvw, recve)
-    call D_MPI_IRECV(recvw, ewsize, nbrwest, 6, comm3d, reqrw, mpierr)
-    call D_MPI_IRECV(recve, ewsize, nbreast, 7, comm3d, reqre, mpierr)
-    !$acc end host_data
+    call D_MPI_IRECV(recvw, ewsize, nbrwest, 6, comm3d, reqrw, mpierr, lacc=.true.)
+    call D_MPI_IRECV(recve, ewsize, nbreast, 7, comm3d, reqre, mpierr, lacc=.true.)
 
     ! Wait until data is received
     call MPI_WAIT(reqrw, status, mpierr)
@@ -879,16 +800,12 @@ contains
     end do
 
     !   Send north/south
-    !$acc host_data use_device(sendn, sends)
-    call D_MPI_ISEND(sendn, nssize, nbrnorth, 4, comm3d, reqn, mpierr)
-    call D_MPI_ISEND(sends, nssize, nbrsouth, 5, comm3d, reqs, mpierr)
-    !$acc end host_data
+    call D_MPI_ISEND(sendn, nssize, nbrnorth, 4, comm3d, reqn, mpierr, lacc=.true.)
+    call D_MPI_ISEND(sends, nssize, nbrsouth, 5, comm3d, reqs, mpierr, lacc=.true.)
 
     !   Receive south/north
-    !$acc host_data use_device(recvs, recvn)
-    call D_MPI_IRECV(recvs, nssize, nbrsouth, 4, comm3d, reqrs, mpierr)
-    call D_MPI_IRECV(recvn, nssize, nbrnorth, 5, comm3d, reqrn, mpierr)
-    !$acc end host_data
+    call D_MPI_IRECV(recvs, nssize, nbrsouth, 4, comm3d, reqrs, mpierr, lacc=.true.)
+    call D_MPI_IRECV(recvn, nssize, nbrnorth, 5, comm3d, reqrn, mpierr, lacc=.true.)
 
     ! Wait until data is received
     call MPI_WAIT(reqrs, status, mpierr)
@@ -935,16 +852,12 @@ contains
     end do
 
     !   Send east/west
-    !$acc host_data use_device(sende, sendw)
-    call D_MPI_ISEND(sende, ewsize, nbreast, 6, comm3d, reqe, mpierr)
-    call D_MPI_ISEND(sendw, ewsize, nbrwest, 7, comm3d, reqw, mpierr)
-    !$acc end host_data
+    call D_MPI_ISEND(sende, ewsize, nbreast, 6, comm3d, reqe, mpierr, lacc=.true.)
+    call D_MPI_ISEND(sendw, ewsize, nbrwest, 7, comm3d, reqw, mpierr, lacc=.true.)
 
     !   Receive west/east
-    !$acc host_data use_device(recvw, recve)
-    call D_MPI_IRECV(recvw, ewsize, nbrwest, 6, comm3d, reqrw, mpierr)
-    call D_MPI_IRECV(recve, ewsize, nbreast, 7, comm3d, reqre, mpierr)
-    !$acc end host_data
+    call D_MPI_IRECV(recvw, ewsize, nbrwest, 6, comm3d, reqrw, mpierr, lacc=.true.)
+    call D_MPI_IRECV(recve, ewsize, nbreast, 7, comm3d, reqre, mpierr, lacc=.true.)
 
     ! Wait until data is received
     call MPI_WAIT(reqrw, status, mpierr)
@@ -1121,508 +1034,85 @@ contains
   endif
   end subroutine excjs_logical
 
-  subroutine slabsum_real32(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
+  subroutine slabsum_real32(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes,on_gpu)
     implicit none
 
     integer           :: ks,kf
     integer           :: ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes
     real(real32)      :: aver(ks:kf)
     real(real32)      :: var (ib:ie,jb:je,kb:ke)
+    logical, optional :: on_gpu
     real(real32)      :: averl(ks:kf)
     real(real32)      :: avers(ks:kf)
     integer           :: k
 
-    averl       = 0.
-    avers       = 0.
 
-    do k=kbs,kes
-      averl(k) = sum(var(ibs:ies,jbs:jes,k))
-    enddo
+    if (present(on_gpu)) then
+      !$acc kernels default(present)
+      do k = kbs, kes
+        aver(k) = aver(k) + sum(var(ibs:ies, jbs:jes, k))
+      end do
+      !$acc end kernels
+      !$acc host_data use_device(aver)
+      call MPI_ALLREDUCE(MPI_IN_PLACE, aver, kf-ks+1, MPI_REAL4, MPI_SUM, comm3d, mpierr)
+      !$acc end host_data
+    else
+      averl       = 0.
+      avers       = 0.
+      do k=kbs,kes
+        averl(k) = sum(var(ibs:ies,jbs:jes,k))
+      enddo
+      call MPI_ALLREDUCE(averl, avers, kf-ks+1,  MPI_REAL4, &
+                         MPI_SUM, comm3d,mpierr)
 
-    call MPI_ALLREDUCE(averl, avers, kf-ks+1,  MPI_REAL4, &
-                       MPI_SUM, comm3d,mpierr)
-
-    aver = aver + avers
+      aver = aver + avers
+    endif
 
     return
   end subroutine slabsum_real32
 
-  subroutine slabsum_real64(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
+  subroutine slabsum_real64(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes,on_gpu)
     implicit none
 
     integer           :: ks,kf
     integer           :: ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes
     real(real64)      :: aver(ks:kf)
     real(real64)      :: var (ib:ie,jb:je,kb:ke)
+    logical, optional :: on_gpu
     real(real64)      :: averl(ks:kf)
     real(real64)      :: avers(ks:kf)
     integer           :: k
 
-    averl       = 0.
-    avers       = 0.
+    if (present(on_gpu)) then
+      !$acc kernels default(present)
+      do k = kbs, kes
+        aver(k) = aver(k) + sum(var(ibs:ies, jbs:jes, k))
+      end do
+      !$acc end kernels
+      !$acc host_data use_device(aver)
+      call MPI_ALLREDUCE(MPI_IN_PLACE, aver, kf-ks+1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
+      !$acc end host_data
+    else
+      averl       = 0.
+      avers       = 0.
+      do k=kbs,kes
+        averl(k) = sum(var(ibs:ies,jbs:jes,k))
+      enddo
+      call MPI_ALLREDUCE(averl, avers, kf-ks+1,  MPI_REAL8, &
+                         MPI_SUM, comm3d,mpierr)
 
-    do k=kbs,kes
-      averl(k) = sum(var(ibs:ies,jbs:jes,k))
-    enddo
-
-    call MPI_ALLREDUCE(averl, avers, kf-ks+1,  MPI_REAL8, &
-                       MPI_SUM, comm3d,mpierr)
-
-    aver = aver + avers
+      aver = aver + avers
+    endif
 
     return
   end subroutine slabsum_real64
-#if defined(_OPENACC)
-  subroutine slabsum_real32_gpu(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
-    implicit none
-
-    integer :: ks, kf
-    integer :: ib, ie, jb, je, kb, ke, ibs, ies, jbs, jes, kbs, kes
-    real(real32), device :: aver(ks:kf)
-    real(real32), device :: var(ib:ie, jb:je, kb:ke)
-    integer :: k
-
-    !$acc kernels default(present)
-    do k = kbs, kes
-      aver(k) = aver(k) + sum(var(ibs:ies, jbs:jes, k))
-    end do
-    !$acc end kernels
-
-    call MPI_ALLREDUCE(MPI_IN_PLACE, aver, kf-ks+1, MPI_REAL4, MPI_SUM, comm3d, mpierr)
-
-  end subroutine slabsum_real32_gpu
-
-  subroutine slabsum_real64_gpu(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
-    implicit none
-
-    integer :: ks, kf
-    integer :: ib, ie, jb, je, kb, ke, ibs, ies, jbs, jes, kbs, kes
-    real(real64), device :: aver(ks:kf)
-    real(real64), device :: var(ib:ie, jb:je, kb:ke)
-    integer :: k
-
-    !$acc kernels default(present)
-    do k = kbs, kes
-      aver(k) = aver(k) + sum(var(ibs:ies, jbs:jes, k))
-    end do
-    !$acc end kernels
-
-    call MPI_ALLREDUCE(MPI_IN_PLACE, aver, kf-ks+1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
-
-  end subroutine slabsum_real64_gpu
-#endif
-
-#if defined(_OPENACC)
-  subroutine slabsum_real32_5fields_gpu(aver1,ks,kf,var1,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes, &
-                                        aver2,      var2, &
-                                        aver3,      var3, &
-                                        aver4,      var4, &
-                                        aver5,      var5)
-    implicit none
-
-    integer :: ks, kf
-    integer :: ib, ie, jb, je, kb, ke, ibs, ies, jbs, jes, kbs, kes
-    real(real32), device :: aver1(ks:kf), aver2(ks:kf), aver3(ks:kf), &
-                            aver4(ks:kf), aver5(ks:kf)
-    real(real32), device :: var1(ib:ie, jb:je, kb:ke)
-    real(real32), device :: var2(ib:ie, jb:je, kb:ke)
-    real(real32), device :: var3(ib:ie, jb:je, kb:ke)
-    real(real32), device :: var4(ib:ie, jb:je, kb:ke)
-    real(real32), device :: var5(ib:ie, jb:je, kb:ke)
-    real(real32), dimension(:,:), allocatable :: sum2d
-    real(real32) :: sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4, sum_lcl5
-    integer :: i,j,k
-
-    allocate(sum2d(kf-ks+1,5))
-
-    !$acc enter data create(sum2d)
-    !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4, sum_lcl5)
-    do k = kbs, kes
-      sum_lcl1 = 0.0
-      sum_lcl2 = 0.0
-      sum_lcl3 = 0.0
-      sum_lcl4 = 0.0
-      sum_lcl5 = 0.0
-      !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4, sum_lcl5)
-      do j = jbs, jes
-        do i = ibs, ies
-          sum_lcl1 = sum_lcl1 + var1(i, j, k)
-          sum_lcl2 = sum_lcl2 + var2(i, j, k)
-          sum_lcl3 = sum_lcl3 + var3(i, j, k)
-          sum_lcl4 = sum_lcl4 + var4(i, j, k)
-          sum_lcl5 = sum_lcl5 + var5(i, j, k)
-        end do
-      end do
-      sum2d(k,1) = sum_lcl1
-      sum2d(k,2) = sum_lcl2
-      sum2d(k,3) = sum_lcl3
-      sum2d(k,4) = sum_lcl4
-      sum2d(k,5) = sum_lcl5
-    end do
-    !$acc exit data copyout(sum2d)
-
-    call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*5, MPI_REAL4, MPI_SUM, comm3d, mpierr)
-    aver1(:) = sum2d(:,1)
-    aver2(:) = sum2d(:,2)
-    aver3(:) = sum2d(:,3)
-    aver4(:) = sum2d(:,4)
-    aver5(:) = sum2d(:,5)
-
-    !$acc exit data delete(sum2d)
-    deallocate(sum2d)
-
-  end subroutine slabsum_real32_5fields_gpu
-
-  subroutine slabsum_real32_4fields_gpu(aver1,ks,kf,var1,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes, &
-                                        aver2,      var2, &
-                                        aver3,      var3, &
-                                        aver4,      var4)
-    implicit none
-
-    integer :: ks, kf
-    integer :: ib, ie, jb, je, kb, ke, ibs, ies, jbs, jes, kbs, kes
-    real(real32), device :: aver1(ks:kf), aver2(ks:kf), aver3(ks:kf), &
-                            aver4(ks:kf)
-    real(real32), device :: var1(ib:ie, jb:je, kb:ke)
-    real(real32), device :: var2(ib:ie, jb:je, kb:ke)
-    real(real32), device :: var3(ib:ie, jb:je, kb:ke)
-    real(real32), device :: var4(ib:ie, jb:je, kb:ke)
-    real(real32), dimension(:,:), allocatable :: sum2d
-    real(real32) :: sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4
-    integer :: i,j,k
-
-    allocate(sum2d(kf-ks+1,4))
-
-    !$acc enter data create(sum2d)
-    !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4)
-    do k = kbs, kes
-      sum_lcl1 = 0.0
-      sum_lcl2 = 0.0
-      sum_lcl3 = 0.0
-      sum_lcl4 = 0.0
-      !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4)
-      do j = jbs, jes
-        do i = ibs, ies
-          sum_lcl1 = sum_lcl1 + var1(i, j, k)
-          sum_lcl2 = sum_lcl2 + var2(i, j, k)
-          sum_lcl3 = sum_lcl3 + var3(i, j, k)
-          sum_lcl4 = sum_lcl4 + var4(i, j, k)
-        end do
-      end do
-      sum2d(k,1) = sum_lcl1
-      sum2d(k,2) = sum_lcl2
-      sum2d(k,3) = sum_lcl3
-      sum2d(k,4) = sum_lcl4
-    end do
-    !$acc exit data copyout(sum2d)
-
-    call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*4, MPI_REAL4, MPI_SUM, comm3d, mpierr)
-    aver1(:) = sum2d(:,1)
-    aver2(:) = sum2d(:,2)
-    aver3(:) = sum2d(:,3)
-    aver4(:) = sum2d(:,4)
-
-    !$acc exit data delete(sum2d)
-    deallocate(sum2d)
-
-  end subroutine slabsum_real32_4fields_gpu
-
-  subroutine slabsum_real32_3fields_gpu(aver1,ks,kf,var1,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes, &
-                                        aver2,      var2, &
-                                        aver3,      var3)
-    implicit none
-
-    integer :: ks, kf
-    integer :: ib, ie, jb, je, kb, ke, ibs, ies, jbs, jes, kbs, kes
-    real(real32), device :: aver1(ks:kf), aver2(ks:kf), aver3(ks:kf)
-    real(real32), device :: var1(ib:ie, jb:je, kb:ke)
-    real(real32), device :: var2(ib:ie, jb:je, kb:ke)
-    real(real32), device :: var3(ib:ie, jb:je, kb:ke)
-    real(real32), dimension(:,:), allocatable :: sum2d
-    real(real32) :: sum_lcl1, sum_lcl2, sum_lcl3
-    integer :: i,j,k
-
-    allocate(sum2d(kf-ks+1,3))
-
-    !$acc enter data create(sum2d)
-    !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3)
-    do k = kbs, kes
-      sum_lcl1 = 0.0
-      sum_lcl2 = 0.0
-      sum_lcl3 = 0.0
-      !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2, sum_lcl3)
-      do j = jbs, jes
-        do i = ibs, ies
-          sum_lcl1 = sum_lcl1 + var1(i, j, k)
-          sum_lcl2 = sum_lcl2 + var2(i, j, k)
-          sum_lcl3 = sum_lcl3 + var3(i, j, k)
-        end do
-      end do
-      sum2d(k,1) = sum_lcl1
-      sum2d(k,2) = sum_lcl2
-      sum2d(k,3) = sum_lcl3
-    end do
-    !$acc exit data copyout(sum2d)
-
-    call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*3, MPI_REAL4, MPI_SUM, comm3d, mpierr)
-    aver1(:) = sum2d(:,1)
-    aver2(:) = sum2d(:,2)
-    aver3(:) = sum2d(:,3)
-
-    !$acc exit data delete(sum2d)
-    deallocate(sum2d)
-
-  end subroutine slabsum_real32_3fields_gpu
-
-  subroutine slabsum_real32_2fields_gpu(aver1,ks,kf,var1,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes, &
-                                        aver2,      var2)
-    implicit none
-
-    integer :: ks, kf
-    integer :: ib, ie, jb, je, kb, ke, ibs, ies, jbs, jes, kbs, kes
-    real(real32), device :: aver1(ks:kf), aver2(ks:kf)
-    real(real32), device :: var1(ib:ie, jb:je, kb:ke)
-    real(real32), device :: var2(ib:ie, jb:je, kb:ke)
-    real(real32), dimension(:,:), allocatable :: sum2d
-    real(real32) :: sum_lcl1, sum_lcl2
-    integer :: i,j,k
-
-    allocate(sum2d(kf-ks+1,2))
-
-    !$acc enter data create(sum2d)
-    !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2)
-    do k = kbs, kes
-      sum_lcl1 = 0.0
-      sum_lcl2 = 0.0
-      !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2)
-      do j = jbs, jes
-        do i = ibs, ies
-          sum_lcl1 = sum_lcl1 + var1(i, j, k)
-          sum_lcl2 = sum_lcl2 + var2(i, j, k)
-        end do
-      end do
-      sum2d(k,1) = sum_lcl1
-      sum2d(k,2) = sum_lcl2
-    end do
-    !$acc exit data copyout(sum2d)
-
-    call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*2, MPI_REAL4, MPI_SUM, comm3d, mpierr)
-    aver1(:) = sum2d(:,1)
-    aver2(:) = sum2d(:,2)
-
-    !$acc exit data delete(sum2d)
-    deallocate(sum2d)
-
-  end subroutine slabsum_real32_2fields_gpu
-
-  subroutine slabsum_real64_5fields_gpu(aver1,ks,kf,var1,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes, &
-                                        aver2,      var2, &
-                                        aver3,      var3, &
-                                        aver4,      var4, &
-                                        aver5,      var5)
-    implicit none
-
-    integer :: ks, kf
-    integer :: ib, ie, jb, je, kb, ke, ibs, ies, jbs, jes, kbs, kes
-    real(real64), device :: aver1(ks:kf), aver2(ks:kf), aver3(ks:kf), &
-                            aver4(ks:kf), aver5(ks:kf)
-    real(real64), device :: var1(ib:ie, jb:je, kb:ke)
-    real(real64), device :: var2(ib:ie, jb:je, kb:ke)
-    real(real64), device :: var3(ib:ie, jb:je, kb:ke)
-    real(real64), device :: var4(ib:ie, jb:je, kb:ke)
-    real(real64), device :: var5(ib:ie, jb:je, kb:ke)
-    real(real64), dimension(:,:), allocatable :: sum2d
-    real(real64) :: sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4, sum_lcl5
-    integer :: i,j,k
-
-    allocate(sum2d(kf-ks+1,5))
-
-    !$acc enter data create(sum2d)
-    !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4, sum_lcl5)
-    do k = kbs, kes
-      sum_lcl1 = 0.0
-      sum_lcl2 = 0.0
-      sum_lcl3 = 0.0
-      sum_lcl4 = 0.0
-      sum_lcl5 = 0.0
-      !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4, sum_lcl5)
-      do j = jbs, jes
-        do i = ibs, ies
-          sum_lcl1 = sum_lcl1 + var1(i, j, k)
-          sum_lcl2 = sum_lcl2 + var2(i, j, k)
-          sum_lcl3 = sum_lcl3 + var3(i, j, k)
-          sum_lcl4 = sum_lcl4 + var4(i, j, k)
-          sum_lcl5 = sum_lcl5 + var5(i, j, k)
-        end do
-      end do
-      sum2d(k,1) = sum_lcl1
-      sum2d(k,2) = sum_lcl2
-      sum2d(k,3) = sum_lcl3
-      sum2d(k,4) = sum_lcl4
-      sum2d(k,5) = sum_lcl5
-    end do
-    !$acc exit data copyout(sum2d)
-
-    call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*5, MPI_REAL8, MPI_SUM, comm3d, mpierr)
-    aver1(:) = sum2d(:,1)
-    aver2(:) = sum2d(:,2)
-    aver3(:) = sum2d(:,3)
-    aver4(:) = sum2d(:,4)
-    aver5(:) = sum2d(:,5)
-
-    !$acc exit data delete(sum2d)
-    deallocate(sum2d)
-
-  end subroutine slabsum_real64_5fields_gpu
-
-  subroutine slabsum_real64_4fields_gpu(aver1,ks,kf,var1,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes, &
-                                        aver2,      var2, &
-                                        aver3,      var3, &
-                                        aver4,      var4)
-    implicit none
-
-    integer :: ks, kf
-    integer :: ib, ie, jb, je, kb, ke, ibs, ies, jbs, jes, kbs, kes
-    real(real64), device :: aver1(ks:kf), aver2(ks:kf), aver3(ks:kf), &
-                            aver4(ks:kf)
-    real(real64), device :: var1(ib:ie, jb:je, kb:ke)
-    real(real64), device :: var2(ib:ie, jb:je, kb:ke)
-    real(real64), device :: var3(ib:ie, jb:je, kb:ke)
-    real(real64), device :: var4(ib:ie, jb:je, kb:ke)
-    real(real64), dimension(:,:), allocatable :: sum2d
-    real(real64) :: sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4
-    integer :: i,j,k
-
-    allocate(sum2d(kf-ks+1,4))
-
-    !$acc enter data create(sum2d)
-    !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4)
-    do k = kbs, kes
-      sum_lcl1 = 0.0
-      sum_lcl2 = 0.0
-      sum_lcl3 = 0.0
-      sum_lcl4 = 0.0
-      !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4)
-      do j = jbs, jes
-        do i = ibs, ies
-          sum_lcl1 = sum_lcl1 + var1(i, j, k)
-          sum_lcl2 = sum_lcl2 + var2(i, j, k)
-          sum_lcl3 = sum_lcl3 + var3(i, j, k)
-          sum_lcl4 = sum_lcl4 + var4(i, j, k)
-        end do
-      end do
-      sum2d(k,1) = sum_lcl1
-      sum2d(k,2) = sum_lcl2
-      sum2d(k,3) = sum_lcl3
-      sum2d(k,4) = sum_lcl4
-    end do
-    !$acc exit data copyout(sum2d)
-
-    call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*4, MPI_REAL8, MPI_SUM, comm3d, mpierr)
-    aver1(:) = sum2d(:,1)
-    aver2(:) = sum2d(:,2)
-    aver3(:) = sum2d(:,3)
-    aver4(:) = sum2d(:,4)
-
-    !$acc exit data delete(sum2d)
-    deallocate(sum2d)
-
-  end subroutine slabsum_real64_4fields_gpu
-
-  subroutine slabsum_real64_3fields_gpu(aver1,ks,kf,var1,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes, &
-                                        aver2,      var2, &
-                                        aver3,      var3)
-    implicit none
-
-    integer :: ks, kf
-    integer :: ib, ie, jb, je, kb, ke, ibs, ies, jbs, jes, kbs, kes
-    real(real64), device :: aver1(ks:kf), aver2(ks:kf), aver3(ks:kf)
-    real(real64), device :: var1(ib:ie, jb:je, kb:ke)
-    real(real64), device :: var2(ib:ie, jb:je, kb:ke)
-    real(real64), device :: var3(ib:ie, jb:je, kb:ke)
-    real(real64), dimension(:,:), allocatable :: sum2d
-    real(real64) :: sum_lcl1, sum_lcl2, sum_lcl3
-    integer :: i,j,k
-
-    allocate(sum2d(kf-ks+1,3))
-
-    !$acc enter data create(sum2d)
-    !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3)
-    do k = kbs, kes
-      sum_lcl1 = 0.0
-      sum_lcl2 = 0.0
-      sum_lcl3 = 0.0
-      !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2, sum_lcl3)
-      do j = jbs, jes
-        do i = ibs, ies
-          sum_lcl1 = sum_lcl1 + var1(i, j, k)
-          sum_lcl2 = sum_lcl2 + var2(i, j, k)
-          sum_lcl3 = sum_lcl3 + var3(i, j, k)
-        end do
-      end do
-      sum2d(k,1) = sum_lcl1
-      sum2d(k,2) = sum_lcl2
-      sum2d(k,3) = sum_lcl3
-    end do
-    !$acc exit data copyout(sum2d)
-
-    call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*3, MPI_REAL8, MPI_SUM, comm3d, mpierr)
-    aver1(:) = sum2d(:,1)
-    aver2(:) = sum2d(:,2)
-    aver3(:) = sum2d(:,3)
-
-    !$acc exit data delete(sum2d)
-    deallocate(sum2d)
-
-  end subroutine slabsum_real64_3fields_gpu
-
-  subroutine slabsum_real64_2fields_gpu(aver1,ks,kf,var1,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes, &
-                                        aver2,      var2)
-    implicit none
-
-    integer :: ks, kf
-    integer :: ib, ie, jb, je, kb, ke, ibs, ies, jbs, jes, kbs, kes
-    real(real64), device :: aver1(ks:kf), aver2(ks:kf)
-    real(real64), device :: var1(ib:ie, jb:je, kb:ke)
-    real(real64), device :: var2(ib:ie, jb:je, kb:ke)
-    real(real64), dimension(:,:), allocatable :: sum2d
-    real(real64) :: sum_lcl1, sum_lcl2
-    integer :: i,j,k
-
-    allocate(sum2d(kf-ks+1,2))
-
-    !$acc enter data create(sum2d)
-    !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2)
-    do k = kbs, kes
-      sum_lcl1 = 0.0
-      sum_lcl2 = 0.0
-      !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2)
-      do j = jbs, jes
-        do i = ibs, ies
-          sum_lcl1 = sum_lcl1 + var1(i, j, k)
-          sum_lcl2 = sum_lcl2 + var2(i, j, k)
-        end do
-      end do
-      sum2d(k,1) = sum_lcl1
-      sum2d(k,2) = sum_lcl2
-    end do
-    !$acc exit data copyout(sum2d)
-
-    call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*2, MPI_REAL8, MPI_SUM, comm3d, mpierr)
-    aver1(:) = sum2d(:,1)
-    aver2(:) = sum2d(:,2)
-
-    !$acc exit data delete(sum2d)
-    deallocate(sum2d)
-
-  end subroutine slabsum_real64_2fields_gpu
-#endif
 
   subroutine slabsum_real32_5fields(aver1,ks,kf,var1,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes, &
                                     aver2,      var2, &
                                     aver3,      var3, &
                                     aver4,      var4, &
-                                    aver5,      var5)
+                                    aver5,      var5, &
+                                    on_gpu)
     implicit none
 
     integer :: ks, kf
@@ -1634,38 +1124,78 @@ contains
     real(real32) :: var3(ib:ie, jb:je, kb:ke)
     real(real32) :: var4(ib:ie, jb:je, kb:ke)
     real(real32) :: var5(ib:ie, jb:je, kb:ke)
+    logical, optional :: on_gpu
     real(real32), dimension(:,:), allocatable :: sum2d
+    real(real32) :: sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4, sum_lcl5
     integer :: i,j,k
 
     allocate(sum2d(kf-ks+1,5))
-    sum2d = 0
-    do k = kbs, kes
-      do j = jbs, jes
-        do i = ibs, ies
-          sum2d(k,1) = sum2d(k,1) + var1(i, j, k)
-          sum2d(k,2) = sum2d(k,2) + var2(i, j, k)
-          sum2d(k,3) = sum2d(k,3) + var3(i, j, k)
-          sum2d(k,4) = sum2d(k,4) + var4(i, j, k)
-          sum2d(k,5) = sum2d(k,5) + var5(i, j, k)
+    if (present(on_gpu)) then
+      !$acc enter data create(sum2d)
+      !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4, sum_lcl5)
+      do k = kbs, kes
+        sum_lcl1 = 0.0
+        sum_lcl2 = 0.0
+        sum_lcl3 = 0.0
+        sum_lcl4 = 0.0
+        sum_lcl5 = 0.0
+        !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4, sum_lcl5)
+        do j = jbs, jes
+          do i = ibs, ies
+            sum_lcl1 = sum_lcl1 + var1(i, j, k)
+            sum_lcl2 = sum_lcl2 + var2(i, j, k)
+            sum_lcl3 = sum_lcl3 + var3(i, j, k)
+            sum_lcl4 = sum_lcl4 + var4(i, j, k)
+            sum_lcl5 = sum_lcl5 + var5(i, j, k)
+          end do
+        end do
+        sum2d(k,1) = sum_lcl1
+        sum2d(k,2) = sum_lcl2
+        sum2d(k,3) = sum_lcl3
+        sum2d(k,4) = sum_lcl4
+        sum2d(k,5) = sum_lcl5
+      end do
+    else
+      sum2d = 0
+      do k = kbs, kes
+        do j = jbs, jes
+          do i = ibs, ies
+            sum2d(k,1) = sum2d(k,1) + var1(i, j, k)
+            sum2d(k,2) = sum2d(k,2) + var2(i, j, k)
+            sum2d(k,3) = sum2d(k,3) + var3(i, j, k)
+            sum2d(k,4) = sum2d(k,4) + var4(i, j, k)
+            sum2d(k,5) = sum2d(k,5) + var5(i, j, k)
+          end do
         end do
       end do
-    end do
+    endif
 
+    !$acc host_data use_device(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*5, MPI_REAL4, MPI_SUM, comm3d, mpierr)
+    !$acc end host_data
+
+    !$acc kernels default(present)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     aver3(:) = sum2d(:,3)
     aver4(:) = sum2d(:,4)
     aver5(:) = sum2d(:,5)
+    !$acc end kernels
 
-    deallocate(sum2d)
+    if (present(on_gpu)) then
+      !$acc exit data delete(sum2d)
+      deallocate(sum2d)
+    else
+      deallocate(sum2d)
+    endif
 
   end subroutine slabsum_real32_5fields
 
   subroutine slabsum_real32_4fields(aver1,ks,kf,var1,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes, &
                                     aver2,      var2, &
                                     aver3,      var3, &
-                                    aver4,      var4)
+                                    aver4,      var4, &
+                                    on_gpu)
     implicit none
 
     integer :: ks, kf
@@ -1676,35 +1206,72 @@ contains
     real(real32) :: var2(ib:ie, jb:je, kb:ke)
     real(real32) :: var3(ib:ie, jb:je, kb:ke)
     real(real32) :: var4(ib:ie, jb:je, kb:ke)
+    logical, optional :: on_gpu
     real(real32), dimension(:,:), allocatable :: sum2d
+    real(real32) :: sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4
     integer :: i,j,k
 
     allocate(sum2d(kf-ks+1,4))
-    sum2d = 0
-    do k = kbs, kes
-      do j = jbs, jes
-        do i = ibs, ies
-          sum2d(k,1) = sum2d(k,1) + var1(i, j, k)
-          sum2d(k,2) = sum2d(k,2) + var2(i, j, k)
-          sum2d(k,3) = sum2d(k,3) + var3(i, j, k)
-          sum2d(k,4) = sum2d(k,4) + var4(i, j, k)
+    if (present(on_gpu)) then
+      !$acc enter data create(sum2d)
+      !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4)
+      do k = kbs, kes
+        sum_lcl1 = 0.0
+        sum_lcl2 = 0.0
+        sum_lcl3 = 0.0
+        sum_lcl4 = 0.0
+        !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4)
+        do j = jbs, jes
+          do i = ibs, ies
+            sum_lcl1 = sum_lcl1 + var1(i, j, k)
+            sum_lcl2 = sum_lcl2 + var2(i, j, k)
+            sum_lcl3 = sum_lcl3 + var3(i, j, k)
+            sum_lcl4 = sum_lcl4 + var4(i, j, k)
+          end do
+        end do
+        sum2d(k,1) = sum_lcl1
+        sum2d(k,2) = sum_lcl2
+        sum2d(k,3) = sum_lcl3
+        sum2d(k,4) = sum_lcl4
+      end do
+    else
+      sum2d = 0
+      do k = kbs, kes
+        do j = jbs, jes
+          do i = ibs, ies
+            sum2d(k,1) = sum2d(k,1) + var1(i, j, k)
+            sum2d(k,2) = sum2d(k,2) + var2(i, j, k)
+            sum2d(k,3) = sum2d(k,3) + var3(i, j, k)
+            sum2d(k,4) = sum2d(k,4) + var4(i, j, k)
+          end do
         end do
       end do
-    end do
+    endif
 
+    !$acc host_data use_device(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*4, MPI_REAL4, MPI_SUM, comm3d, mpierr)
+    !$acc end host_data
+
+    !$acc kernels default(present)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     aver3(:) = sum2d(:,3)
     aver4(:) = sum2d(:,4)
+    !$acc end kernels
 
-    deallocate(sum2d)
+    if (present(on_gpu)) then
+      !$acc exit data delete(sum2d)
+      deallocate(sum2d)
+    else
+      deallocate(sum2d)
+    endif
 
   end subroutine slabsum_real32_4fields
 
   subroutine slabsum_real32_3fields(aver1,ks,kf,var1,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes, &
                                     aver2,      var2, &
-                                    aver3,      var3)
+                                    aver3,      var3, &
+                                    on_gpu)
     implicit none
 
     integer :: ks, kf
@@ -1713,32 +1280,67 @@ contains
     real(real32) :: var1(ib:ie, jb:je, kb:ke)
     real(real32) :: var2(ib:ie, jb:je, kb:ke)
     real(real32) :: var3(ib:ie, jb:je, kb:ke)
+    logical, optional :: on_gpu
     real(real32), dimension(:,:), allocatable :: sum2d
+    real(real32) :: sum_lcl1, sum_lcl2, sum_lcl3
     integer :: i,j,k
 
     allocate(sum2d(kf-ks+1,3))
-    sum2d = 0
-    do k = kbs, kes
-      do j = jbs, jes
-        do i = ibs, ies
-          sum2d(k,1) = sum2d(k,1) + var1(i, j, k)
-          sum2d(k,2) = sum2d(k,2) + var2(i, j, k)
-          sum2d(k,3) = sum2d(k,3) + var3(i, j, k)
+
+    if (present(on_gpu)) then
+      !$acc enter data create(sum2d)
+      !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3)
+      do k = kbs, kes
+        sum_lcl1 = 0.0
+        sum_lcl2 = 0.0
+        sum_lcl3 = 0.0
+        !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2, sum_lcl3)
+        do j = jbs, jes
+          do i = ibs, ies
+            sum_lcl1 = sum_lcl1 + var1(i, j, k)
+            sum_lcl2 = sum_lcl2 + var2(i, j, k)
+            sum_lcl3 = sum_lcl3 + var3(i, j, k)
+          end do
+        end do
+        sum2d(k,1) = sum_lcl1
+        sum2d(k,2) = sum_lcl2
+        sum2d(k,3) = sum_lcl3
+      end do
+    else
+      sum2d = 0
+      do k = kbs, kes
+        do j = jbs, jes
+          do i = ibs, ies
+            sum2d(k,1) = sum2d(k,1) + var1(i, j, k)
+            sum2d(k,2) = sum2d(k,2) + var2(i, j, k)
+            sum2d(k,3) = sum2d(k,3) + var3(i, j, k)
+          end do
         end do
       end do
-    end do
+    endif
 
+    !$acc host_data use_device(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*3, MPI_REAL4, MPI_SUM, comm3d, mpierr)
+    !$acc end host_data
+
+    !$acc kernels default(present)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     aver3(:) = sum2d(:,3)
+    !$acc end kernels
 
-    deallocate(sum2d)
+    if (present(on_gpu)) then
+      !$acc exit data delete(sum2d)
+      deallocate(sum2d)
+    else
+      deallocate(sum2d)
+    endif
 
   end subroutine slabsum_real32_3fields
 
   subroutine slabsum_real32_2fields(aver1,ks,kf,var1,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes, &
-                                    aver2,      var2)
+                                    aver2,      var2, &
+                                    on_gpu)
     implicit none
 
     integer :: ks, kf
@@ -1746,25 +1348,56 @@ contains
     real(real32) :: aver1(ks:kf), aver2(ks:kf)
     real(real32) :: var1(ib:ie, jb:je, kb:ke)
     real(real32) :: var2(ib:ie, jb:je, kb:ke)
+    logical, optional :: on_gpu
     real(real32), dimension(:,:), allocatable :: sum2d
+    real(real32) :: sum_lcl1, sum_lcl2
     integer :: i,j,k
 
     allocate(sum2d(kf-ks+1,2))
-    sum2d = 0
-    do k = kbs, kes
-      do j = jbs, jes
-        do i = ibs, ies
-          sum2d(k,1) = sum2d(k,1) + var1(i, j, k)
-          sum2d(k,2) = sum2d(k,2) + var2(i, j, k)
+
+    if (present(on_gpu)) then
+      !$acc enter data create(sum2d)
+      !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2)
+      do k = kbs, kes
+        sum_lcl1 = 0.0
+        sum_lcl2 = 0.0
+        !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2)
+        do j = jbs, jes
+          do i = ibs, ies
+            sum_lcl1 = sum_lcl1 + var1(i, j, k)
+            sum_lcl2 = sum_lcl2 + var2(i, j, k)
+          end do
+        end do
+        sum2d(k,1) = sum_lcl1
+        sum2d(k,2) = sum_lcl2
+      end do
+    else
+      sum2d = 0
+      do k = kbs, kes
+        do j = jbs, jes
+          do i = ibs, ies
+            sum2d(k,1) = sum2d(k,1) + var1(i, j, k)
+            sum2d(k,2) = sum2d(k,2) + var2(i, j, k)
+          end do
         end do
       end do
-    end do
+    endif
 
+    !$acc host_data use_device(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*2, MPI_REAL4, MPI_SUM, comm3d, mpierr)
+    !$acc end host_data
+
+    !$acc kernels default(present)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
+    !$acc end kernels
 
-    deallocate(sum2d)
+    if (present(on_gpu)) then
+      !$acc exit data delete(sum2d)
+      deallocate(sum2d)
+    else
+      deallocate(sum2d)
+    endif
 
   end subroutine slabsum_real32_2fields
 
@@ -1772,7 +1405,8 @@ contains
                                     aver2,      var2, &
                                     aver3,      var3, &
                                     aver4,      var4, &
-                                    aver5,      var5)
+                                    aver5,      var5, &
+                                    on_gpu)
     implicit none
 
     integer :: ks, kf
@@ -1784,38 +1418,79 @@ contains
     real(real64) :: var3(ib:ie, jb:je, kb:ke)
     real(real64) :: var4(ib:ie, jb:je, kb:ke)
     real(real64) :: var5(ib:ie, jb:je, kb:ke)
+    logical, optional :: on_gpu
     real(real64), dimension(:,:), allocatable :: sum2d
+    real(real64) :: sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4, sum_lcl5
     integer :: i,j,k
 
     allocate(sum2d(kf-ks+1,5))
-    sum2d = 0
-    do k = kbs, kes
-      do j = jbs, jes
-        do i = ibs, ies
-          sum2d(k,1) = sum2d(k,1) + var1(i, j, k)
-          sum2d(k,2) = sum2d(k,2) + var2(i, j, k)
-          sum2d(k,3) = sum2d(k,3) + var3(i, j, k)
-          sum2d(k,4) = sum2d(k,4) + var4(i, j, k)
-          sum2d(k,5) = sum2d(k,5) + var5(i, j, k)
+
+    if (present(on_gpu)) then
+      !$acc enter data create(sum2d)
+      !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4, sum_lcl5)
+      do k = kbs, kes
+        sum_lcl1 = 0.0
+        sum_lcl2 = 0.0
+        sum_lcl3 = 0.0
+        sum_lcl4 = 0.0
+        sum_lcl5 = 0.0
+        !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4, sum_lcl5)
+        do j = jbs, jes
+          do i = ibs, ies
+            sum_lcl1 = sum_lcl1 + var1(i, j, k)
+            sum_lcl2 = sum_lcl2 + var2(i, j, k)
+            sum_lcl3 = sum_lcl3 + var3(i, j, k)
+            sum_lcl4 = sum_lcl4 + var4(i, j, k)
+            sum_lcl5 = sum_lcl5 + var5(i, j, k)
+          end do
+        end do
+        sum2d(k,1) = sum_lcl1
+        sum2d(k,2) = sum_lcl2
+        sum2d(k,3) = sum_lcl3
+        sum2d(k,4) = sum_lcl4
+        sum2d(k,5) = sum_lcl5
+      end do
+    else
+      sum2d = 0
+      do k = kbs, kes
+        do j = jbs, jes
+          do i = ibs, ies
+            sum2d(k,1) = sum2d(k,1) + var1(i, j, k)
+            sum2d(k,2) = sum2d(k,2) + var2(i, j, k)
+            sum2d(k,3) = sum2d(k,3) + var3(i, j, k)
+            sum2d(k,4) = sum2d(k,4) + var4(i, j, k)
+            sum2d(k,5) = sum2d(k,5) + var5(i, j, k)
+          end do
         end do
       end do
-    end do
+    endif
 
+    !$acc host_data use_device(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*5, MPI_REAL8, MPI_SUM, comm3d, mpierr)
+    !$acc end host_data
+
+    !$acc kernels default(present)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     aver3(:) = sum2d(:,3)
     aver4(:) = sum2d(:,4)
     aver5(:) = sum2d(:,5)
+    !$acc end kernels
 
-    deallocate(sum2d)
+    if (present(on_gpu)) then
+      !$acc exit data delete(sum2d)
+      deallocate(sum2d)
+    else
+      deallocate(sum2d)
+    endif
 
   end subroutine slabsum_real64_5fields
 
   subroutine slabsum_real64_4fields(aver1,ks,kf,var1,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes, &
                                     aver2,      var2, &
                                     aver3,      var3, &
-                                    aver4,      var4)
+                                    aver4,      var4, &
+                                    on_gpu)
     implicit none
 
     integer :: ks, kf
@@ -1826,35 +1501,73 @@ contains
     real(real64) :: var2(ib:ie, jb:je, kb:ke)
     real(real64) :: var3(ib:ie, jb:je, kb:ke)
     real(real64) :: var4(ib:ie, jb:je, kb:ke)
+    logical, optional :: on_gpu
     real(real64), dimension(:,:), allocatable :: sum2d
+    real(real64) :: sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4
     integer :: i,j,k
 
     allocate(sum2d(kf-ks+1,4))
-    sum2d = 0
-    do k = kbs, kes
-      do j = jbs, jes
-        do i = ibs, ies
-          sum2d(k,1) = sum2d(k,1) + var1(i, j, k)
-          sum2d(k,2) = sum2d(k,2) + var2(i, j, k)
-          sum2d(k,3) = sum2d(k,3) + var3(i, j, k)
-          sum2d(k,4) = sum2d(k,4) + var4(i, j, k)
+
+    if (present(on_gpu)) then
+      !$acc enter data create(sum2d)
+      !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4)
+      do k = kbs, kes
+        sum_lcl1 = 0.0
+        sum_lcl2 = 0.0
+        sum_lcl3 = 0.0
+        sum_lcl4 = 0.0
+        !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4)
+        do j = jbs, jes
+          do i = ibs, ies
+            sum_lcl1 = sum_lcl1 + var1(i, j, k)
+            sum_lcl2 = sum_lcl2 + var2(i, j, k)
+            sum_lcl3 = sum_lcl3 + var3(i, j, k)
+            sum_lcl4 = sum_lcl4 + var4(i, j, k)
+          end do
+        end do
+        sum2d(k,1) = sum_lcl1
+        sum2d(k,2) = sum_lcl2
+        sum2d(k,3) = sum_lcl3
+        sum2d(k,4) = sum_lcl4
+      end do
+    else
+      sum2d = 0
+      do k = kbs, kes
+        do j = jbs, jes
+          do i = ibs, ies
+            sum2d(k,1) = sum2d(k,1) + var1(i, j, k)
+            sum2d(k,2) = sum2d(k,2) + var2(i, j, k)
+            sum2d(k,3) = sum2d(k,3) + var3(i, j, k)
+            sum2d(k,4) = sum2d(k,4) + var4(i, j, k)
+          end do
         end do
       end do
-    end do
+    endif
 
+    !$acc host_data use_device(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*4, MPI_REAL8, MPI_SUM, comm3d, mpierr)
+    !$acc end host_data
+
+    !$acc kernels default(present)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     aver3(:) = sum2d(:,3)
     aver4(:) = sum2d(:,4)
+    !$acc end kernels
 
-    deallocate(sum2d)
+    if (present(on_gpu)) then
+      !$acc exit data delete(sum2d)
+      deallocate(sum2d)
+    else
+      deallocate(sum2d)
+    endif
 
   end subroutine slabsum_real64_4fields
 
   subroutine slabsum_real64_3fields(aver1,ks,kf,var1,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes, &
                                     aver2,      var2, &
-                                    aver3,      var3)
+                                    aver3,      var3, &
+                                    on_gpu)
     implicit none
 
     integer :: ks, kf
@@ -1863,32 +1576,67 @@ contains
     real(real64) :: var1(ib:ie, jb:je, kb:ke)
     real(real64) :: var2(ib:ie, jb:je, kb:ke)
     real(real64) :: var3(ib:ie, jb:je, kb:ke)
+    logical, optional :: on_gpu
     real(real64), dimension(:,:), allocatable :: sum2d
+    real(real64) :: sum_lcl1, sum_lcl2, sum_lcl3
     integer :: i,j,k
 
     allocate(sum2d(kf-ks+1,3))
-    sum2d = 0
-    do k = kbs, kes
-      do j = jbs, jes
-        do i = ibs, ies
-          sum2d(k,1) = sum2d(k,1) + var1(i, j, k)
-          sum2d(k,2) = sum2d(k,2) + var2(i, j, k)
-          sum2d(k,3) = sum2d(k,3) + var3(i, j, k)
+
+    if (present(on_gpu)) then
+      !$acc enter data create(sum2d)
+      !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3)
+      do k = kbs, kes
+        sum_lcl1 = 0.0
+        sum_lcl2 = 0.0
+        sum_lcl3 = 0.0
+        !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2, sum_lcl3)
+        do j = jbs, jes
+          do i = ibs, ies
+            sum_lcl1 = sum_lcl1 + var1(i, j, k)
+            sum_lcl2 = sum_lcl2 + var2(i, j, k)
+            sum_lcl3 = sum_lcl3 + var3(i, j, k)
+          end do
+        end do
+        sum2d(k,1) = sum_lcl1
+        sum2d(k,2) = sum_lcl2
+        sum2d(k,3) = sum_lcl3
+      end do
+    else
+      sum2d = 0
+      do k = kbs, kes
+        do j = jbs, jes
+          do i = ibs, ies
+            sum2d(k,1) = sum2d(k,1) + var1(i, j, k)
+            sum2d(k,2) = sum2d(k,2) + var2(i, j, k)
+            sum2d(k,3) = sum2d(k,3) + var3(i, j, k)
+          end do
         end do
       end do
-    end do
+    endif
 
+    !$acc host_data use_device(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*3, MPI_REAL8, MPI_SUM, comm3d, mpierr)
+    !$acc end host_data
+
+    !$acc kernels default(present)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     aver3(:) = sum2d(:,3)
+    !$acc end kernels
 
-    deallocate(sum2d)
+    if (present(on_gpu)) then
+      !$acc exit data delete(sum2d)
+      deallocate(sum2d)
+    else
+      deallocate(sum2d)
+    endif
 
   end subroutine slabsum_real64_3fields
 
   subroutine slabsum_real64_2fields(aver1,ks,kf,var1,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes, &
-                                    aver2,      var2)
+                                    aver2,      var2, &
+                                    on_gpu)
     implicit none
 
     integer :: ks, kf
@@ -1896,25 +1644,56 @@ contains
     real(real64) :: aver1(ks:kf), aver2(ks:kf)
     real(real64) :: var1(ib:ie, jb:je, kb:ke)
     real(real64) :: var2(ib:ie, jb:je, kb:ke)
+    logical, optional :: on_gpu
     real(real64), dimension(:,:), allocatable :: sum2d
+    real(real64) :: sum_lcl1, sum_lcl2
     integer :: i,j,k
 
     allocate(sum2d(kf-ks+1,2))
-    sum2d = 0
-    do k = kbs, kes
-      do j = jbs, jes
-        do i = ibs, ies
-          sum2d(k,1) = sum2d(k,1) + var1(i, j, k)
-          sum2d(k,2) = sum2d(k,2) + var2(i, j, k)
+
+    if (present(on_gpu)) then
+      !$acc enter data create(sum2d)
+      !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2)
+      do k = kbs, kes
+        sum_lcl1 = 0.0
+        sum_lcl2 = 0.0
+        !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2)
+        do j = jbs, jes
+          do i = ibs, ies
+            sum_lcl1 = sum_lcl1 + var1(i, j, k)
+            sum_lcl2 = sum_lcl2 + var2(i, j, k)
+          end do
+        end do
+        sum2d(k,1) = sum_lcl1
+        sum2d(k,2) = sum_lcl2
+      end do
+    else
+      sum2d = 0
+      do k = kbs, kes
+        do j = jbs, jes
+          do i = ibs, ies
+            sum2d(k,1) = sum2d(k,1) + var1(i, j, k)
+            sum2d(k,2) = sum2d(k,2) + var2(i, j, k)
+          end do
         end do
       end do
-    end do
+    endif
 
+    !$acc host_data use_device(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*2, MPI_REAL8, MPI_SUM, comm3d, mpierr)
+    !$acc end host_data
+
+    !$acc kernels default(present)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
+    !$acc end kernels
 
-    deallocate(sum2d)
+    if (present(on_gpu)) then
+      !$acc exit data delete(sum2d)
+      deallocate(sum2d)
+    else
+      deallocate(sum2d)
+    endif
 
   end subroutine slabsum_real64_2fields
 

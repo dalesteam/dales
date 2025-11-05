@@ -2,6 +2,7 @@
 module modnamelist
 
   use modaerosol,      only: aerosol_read_namelist
+  use modchecksim,     only: checksim_read_namelist
   use modmicrophysics, only: microphysics_read_namelist
 
   implicit none
@@ -16,6 +17,9 @@ contains
   subroutine read_namelists(nml_filename)
 
     character(len=*), intent(in) :: nml_filename
+
+    ! Core modules
+    call checksim_read_namelist(nml_filename)
 
     ! Add-on modules
     call aerosol_read_namelist(nml_filename)

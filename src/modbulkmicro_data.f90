@@ -48,4 +48,11 @@ module modbulkmicro_data
     Nrp(:,:,:),             & !< Tendency of rain droplet number concentration.
     qrp(:,:,:)                !< Tendency of rain specific mixing ratio.
 
+  ! Gamma function lookup tables
+  real(field_r) :: &
+    mygamma21(-100:4000), &
+    mygamma251(-100:4000)
+
+  !$acc declare create(mygamma21, mygamma251)
+
 end module modbulkmicro_data

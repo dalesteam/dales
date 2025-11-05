@@ -108,6 +108,9 @@ module modsimpleice2
     !$acc&                  lambdag, precep, &
     !$acc&                  ccrz, ccsz, ccgz, ccrz2, ccsz2, ccgz2)
 
+    !$acc kernels default(present)
+    precep=0
+    !$acc end kernels
   end subroutine initsimpleice2
 
 !> Cleaning up after the run
@@ -135,7 +138,7 @@ module modsimpleice2
   subroutine simpleice2
     use modglobal, only : i1,ih,j1,jh,k1,rdt,rk3step,timee,rlv,cp,tup,tdn,pi,tmelt,kmax,dzf,dzh
     use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhof,tmp0,rhobf,qvsl,qvsi,esl,surf_rain
-    use modmicrodata, only: delt, qtpmcr, thlpmcr, Nc_0, iqr, precep
+    use modmicrodata, only: delt, qtpmcr, thlpmcr, Nc_0, iqr, precep, l_rain
     use modsimpleice_data, only : sed_qr,qrp,&
                              aag,aar,aas,bbg,bbr,bbs,betag,betar,betas,ccg,ccr,ccs,&
                              ccgz2,ccrz2,ccsz2,ddg,ddr,dds,&
@@ -145,7 +148,7 @@ module modsimpleice2
                              qr,evapfactor,n0rg,n0rs,&
                              qr_spl,&
                              qcmin,qrmin,qli0,qll0,tdnrsg,tdnsg,tuprsg,tupsg,&
-                             l_berry,l_graupel,l_rain,l_warm,timekessl
+                             l_berry,l_graupel,l_warm,timekessl
 
     implicit none
 

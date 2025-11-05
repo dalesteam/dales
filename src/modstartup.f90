@@ -33,7 +33,6 @@ module modstartup
 use iso_c_binding
 use modprecision,      only : field_r
 use modtimer
-use modstat_nc
 use modchecksim, only: check_array
 use modstringutils, only: number2string
 
@@ -79,13 +78,13 @@ contains
                                   lwarmstart,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,&
                                   lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,cu,cv,&
-                                  ifnamopt,fname_options,llsadv,lconstexner,&
+                                  ifnamopt,fname_options,llsadv,lconstexner,lbaseexner, &
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,&
                                   lnoclouds,lfast_thermo,lrigidlid,unudge,ntimedep,&
                                   solver_id, maxiter, maxiter_precond, tolerance, n_pre, n_post, precond_id, checknamelisterror, &
                                   loutdirs, output_prefix, &
                                   lopenbc,linithetero,lperiodic,dxint,dyint,dzint,dxturb,dyturb,taum,tauh,pbc,lsynturb,nmodes,tau,lambda,lambdas,lambdas_x,lambdas_y,lambdas_z,iturb, &
-                                  hypre_logging,rdt,rk3step,i1,j1,k1,ih,jh,lboundary,lconstexner, iinput,dzf, ldebug
+                                  hypre_logging,rdt,rk3step,i1,j1,k1,ih,jh,lboundary,lconstexner, iinput,dzf
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -107,7 +106,7 @@ contains
     use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
     use modmicrophysics,   only : initmicrophysics
     use modsubgrid,        only : initsubgrid
-    use modmpi,            only : initmpi,commwrld,myid,myidx,cmyidy,nprocx,nprocy,mpierr,periods &
+    use modmpi,            only : initmpi,commwrld,myid,myidx,myidy,cmyidy,nprocx,nprocy,mpierr,periods &
                                 , D_MPI_BCAST
     use tstep,             only : inittstep
     use modchem,           only : initchem
@@ -145,7 +144,7 @@ contains
         z0,ustin,wtsurf,wqsurf,ps,thls,lmoist,isurf,chi_half,&
         lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,ltimedep,ltimedepuv,ltimedepsv,ntimedep,&
         irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
-        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge,lfast_thermo,lconstexner
+        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge,lfast_thermo,lconstexner,lbaseexner
     namelist/DYNAMICS/ &
         llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
     namelist/SOLVER/ &
@@ -221,6 +220,7 @@ contains
 #if defined(_OPENACC)
     call initgpu(commwrld)
 #endif
+    !$acc update device (myidx,myidy)
 
     ! Ignore user-provided nsv, we take care of it ourselves
     nsv = 0
@@ -277,7 +277,7 @@ contains
     call D_MPI_BCAST(unudge      ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lfast_thermo,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lconstexner ,1,0,commwrld,mpierr)
-
+    call D_MPI_BCAST(lbaseexner  ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(irad       ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(timerad    ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(iradiation ,1,0,commwrld,mpierr)
@@ -358,7 +358,7 @@ contains
     if (ldebug) call wait_for_attach(myid)
 
     ! Read all namelists
-    call read_namelists(fname_options)    
+    call read_namelists(fname_options)
 
     call testwctime
     ! Allocate and initialize core modules
@@ -400,7 +400,7 @@ contains
     end if
 
     call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
-    call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
+    call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation, and on modtracers
     call initpois ! hypre solver needs grid and baseprofiles
     if(lopenbc) then  ! Correct boundaries and initial field for divergence
       ! Create 1/int(rho) - must be after rhobf has been initialized
@@ -434,10 +434,6 @@ contains
     call inittstep
 
     call checkinitvalues
-
-    ! TODO: invalid values here do stop the model. This is because the checksim 
-    ! namelist is not read yet at this point.
-    call check_initial_state
 
     call timer_toc('modstartup/startup')
 
@@ -557,7 +553,7 @@ contains
                                   rtimee,timee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
-                                  trestart, ladaptive,llsadv,tnextrestart,longint,lconstexner,lopenbc, linithetero, &
+                                  trestart, ladaptive,llsadv,tnextrestart,longint,lconstexner,lbaseexner,lopenbc,linithetero, &
                                   iinput, input_netcdf, input_ascii, lcoriol
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
@@ -579,7 +575,7 @@ contains
     use go,                only : goSplitString_s
     use utils,             only : to_lower
     use modslabaverage,    only : slabavg
-    
+
 #if defined(_OPENACC)
     use modgpu, only: update_gpu, update_host, host_is_updated, update_gpu_surface
 #endif
@@ -592,7 +588,6 @@ contains
 
     real(field_r), allocatable :: height(:), th0av(:)
     real(field_r), allocatable :: thv0(:,:,:)
-    integer, allocatable :: scalar_indices(:)
 
     character(len=512) :: chmess
     integer, parameter :: maxcol = 50
@@ -604,7 +599,6 @@ contains
     allocate (height(k1))
     allocate (th0av(k1))
     allocate (thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate (scalar_indices(nsv))
 
     if (.not. lwarmstart) then
 
@@ -756,7 +750,6 @@ contains
 
       call D_MPI_BCAST(wsvsurf,        nsv,    0, comm3d, mpierr)
       call D_MPI_BCAST(svprof,         k1*nsv, 0, comm3d, mpierr)
-      call D_MPI_BCAST(scalar_indices, nsv,    0, comm3d, mpierr)
 
       ! Initialize fields
       if(lopenbc .and. linithetero) then! Openboundaries with heterogeneous initialisation
@@ -857,8 +850,8 @@ contains
                     sv0(i,j,k,n) = 0.
                     svm(i,j,k,n) = 0.
                   end do
-                end if 
-              end if  
+                end if
+              end if
             end do
           end do
         end do
@@ -976,12 +969,14 @@ contains
       host_is_updated = .false.
 #endif
 
-      if (lconstexner) then
-        exnf(:) = (initial_presf(:)/pref0)**(rd/cp)
-        exnh(:) = (initial_presh(:)/pref0)**(rd/cp)
-      else
-        exnf(:) = (presf(:)/pref0)**(rd/cp)
-        exnh(:) = (presh(:)/pref0)**(rd/cp)
+      if (.not. lbaseexner) then
+         if (lconstexner) then
+            exnf(:) = (initial_presf(:)/pref0)**(rd/cp)
+            exnh(:) = (initial_presh(:)/pref0)**(rd/cp)
+         else
+            exnf(:) = (presf(:)/pref0)**(rd/cp)
+            exnh(:) = (presh(:)/pref0)**(rd/cp)
+         endif
       endif
 
       do k = 2, k1
@@ -1044,7 +1039,7 @@ contains
         do n=1,nsv
           call slabavg(sv0(:,:,:,n),fluid_mask,ih,sv0av(:,n))
         end do
-      end if 
+      end if
 
       th0av(:) = thl0av(:) + (rlv/cp) * ql0av(:) / exnf(:)
       thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
@@ -1100,7 +1095,7 @@ contains
           read (ifinput,'(a80)') chmess
 
           ! if coriolis force, read in 2nd and 3rd columns as ug and vg
-          if (lcoriol) then 
+          if (lcoriol) then
             do  k=1,kmax
               read (ifinput,*) &
                   height (k), &
@@ -1124,7 +1119,7 @@ contains
                   dqtdtls(k), &
                   thlpcar(k)
             end do
-          end if 
+          end if
           close(ifinput)
         end if
 
@@ -1158,7 +1153,7 @@ contains
                 dqtdtls(k), &
                 thlpcar(k)
         end do
-      end if 
+      end if
 
     end if ! end myid==0
 
@@ -1674,24 +1669,25 @@ contains
     ! Calculates the profiles corresponding to the base state
     ! In the current implementation, neither the base pressure, nor the base virtual temperature plays a role in the dynamics
     ! They are nevertheless calculated and printed to the stdin/baseprof files for user convenience
-    use modfields,         only : rhobf,rhobh,drhobdzf,drhobdzh
-    use modglobal,         only : k1,kmax,zf,zh,dzf,dzh,rv,rd,grav,cp,pref0,lwarmstart,ibas_prf,cexpnr,ifinput,ifoutput
+    use modfields,         only : rhobf,rhobh,drhobdzf,drhobdzh,exnf,exnh
+    use modglobal,         only : k1,kmax,zf,zh,dzf,dzh,rv,rd,grav,cp,pref0,lwarmstart,ibas_prf,cexpnr,ifinput,ifoutput,&
+                                  lbaseexner
     use modsurfdata,       only : thls,ps,qts
     use modmpi,            only : myid,comm3d,mpierr,D_MPI_BCAST
     implicit none
 
     real :: thvb,prsb ! for calculating moist adiabat
     integer :: j,k
-    real, allocatable :: height(:),pb(:),tb(:)
+    real(field_r), allocatable :: height(:),pb(:),tb(:),pbh(:)
     character(80) chmess
     real :: zsurf=0.
     real :: tsurf
-    real,dimension(4) :: zmat=(/11000.,20000.,32000.,47000./)
-    real,dimension(4) :: lapserate=(/-6.5/1000.,0.,1./1000,2.8/1000/)
-    real,dimension(4) :: pmat
-    real,dimension(4) :: tmat
+    real(field_r),dimension(4) :: zmat=(/11000.,20000.,32000.,47000./)
+    real(field_r),dimension(4) :: lapserate=(/-6.5/1000.,0.,1./1000,2.8/1000/)
+    real(field_r),dimension(4) :: pmat
+    real(field_r),dimension(4) :: tmat
 
-    allocate (height(k1),pb(k1),tb(k1))
+    allocate (height(k1),pb(k1),tb(k1),pbh(k1))
 
     if(myid==0)then
 
@@ -1850,9 +1846,11 @@ contains
 
       do k = 2, k1
         rhobh(k) = (rhobf(k)*dzf(k-1)+rhobf(k-1)*dzf(k))/(dzf(k)+dzf(k-1))
+        pbh(k)   = (   pb(k)*dzf(k-1)+   pb(k-1)*dzf(k))/(dzf(k)+dzf(k-1)) ! interpolate base half-level pressure like half-level base rho
       end do
 
       rhobh(1) = rhobf(1)-(rhobf(2)-rhobf(1))*(zf(1)-zh(1))/(zf(2)-zf(1))
+      pbh(1)   = ps
 
       ! calculate derivatives
       do k = 1, kmax
@@ -1883,6 +1881,13 @@ contains
                 drhobdzh (k)
       end do
 
+      ! exner function from base profiles
+      ! TODO: pb is not available here on warm start
+      if (lbaseexner) then
+         exnf = (pb/pref0)**(rd/cp)
+         exnh = (pbh/pref0)**(rd/cp)
+      end if
+
     end if ! ENDIF MYID=0
 
     ! MPI broadcast variables
@@ -1891,7 +1896,12 @@ contains
     call D_MPI_BCAST(drhobdzf    ,k1,0,comm3d,mpierr)
     call D_MPI_BCAST(drhobdzh    ,k1,0,comm3d,mpierr)
 
-    deallocate(height,pb,tb)
+    if (lbaseexner) then
+       call D_MPI_BCAST(exnf        ,k1,0,comm3d,mpierr)
+       call D_MPI_BCAST(exnh        ,k1,0,comm3d,mpierr)
+    end if
+
+    deallocate(height,pb,tb,pbh)
 
   end subroutine baseprofs
 
@@ -1976,33 +1986,5 @@ contains
     call nchandle_error(nf90_close(ncid))
 
   end subroutine init_from_netcdf
-
-  !> Check prognostic variables before simulation
-  subroutine check_initial_state()
-    use modglobal, only: lmoist
-    use modfields, only: u0, v0, w0, thl0, qt0, sv0
-
-    ! Weird bug, casting thresholds to _field_r leads to compilation error for
-    ! some reason
-    integer, parameter :: rkind = kind(u0)
-
-    integer :: s
-
-    call check_array(u0, 'u0', 'startup', &
-                     threshold=[real(-100, rkind), real(100, rkind)])
-    call check_array(v0, 'v0', 'startup', &
-                     threshold=[real(-100, rkind), real(100, rkind)])
-    call check_array(w0, 'w0', 'startup', &
-                     threshold=[real(-30, rkind), real(30, rkind)])
-    call check_array(thl0, 'thl0', 'startup', &
-                     threshold=[real(150, rkind), real(350, rkind)])
-    if (lmoist) call check_array(qt0, 'qt0', 'startup', &
-                                 threshold=[real(0, rkind), real(1, rkind)])
-    
-    do s = 1, size(sv0, dim=4)
-      call check_array(sv0(:,:,:,s), 'sv0('//number2string(s)//')', 'startup')
-    end do
-    
-  end subroutine check_initial_state
 
 end module modstartup

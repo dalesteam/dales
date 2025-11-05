@@ -236,8 +236,6 @@ SAVE
   real(field_r), allocatable :: svs   (:)              !<  Surface scalar concentration [-]
   real              :: z0    = -1             !<  Surface roughness length [m]
 
-  !$acc declare create(thvs)
-
   ! prescribed surface fluxes
   real              :: ustin  = -1            !<  Prescribed friction velocity [m/s]
   real              :: wtsurf = -1e20         !<  Prescribed kinematic temperature flux [K m/s]
@@ -313,5 +311,5 @@ SAVE
   logical           :: ltskininp = .false.
   real, allocatable :: tskininp(:,:,:), ttskin(:)
   integer           :: nttskin
-
+  !$acc declare create(xpatches, ypatches)
 end module modsurfdata

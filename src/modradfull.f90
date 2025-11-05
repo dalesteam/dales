@@ -116,13 +116,17 @@ contains
     use modglobal,    only : i1,ih,j1,jh,kmax,k1,cp,dzf,dzh,rlv,rd,pref0
     use modfields,    only : rhof, exnf,exnh, thl0,qt0,ql0,sv0
     use modsurfdata,  only : albedo, ps
-    use modmicrodata, only : imicro, imicro_bulk, Nc_0,iqr
+    use modmicrodata, only : imicro, imicro_bulk, Nc_0
     use modraddata,   only : thlprad, lwd,lwu,swd,swu
+    use modtracers,   only : get_tracer_index
       implicit none
     real :: thlpld,thlplu,thlpsd,thlpsu
-    integer :: i,j,k
+    integer :: i,j,k,iqr
 
     real :: exnersurf
+
+    ! we get the qr tracer index instead of using iqr from modmicrodata as that is initialized to -1.
+    iqr = get_tracer_index("iqr")
 
     allocate(rhof_b(k1),exnf_b(k1))
     allocate(temp_b(2-ih:i1+ih,2-jh:j1+jh,k1),qv_b(2-ih:i1+ih,2-jh:j1+jh,k1),ql_b(2-ih:i1+ih,2-jh:j1+jh,k1),rr_b(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -137,7 +141,8 @@ contains
             qv_b(i,j,k+1)   = max(0._field_r,qt0(i,j,k) - ql0(i,j,k))
             ql_b(i,j,k+1)   = ql0(i,j,k)
             temp_b(i,j,k+1) = thl0(i,j,k)*exnf(k)+(rlv/cp)*ql0(i,j,k)
-            if (imicro==imicro_bulk) rr_b(i,j,k+1) = sv0(i,j,k,iqr)
+            ! make sure we're using the right microphysics scheme AND that iqr is set, as get_tracer_index might return zero if iqr is unset.
+            if ((imicro==imicro_bulk).and.(iqr/=0)) rr_b(i,j,k+1) = sv0(i,j,k,iqr)
           end do
         end do
       end do

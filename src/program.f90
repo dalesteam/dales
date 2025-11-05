@@ -170,7 +170,7 @@ program DALES
 !     0.2     USE STATEMENTS FOR TIMER MODULE
 !----------------------------------------------------------------
 
-  use modtimer,       only : timer_tic, timer_toc, timer_print, timer_write
+  use modtimer,       only : timer_tic, timer_toc, timer_print, timer_write, timer_cleanup
 
 !----------------------------------------------------------------
 !     0.3     USE STATEMENTS FOR GPU UTILITIES
@@ -201,7 +201,6 @@ program DALES
   call inittimestat  ! Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
   call initgenstat   ! Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
   !call inittilt
-  call initsampling
   call initquadrant
   call initcrosssection
   call initAGScross
@@ -209,8 +208,6 @@ program DALES
   call initdepcrosssection
   !call initprojection
   call initcloudfield
-  call initfielddump
-  call initsamptend
   call initradstat
   call initradfield
   call initlsmstat
@@ -223,10 +220,12 @@ program DALES
   call initvarbudget
   call initmsebudg
   !call initstressbudget
-! call initchem
+  ! call initchem
+  call initsampling
+  call initfielddump
+  call initsamptend
   call initheterostats
   call initcanopy
-
   !call initspectra2
   call initscalarpulse
   call initcape
@@ -401,6 +400,7 @@ program DALES
 
   call timer_print
   call timer_write
+  call timer_cleanup
 
 !--------------------------------------------------------
 !    4    FINALIZE ADD ONS AND THE MAIN PROGRAM

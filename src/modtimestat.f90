@@ -406,7 +406,7 @@ contains
 
     use modglobal,  only : i1,j1, k1,kmax,zf,dzf,cu,cv,rv,rd,eps1, &
                           ijtot,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput
-    use modmicrodata, only : imicro, iqr, imicro_sice, imicro_sice2, imicro_bulk, precep
+    use modmicrodata, only : imicro, imicro_sice, imicro_sice2, imicro_bulk, imicro_bulk3, precep
     use modfields,  only : e120,qt0,ql0,u0av,v0av,rhobf,rhof,u0,v0,w0,sv0
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
                            Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
@@ -421,6 +421,7 @@ contains
 #endif
     use modraddata, only :  lwd,lwu,swd,swu,lwdca,lwuca,swdca,swuca, &
                             iradiation, doclearsky
+    use modtracers, only : get_tracer_index
     implicit none
 
     real(field_r)   :: zbaseavl, ztopavl, ztopmaxl, ztop, zbaseminl
@@ -476,7 +477,7 @@ contains
       s_swu_tom_ca,  & !< TOM upwelling shortwave flux, clear sky
       s_lwu_tom_ca     !< TOM upwelling longwave flux, clear sky
 
-    integer:: i, j, k, ilu
+    integer:: i, j, k, ilu, iqr
 
     if (.not.(ltimestat)) return
     if (rk3step/=3) return
@@ -613,8 +614,12 @@ contains
       end do
     end if
 
-    if (imicro == imicro_sice .or. imicro == imicro_sice2 .or. imicro == imicro_bulk) then
-      !$acc parallel loop collapse(2) default(present) reduction(+:qrintavl) &
+    if (imicro == imicro_sice .or. imicro == imicro_sice2 .or. imicro == imicro_bulk .or. imicro == imicro_bulk3) then
+       iqr = get_tracer_index("qr")
+       if (iqr == 0) then
+          iqr = get_tracer_index("qhr")
+       endif
+       !$acc parallel loop collapse(2) default(present) reduction(+:qrintavl) &
       !$acc& private(qrint) async
       do j = 2, j1
         do i = 2, i1
@@ -753,23 +758,36 @@ contains
 !     -------------------------
 !     9.6  Horizontally  Averaged ustar, tstar and obl
 !     -------------------------
-    !$acc kernels default(present) async
-    ustl=sum(ustar(2:i1,2:j1))
-    tstl=sum(- thlflux(2:i1,2:j1) / ustar(2:i1,2:j1))
-    qstl=sum(- qtflux (2:i1,2:j1) / ustar(2:i1,2:j1))
-    !$acc end kernels
+
+    ustl = 0
+    tstl = 0
+    qstl = 0
+    !$acc parallel loop collapse(2) default(present) reduction(+:ustl,tstl,qstl) async
+    do j = 2, j1
+       do i = 2, i1
+          ustl = ustl + ustar(i,j)
+          tstl = tstl - thlflux(i,j) / ustar(i,j)
+          qstl = qstl - qtflux (i,j) / ustar(i,j)
+       end do
+    end do
 
     if(isurf < 3) then
-      !$acc kernels default(present) async
-      thlfluxl = sum(thlflux(2:i1, 2:j1))
-      qtfluxl  = sum(qtflux (2:i1, 2:j1))
-      !$acc end kernels
+       thlfluxl = 0
+       qtfluxl  = 0
+       !$acc parallel loop collapse(2) default(present) reduction(+:thlfluxl,qtfluxl) async
+       do j = 2, j1
+          do i = 2, i1
+             thlfluxl = thlfluxl + thlflux(i, j)
+             qtfluxl  = qtfluxl  + qtflux (i, j)
+          end do
+       end do
     end if
+    ! note ! ACC wait is far below
 
   ! -----------------------------------
   ! 9.7 Communication and normalisation
   ! -----------------------------------
-    !$acc wait
+
     call D_MPI_ALLREDUCE(ccl   , cc   , 1,       &
                           MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(qlintavl, qlintav, 1  , &
@@ -784,8 +802,16 @@ contains
                           MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(zbaseminl, zbasemin, 1, &
                           MPI_MIN, comm3d,mpierr)
+    prav = 0
     if (imicro == imicro_sice .or. imicro == imicro_sice2 .or. imicro == imicro_bulk) then
-       pravl = sum(precep(2:i1,2:j1,1))
+       pravl = 0
+       !$acc parallel loop collapse(2) default(present) reduction(+:pravl)
+       do j = 2, j1
+          do i = 2, i1
+             pravl = pravl + precep(i,j,1)
+          end do
+       end do
+
        call D_MPI_ALLREDUCE(pravl, prav, 1, MPI_SUM, comm3d,mpierr)
     end if
     if (lhetero) then
@@ -847,6 +873,7 @@ contains
 
     tke_tot = tke_tot / ijtot
 
+    !$acc wait ! wait for sum of ustl etc and thlfluxl,qtfluxl
     call D_MPI_ALLREDUCE(ustl, ust, 1, MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(tstl, tst, 1, MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(qstl, qst, 1, MPI_SUM, comm3d,mpierr)
@@ -950,7 +977,7 @@ contains
         tskin_patch    = patchsum_1level(tskin   (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
       endif
     else if (isurf == 11) then
-      Qnet(:,:) = swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1)
+      Qnet(2:i1,2:j1) = swd(2:i1,2:j1,1) + swu(2:i1,2:j1,1) + lwd(2:i1,2:j1,1) + lwu(2:i1,2:j1,1)
 
       ! TODO: replace mean_2d with slabsum?
       Qnetav = mean_2d(Qnet)
