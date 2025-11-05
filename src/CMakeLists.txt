@@ -17,7 +17,6 @@ set( dales_srcs
 	modAGScross.f90
 	modadvection.f90
 	modaerosol.f90
-    modaerosol_types.f90
 	modaerosol_common.f90
 	modaerosol_mode_t.f90
 	modboundary.f90
