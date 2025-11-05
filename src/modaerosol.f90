@@ -8,7 +8,8 @@ module modaerosol
                                iAII, iACI, iCOI, iINC, iINR, iSO4, iSS, iPOM, &
                                iBC, iDU
   use modglobal,         only: ifnamopt, fname_options, checknamelisterror, &
-                               cexpnr, i1, j1, k1, ih, jh, pi, nsv, rhow, kmax
+                               cexpnr, i1, j1, k1, ih, jh, pi, nsv, rhow, kmax, &
+                               rk3step
   use modfields,         only: sv0, svp
   use modmicrodata,      only: qcmin, delt
   use modmpi,            only: myid, D_MPI_BCAST, commwrld, mpierr
@@ -50,8 +51,9 @@ module modaerosol
     lbc = .false.,      & !< Switch for enabling black carbon
     ldu = .false.         !< Switch for enabling dust
 
-  real(field_r), pointer :: &
-    sed_qr(:,:,:) ! Rain sedimentation rate, needed for scavenging.
+  real(field_r), allocatable :: &
+    sed_qr(:,:,:), & ! Rain sedimentation rate, needed for scavenging.
+    qlm(:,:,:)       ! Cloud water at previous time step, needed for resuspension.
 
   type(mode_container_t) :: &
     modes(9)           ! List of all modes.
@@ -148,7 +150,7 @@ contains
       end select
     end do
 
-    allocate(sed_qr(2:i1,2:j1,k1))
+    allocate(sed_qr(2:i1,2:j1,k1), qlm(2:i1,2:j1,k1))
 
   end subroutine init_aerosol
 
@@ -527,15 +529,13 @@ contains
   !! Uses a similar approach as aerosol_resuspend_rain(). Additionally computes
   !! tendency of cloud droplet number concentration due to evaporation.
   !!
-  !! @param[in] qlm Cloud water at previous time step.
   !! @param[in] ql Cloud water at current time step.
   !! @param[in] nc Cloud droplet number concentration.
   !! @param[in] delt Time step size.
   !! @param[inout] ncp Tendency of cloud droplet number concentration.
-  subroutine aerosol_resuspend_cloud(qlm, ql, nc, delt, ncp)
+  subroutine aerosol_resuspend_cloud(ql, nc, delt, ncp)
 
     real(field_r), intent(in) :: &
-      qlm(2-ih:,2-jh:,:),        &
       ql(2-ih:,2-jh:,:),         &
       nc(2:,2:,:),               &
       delt
@@ -617,6 +617,16 @@ contains
         end do
       end do
     end do
+
+    if (rk3step == 3) then
+      do k = 1, k1
+        do j = 2, j1
+          do i = 2, i1
+            qlm(i,j,k) = ql(i,j,k)
+          end do
+        end do
+      end do
+    end if
 
     call timer_toc(routine)
 

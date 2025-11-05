@@ -143,7 +143,7 @@ module modbulkmicro
                           aerosol_cloud_to_rain, aerosol_resuspend_rain,&
                           aerosol_sedimentation_rain, aerosol_resuspend_cloud
     use modglobal, only : i1,j1,kmax,k1,rdt,rk3step,timee,rlv,cp, dzf
-    use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof, esl, qt0, qvsl, tmp0, qlm, w0
+    use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof, esl, qt0, qvsl, tmp0, w0
     use modbulkmicrostat, only : bulkmicrotend
     use modmpi,    only : myid
     use modbulkmicro_data, only : Nr, qr, Nrp, qrp,  &
@@ -290,7 +290,7 @@ module modbulkmicro
 
       ! Compute cloud droplet number concentration tendency due to saturation
       ! adjustment, and correct the aerosol number concentration as well.
-      call aerosol_resuspend_cloud(qlm, ql0, nc, delt, ncp_tmp)
+      call aerosol_resuspend_cloud(ql0, nc, delt, ncp_tmp)
 
       call sum_fields(ncp_tmp, ncp)
       call zero_field(ncp_tmp)
