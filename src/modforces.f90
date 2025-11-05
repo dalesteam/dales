@@ -106,19 +106,25 @@ contains
      ! we check if tracer qr exists, otherwise we don't use it. Should be functionally identical to checking microphysics schem.
      iqr = get_tracer_index("qr")
      if(iqr>0) then
-        !$acc kernels default(present) async(2)
-        do k=2,kmax
-           wp(:,:,k) = wp(:,:,k) + grav*(thv0h(:,:,k)-thvh(k))/thvh(k) - &
-                grav*(sv0(:,:,k,iqr)*dzf(k-1)+sv0(:,:,k-1,iqr)*dzf(k))/(2*dzh(k))
+        !$acc parallel loop collapse(3) default(present) async(2)
+        do k = 2, kmax
+          do j = 2, j1
+            do i = 2, i1
+              wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k) - &
+                   grav*(sv0(i,j,k,iqr)*dzf(k-1)+sv0(i,j,k-1,iqr)*dzf(k))/(2*dzh(k))
+            end do
+          end do
         end do
-        !$acc end kernels
      else
         ! just buoyancy, no precipitation
-        !$acc kernels default(present) async(2)
-        do k=2,kmax
-           wp(:,:,k) = wp(:,:,k) + grav*(thv0h(:,:,k)-thvh(k))/thvh(k)
+        !$acc parallel loop collapse(3) default(present) async(2)
+        do k = 2, kmax
+          do j = 2, j1
+            do i = 2, i1
+              wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k)
+            end do
+          end do
         end do
-        !$acc end kernels
      end if
   end if
 
