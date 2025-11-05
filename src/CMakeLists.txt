@@ -53,7 +53,6 @@ set( dales_srcs
 	modgpu.f90
 	modheterostats.f90
 	modhypre.f90
-	modlookuptable.f90
 	modibm.f90
 	modibmdata.f90
 	modlsm.f90
