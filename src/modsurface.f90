@@ -964,9 +964,9 @@ contains
 
   !> Calculates the maginitude of the wind vector at the first level
   subroutine calc_mean_wind
-    use modglobal, only: i1, j1, cu, cv
+    use modglobal, only: i1, j1, cu, cv, ijtot
     use modfields, only: u0, v0, u0av, v0av
-    use modmpi, only: D_MPI_ALLREDUCE, mpi_sum, comm3d, mpierr
+    use modmpi, only: D_MPI_ALLREDUCE, mpi_sum, comm3d, mpierr, MPI_IN_PLACE
     implicit none
 
     integer :: i, j, patchx, patchy
@@ -974,6 +974,7 @@ contains
     real :: upatch(xpatches, ypatches), vpatch(xpatches, ypatches)
     real :: Supatch(xpatches, ypatches), Svpatch(xpatches, ypatches)
     integer :: Npatch(xpatches, ypatches), SNpatch(xpatches, ypatches)
+    real :: horvavl
 
     !$acc parallel loop collapse(2) default(present) private(upcu, vpcv)
     do j = 2, j1
@@ -1010,9 +1011,21 @@ contains
       horvpatch = sqrt(((Supatch/SNpatch) + cu) **2. + ((Svpatch/SNpatch) + cv) ** 2.)
       horvpatch = max(horvpatch, 0.1)
     else
-      !$acc update self(u0av(1), v0av(1))
-      horvav = sqrt(u0av(1)**2. + v0av(1)**2.)
-      horvav = max(horvav, 0.1)
+      ! old scheme: calculate wind speed from <u>, <v>
+      ! $ acc update self(u0av(1), v0av(1))
+      ! horvav = sqrt(u0av(1)**2. + v0av(1)**2.)
+
+      ! first calculate wind speed, then average
+      horvav = 0
+      horvavl = 0
+      !$acc parallel loop collapse(2) default(present) reduction(+: horvav)
+      do j = 2, j1
+         do i = 2, i1
+            horvavl = horvavl + horv(i,j)
+         end do
+      end do
+      call D_MPI_ALLREDUCE(horvavl, horvav, 1, MPI_SUM, comm3d, mpierr)
+      horvav = horvav / ijtot
     end if
 
     !$acc wait
