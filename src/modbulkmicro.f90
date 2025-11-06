@@ -618,13 +618,15 @@ module modbulkmicro
               end if
               !$acc atomic update
               qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr * dt_spl / (dzf(k) * rho(k))
+              !$acc atomic update
               nr_spl(i,j,k) = nr_spl(i,j,k) - sed_nr * dt_spl / dzf(k)
               if (k > 1) then
+                !$acc atomic update
                 qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr * dt_spl &
                                   / (dzf(k-1) * rho(k-1))
+                !$acc atomic update
                 nr_spl(i,j,k-1) = nr_spl(i,j,k-1) + sed_nr * dt_spl / dzf(k-1)
               end if
-              !$acc end atomic
               if (ts == 1) then
                 precep(i,j,k) = sed_qr / rho(k)
               end if
