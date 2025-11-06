@@ -1,5 +1,5 @@
 module modchem
-! version 1.0  3 chem_components on input and  4 on output but only interger coefficents.
+! version 1.0  3 chem_components on input and  4 on output but only integer coefficients.
 ! version 1.1  4 chem_components on input and 4 on output real on output allowed
 ! 2009_07_09 bug fixed wrong coefficients
 ! 2009_07_10  1916 and 1954       write(coef_str,'(f4.2)')PL_scheme(i)%PL(j)%coef     f4.2 ipv i2
@@ -31,16 +31,16 @@ module modchem
   !-----------------------------------------------------------------
 
   !
-  ! EXSAMPLE chem.imp.xxx file
+  ! EXAMPLE chem.inp.xxx file
 
 ! # FORMAT OF inputchem
-! # EVERY ITEM SHOULD BE SEPERATED BY AT LEAST ONE SPACE
+! # EVERY ITEM SHOULD BE SEPARATED BY AT LEAST ONE SPACE
 ! # EXCEPT FOR THE COEFFICIENTS IN THE REACTIONS
 ! # PUT NONACTIVE CHEMICAL COMPONENTS WITH COEFFICIENTS IN ().
 ! # No empty lines are allowed. Comment line should start with a #.
 ! # The file should start with a line with a @ as the first character, the rest of the line is free.
 ! # and should be followed by 3 lines with no comments in between.
-! # The first line should contain the chemical species in same order as  in scalar.inp, follwoed by
+! # The first line should contain the chemical species in same order as in scalar.inp, followed by
 ! # 2 lines with the atol and rtol value's
 ! # After the last reaction there should be a line with a $ as the first character.
 ! @  1       2       3       4       5      6       7       8       9       10      11       12      13      14     15
@@ -163,7 +163,7 @@ save
   type RCdef
     character*6 rname
     integer raddep  ! 1 if reaction = radiation dependend
-    real Kreact       !reaction konstant from input file
+    real Kreact       !reaction constant from input file
     real Keff         !to use with special circumstances cq with radiation and/or temperature depend reactions
     integer Kindex    !index to array with effective K due to clouds and temperature
     integer func1
@@ -199,7 +199,7 @@ save
     real atol
     real rtol
     integer nr_PL      !total number of reactions in which this chemical is used
-    type (Form) PL(mrpcc)  !stucture holding the reaction components, reaction number etc
+    type (Form) PL(mrpcc)  !structure holding the reaction components, reaction number etc
   end type Name_Number
 
   type (Name_Number), allocatable ::PL_scheme(:)   !(nchsp)
@@ -299,9 +299,7 @@ SUBROUTINE initchem
     if (nchsp_tmp == 1) then
       firstchem = tracer_prop(isv)%trac_idx
     endif
-    if ((isv == nsv) .or. (tracer_prop(isv)%lreact .and. .not. tracer_prop(isv+1)%lreact)) then
-      lastchem = isv
-    endif
+    lastchem = isv
   enddo
 
   ! check first and last species in chemical scheme
@@ -379,7 +377,7 @@ subroutine inputchem
  implicit none
 
   integer i,j,k,l,react
-  integer*2 number
+  integer number
   integer react_nr
   real reactconst,coefficient, fact(7)
   integer func1,raddep,nr_chemcomp,nr_active_chemicals
@@ -405,7 +403,7 @@ subroutine inputchem
     real kr      !kn2rd
     integer RadDep   !reaction is radiation dependend
     integer keff_index
-    integer Order  !orde of reaction
+    integer Order  !order of reaction
     integer nr_chem  !nr of chemicals in reaction (including non active species
     integer nr_chem_inp !nr of chem on input
     integer nr_chem_outp !nr of chem on output
@@ -645,7 +643,7 @@ subroutine inputchem
     endif
   enddo
 
-  !make a list of chemical species and in which reaction number it is formed and/or losst
+  !make a list of chemical species and in which reaction number it is formed and/or lost
   k=0
   do i=1,react
     do j=1,reactions(i)%nr_chem_inp ! look only on input side of reaction
@@ -657,7 +655,7 @@ subroutine inputchem
           reactions(i)%inp(j)%chem_nr = l    !put chem component number in reaction
           PL_scheme(l)%nr_PL = PL_scheme(l)%nr_PL +1 !count number of reactions
           if ( PL_scheme(l)%nr_PL > mrpcc ) then
-            print *, 'mrpcc to low, increase mrpcc in modchem'
+            print *, 'mrpcc too low, increase mrpcc in modchem'
             stop
           end if
           PL_scheme(l)%PL(PL_scheme(l)%nr_PL)%r_nr = i   !store reaction number index to RC
@@ -671,7 +669,7 @@ subroutine inputchem
         reactions(i)%inp(j)%chem_nr = k
         PL_scheme(l)%nr_PL = PL_scheme(l)%nr_PL +1
         if ( PL_scheme(l)%nr_PL > mrpcc ) then
-          print *, 'mrpcc to low, increase mrpcc in modchem'
+          print *, 'mrpcc too low, increase mrpcc in modchem'
           stop
         end if
         PL_scheme(l)%PL(PL_scheme(l)%nr_PL)%r_nr = i   !store reaction number
@@ -690,7 +688,7 @@ subroutine inputchem
           reactions(i)%outp(j)%chem_nr = l
           PL_scheme(l)%nr_PL = PL_scheme(l)%nr_PL +1
           if ( PL_scheme( l)%nr_PL > mrpcc ) then
-            print *, 'mrpcc to low, increase mrpcc in modchem'
+            print *, 'mrpcc too low, increase mrpcc in modchem'
             stop
           end if
           PL_scheme(l)%PL(PL_scheme(l)%nr_PL)%r_nr = i   !store reaction number
@@ -704,7 +702,7 @@ subroutine inputchem
         reactions(i)%outp(j)%chem_nr = k
         PL_scheme(l)%nr_PL = PL_scheme(l)%nr_PL +1
         if ( PL_scheme(l)%nr_PL > mrpcc ) then
-          print *, 'mrpcc to low, increase mrpcc in modchem'
+          print *, 'mrpcc too low, increase mrpcc in modchem'
           stop
         end if
         PL_scheme(l)%PL(PL_scheme(l)%nr_PL)%r_nr = i   !store reaction number
@@ -1072,7 +1070,7 @@ implicit none
 
   !!!! We only use the chemistry scalars in svm,
   !!!! in twostep2 we use them as y(:,:,:,1:nchsp)
-  !!!! they may be starting at XX but we acces them with index 1 to nchsp
+  !!!! they may be starting at XX but we access them with index 1 to nchsp
   call twostep2(svm(:,:,:,firstchem:lastchem))
   if (timee >= tnextwrite ) then
     tnextwrite = tnextwrite + itimeav
@@ -1086,7 +1084,7 @@ SUBROUTINE twostep2(y)
 !c
 !c-----------------------------------------------------------------|
 !c                                                                 |
-!c*** *twostep*  chewmical solver                                  |
+!c*** *twostep*  chemical solver                                  |
 !c                                                                 |
 !c     Jordi Vila    WUR           16/08/2004                      |
 !c                                                                 |
@@ -1115,7 +1113,7 @@ use modtimestat, only: we, zi, ziold, calcblheight
 
 implicit none
 
-!!!!! we acces the chemicals from 1 to nchsp so we are independend of other scalars in svm
+!!!!! we access the chemicals from 1 to nchsp so we are independent of other scalars in svm
   real(field_r) y(2-ih:i1+ih,2-jh:j1+jh,k1,1:nchsp)
 
   real, allocatable :: ybegin(:,:,:,:)
@@ -1541,12 +1539,12 @@ implicit none
       where (seg_conc_mult .ne. 0)
         segregation = (seg_conc_prod-seg_conc_mult)/seg_conc_mult
       elsewhere
-        segregation = -9999.0 !Error code, devision by 0
+        segregation = -9999.0 !Error code, division by 0
       endwhere
       where (seg_conc_mult_vert .ne. 0)
         segregation_vert = (seg_conc_prod_vert-seg_conc_mult_vert)/seg_conc_mult_vert
       elsewhere
-        segregation_vert = -9999.0 !Error code, devision by 0
+        segregation_vert = -9999.0 !Error code, division by 0
       endwhere
 
       if(myid==0) then
@@ -1676,7 +1674,7 @@ implicit none
 
   if (lchconst .EQV. .false.) then
     T_abs(:,:) = thl0(2:i1,2:j1,k) * exnf(k) + (rlv/cp) * ql0(2:i1,2:j1,k)
-    ! concentrations are in ppb reactionconstant are1 cm3/moleculer.s =>convppb
+    ! concentrations are in ppb reaction constant are1 cm3/molecules =>convppb
     ! if K in
   !  convppb(:,:) = 6.023e8 * (presf(k)/100) / (8.314e-2 * T_abs(:,:))
     convppb(:,:) = Avogrado * 1.e-9 * 1e-6/8.314e-2/100 * (presf(k)) / ( T_abs(:,:))
@@ -1716,7 +1714,7 @@ implicit none
         !do nothing K is in PPB and constant
       case(1) ! K in cm3/molecules*sec and independent of temperature
         keffT(:,:,RC(i)%Kindex) = RC(i)%A * convppb(:,:)
-      case(2) !temperature depence of K
+      case(2) !temperature dependence of K
         keffT(:,:,RC(i)%Kindex) = RC(i)%A * exp(RC(i)%B / T_abs(:,:)) * convppb(:,:)
       case (3) !more complex temperature dependence
         keffT(:,:,RC(i)%Kindex) = RC(i)%A * (T_abs(:,:)/RC(i)%B)**RC(i)%C * exp(RC(i)%D / T_abs(:,:))* convppb(:,:)
@@ -1763,7 +1761,7 @@ subroutine ratech
 !
 !-----------------------------------------------------------------|
 !                                                                 |
-!*** *ratech*  calculate the photolyis rate perturbed by clouds   |
+!*** *ratech*  calculate the photolysis rate perturbed by clouds  |
 !                                                                 |
 !     Jordi Vila   WUR          16/08/2004                        |
 !                                                                 |
@@ -1772,9 +1770,9 @@ subroutine ratech
 !
 !     It calculates the photolysis rate perturbed by the clouds
 !     It takes the clear sky value prescribed at input_chem
-!     and it modifyes according to the parameterization developed
+!     and modifies it according to the parameterization developed
 !     by Chang et al.(eqs 13) (JGR, vol 92, 14,681).
-!     The parametrization depends on:
+!     The parameterization depends on:
 !     - Cloud optical depth
 !     - Solar zenith angles
 !
@@ -1861,7 +1859,7 @@ subroutine ratech
     RETURN
   else
     do i=1, nr_raddep
-      r = raddep_RCindex(i) !array to photolysis reactionnumbers
+      r = raddep_RCindex(i) !array to photolysis reaction numbers
       select case (RC(r)%func1)
       case (1) ! constant independent of sza
         RC(r)%Keff = RC(r)%A
@@ -1911,14 +1909,14 @@ subroutine ratech
 
   if( sum(ql0) == 0.0 .or. (lcloudKconst  .eqv. .true.)) then  ! maybe < 0.01
     !there is no liquid water in the domain so no clouds
-    !or we like constamnt value's for K so we are finished here
+    !or we like constant value's for K so we are finished here
   else
     !we have to look for the individual clouds
 
     !for clouds the the max solar zenith angle is cutoff at 60 degrees
     coszenmax = min(60*pi/180,coszen)
 
-    if (lrsAgs .and. (iradiation/=irad_par)) then !irad_par get tau with ql0 theshold
+    if (lrsAgs .and. (iradiation/=irad_par)) then !irad_par get tau with ql0 threshold
       tauField   = 0.0
     endif
 
@@ -1950,7 +1948,7 @@ subroutine ratech
             endif
 
             if (tau2 >= tauc ) then  ! 'dense' cloud
-              ! smooting of cloud base and top
+              ! smoothing of cloud base and top
               zbase = zf(k) - (ql0(i,j,k)/(ql0(i,j,k) + ql0(i,j,k+1))) * dzf(k)  !!!!! of dzf(k+-?) with non equidistant grid
               ztop  = zf(L) + (ql0(i,j,L)/(ql0(i,j,L) + ql0(i,j,L-1))) * dzf(L)  !!!!! of dzf(l+-?)
               !for cloud statistics
@@ -1970,7 +1968,7 @@ subroutine ratech
               ! Only the factor above clouds is dependent on the chemical species
               do m = 1, nr_raddep
                 r = raddep_RCindex(m)
-                !RC(r)%C is the alfa factor of Chang
+                !RC(r)%C is the alpha factor of Chang
                 fab  = 1. + RC(r)%C * (1-tr) * coszenmax   !factor above clouds
                 ! above cloud
                 kefftemp(l:kmax,m) = fab
