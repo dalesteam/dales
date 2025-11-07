@@ -31,7 +31,7 @@ module modlsm
 
 contains
 
-subroutine update_device
+subroutine lsm_update_device
     ! data that should reside on CPU
     use modsurfdata, only : phiw, phiwm, lambda, lambdah, tsoil, tsoilm, lambdash, gammas, gammash, wl, wlm
 
@@ -44,32 +44,35 @@ subroutine update_device
 
     implicit none
 
-    !$acc update device(phiw,tsoil)
+    !$acc update device(tsoil,phiw)
 
     do ilu=1, nlu
        !$acc update device(tile(ilu)%thlskin,tile(ilu)%qtskin)
     enddo
 
-    ! NOTE: these are updated in update_gpu so I assume they are located in GPU
-    ! when lsm is called
-
-    !$acc update host(svm, thl0, qt0, exnf, presf, rhof, u0, v0, thvh, exnh)
-    !$acc update host(zf)
-    !$acc update host(tskin, qskin, thlflux, qtflux, dthldz, dqtdz, dudz, dvdz, ustar, obl, ra, svflux)
-    !$acc update host(swd, swu, lwd, lwu)
-    !$acc update host(precep)
-
-end subroutine update_device
+end subroutine lsm_update_device
 
 subroutine lsm
   use modglobal, only : ldrydep
   use modtimer,  only : timer_tic, timer_toc
+  use modgpu, only: update_host, update_gpu, host_is_updated
+  ! XXX: delete v
+  use modsurfdata, only : &
+       H, LE, G0, tskin, qskin, thlflux, qtflux, dthldz, dqtdz, &
+       dudz, dvdz, ustar, obl, cliq, ra, rsveg, rssoil, phiw
+
   implicit none
+
+    logical :: acc
 
     if (.not. llsm) return
     call timer_tic('lsm', 0)
 
-    call update_device()
+    ! NOTE: these are updated in update_gpu so I assume they are located in GPU
+    ! when lsm is called
+    host_is_updated=.false.
+    call update_host()
+    call lsm_update_device()
 
     ! Calculate dynamic tile fractions,
     ! based on the amount of liquid water on vegetation.
@@ -84,18 +87,31 @@ subroutine lsm
        call timer_toc('lsm_calc_tile_fractions')
     end if
 
+    !$acc update device(soil_index)
+    !$acc update device(phiw,theta_wp,theta_fc)
+    do ilu=1,nlu
+       if (tile(ilu)%lveg) then
+          !$acc update device(tile(ilu)%root_frac)
+       endif
+    enddo
+
+    acc=.true.
     ! Calculate root fraction weighted mean soil water content.
     call timer_tic('lsm_calc_theta_mean', 0)
     do ilu=1,nlu
       if (tile(ilu)%lveg) then
-        call calc_theta_mean(tile(ilu))
+        call calc_theta_mean(tile(ilu), acc=acc)
       end if
     end do
 
     !$acc wait(1)
     do ilu=1,nlu
        if (tile(ilu)%lveg) then
-          !$acc update self(tile(ilu)%phiw_mean)
+          if (acc) then
+             !$acc update host(tile(ilu)%phiw_mean)
+          else
+             !$acc update device(tile(ilu)%phiw_mean)
+          endif
        endif
     enddo
     call timer_toc('lsm_calc_theta_mean')
@@ -104,7 +120,7 @@ subroutine lsm
     if (lags) then
         call timer_tic('lsm_calc_canopy_resistance_ags', 0)
 #ifdef _OPENACC
-       stop "acc: unsupported calc_canopy_resistance_ags"
+        stop "acc: unsupported lsm calc_canopy_resistance_ags"
 #endif
         call calc_canopy_resistance_ags
         call timer_toc('lsm_calc_canopy_resistance_ags')
@@ -138,6 +154,9 @@ subroutine lsm
     ! Set grid point averaged boundary conditions (thls, qts, gradients, ..)
     call timer_tic('lsm_calc_bulk_bcs', 0)
     call calc_bulk_bcs
+
+    !$acc wait(1)
+    !$acc update host(H,LE,G0,ustar,qskin,tskin,rsveg,rssoil,thlflux,qtflux,obl,dthldz,dqtdz,dudz,dvdz,cliq,ra,rsveg,rssoil)
     call timer_toc('lsm_calc_bulk_bcs')
 
     ! Calculate soil tendencies
@@ -169,6 +188,8 @@ subroutine lsm
     call timer_toc('lsm_integrate_theta_soil')
 
     call timer_toc('lsm')
+
+    call update_gpu()
 end subroutine lsm
 
 !
@@ -307,25 +328,27 @@ end subroutine calc_liquid_reservoir
 !
 ! Calculate root fraction weighted mean soil water content
 !
-subroutine calc_theta_mean(tile)
+subroutine calc_theta_mean(tile, acc)
     use modglobal,   only : i1, j1
     use modsurfdata, only : phiw
     implicit none
 
     type(T_lsm_tile), intent(inout) :: tile
+    logical, intent(in) :: acc
     integer :: i, j, k, si
     real :: theta_lim
 
-    !$acc kernels default(present) async(1)
+    !$acc kernels default(present) async(1) if(acc)
     tile%phiw_mean(:,:) = 0.
     !$acc end kernels
 
     do k=1, kmax_soil
-        !$acc parallel loop collapse(2) default(present) async(1)
+        !$acc parallel loop collapse(2) default(present) async(1) if(acc)
         do j=2,j1
             do i=2,i1
                 si = soil_index(i,j,k)
                 theta_lim = max(phiw(i,j,k), theta_wp(si))
+                ! NOTE: GPU accuracy divergence with the division
                 tile%phiw_mean(i,j) = tile%phiw_mean(i,j) + tile%root_frac(i,j,k) * &
                     (theta_lim - theta_wp(si)) / (theta_fc(si) - theta_wp(si))
             end do
@@ -1071,14 +1094,7 @@ subroutine calc_bulk_bcs
        !$acc update host(tile(ilu)%tskin,tile(ilu)%H,tile(ilu)%LE,tile(ilu)%G,tile(ilu)%wthl,tile(ilu)%wqt,tile(ilu)%thlskin,tile(ilu)%qtskin)
     enddo
 
-    !read
-    ! !$acc update device(du_tot, land_frac, thl0, cveg, thvh, zf, u0, v0)
-    ! do ilu=1,nlu
-    !    !$acc update device(tile(ilu)%frac, tile(ilu)%H, tile(ilu)%LE, tile(ilu)%G, tile(ilu)%ustar, tile(ilu)%thlskin, &
-    !    !$acc& tile(ilu)%qtskin, tile(ilu)%rs, tile(ilu)%lveg, tile(ilu)%laqu)
-    ! enddo
-
-    !!$acc parallel loop collapse(2) default(present) async(1)
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
         do i=2,i1
             H(i,j) = 0
@@ -1089,6 +1105,12 @@ subroutine calc_bulk_bcs
             qskin(i,j) = 0
             rsveg(i,j) = 0
             rssoil(i,j) = 0
+        enddo
+    enddo
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
             do ilu=1,nlu
               H(i,j)      = H(i,j)     + tile(ilu)%frac(i,j) * tile(ilu)%H(i,j)
               LE(i,j)     = LE(i,j)    + tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j)
@@ -1096,23 +1118,24 @@ subroutine calc_bulk_bcs
               ustar(i,j)  = ustar(i,j) + tile(ilu)%frac(i,j) * tile(ilu)%ustar(i,j)
               tskin(i,j)  = tskin(i,j) + tile(ilu)%frac(i,j) * tile(ilu)%thlskin(i,j)
               qskin(i,j)  = qskin(i,j) + tile(ilu)%frac(i,j) * tile(ilu)%qtskin(i,j)
-            enddo
+           enddo
+        enddo
+    enddo
 
-      !    enddo
-      ! enddo
-      ! !!$acc wait(1)
-      ! !!$acc update host(H,LE,G0,ustar,tskin,qskin,rsveg,rssoil)
-      ! do j=2,j1
-      !    do i=2,i1
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
 
             ! Kinematic surface fluxes
             thlflux(i,j) =  H(i,j)  * rhocp_i
             qtflux (i,j) =  LE(i,j) * rholv_i
 
-      !    enddo
-      ! enddo
-      ! do j=2,j1
-      !    do i=2,i1
+        enddo
+    enddo
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
 
             ! Calculate mean Obukhov length from mean fluxes
             bflux = grav/thvh(1) * (thlflux(i,j) * (1.-(1.-rv/rd)*qskin(i,j)) - &
@@ -1123,10 +1146,12 @@ subroutine calc_bulk_bcs
             dthldz(i,j) = -thlflux(i,j) / (fkar * zf(1) * ustar(i,j)) * phih(zf(1)/obl(i,j))
             dqtdz (i,j) = -qtflux (i,j) / (fkar * zf(1) * ustar(i,j)) * phih(zf(1)/obl(i,j))
 
-      !    enddo
-      ! enddo
-      ! do j=2,j1
-      !    do i=2,i1
+        enddo
+    enddo
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
 
             ! NOTE: dudz, dvdz are at the grid center (full level), not the velocity locations.
             ucu = 0.5*(u0(i,j,1) + u0(i+1,j,1))+cu
@@ -1135,10 +1160,12 @@ subroutine calc_bulk_bcs
             dudz(i,j) = ustar(i,j) / (fkar * zf(1)) * phim(zf(1)/obl(i,j)) * (ucu/du_tot(i,j))
             dvdz(i,j) = ustar(i,j) / (fkar * zf(1)) * phim(zf(1)/obl(i,j)) * (vcv/du_tot(i,j))
 
-      !    enddo
-      ! enddo
-      ! do j=2,j1
-      !    do i=2,i1
+        enddo
+    enddo
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
 
             ! Just for diagnostics (modlsmcrosssection)
             do ilu=1,nlu
@@ -1148,10 +1175,12 @@ subroutine calc_bulk_bcs
               endif
             enddo
 
-      !    enddo
-      ! enddo
-      ! do j=2,j1
-      !    do i=2,i1
+        enddo
+    enddo
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
 
             ! Calculate ra consistent with mean flux and temperature difference:
             ra(i,j) = (tskin(i,j) - thl0(i,j,1)) / thlflux(i,j)
@@ -1183,14 +1212,12 @@ subroutine calc_bulk_bcs
         end do
     end do
 
-    !write
-    !!$acc wait(1)
-    !!$acc update host(H, LE, G0, ustar, tskin, qskin, cliq, thlflux, qtflux, obl, &
-    !!$acc& dthldz, dqtdz, dudz, dvdz, ra, rsveg, rssoil)
-
     ! Cyclic BCs where needed.
     ustar_3D(1:i2,1:j2,1:1) => ustar
     if(lopenbc) then ! Only use periodicity for non-domain boundaries when openboundaries are used
+#ifdef _OPENACC
+       stop "acc: unsupported lsm openboundary_excjs"
+#endif
        call openboundary_excjs(ustar_3D, 2,i1,2,j1,1,1,1,1, &
             & (.not.lboundary(1:4)).or.lperiodic(1:4))
     else
@@ -1674,9 +1701,57 @@ subroutine deallocate_from_device()
   return
 
   !XXX: fill
+  !$acc exit data delete(cliq)
+  !$acc exit data delete(cveg)
+  !$acc exit data delete(du_tot)
+  !$acc exit data delete(f1)
+  !$acc exit data delete(f2b)
+  !$acc exit data delete(G0)
+  !$acc exit data delete(H)
+  !$acc exit data delete(land_frac)
+  !$acc exit data delete(LE)
+  !$acc exit data delete(phiw)
+  !$acc exit data delete(rssoil)
+  !$acc exit data delete(rsveg)
+  !$acc exit data delete(soil_index)
+  !$acc exit data delete(theta_fc)
+  !$acc exit data delete(theta_res)
+  !$acc exit data delete(theta_wp)
+  !$acc exit data delete(thv_1)
+  !$acc exit data delete(tsoil)
 
   do ilu=1,nlu
      !XXX: fill
+     !$acc exit data delete(tile(ilu)%db)
+     !$acc exit data delete(tile(ilu)%f2)
+     !$acc exit data delete(tile(ilu)%f3)
+     !$acc exit data delete(tile(ilu)%frac)
+     !$acc exit data delete(tile(ilu)%G)
+     !$acc exit data delete(tile(ilu)%gD)
+     !$acc exit data delete(tile(ilu)%H)
+     !$acc exit data delete(tile(ilu)%lai)
+     !$acc exit data delete(tile(ilu)%lambda_stable)
+     !$acc exit data delete(tile(ilu)%lambda_unstable)
+     !$acc exit data delete(tile(ilu)%laqu)
+     !$acc exit data delete(tile(ilu)%LE)
+     !$acc exit data delete(tile(ilu)%lveg)
+     !$acc exit data delete(tile(ilu)%laqu)
+     !$acc exit data delete(tile(ilu)%obuk)
+     !$acc exit data delete(tile(ilu)%phiw_mean)
+     !$acc exit data delete(tile(ilu)%qtskin)
+     !$acc exit data delete(tile(ilu)%qtskin)
+     !$acc exit data delete(tile(ilu)%ra)
+     !$acc exit data delete(tile(ilu)%root_frac)
+     !$acc exit data delete(tile(ilu)%rs)
+     !$acc exit data delete(tile(ilu)%rs_min)
+     !$acc exit data delete(tile(ilu)%thlskin)
+     !$acc exit data delete(tile(ilu)%thlskin)
+     !$acc exit data delete(tile(ilu)%tskin)
+     !$acc exit data delete(tile(ilu)%ustar)
+     !$acc exit data delete(tile(ilu)%wqt)
+     !$acc exit data delete(tile(ilu)%wthl)
+     !$acc exit data delete(tile(ilu)%z0h)
+     !$acc exit data delete(tile(ilu)%z0m)
 
      !$acc exit data delete(tile(ilu))
   enddo
