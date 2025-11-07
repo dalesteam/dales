@@ -59,7 +59,8 @@ subroutine lsm
   ! XXX: delete v
   use modsurfdata, only : &
        H, LE, G0, tskin, qskin, thlflux, qtflux, dthldz, dqtdz, &
-       dudz, dvdz, ustar, obl, cliq, ra, rsveg, rssoil, phiw
+       dudz, dvdz, ustar, obl, cliq, ra, rsveg, rssoil, phiw, &
+       lambda, lambdah
 
   implicit none
 
@@ -163,6 +164,9 @@ subroutine lsm
     ! Calc diffusivity heat:
     call timer_tic('lsm_calc_thermal_properties', 0)
     call calc_thermal_properties
+
+    !$acc wait(1)
+    !$acc update host(lambdah,lambda)
     call timer_toc('lsm_calc_thermal_properties')
     ! Solve diffusion equation:
     call timer_tic('lsm_integrate_t_soil', 0)
@@ -1222,6 +1226,7 @@ subroutine calc_bulk_bcs
             & (.not.lboundary(1:4)).or.lperiodic(1:4))
     else
        !call excjs(ustar,2,i1,2,j1,1,1,1,1)
+       !$acc wait(1) ! XXX: should not have to stall here
        call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
     endif
 
@@ -1231,7 +1236,7 @@ end subroutine calc_bulk_bcs
 ! Interpolation soil from full to half levels,
 ! using various interpolation methods
 !
-subroutine interpolate_soil(fieldh, field, iinterp)
+subroutine interpolate_soil(fieldh, field, iinterp, acc)
     use modglobal, only : i1, j1
     implicit none
 
@@ -1241,9 +1246,10 @@ subroutine interpolate_soil(fieldh, field, iinterp)
     real, intent(in)    :: field(:,:,:)
     integer, intent(in) :: iinterp
     integer i, j, k
-
+    logical::acc
     if (iinterp == iinterp_amean) then
         do k=2,kmax_soil
+            !$acc parallel loop collapse(2) default(present) async(1) if(acc)
             do j=2,j1
                 do i=2,i1
                     fieldh(i,j,k) = 0.5*(field(i,j,k-1) + field(i,j,k))
@@ -1252,6 +1258,7 @@ subroutine interpolate_soil(fieldh, field, iinterp)
         end do
     else if (iinterp == iinterp_gmean) then
         do k=2,kmax_soil
+            !$acc parallel loop collapse(2) default(present) async(1) if(acc)
             do j=2,j1
                 do i=2,i1
                     fieldh(i,j,k) = sqrt(field(i,j,k-1) * field(i,j,k))
@@ -1260,6 +1267,7 @@ subroutine interpolate_soil(fieldh, field, iinterp)
         end do
     else if (iinterp == iinterp_hmean) then
         do k=2,kmax_soil
+            !$acc parallel loop collapse(2) default(present) async(1) if(acc)
             do j=2,j1
                 do i=2,i1
                     fieldh(i,j,k) = ((dz_soil(k-1)+dz_soil(k))*field(i,j,k-1)*field(i,j,k)) / &
@@ -1269,6 +1277,7 @@ subroutine interpolate_soil(fieldh, field, iinterp)
         end do
     else if (iinterp == iinterp_max) then
         do k=2,kmax_soil
+            !$acc parallel loop collapse(2) default(present) async(1) if(acc)
             do j=2,j1
                 do i=2,i1
                     fieldh(i,j,k) = max(field(i,j,k-1), field(i,j,k))
@@ -1294,6 +1303,7 @@ subroutine calc_thermal_properties
 
     ! Calculate diffusivity heat
     do k=1,kmax_soil
+        !$acc parallel loop collapse(2) default(present) async(1)
         do j=2,j1
             do i=2,i1
                 si = soil_index(i,j,k)
@@ -1316,7 +1326,7 @@ subroutine calc_thermal_properties
     end do
 
     ! Interpolate to half levels
-    call interpolate_soil(lambdah, lambda, iinterp_t)
+    call interpolate_soil(lambdah, lambda, iinterp_t, .true.)
 
 end subroutine calc_thermal_properties
 
@@ -1360,8 +1370,8 @@ subroutine calc_hydraulic_properties
     end do
 
     ! Interpolate to half levels
-    call interpolate_soil(lambdash, lambdas, iinterp_theta)
-    call interpolate_soil(gammash,  gammas,  iinterp_theta)
+    call interpolate_soil(lambdash, lambdas, iinterp_theta, .false.)
+    call interpolate_soil(gammash,  gammas,  iinterp_theta, .false.)
 
     ! Optionally, set free drainage bottom BC
     if (lfreedrainage) then
@@ -1628,7 +1638,7 @@ end subroutine initlsm
 
 subroutine allocate_on_device()
 
-  use modsurfdata, only : tsoil, phiw, H, LE, G0, rssoil, rsveg, cliq
+  use modsurfdata, only : tsoil, phiw, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah
 
   implicit none
 
@@ -1637,18 +1647,24 @@ subroutine allocate_on_device()
   !$acc enter data copyin(cliq)
   !$acc enter data copyin(cveg)
   !$acc enter data copyin(du_tot)
+  !$acc enter data copyin(dz_soil)
   !$acc enter data copyin(f1)
   !$acc enter data copyin(f2b)
   !$acc enter data copyin(G0)
   !$acc enter data copyin(H)
-  !$acc enter data copyin(land_frac)
   !$acc enter data copyin(LE)
+  !$acc enter data copyin(gamma_t_dry)
+  !$acc enter data copyin(lambda)
+  !$acc enter data copyin(lambdah)
+  !$acc enter data copyin(land_frac)
   !$acc enter data copyin(phiw)
+  !$acc enter data copyin(rho_C)
   !$acc enter data copyin(rssoil)
   !$acc enter data copyin(rsveg)
   !$acc enter data copyin(soil_index)
   !$acc enter data copyin(theta_fc)
   !$acc enter data copyin(theta_res)
+  !$acc enter data copyin(theta_sat)
   !$acc enter data copyin(theta_wp)
   !$acc enter data copyin(thv_1)
   !$acc enter data copyin(tsoil)
@@ -1692,7 +1708,7 @@ end subroutine allocate_on_device
 
 subroutine deallocate_from_device()
 
-  use modsurfdata, only : tsoil, phiw, H, LE, G0, rssoil, rsveg, cliq
+  use modsurfdata, only : tsoil, phiw, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah
 
   implicit none
 
@@ -1704,18 +1720,23 @@ subroutine deallocate_from_device()
   !$acc exit data delete(cliq)
   !$acc exit data delete(cveg)
   !$acc exit data delete(du_tot)
+  !$acc exit data delete(dz_soil)
   !$acc exit data delete(f1)
   !$acc exit data delete(f2b)
   !$acc exit data delete(G0)
   !$acc exit data delete(H)
+  !$acc exit data delete(lambda)
+  !$acc exit data delete(lambdah)
   !$acc exit data delete(land_frac)
   !$acc exit data delete(LE)
   !$acc exit data delete(phiw)
+  !$acc exit data delete(rho_C)
   !$acc exit data delete(rssoil)
   !$acc exit data delete(rsveg)
   !$acc exit data delete(soil_index)
   !$acc exit data delete(theta_fc)
   !$acc exit data delete(theta_res)
+  !$acc exit data delete(theta_sat)
   !$acc exit data delete(theta_wp)
   !$acc exit data delete(thv_1)
   !$acc exit data delete(tsoil)
