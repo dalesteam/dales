@@ -498,13 +498,15 @@ contains
     use modglobal,   only: imax, jmax, kmax, i1, grav, kind_rb, rlv, cp, rd, pref0, tup, tdn
     use modfields,   only: thl0, qt0, ql0, exnf, rhof, sv0
     use modsurfdata, only: tskin, ps
-    use modmicrodata, only : Nc_0,sig_g, iNc
+    use modmicrodata, only : Nc_0,sig_g
+    use modtracers, only: get_tracer_index
 
     implicit none
 
     integer, intent(in) :: ibatch
     integer :: jstart, jend
     integer :: i, j, k, icol
+    integer :: inc
     real, parameter :: pi = 3.14159265358979
     real, parameter :: rho_liq = 1000., IWC0=50e-3 ! both in kg/m3
 
@@ -563,6 +565,8 @@ contains
     nc_slice = 0.0
     !$acc end kernels
 
+    inc = get_tracer_index('nc')
+
     !$acc parallel loop collapse(3) default(present) private(icol,ilratio,layerMass,qcl,qci,B_function)
     do k=1,kmax
       do j=jstart, jend
@@ -576,7 +580,12 @@ contains
 
           LWP_slice(icol,k) = qcl * layerMass*1e3 !g/m2
           IWP_slice(icol,k) = qci * layerMass*1e3 !g/m2
-          nc_slice(icol,k) = sv0(i,j,k,iNc)
+
+          if (inc > 0) then
+            nc_slice(icol,k) = sv0(i,j,k,iNc)
+          else
+            nc_slice(icol,k) = Nc_0
+          end if
 
           if (LWP_slice(icol,k).gt.0.) then
             liquidRe(icol, k) = 1.e6*( 3.*( 1.e-3*LWP_slice(icol,k)/layerMass ) &
