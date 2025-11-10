@@ -163,9 +163,10 @@ module modbulkmicro
   subroutine bulkmicro
     use modaerosol, only: laerosol, aerosol_prepare, aerosol_activation, aerosol_finish, &
                           aerosol_cloud_to_rain, aerosol_resuspend_rain,&
-                          aerosol_sedimentation_rain, aerosol_resuspend_cloud
+                          aerosol_sedimentation_rain, aerosol_resuspend_cloud, &
+                          aerosol_scavenging_rain
     use modglobal, only : i1,j1,kmax,k1,rdt,rk3step,timee,rlv,cp, dzf
-    use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof, esl, qt0, qvsl, tmp0, w0
+    use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof, esl, qt0, qvsl, tmp0, w0, thl0, presf
     use modbulkmicrostat, only : bulkmicrotend
     use modmpi,    only : myid
     use modbulkmicro_data, only : Nr, qr, Nrp, qrp,  &
@@ -431,6 +432,7 @@ module modbulkmicro
       call zero_field(qrp_tmp)
       call zero_field(nrp_tmp)
 
+      if(laerosol) call aerosol_scavenging_rain(nr, qr, thl0, rhof, exnf, presf, delt)
 
       !*********************************************************************
       ! remove negative values and non physical low values
