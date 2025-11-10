@@ -115,7 +115,7 @@ contains
   !! \param wsvsurf Kinematic surface flux (- m/s).
   !! \note All tracers should be added before readinitfiles is called!
   subroutine add_tracer(name, long_name, unit, molar_mass, lemis, lreact, &
-                        ldep, lags, lmicro, wsvsurf, isv)
+                        ldep, lags, lnudge, lmicro, wsvsurf, isv)
     character(len=*), intent(in)            :: name
     character(len=*), intent(in),  optional :: long_name
     character(len=*), intent(in),  optional :: unit
@@ -124,6 +124,7 @@ contains
     logical,          intent(in),  optional :: lreact
     logical,          intent(in),  optional :: ldep
     logical,          intent(in),  optional :: lags
+    logical,          intent(in),  optional :: lnudge
     logical,          intent(in),  optional :: lmicro
     real(field_r),    intent(in),  optional :: wsvsurf
     integer,          intent(out), optional :: isv
@@ -183,6 +184,7 @@ contains
     if (present(lreact)) tracer_prop(nsv) % lreact = lreact
     if (present(ldep)) tracer_prop(nsv) % ldep = ldep
     if (present(lags)) tracer_prop(nsv) % lags = lags
+    if (present(lnudge)) tracer_prop(nsv) % lnudge = lnudge
     if (present(lmicro)) tracer_prop(nsv) % lmicro = lmicro
     if (present(wsvsurf)) tracer_prop(nsv) % wsvsurf = wsvsurf
 
@@ -383,7 +385,7 @@ contains
     character(len=32)            :: long_name
     character(len=16)            :: unit
     real(field_r)                :: molar_mass
-    logical                      :: lemis, lreact, ldep, lags
+    logical                      :: lemis, lreact, ldep, lags, lnudge
 
     call nchandle_error(nf90_open(filename, NF90_NOWRITE, ncid))
     call nchandle_error(nf90_inquire(ncid, nVariables=nvars))
@@ -409,11 +411,13 @@ contains
                              default=.false.)
       call read_nc_attribute(ncid, varids(ivar), 'ldep', ldep, default=.false.)
       call read_nc_attribute(ncid, varids(ivar), 'lags', lags, default=.false.)
+      call read_nc_attribute(ncid, varids(ivar), 'lnudge', lnudge, &
+                             default=.false.)
 
       ! Setup tracer
       call add_tracer(trim(name), long_name=trim(long_name), unit=unit, &
                       molar_mass=molar_mass, lemis=lemis, lreact=lreact, &
-                      ldep=ldep, lags=lags, lmicro=.false.)
+                      ldep=ldep, lags=lags, lnudge=lnudge, lmicro=.false.)
     end do
 
     deallocate(varids)
