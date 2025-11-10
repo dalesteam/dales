@@ -63,13 +63,15 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal, only : kmax,dzh,dzf,grav, lpressgrad, lcoriol
+  use modglobal, only : kmax,dzh,dzf,grav, lpressgrad, lcoriol, i1, j1
   use modfields, only : sv0,up,vp,wp,thv0h,dpdxl,dpdyl,thvh
   use moduser,   only : force_user
   use modtracers, only : get_tracer_index
+  use modmicrodata, only: imicro, imicro_bulk3
+  use modmicrodata3, only : iq_hr, iq_ci, iq_hs, iq_hg
   implicit none
 
-  integer k,iqr
+  integer i,j,k,iqr
 
   call timer_tic('modforces/forces', 0)
 
@@ -85,21 +87,45 @@ contains
     !$acc end kernels
   end if
 
-  ! we check if tracer qr exists, otherwise we don't use it. Should be functionally identical to checking microphysics schem.
-  iqr = get_tracer_index("qr")
-  if(iqr>0) then
-    !$acc kernels default(present) async(2)
-    do k=2,kmax
-       wp(:,:,k) = wp(:,:,k) + grav*(thv0h(:,:,k)-thvh(k))/thvh(k) - &
-                  grav*(sv0(:,:,k,iqr)*dzf(k-1)+sv0(:,:,k-1,iqr)*dzf(k))/(2*dzh(k))
-    end do
-    !$acc end kernels
+  if (imicro == imicro_bulk3) then
+     !$acc parallel loop collapse(3) default(present) async(2)
+     do k = 2, kmax
+        do j = 2, j1
+           do i = 2, i1
+              wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k) -  &
+                   grav*(sv0(i,j,k,iq_hr)*dzf(k-1)+sv0(i,j,k-1,iq_hr)*dzf(k)  &
+                   + sv0(i,j,k,iq_ci)*dzf(k-1)+sv0(i,j,k-1,iq_ci)*dzf(k)  &
+                   + sv0(i,j,k,iq_hs)*dzf(k-1)+sv0(i,j,k-1,iq_hs)*dzf(k)  &
+                   + sv0(i,j,k,iq_hg)*dzf(k-1)+sv0(i,j,k-1,iq_hg)*dzf(k)  &
+                   )/(2.0*dzh(k))
+           end do
+        end do
+     end do
   else
-    !$acc kernels default(present) async(2)
-    do k=2,kmax
-      wp(:,:,k) = wp(:,:,k) + grav*(thv0h(:,:,k)-thvh(k))/thvh(k)
-    end do
-    !$acc end kernels
+     ! handle simpleice and warm bulk microphysics
+     ! we check if tracer qr exists, otherwise we don't use it. Should be functionally identical to checking microphysics schem.
+     iqr = get_tracer_index("qr")
+     if(iqr>0) then
+        !$acc parallel loop collapse(3) default(present) async(2)
+        do k = 2, kmax
+          do j = 2, j1
+            do i = 2, i1
+              wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k) - &
+                   grav*(sv0(i,j,k,iqr)*dzf(k-1)+sv0(i,j,k-1,iqr)*dzf(k))/(2*dzh(k))
+            end do
+          end do
+        end do
+     else
+        ! just buoyancy, no precipitation
+        !$acc parallel loop collapse(3) default(present) async(2)
+        do k = 2, kmax
+          do j = 2, j1
+            do i = 2, i1
+              wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k)
+            end do
+          end do
+        end do
+     end if
   end if
 
 !     --------------------------------------------

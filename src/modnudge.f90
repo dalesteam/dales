@@ -38,6 +38,7 @@ module modnudge
   logical :: lqtnudge = .true.
 
   logical :: ltthlnudge = .false. ! in the ASCII input, expect an additional column with thl nudge times
+  logical :: lsvnudge = .true.
 
   ! Nudging profiles
   real(field_r), allocatable :: tnudge(:,:)
@@ -46,12 +47,14 @@ module modnudge
   real(field_r), allocatable :: wnudge(:,:)
   real(field_r), allocatable :: thlnudge(:,:)
   real(field_r), allocatable :: qtnudge(:,:)
+  real(field_r), allocatable :: svnudge(:,:,:)
   ! Nudging constants (only supported with DEPHY input)
   real(field_r), allocatable :: tunudge(:,:)
   real(field_r), allocatable :: tvnudge(:,:)
   real(field_r), allocatable :: twnudge(:,:)
   real(field_r), allocatable :: tthlnudge(:,:)
   real(field_r), allocatable :: tqtnudge(:,:)
+  real(field_r), allocatable :: tsvnudge(:,:,:)
 
   real(field_r), allocatable :: timenudge(:)
 
@@ -71,18 +74,19 @@ contains
   subroutine initnudge
     use modmpi,     only: myid, mpierr, comm3d, D_MPI_BCAST
     use modglobal,  only: ifnamopt, fname_options, runtime, cexpnr, ifinput, &
-                          k1, kmax, checknamelisterror, iinput, input_netcdf
+                          k1, kmax, checknamelisterror, iinput, input_netcdf, nsv
+    use modtracers, only: tracer_prop
     use modstat_nc
 
     character(*), parameter :: routine = modname//"::initnudge"
 
-    integer      :: ierr, k, t
+    integer      :: ierr, k, n, t
     integer      :: ncid, varid, dimid
     character(1) :: chmess1
     real, allocatable, dimension(:) :: height
 
     namelist /NAMNUDGE/ lnudge, lunudge, lvnudge, lwnudge, lthlnudge, &
-                        lqtnudge, tnudgefac, ltthlnudge
+                        lqtnudge, lsvnudge, tnudgefac, ltthlnudge
 
     if (myid == 0) then
       open(ifnamopt, file=fname_options, status='old', iostat=ierr)
@@ -177,6 +181,27 @@ contains
                               varid))
           call nchandle_error(nf90_get_var(ncid, varid, tqtnudge(1:kmax,:)))
         end if
+      end if
+
+      if (lsvnudge) then
+        allocate(svnudge(k1,ntnudge,nsv), tsvnudge(k1,ntnudge,nsv))
+        do n = 1, nsv
+          if (tracer_prop(n) % lnudge .and. myid == 0) then
+            write(6,*) "Nudging enabled for tracer ", tracer_prop(n) % tracname
+            call nchandle_error(nf90_inq_varid(ncid, &
+                                  trim(tracer_prop(n) % tracname)//"_nud", &
+                                  varid))
+            call nchandle_error(nf90_get_var(ncid, varid, svnudge(:,:,n)))
+            call nchandle_error( &
+              nf90_inq_varid(ncid, &
+                "nudging_constant_"//trim(tracer_prop(n) % tracname), &
+                varid))
+            call nchandle_error(nf90_get_var(ncid, varid, tsvnudge(1:kmax,:,n)))
+          else
+            svnudge(:,:,n) = 0
+            tsvnudge(:,:,n) = 0
+          end if
+        end do
       end if
 
       if (myid == 0) then
@@ -283,7 +308,6 @@ contains
       if (.not. ltthlnudge) tthlnudge(:,:) = tnudge(:,:)
     end if
 
-
     call D_MPI_BCAST(timenudge, ntnudge + 1, 0, comm3d, mpierr)
     if (lunudge) then
       call D_MPI_BCAST(unudge, k1 * ntnudge, 0, comm3d, mpierr)
@@ -305,22 +329,28 @@ contains
       call D_MPI_BCAST(qtnudge, k1 * ntnudge, 0, comm3d, mpierr)
       call D_MPI_BCAST(tqtnudge, k1 * ntnudge, 0, comm3d, mpierr)
     end if
+    if (lsvnudge) then
+      call D_MPI_BCAST(svnudge, nsv * k1 * ntnudge, 0, comm3d, mpierr)
+      call D_MPI_BCAST(tsvnudge, nsv * k1 * ntnudge, 0, comm3d, mpierr)
+    end if
 
     !$acc enter data copyin(timenudge, unudge, vnudge, wnudge, thlnudge, &
     !$acc&                  qtnudge, tunudge, tvnudge, twnudge, tthlnudge, &
-    !$acc&                  tqtnudge)
+    !$acc&                  tqtnudge, svnudge, tsvnudge)
 
     call timer_toc(routine)
   end subroutine initnudge
 
   !> Perform nudging of velocities, temperature and humidity fields.
   subroutine nudge
-    use modglobal, only: timee, rtimee, i1, j1, kmax, rdt
-    use modfields, only: up, vp, wp, thlp, qtp, u0av, v0av, qt0av, thl0av
+    use modglobal,  only: timee, rtimee, i1, j1, kmax, rdt, nsv
+    use modfields,  only: up, vp, wp, thlp, qtp, u0av, v0av, qt0av, thl0av, &
+                          svp, sv0av
+    use modtracers, only: tracer_prop
 
     character(*), parameter :: routine = modname//"::nudge"
 
-    integer       :: i, j, k, t
+    integer       :: i, j, k, n, t
     real(field_r) :: dtm, dtp, currtnudge
 
     if (.not. (lnudge)) return
@@ -410,6 +440,26 @@ contains
       end do
     end if
 
+    if (lsvnudge) then
+      do n = 1, nsv
+        if (tracer_prop(n) % lnudge) then
+          !$acc parallel loop collapse(3) default(present) private(currtnudge) &
+          !$acc& async
+          do k = 1, kmax
+            do j = 2, j1
+              do i = 2, i1
+                currtnudge = max(1.0_field_r * rdt, &
+                                 tsvnudge(k,t,n) * dtp + &
+                                 tsvnudge(k,t + 1,n) * dtm)
+                svp(i,j,k,n) = svp(i,j,k,n) - (sv0av(k,n) - (svnudge(k,t,n) &
+                               * dtp + svnudge(k,t + 1,n) * dtm)) / currtnudge 
+              end do
+            end do
+          end do
+        end if
+      end do
+    end if
+
     !$acc wait
 
     call timer_toc(routine)
@@ -441,6 +491,10 @@ contains
 
     if (lqtnudge) then
       deallocate(qtnudge, tqtnudge)
+    end if
+
+    if (lsvnudge) then
+      deallocate(svnudge, tsvnudge)
     end if
   end subroutine exitnudge
 

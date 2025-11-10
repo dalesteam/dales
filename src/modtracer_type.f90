@@ -16,6 +16,7 @@ module modtracer_type
     logical           :: lags = .false.     !< Boolean if in A-gs
     logical           :: lmicro = .false.   !< Boolean if in cloud microphysics
     real(field_r)     :: wsvsurf = 0        !< Kinematic surface flux (- m/s)
+    logical           :: lnudge = .false.   !< Boolean if tracer is nudged
   contains
     procedure :: print_properties => tracer_print_properties
   end type T_tracer
