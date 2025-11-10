@@ -60,7 +60,7 @@ subroutine lsm
   use modsurfdata, only : &
        H, LE, G0, tskin, qskin, thlflux, qtflux, dthldz, dqtdz, &
        dudz, dvdz, ustar, obl, cliq, ra, rsveg, rssoil, phiw, &
-       lambda, lambdah
+       lambda, lambdah, tsoil
 
   implicit none
 
@@ -171,6 +171,8 @@ subroutine lsm
     ! Solve diffusion equation:
     call timer_tic('lsm_integrate_t_soil', 0)
     call integrate_t_soil
+    !$acc wait(1)
+    !$acc update host(tsoil)
     call timer_toc('lsm_integrate_t_soil')
 
     ! Calc diffusivity and conductivity soil moisture:
@@ -1436,10 +1438,15 @@ subroutine integrate_t_soil
     real :: tend, rk3coef, flux_top
 
     rk3coef = rdt / (4. - dble(rk3step))
-    if(rk3step == 1) tsoilm(:,:,:) = tsoil(:,:,:)
+    if(rk3step == 1) then
+       !$acc kernels default(present) async(1)
+       tsoilm(:,:,:) = tsoil(:,:,:)
+       !$acc end kernels
+    endif
 
     ! Top soil layer
     k = kmax_soil
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
         do i=2,i1
             si = soil_index(i,j,k)
@@ -1452,6 +1459,7 @@ subroutine integrate_t_soil
 
     ! Bottom soil layer
     k = 1
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
         do i=2,i1
             tend = ((lambdah(i,j,k+1) * (tsoil(i,j,k+1) - tsoil(i,j,k)) * dzhi_soil(k+1)))*dzi_soil(k)
@@ -1462,6 +1470,7 @@ subroutine integrate_t_soil
 
     ! Interior
     do k=2,kmax_soil-1
+        !$acc parallel loop collapse(2) default(present) async(1)
         do j=2,j1
             do i=2,i1
                 tend = ((lambdah(i,j,k+1) * (tsoil(i,j,k+1) - tsoil(i,j,k  )) * dzhi_soil(k+1)) &
@@ -1638,7 +1647,7 @@ end subroutine initlsm
 
 subroutine allocate_on_device()
 
-  use modsurfdata, only : tsoil, phiw, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah
+  use modsurfdata, only : tsoil, tsoilm, phiw, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah
 
   implicit none
 
@@ -1648,6 +1657,8 @@ subroutine allocate_on_device()
   !$acc enter data copyin(cveg)
   !$acc enter data copyin(du_tot)
   !$acc enter data copyin(dz_soil)
+  !$acc enter data copyin(dzhi_soil)
+  !$acc enter data copyin(dzi_soil)
   !$acc enter data copyin(f1)
   !$acc enter data copyin(f2b)
   !$acc enter data copyin(G0)
@@ -1668,6 +1679,7 @@ subroutine allocate_on_device()
   !$acc enter data copyin(theta_wp)
   !$acc enter data copyin(thv_1)
   !$acc enter data copyin(tsoil)
+  !$acc enter data copyin(tsoilm)
 
   !$acc enter data copyin(tile)
   do ilu=1,nlu
@@ -1708,7 +1720,7 @@ end subroutine allocate_on_device
 
 subroutine deallocate_from_device()
 
-  use modsurfdata, only : tsoil, phiw, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah
+  use modsurfdata, only : tsoil, tsoilm, phiw, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah
 
   implicit none
 
@@ -1721,6 +1733,8 @@ subroutine deallocate_from_device()
   !$acc exit data delete(cveg)
   !$acc exit data delete(du_tot)
   !$acc exit data delete(dz_soil)
+  !$acc exit data delete(dzhi_soil)
+  !$acc exit data delete(dzi_soil)
   !$acc exit data delete(f1)
   !$acc exit data delete(f2b)
   !$acc exit data delete(G0)
@@ -1740,6 +1754,7 @@ subroutine deallocate_from_device()
   !$acc exit data delete(theta_wp)
   !$acc exit data delete(thv_1)
   !$acc exit data delete(tsoil)
+  !$acc exit data delete(tsoilm)
 
   do ilu=1,nlu
      !XXX: fill
