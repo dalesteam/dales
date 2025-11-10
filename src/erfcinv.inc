@@ -4,10 +4,10 @@ elemental function erfinv_real32(x) result(p)
 
   real(real32) :: w, p
 
-  if (abs(x) < 1E-6) then
-    p = 0.0
-  else if (x == 1.0 .or. x == -1.0) then
-    p = sign(1.0, x) * huge(x)
+  if (abs(x) < 1E-6_real32) then
+    p = 0.0_real32
+  else if (x == 1.0_real32 .or. x == -1.0_real32) then
+    p = sign(1.0_real32, x) * huge(x)
   else
     w = - log((1.0_real32 - x) * (1.0_real32 + x))
 
