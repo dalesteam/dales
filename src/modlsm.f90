@@ -60,7 +60,7 @@ subroutine lsm
   use modsurfdata, only : &
        H, LE, G0, tskin, qskin, thlflux, qtflux, dthldz, dqtdz, &
        dudz, dvdz, ustar, obl, cliq, ra, rsveg, rssoil, phiw, &
-       lambda, lambdah, tsoil
+       lambda, lambdah, tsoil, lambdas, gammas, lambdash, gammash
 
   implicit none
 
@@ -178,6 +178,9 @@ subroutine lsm
     ! Calc diffusivity and conductivity soil moisture:
     call timer_tic('lsm_calc_hydraulic_properties', 0)
     call calc_hydraulic_properties
+    !$acc wait(1)
+    !$acc update host(lambdas,gammas)
+    !$acc update host(lambdash,gammash)
     call timer_toc('lsm_calc_hydraulic_properties')
     ! Calculate tendency due to root water extraction
     call timer_tic('lsm_calc_root_water_extraction', 0)
@@ -1346,6 +1349,7 @@ subroutine calc_hydraulic_properties
 
     ! Calculate diffusivity and conductivity soil moisture
     do k=1,kmax_soil
+        !$acc parallel loop collapse(2) default(present) async(1)
         do j=2,j1
             do i=2,i1
                 si = soil_index(i,j,k)
@@ -1371,15 +1375,20 @@ subroutine calc_hydraulic_properties
         end do
     end do
 
+
     ! Interpolate to half levels
-    call interpolate_soil(lambdash, lambdas, iinterp_theta, .false.)
-    call interpolate_soil(gammash,  gammas,  iinterp_theta, .false.)
+    call interpolate_soil(lambdash, lambdas, iinterp_theta, .true.)
+    call interpolate_soil(gammash,  gammas,  iinterp_theta, .true.)
 
     ! Optionally, set free drainage bottom BC
     if (lfreedrainage) then
+        !$acc kernels default(present) async(1)
         gammash(:,:,1) = gammash(:,:,2)
+        !$acc end kernels
     else
+        !$acc kernels default(present) async(1)
         gammash(:,:,1) = 0.
+        !$acc end kernels
     end if
 
 end subroutine calc_hydraulic_properties
@@ -1647,7 +1656,7 @@ end subroutine initlsm
 
 subroutine allocate_on_device()
 
-  use modsurfdata, only : tsoil, tsoilm, phiw, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah
+  use modsurfdata, only : tsoil, tsoilm, phiw, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah, lambdas, gammas, lambdash, gammash
 
   implicit none
 
@@ -1666,7 +1675,11 @@ subroutine allocate_on_device()
   !$acc enter data copyin(LE)
   !$acc enter data copyin(gamma_t_dry)
   !$acc enter data copyin(lambda)
+  !$acc enter data copyin(lambdas)
+  !$acc enter data copyin(lambdash)
   !$acc enter data copyin(lambdah)
+  !$acc enter data copyin(gammas)
+  !$acc enter data copyin(gammash)
   !$acc enter data copyin(land_frac)
   !$acc enter data copyin(phiw)
   !$acc enter data copyin(rho_C)
@@ -1680,6 +1693,14 @@ subroutine allocate_on_device()
   !$acc enter data copyin(thv_1)
   !$acc enter data copyin(tsoil)
   !$acc enter data copyin(tsoilm)
+  !$acc enter data copyin(vg_a)
+  !$acc enter data copyin(vg_l)
+  !$acc enter data copyin(vg_m)
+  !$acc enter data copyin(gamma_theta_sat)
+  !$acc enter data copyin(gamma_theta_min)
+  !$acc enter data copyin(gamma_theta_max)
+  !$acc enter data copyin(lambda_theta_min)
+  !$acc enter data copyin(lambda_theta_max)
 
   !$acc enter data copyin(tile)
   do ilu=1,nlu
@@ -1720,7 +1741,7 @@ end subroutine allocate_on_device
 
 subroutine deallocate_from_device()
 
-  use modsurfdata, only : tsoil, tsoilm, phiw, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah
+  use modsurfdata, only : tsoil, tsoilm, phiw, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah, lambdas, gammas, lambdash, gammash
 
   implicit none
 
@@ -1740,7 +1761,11 @@ subroutine deallocate_from_device()
   !$acc exit data delete(G0)
   !$acc exit data delete(H)
   !$acc exit data delete(lambda)
+  !$acc exit data delete(lambdas)
+  !$acc exit data delete(lambdash)
   !$acc exit data delete(lambdah)
+  !$acc exit data delete(gammas)
+  !$acc exit data delete(gammash)
   !$acc exit data delete(land_frac)
   !$acc exit data delete(LE)
   !$acc exit data delete(phiw)
@@ -1755,6 +1780,12 @@ subroutine deallocate_from_device()
   !$acc exit data delete(thv_1)
   !$acc exit data delete(tsoil)
   !$acc exit data delete(tsoilm)
+  !$acc exit data delete(vg_a)
+  !$acc exit data delete(vg_l)
+  !$acc exit data delete(vg_m)
+  !$acc exit data delete(gamma_theta_sat)
+  !$acc exit data delete(gamma_theta_min)
+  !$acc exit data delete(gamma_theta_max)
 
   do ilu=1,nlu
      !XXX: fill
@@ -3042,6 +3073,7 @@ pure function calc_diffusivity_vg( &
     implicit none
     real, intent(in) :: theta_norm, vg_a, vg_l, vg_m, lambda_sat, theta_sat, theta_res
     real :: res
+    !$acc routine seq
 
     res = (1.-vg_m)*lambda_sat / (vg_a * vg_m * (theta_sat-theta_res)) * theta_norm**(vg_l-(1./vg_m)) * &
              (  (1.-theta_norm**(1./vg_m))**(-vg_m) + (1.-theta_norm**(1./vg_m))**vg_m - 2. )
@@ -3054,6 +3086,7 @@ pure function calc_conductivity_vg(theta_norm, vg_l, vg_m, gamma_sat) result(res
     implicit none
     real, intent(in) :: theta_norm, vg_l, vg_m, gamma_sat
     real :: res
+    !$acc routine seq
 
     res = gamma_sat * theta_norm**vg_l * ( 1.- (1.-theta_norm**(1./vg_m))**vg_m )**2.
 
