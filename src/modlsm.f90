@@ -41,10 +41,12 @@ subroutine lsm_update_device
     use modsurfdata, only : tskin, qskin, thlflux, qtflux, dthldz, dqtdz, dudz, dvdz, ustar, obl, ra, svflux
     use modraddata, only : swd, swu, lwd, lwu
     use modmicrodata, only : precep
+    use modsurfdata,  only : wl, wlm
 
     implicit none
 
     !$acc update device(tsoil,phiw)
+    !$acc update device(wlm,wl)
 
     do ilu=1, nlu
        !$acc update device(tile(ilu)%thlskin,tile(ilu)%qtskin)
@@ -60,7 +62,8 @@ subroutine lsm
   use modsurfdata, only : &
        H, LE, G0, tskin, qskin, thlflux, qtflux, dthldz, dqtdz, &
        dudz, dvdz, ustar, obl, cliq, ra, rsveg, rssoil, phiw, &
-       lambda, lambdah, tsoil, lambdas, gammas, lambdash, gammash
+       lambda, lambdah, tsoil, lambdas, gammas, lambdash, gammash, &
+       wl, wlm
 
   implicit none
 
@@ -192,6 +195,9 @@ subroutine lsm
     ! Update liquid water reservoir
     call timer_tic('lsm_calc_liquid_reservoir', 0)
     call calc_liquid_reservoir
+    ! XXX: throughfall, interception: never read again
+    !$acc wait(1)
+    !$acc update host(wl, wlm, throughfall, interception)
     call timer_toc('lsm_calc_liquid_reservoir')
     ! Solve diffusion equation:
     call timer_tic('lsm_integrate_theta_soil', 0)
@@ -279,8 +285,13 @@ subroutine calc_liquid_reservoir
     real, parameter :: to_ms  = 1./(rhow*rlv)
 
     rk3coef = rdt / (4. - dble(rk3step))
-    if(rk3step == 1) wlm(:,:) = wl(:,:)
+    if(rk3step == 1) then
+       !$acc kernels default(present) async(1)
+       wlm(:,:) = wl(:,:)
+       !$acc end kernels
+    endif
 
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2, j1
         do i=2, i1
             wl_tend_dew = 0
@@ -291,19 +302,21 @@ subroutine calc_liquid_reservoir
             wl_tend_max = (wl_max(i,j) - wlm(i,j)) / rk3coef
 
             do ilu=1,nlu
-              if (tile(ilu)%laqu) then
+              if (.not. tile(ilu)%laqu) then
+                ! Tendency due to evaporation from liquid water reservoir/tile.
+                !if (trim(tile(ilu)%lushort) == 'ws') then
+                if (ilu == ilu_ws) then
+                  wl_tend_liq = wl_tend_liq -max(0., tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j) * to_ms)
+                end if
+
+                ! Tendency due to dewfall into vegetation/soil/liquid water tiles
+                wl_tend_dew = wl_tend_dew &
+                  -( min(0., tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j) * to_ms) )
+#ifndef _OPENACC
+              else
                 cycle
-              end if
-
-              ! Tendency due to evaporation from liquid water reservoir/tile.
-              !if (trim(tile(ilu)%lushort) == 'ws') then
-              if (ilu == ilu_ws) then
-                wl_tend_liq = wl_tend_liq -max(0., tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j) * to_ms)
-              end if
-
-              ! Tendency due to dewfall into vegetation/soil/liquid water tiles
-              wl_tend_dew = wl_tend_dew &
-                -( min(0., tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j) * to_ms) )
+#endif
+              endif
             end do
 
             ! Tendency due to interception of precipitation by vegetation
@@ -1659,7 +1672,7 @@ end subroutine initlsm
 
 subroutine allocate_on_device()
 
-  use modsurfdata, only : tsoil, tsoilm, phiw, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah, lambdas, gammas, lambdash, gammash
+  use modsurfdata, only : tsoil, tsoilm, phiw, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah, lambdas, gammas, lambdash, gammash, wl, wlm
 
   implicit none
 
@@ -1705,6 +1718,11 @@ subroutine allocate_on_device()
   !$acc enter data copyin(lambda_theta_min)
   !$acc enter data copyin(lambda_theta_max)
   !$acc enter data copyin(phiw_source)
+  !$acc enter data copyin(wl)
+  !$acc enter data copyin(wlm)
+  !$acc enter data copyin(wl_max)
+  !$acc enter data copyin(throughfall)
+  !$acc enter data copyin(interception)
 
   !$acc enter data copyin(tile)
   do ilu=1,nlu
@@ -1745,7 +1763,7 @@ end subroutine allocate_on_device
 
 subroutine deallocate_from_device()
 
-  use modsurfdata, only : tsoil, tsoilm, phiw, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah, lambdas, gammas, lambdash, gammash
+  use modsurfdata, only : tsoil, tsoilm, phiw, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah, lambdas, gammas, lambdash, gammash, wl, wlm
 
   implicit none
 
@@ -1791,6 +1809,11 @@ subroutine deallocate_from_device()
   !$acc exit data delete(gamma_theta_min)
   !$acc exit data delete(gamma_theta_max)
   !$acc exit data delete(phiw_source)
+  !$acc exit data delete(wl)
+  !$acc exit data delete(wlm)
+  !$acc exit data delete(wl_max)
+  !$acc exit data delete(throughfall)
+  !$acc exit data delete(interception)
 
   do ilu=1,nlu
      !XXX: fill
