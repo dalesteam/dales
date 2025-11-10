@@ -185,6 +185,8 @@ subroutine lsm
     ! Calculate tendency due to root water extraction
     call timer_tic('lsm_calc_root_water_extraction', 0)
     call calc_root_water_extraction
+    !$acc wait(1)
+    !$acc update host(phiw_source)
     call timer_toc('lsm_calc_root_water_extraction')
 
     ! Update liquid water reservoir
@@ -1405,31 +1407,32 @@ subroutine calc_root_water_extraction
     real :: phiw_rf, phi_frac, LE
     real, parameter :: fac = 1./(rhow * rlv)
 
+    !$acc kernels default(present) async(1)
     phiw_source = 0
-    do j=2, j1
-      do i=2, i1
-        do ilu=1,nlu
-          if (.not. tile(ilu)%lveg) then
-            cycle
-          else
-            LE = tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j)
-            phiw_rf = 0.
+    !$acc end kernels
+    do ilu=1,nlu
+      if (.not. tile(ilu)%lveg) then
+          cycle
+      else
+        !$acc parallel loop collapse(2) default(present) async(1)
+        do j=2, j1
+          do i=2, i1
+              LE = tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j)
+              phiw_rf = 0.
 
-            do k=1, kmax_soil
-                phiw_rf = phiw_rf + tile(ilu)%root_frac(i,j,k) * phiw(i,j,k)
-            end do
+              do k=1, kmax_soil
+                 phiw_rf = phiw_rf + tile(ilu)%root_frac(i,j,k) * phiw(i,j,k)
+              end do
 
-            do k=1, kmax_soil
-                phi_frac = tile(ilu)%root_frac(i,j,k) * phiw(i,j,k) / phiw_rf
+              do k=1, kmax_soil
+                 phi_frac = tile(ilu)%root_frac(i,j,k) * phiw(i,j,k) / phiw_rf
 
-                phiw_source(i,j,k) = phiw_source(i,j,k) &
-                                     - max(0., LE) * fac * dzi_soil(k) * phi_frac
-
-            end do
-
-          end if
+                 phiw_source(i,j,k) = phiw_source(i,j,k) &
+                                      - max(0., LE) * fac * dzi_soil(k) * phi_frac
+              end do
+           end do
         end do
-      end do
+      end if
     end do
 
 end subroutine calc_root_water_extraction
@@ -1701,6 +1704,7 @@ subroutine allocate_on_device()
   !$acc enter data copyin(gamma_theta_max)
   !$acc enter data copyin(lambda_theta_min)
   !$acc enter data copyin(lambda_theta_max)
+  !$acc enter data copyin(phiw_source)
 
   !$acc enter data copyin(tile)
   do ilu=1,nlu
@@ -1786,6 +1790,7 @@ subroutine deallocate_from_device()
   !$acc exit data delete(gamma_theta_sat)
   !$acc exit data delete(gamma_theta_min)
   !$acc exit data delete(gamma_theta_max)
+  !$acc exit data delete(phiw_source)
 
   do ilu=1,nlu
      !XXX: fill
