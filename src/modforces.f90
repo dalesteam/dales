@@ -63,40 +63,69 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal, only : kmax,dzh,dzf,grav, lpressgrad
+  use modglobal, only : kmax,dzh,dzf,grav, lpressgrad, lcoriol, i1, j1
   use modfields, only : sv0,up,vp,wp,thv0h,dpdxl,dpdyl,thvh
   use moduser,   only : force_user
-  use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice, imicro_sice2, iqr
+  use modtracers, only : get_tracer_index
+  use modmicrodata, only: imicro, imicro_bulk3
+  use modmicrodata3, only : iq_hr, iq_ci, iq_hs, iq_hg
   implicit none
 
-  integer k
+  integer i,j,k,iqr
 
   call timer_tic('modforces/forces', 0)
 
   if (lforce_user) call force_user
 
-  if (lpressgrad) then
-     !$acc kernels default(present) async(1)
-     do k = 1, kmax
-        up(:,:,k) = up(:,:,k) - dpdxl(k)      !RN LS pressure gradient force in x,y directions;
-        vp(:,:,k) = vp(:,:,k) - dpdyl(k)
-     end do
-     !$acc end kernels
+  ! Apply pressure gradient calculated from geostrophic wind speeds (lcoriol) or imposed pressure gradient (lpressgrad)
+  if (lcoriol .or. lpressgrad) then
+    !$acc kernels default(present) async(1)
+    do k = 1, kmax
+      up(:,:,k) = up(:,:,k) - dpdxl(k)      ! LS pressure gradient force in x,y directions;
+      vp(:,:,k) = vp(:,:,k) - dpdyl(k)
+    end do
+    !$acc end kernels
   end if
 
-  if((imicro==imicro_sice).or.(imicro==imicro_sice2).or.(imicro==imicro_bulk).or.(imicro==imicro_bin)) then
-    !$acc kernels default(present) async(2)
-    do k=2,kmax
-       wp(:,:,k) = wp(:,:,k) + grav*(thv0h(:,:,k)-thvh(k))/thvh(k) - &
-                  grav*(sv0(:,:,k,iqr)*dzf(k-1)+sv0(:,:,k-1,iqr)*dzf(k))/(2*dzh(k))
-    end do
-    !$acc end kernels
+  if (imicro == imicro_bulk3) then
+     !$acc parallel loop collapse(3) default(present) async(2)
+     do k = 2, kmax
+        do j = 2, j1
+           do i = 2, i1
+              wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k) -  &
+                   grav*(sv0(i,j,k,iq_hr)*dzf(k-1)+sv0(i,j,k-1,iq_hr)*dzf(k)  &
+                   + sv0(i,j,k,iq_ci)*dzf(k-1)+sv0(i,j,k-1,iq_ci)*dzf(k)  &
+                   + sv0(i,j,k,iq_hs)*dzf(k-1)+sv0(i,j,k-1,iq_hs)*dzf(k)  &
+                   + sv0(i,j,k,iq_hg)*dzf(k-1)+sv0(i,j,k-1,iq_hg)*dzf(k)  &
+                   )/(2.0*dzh(k))
+           end do
+        end do
+     end do
   else
-    !$acc kernels default(present) async(2)
-    do k=2,kmax
-      wp(:,:,k) = wp(:,:,k) + grav*(thv0h(:,:,k)-thvh(k))/thvh(k)
-    end do
-    !$acc end kernels
+     ! handle simpleice and warm bulk microphysics
+     ! we check if tracer qr exists, otherwise we don't use it. Should be functionally identical to checking microphysics schem.
+     iqr = get_tracer_index("qr")
+     if(iqr>0) then
+        !$acc parallel loop collapse(3) default(present) async(2)
+        do k = 2, kmax
+          do j = 2, j1
+            do i = 2, i1
+              wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k) - &
+                   grav*(sv0(i,j,k,iqr)*dzf(k-1)+sv0(i,j,k-1,iqr)*dzf(k))/(2*dzh(k))
+            end do
+          end do
+        end do
+     else
+        ! just buoyancy, no precipitation
+        !$acc parallel loop collapse(3) default(present) async(2)
+        do k = 2, kmax
+          do j = 2, j1
+            do i = 2, i1
+              wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k)
+            end do
+          end do
+        end do
+     end if
   end if
 
 !     --------------------------------------------
@@ -156,7 +185,7 @@ contains
         end do
       end do
     end do
-    
+
     !$acc parallel loop collapse(3) default(present) async(1)
     do k = 1, kmax
       do j = sy, j1
@@ -166,7 +195,7 @@ contains
         end do
       end do
     end do
-    
+
     !$acc parallel loop collapse(3) default(present) async(1)
     do k = 2, kmax
       do j = 2, j1
@@ -252,13 +281,19 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal, only : i1,j1,kmax,dzh,nsv,lmomsubs
+  use modglobal, only : i1,j1,kmax,dzh,nsv,lmomsubs,&
+                        rlv,cp,&
+                        dx,dy,dzf
   use modfields, only : up,vp,thlp,qtp,svp,&
                         whls, u0av,v0av,thl0,qt0,sv0,u0,v0,&
                         dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,dqtdxls,dqtdyls, &
-                        dqtdtls, dthldtls, dudtls, dvdtls
+                        dqtdtls, dthldtls, dudtls, dvdtls, dsvdtls, &
+                        exnf,rhobf,ql0
+  use modsprayingdata, only : lwater_spraying, lsalt_spraying,i_loc_spray,j_loc_spray,k_loc_spray,&
+                              water_spray_rate,salt_spray_rate,&
+                              dqldt_spraying,dsvdt_spraying,isv_salt, salinity
   implicit none
-  
+
   integer i, j, k, n
 
   call timer_tic('modforces/lstend', 0)
@@ -320,10 +355,10 @@ contains
         do j = 1, j1
           do i = 1, i1
             if (whls(k+1).lt.0) then
-              svp(i,j,k,n) = svp(i,j,k,n) - whls(k+1) * (sv0(i,j,k+1,n) - sv0(i,j,k,n))/dzh(k+1)
+              svp(i,j,k,n) = svp(i,j,k,n) - whls(k+1) * (sv0(i,j,k+1,n) - sv0(i,j,k,n))/dzh(k+1) + dsvdtls(k,n)
             else
               if (k > 1) then
-                svp(i,j,k,n) = svp(i,j,k,n) - whls(k) * (sv0(i,j,k,n) - sv0(i,j,k-1,n))/dzh(k)
+                svp(i,j,k,n) = svp(i,j,k,n) - whls(k) * (sv0(i,j,k,n) - sv0(i,j,k-1,n))/dzh(k) + dsvdtls(k,n)
               end if
             end if
           end do
@@ -332,6 +367,26 @@ contains
     end do
   end if
   !$acc wait
+
+
+  if ((lwater_spraying.or.lsalt_spraying).and.i_loc_spray.ne.-999) then
+
+     dqldt_spraying = water_spray_rate/(rhobf(k_loc_spray)*dx*dy*dzf(k_loc_spray)) 
+     dsvdt_spraying = salt_spray_rate/(rhobf(k_loc_spray)*dx*dy*dzf(k_loc_spray)) * &
+                       (1-sv0(i_loc_spray,j_loc_spray,k_loc_spray,isv_salt)/salinity)
+
+     qtp(i_loc_spray,j_loc_spray,k_loc_spray)  = qtp(i_loc_spray,j_loc_spray,k_loc_spray)  &
+                  + (1-qt0(i_loc_spray,j_loc_spray,k_loc_spray)) * dqldt_spraying
+     thlp(i_loc_spray,j_loc_spray,k_loc_spray) = thlp(i_loc_spray,j_loc_spray,k_loc_spray) & 
+                  - (rlv/(cp*exnf(k_loc_spray)))* (1-ql0(i_loc_spray,j_loc_spray,k_loc_spray))* dqldt_spraying
+     write(6,*) 'sv0 ',sv0(i_loc_spray:i_loc_spray+1,j_loc_spray,k_loc_spray,isv_salt)
+     write(6,*) 'svp ' ,svp(i_loc_spray:i_loc_spray+1,j_loc_spray,k_loc_spray,isv_salt)
+
+     svp(i_loc_spray,j_loc_spray,k_loc_spray,isv_salt)  = svp(i_loc_spray,j_loc_spray,k_loc_spray,isv_salt) &
+                  + dsvdt_spraying
+     write(6,*) 'spray rate',water_spray_rate,dqldt_spraying, dsvdt_spraying,&
+           svp(i_loc_spray,j_loc_spray,k_loc_spray,isv_salt),isv_salt
+  endif
 
   call timer_toc('modforces/lstend')
 

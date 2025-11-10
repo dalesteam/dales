@@ -1,13 +1,9 @@
 module modbulkmicro3_point
   use modprecision, only : field_r
-  use modglobal, only :    rdt,rk3step
-  use modmicrodata, only : Dv,Kt,delt,nu_a,Sc_num,D_eq, &
-                           k_br,k_l,k_r,k_rr,kappa_r, phi, pirhow, &
-                           k_1,k_2,k_au,k_c, &
-                           x_s,xrmax,xrmin,&
-                           l_sb,l_mur_cst,mur_cst,l_rain, &
-                           eps0, qcmin
-  use modmicrodata3
+  use modglobal, only :    rdt,rk3step, pirhow
+  use modmicrodata, only: delt, l_rain
+  use modbulkmicro_data, only: l_sb, l_mur_cst, mur_cst
+  use modmicrodata3 ! Ugly!
   implicit none
 
   private
@@ -2972,7 +2968,7 @@ subroutine sb_evmelt3(avent0,avent1,bvent0,bvent1,x_bmin,n_e,n_ep,n_em &
   g_me= - k_melt*(ktdtodv*(tmp0-T_3)+dvleorv*(esl/tmp0-eslt3/T_3))
 
   ! calculating real mean particle mass
-  x_er = q_e/n_e
+  x_er  = q_e/(n_e+eps0)
 
   ! calculating N_re Reynolds number
   nrex= D_e*v_e/nu_a

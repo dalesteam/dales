@@ -106,10 +106,10 @@ program DALES
   use modtimedep,        only : timedep
   use modboundary,       only : boundary, grwdamp! JvdD ,tqaver
   use modthermodynamics, only : thermodynamics
-  use modmicrophysics,   only : microsources
+  use modmicrophysics,   only : microphysics
   use modsurface,        only : surface
   use modlsm,            only : lsm
-  use moddrydeposition,  only : drydep      
+  use moddrydeposition,  only : drydep
   use modsubgrid,        only : subgrid
   use modforces,         only : forces, coriolis, lstend
   use modradiation,      only : radiation
@@ -120,6 +120,7 @@ program DALES
 !----------------------------------------------------------------
 !     0.1     USE STATEMENTS FOR ADDONS STATISTICAL ROUTINES
 !----------------------------------------------------------------
+  use modscalarpulse,  only : initscalarpulse, scalarpulse
   use modcape,         only : initcape,exitcape,docape
   use modchecksim,     only : initchecksim, checksim
   use modstat_nc,      only : initstat_nc
@@ -162,12 +163,14 @@ program DALES
   use moddatetime,     only : datetime
   use modemission,     only : emission
   use modopenboundary, only : openboundary_ghost,openboundary_tend,openboundary_phasevelocity,openboundary_turb
-
+  use modstat_profiles, only: init_profiles, sample_profiles, write_profiles, exit_profiles
+  use modibm,          only : applyibm, zerowallvelocity
+  use modibmdata,      only : lpoislast
 !----------------------------------------------------------------
 !     0.2     USE STATEMENTS FOR TIMER MODULE
 !----------------------------------------------------------------
 
-  use modtimer,       only : timer_tic, timer_toc, timer_print, timer_write
+  use modtimer,       only : timer_tic, timer_toc, timer_print, timer_write, timer_cleanup
 
 !----------------------------------------------------------------
 !     0.3     USE STATEMENTS FOR GPU UTILITIES
@@ -176,6 +179,7 @@ program DALES
 #if defined(_OPENACC)
   use modgpu, only: update_gpu, host_is_updated
 #endif
+  use modspraying,     only : lateralsponge
 
   implicit none
 
@@ -197,7 +201,6 @@ program DALES
   call inittimestat  ! Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
   call initgenstat   ! Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
   !call inittilt
-  call initsampling
   call initquadrant
   call initcrosssection
   call initAGScross
@@ -205,8 +208,6 @@ program DALES
   call initdepcrosssection
   !call initprojection
   call initcloudfield
-  call initfielddump
-  call initsamptend
   call initradstat
   call initradfield
   call initlsmstat
@@ -219,18 +220,22 @@ program DALES
   call initvarbudget
   call initmsebudg
   !call initstressbudget
-! call initchem
+  ! call initchem
+  call initsampling
+  call initfielddump
+  call initsamptend
   call initheterostats
   call initcanopy
-
   !call initspectra2
+  call initscalarpulse
   call initcape
+
+  call init_profiles
 
 #if defined(_OPENACC)
   call update_gpu
 #endif
 
-  ! Startup is done, set flag to false
 
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
@@ -239,11 +244,17 @@ program DALES
   istep = 1
   do while (timeleft>0 .or. rk3step < 3)
     call timer_tic('program/timestep', istep)
+
+
     ! Calculate new timestep, and reset tendencies to 0.
     call tstep_update
     call timedep
+    call scalarpulse
     call samptend(tend_start,firstterm=.true.)
     call datetime
+
+    ! Check if we have to sample profiles this time step
+    call sample_profiles
 
     call datetime
 
@@ -287,7 +298,7 @@ program DALES
 
     call lstend !large scale forcings
     call samptend(tend_ls)
-    call microsources !Drizzle etc.
+    call microphysics
     call samptend(tend_micro)
     call emission
 
@@ -302,15 +313,25 @@ program DALES
 
     call samptend(tend_addon)
 
+
 !-----------------------------------------------------------------------
 !   3.7  PRESSURE FLUCTUATIONS, TIME INTEGRATION AND BOUNDARY CONDITIONS
 !-----------------------------------------------------------------------
     call grwdamp !damping at top of the model
 !JvdD    call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
     call samptend(tend_topbound)
+
+    ! either apply ibm before or after poisson solver
+    if (lpoislast .eqv.  .true.) call applyibm
+    if (lpoislast .eqv. .false.) call zerowallvelocity ! put wall velocities to zero before Poisson
     call poisson
+
+    if (lpoislast .eqv. .false.) call applyibm ! then only apply IBM after Poisson
+
     call samptend(tend_pois,lastterm=.true.)
     if(lopenbc) call openboundary_phasevelocity()
+
+    call lateralsponge                          ! optional lateral sponge layer for scalars
 
     call tstep_integrate                        ! Apply tendencies to all variables
 
@@ -322,6 +343,8 @@ program DALES
     else
       call boundary
     endif
+
+
     !call tiltedboundary
 !-----------------------------------------------------
 !   3.8   LIQUID WATER CONTENT AND DIAGNOSTIC FIELDS
@@ -337,6 +360,7 @@ program DALES
     call checksim
     call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
     call genstat  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
+    call write_profiles
     call radstat
     call lsmstat
     !call depstat
@@ -360,7 +384,7 @@ program DALES
     call msebudg2
     !call stressbudgetstat
     call heterostats
-    
+
     call testwctime
     call writerestartfiles
 #if defined(_OPENACC)
@@ -376,6 +400,7 @@ program DALES
 
   call timer_print
   call timer_write
+  call timer_cleanup
 
 !--------------------------------------------------------
 !    4    FINALIZE ADD ONS AND THE MAIN PROGRAM
@@ -406,7 +431,9 @@ program DALES
   call exitheterostats
   call exitcanopy
   call exittimestat
+  call exitnudgeboundary  !cstep
   call exitmodules
+  call exit_profiles
 
 
 end program DALES

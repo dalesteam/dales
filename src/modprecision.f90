@@ -31,7 +31,11 @@ integer, parameter :: longint = int64
 INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND(12, 60)
 
 !< Parameter kinds, for rrtmg radiation scheme
-integer, parameter :: kind_rb  = real64     !selected_real_kind(12) ! 8 byte real
+#ifdef RTE_USE_SP
+integer, parameter :: kind_rb = real32
+#else
+integer, parameter :: kind_rb = real64     !selected_real_kind(12) ! 8 byte real
+#endif
 integer, parameter :: kind_im  = int32      !selected_int_kind(6)   ! 4 byte integer
 integer, parameter :: SHR_KIND_R4 = real32  !selected_real_kind( 6) ! 4 byte real
 integer, parameter :: SHR_KIND_IN = kind(1) ! native integer

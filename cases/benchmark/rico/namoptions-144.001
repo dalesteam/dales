@@ -13,11 +13,6 @@ nprocx     = 0
 nprocy     = 0
 /
 
-&NAMTRACERS
-ltracers = .true.
-tracernames = 'nr', 'qr'
-/
-
 &DOMAIN
 itot       =  144
 jtot       =  144
@@ -68,12 +63,15 @@ iadv_sv    =  7
 /
 &NAMMICROPHYSICS
 imicro     = 2
+lstat = .true.
 /
-&NAMBULKMICROSTAT
-lmicrostat = .true.
-timeav     = 21600
-dtav       = 60
+
+&NAMOUT1D
+lstat = .true.
+dtav = 60 
+timeav = 1440
 /
+
 &NAMCHECKSIM
 tcheck     = 0
 /

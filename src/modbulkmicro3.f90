@@ -50,6 +50,9 @@ module modbulkmicro3
 !*********************************************************************
   use modmicrodata
   use modmicrodata3
+  use modbulkmicro_data, only: l_lognormal, l_mur_cst, l_sb, l_sedc, sig_gr
+  use modglobal, only: ifnamopt, lwarmstart
+  use modmpi,    only : myid,comm3d,D_MPI_BCAST
   use modprecision, only : field_r
   implicit none
   private
@@ -59,130 +62,30 @@ module modbulkmicro3
 
 !> Initializes and allocates the arrays
   subroutine initbulkmicro3
-    use modglobal, only : lwarmstart,ifnamopt,fname_options,i1,ih,j1,jh,k1
-    use modmpi,    only : myid,comm3d,D_MPI_BCAST
+    use modglobal, only : i1,ih,j1,jh,k1
     use modtracers, only: add_tracer
     implicit none
-    integer :: ierr
 
-    ! set some initial values before loading namelist
-    namelist/NAMBULK3/  &
-     l_sb_classic, l_sb_dumpall                              &
-     ,l_sb_all_or, l_sb_dbg                                  &
-     ,l_setclouds, l_setccn                                  & ! flag whether to set cloud
-     ,l_corr_neg_qt                                          & ! flag whether to adjust qt and thlp in hydrometeor corrections
-     ,l_sb_lim_aggr, l_sb_stickyice                          & ! ice and snow aggregation flags
-     ,l_sb_conv_par                                          & ! conversion flags
-     ,l_c_ccn,l_sb_sat_max                                   & ! flags for cloud nucleation
-     ,l_sb_nuc_sat,l_sb_nuc_expl,l_sb_nuc_diff               & ! flags for cloud nucleation
-     ,l_sb_inuc_sat,l_sb_inuc_expl, l_sb_reisner             & ! flags for ice nucleation
-     ,N_inuc, n_i_max, tmp_inuc, x_inuc                      & !  parameters for ice nucleation
-     ,N_inuc_R, c_inuc_R, a1_inuc_R, a2_inuc_R               & !  parameters for ice nucleation - Reisner correction
-     ,c_ccn, n_clmax                                         & ! C_CCN parameter, used when l_c_ccn
-     ,kappa_ccn, x_cnuc,sat_max                              & ! parameters for liquid cloud nucleation
-     ,Nc0, xc0_min, Nccn0                                    & ! setting of initial clouds
-     ,l_statistics, l_tendencies                               ! output
-
-    if(myid==0) then
-      open(ifnamopt,file=fname_options,status='old',iostat=ierr)
-      read (ifnamopt,NAMBULK3,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMBULK3 '
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMBULK3 '
-      endif
-      write(6 ,NAMBULK3)
-      ! check values
-      if (xc0_min.GE.xc_bmax) then
-        write(6,*)  'Warning: xc0_min is invalid'
-        write(6,*)  '  xc0_min= ',xc0_min,' is larger than xc_bmax =',xc_bmax
-        write(6,*)  '  initial min size of droplets cannot be larger than the max size'
-        write(6,*)  '  setting xc0_min to default value xcmin =',xcmin
-        xc0_min = xcmin
-      endif
-      if (xc0_min .LE. 0.0) then
-        write(6,*)  'Warning: xc0_min is invalid'
-        write(6,*)  '  xc0_min= ',xc0_min,' is negative '
-        write(6,*)  '  setting xc0_min to default value xcmin =',xcmin
-        xc0_min = xcmin
-      endif
-      if (Nc0 .LE. 0.0) then
-        write(6,*)  'Warning: Nc0 is invalid'
-        write(6,*)  '  Nc0= ',Nc0,' is negative '
-        write(6,*)  '  setting Nc0 to default value Nc_0 = ',Nc_0
-        Nc0 = Nc_0
-      endif
-      ! close the namelist
-      close(ifnamopt)
-    end if
-
-     ! #sb3 START  - checking if cloud initialisation should be done
-    if(myid.eq.0) then
-     if(lwarmstart) then
-      l_clouds_init     = .true. ! in warm start, clouds are already there
-      l_ccn_init        = .true. ! in warm start, ccn are already there
+    if(lwarmstart) then
+     l_clouds_init     = .true. ! in warm start, clouds are already there
+     l_ccn_init        = .true. ! in warm start, ccn are already there
+    else
+     if(l_setclouds) then   ! if namelist says to initialise clouds
+       l_clouds_init     = .false.
      else
-      if(l_setclouds) then   ! if namelist says to initialise clouds
-        l_clouds_init     = .false.
-      else
-        l_clouds_init     = .true.
-      endif
-      if(l_setccn)    then   ! if namelist says to initialise constant CCN
-        if(l_c_ccn)   then
-          write(6,*) 'modbulkmicro3: l_c_ccn = .TRUE., l_setccn ignored'
-          l_ccn_init        = .true.
-        else
-          l_ccn_init        = .false.
-        endif
-      else
-        l_ccn_init        = .true.
-      endif
+       l_clouds_init     = .true.
+     endif
+     if(l_setccn)    then   ! if namelist says to initialise constant CCN
+       if(l_c_ccn)   then
+         write(6,*) 'modbulkmicro3: l_c_ccn = .TRUE., l_setccn ignored'
+         l_ccn_init        = .true.
+       else
+         l_ccn_init        = .false.
+       endif
+     else
+       l_ccn_init        = .true.
      endif
     endif
-     ! #sb3 END
-
-    ! send values
-     call D_MPI_BCAST(l_sb_classic,      1, 0,comm3d,ierr)
-     call D_MPI_BCAST(l_sb_dumpall,      1, 0,comm3d,ierr)
-     call D_MPI_BCAST(l_sb_all_or,       1, 0,comm3d,ierr)
-     call D_MPI_BCAST(l_sb_dbg,          1, 0,comm3d,ierr)
-     call D_MPI_BCAST(l_clouds_init,     1, 0,comm3d,ierr)
-     call D_MPI_BCAST(l_ccn_init,        1, 0,comm3d,ierr)
-     call D_MPI_BCAST(l_corr_neg_qt,     1, 0,comm3d,ierr)
-     !
-     call D_MPI_BCAST(l_sb_lim_aggr,     1, 0,comm3d,ierr)
-     call D_MPI_BCAST(l_sb_stickyice,    1, 0,comm3d,ierr)
-     call D_MPI_BCAST(l_sb_conv_par ,    1, 0,comm3d,ierr)
-     !
-     call D_MPI_BCAST(l_c_ccn,           1, 0,comm3d,ierr)
-     call D_MPI_BCAST(l_sb_sat_max,      1, 0,comm3d,ierr)
-     call D_MPI_BCAST(l_sb_nuc_sat,      1, 0,comm3d,ierr)
-     call D_MPI_BCAST(l_sb_nuc_expl,     1, 0,comm3d,ierr)
-     call D_MPI_BCAST(l_sb_nuc_diff,     1, 0,comm3d,ierr)
-     call D_MPI_BCAST(l_sb_inuc_sat,     1, 0,comm3d,ierr)
-     call D_MPI_BCAST(l_sb_inuc_expl,    1, 0,comm3d,ierr)
-     call D_MPI_BCAST(l_sb_reisner,      1, 0,comm3d,ierr)
-     !
-     call D_MPI_BCAST(l_sb_reisner,      1, 0,comm3d,ierr)
-     !
-     call D_MPI_BCAST(N_inuc_R ,         1, 0,comm3d,ierr)
-     call D_MPI_BCAST(c_inuc_R ,         1, 0,comm3d,ierr)
-     call D_MPI_BCAST(a1_inuc_R ,        1, 0,comm3d,ierr)
-     call D_MPI_BCAST(a2_inuc_R ,        1, 0,comm3d,ierr)
-     call D_MPI_BCAST(n_i_max ,          1, 0,comm3d,ierr)
-     call D_MPI_BCAST(N_inuc ,           1, 0,comm3d,ierr)
-     call D_MPI_BCAST(tmp_inuc,          1, 0,comm3d,ierr)
-     call D_MPI_BCAST(x_inuc ,           1, 0,comm3d,ierr)
-     call D_MPI_BCAST(c_ccn,             1, 0,comm3d,ierr)
-     call D_MPI_BCAST(n_clmax,           1, 0,comm3d,ierr)
-     call D_MPI_BCAST(kappa_ccn ,        1, 0,comm3d,ierr)
-     call D_MPI_BCAST(sat_max ,          1, 0,comm3d,ierr)
-     call D_MPI_BCAST(x_cnuc ,           1, 0,comm3d,ierr)
-     !
-     call D_MPI_BCAST(Nc0,               1, 0,comm3d,ierr)
-     call D_MPI_BCAST(xc0_min,           1, 0,comm3d,ierr)
-     call D_MPI_BCAST(Nccn0,             1, 0,comm3d,ierr)
-
 
   ! adding calculation of the constant part for moment
   c_mmt_1cl = calc_cons_mmt (1, mu_cl_cst, nu_cl_cst)

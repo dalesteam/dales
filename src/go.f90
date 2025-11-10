@@ -1,10 +1,10 @@
 !###############################################################################
 !
 ! WARNING: do not confuse this file with go.F90 from LOTOS-EUROS!
-! This is an interface between le_drydepos_gas_depac.f90 and the rest of DALES.
-! The DEPAC routines use 'gol', 'goErr' and 'goPr' that were defined in the GO
+! This is an interface between le_drydepos_gas.f90 and the rest of DALES.
+! The model routines use 'gol', 'goErr' and 'goPr' that were defined in the GO
 ! routines for LOTOS-EUROS. This file contains an implementation of these
-! functions. This way, le_drydepos_depac.f90 did not have to be adapted to DALES
+! functions. This way, le_drydepos.f90 did not have to be adapted to DALES
 ! and it is directly transferrable between LE and DALES.
 !
 ! L. Geers, June 2022

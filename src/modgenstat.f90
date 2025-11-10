@@ -125,11 +125,6 @@ module modgenstat
   real, allocatable :: svpav(:,:)                  !  slab average total tendency of sv(n)
   real, allocatable :: svptav(:,:)                 !  slab average tendency of sv(n) due to turb.
 
-  real, allocatable :: uptav(:)                      !  slab averaged tendency for u
-  real, allocatable :: vptav(:)                      !  slab averaged tendency for v
-
-  real, allocatable :: thptav(:)     ! slab averaged turbulence tendency of theta
-  real, allocatable :: qlptav(:)     ! slab averaged turbulence tendency of q_liq
   real, allocatable :: uwtot (:)     ! slab averaged tot w-u flux at half levels
   real, allocatable :: vwtot (:)     ! slab averaged tot w-v flux at half levels
   real, allocatable :: uwsub (:)     ! slab averaged sgs w-u flux at half levels
@@ -168,7 +163,6 @@ module modgenstat
 
     ! Local fields
 
-  real,allocatable, dimension(:):: qlptavl   ! slab averaged turbulence tendency of q_liq
   real,allocatable, dimension(:):: uwsubl
   real,allocatable, dimension(:):: vwsubl
   real,allocatable, dimension(:):: uwresl
@@ -266,11 +260,7 @@ contains
     allocate(clwav(k1), cliav(k1), plwav(k1), pliav(k1))
     allocate(taav(k1))
     allocate(svmav (k1,nsv))
-    allocate(uptav(k1))
-    allocate(vptav(k1))
 
-    allocate(thptav(k1))
-    allocate(qlptav(k1))
     allocate(uwtot (k1))
     allocate(vwtot (k1))
     allocate(uwsub (k1))
@@ -465,7 +455,7 @@ contains
         call ncinfo(ncname(47,:),'plw', 'Specific precipitation liquid water content','kg/kg','tt')
         call ncinfo(ncname(48,:),'pli', 'Specific precipitation ice content','kg/kg','tt')
         do n = 1, nsv
-          call ncinfo(ncname(48+7*(n-1)+1,:),trim(tracer_prop(n)%tracname), trim(tracer_prop(n)%traclong)//' specific mixing ratio', trim(tracer_prop(n)%unit),'tt')
+          call ncinfo(ncname(48+7*(n-1)+1,:),trim(tracer_prop(n)%tracname), trim(tracer_prop(n)%traclong), trim(tracer_prop(n)%unit),'tt')
           call ncinfo(ncname(48+7*(n-1)+2,:),trim(tracer_prop(n)%tracname)//'p', trim(tracer_prop(n)%traclong)//' tendency',trim(tracer_prop(n)%unit)//'/s)','tt')
           call ncinfo(ncname(48+7*(n-1)+3,:),trim(tracer_prop(n)%tracname)//'pt', trim(tracer_prop(n)%traclong)//' turbulence tendency',trim(tracer_prop(n)%unit)//'/s','tt')
           call ncinfo(ncname(48+7*(n-1)+4,:),trim(tracer_prop(n)%tracname)//'2r','Resolved '//trim(tracer_prop(n)%traclong)//' variance','('//trim(tracer_prop(n)%unit)//')^2','tt')
@@ -499,7 +489,7 @@ contains
     !$acc&                  wqltot, wthltot, wthvtot, wsvsub, wsvres, wsvtot, uwres, vwres, uwsub, vwsub, &
     !$acc&                  uwtot, vwtot, umav, vmav, wmav, thvmav, thlmav, qtmav, qlmav, cfracav, u2av, v2av, &
     !$acc&                  w2av, w2subav, qt2av, thl2av, thv2av, th2av, svmav, svpav, svptav, sv2av, w3av, &
-    !$acc&                  ql2av, thvmav, thmav, qlptav, thv0, sv0h, hurav, clwav, cliav, plwav, pliav, taav, &
+    !$acc&                  ql2av, thvmav, thmav, thv0, sv0h, hurav, clwav, cliav, plwav, pliav, taav, &
     !$acc&                  hurmn, clwmn, climn, plwmn, plimn, tamn)
 
     call timer_toc('modgenstat/initgenstat')
@@ -546,13 +536,16 @@ contains
                           ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi,tup,tdn,lopenbc
     use modmpi,    only : comm3d,mpi_sum,mpierr,slabsum,D_MPI_ALLREDUCE
     use advec_kappa, only : halflev_kappa
-    use modmicrodata, only: tuprsg, tdnrsg, iqr
+    use modsimpleice_data, only: tuprsg, tdnrsg
     use modthermodynamics, only: qsat_tab
+    use modtracers, only: get_tracer_index
+    use modmicrodata, only : imicro, imicro_sice, imicro_sice2
+
     implicit none
 
     real :: cthl,cqt,den
 
-    integer :: i, j, k, n
+    integer :: i, j, k, n, iqr
     real :: tsurf, c1, c2
     real :: qs0h, t0h, ekhalf, euhalf, evhalf
     real :: wthls, wthlr, wqts, wqtr, wqls, wqlr, wthvs, wthvr
@@ -607,7 +600,6 @@ contains
     uwsub = 0.0
     vwsub = 0.0
     svmav = 0.0
-    qlptav = 0.0
     wqltot = 0.0
     wqttot = 0.0
     wthvtot = 0.0
@@ -652,8 +644,6 @@ contains
 
     !$acc wait(1)
 
-    !$acc host_data use_device(umav, um, vmav, vm, wmav, wm, thlmav, thlm, qtmav, qtm, &
-    !$acc&                     qlmav, ql0, thvmav, thv0, taav, tmp0)
     call slabsum(umav  ,1,k1,um  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(vmav  ,1,k1,vm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(wmav  ,1,k1,wm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -662,13 +652,10 @@ contains
     call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(taav  ,1,k1,tmp0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    !$acc end host_data
     if (nsv > 0) then
-      !$acc host_data use_device(svmav, svm)
       do n = 1, nsv
-        call slabsum(svmav(1:1,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+        call slabsum(svmav(:,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
       enddo
-      !$acc end host_data
     end if
 
     !$acc kernels default(present) async(1)
@@ -678,7 +665,6 @@ contains
     thlmav  = thlmav  / ijtot
     qtmav   = qtmav   / ijtot
     qlmav   = qlmav   / ijtot
-    cfracav = cfracav / ijtot
     taav    = taav    / ijtot
     thvmav  = thvmav  / ijtot
     svmav   = svmav   / ijtot
@@ -715,8 +701,8 @@ contains
     cthl = (exnh(1)*cp/rlv)*((1-den)/den)
     cqt = 1./den
 
-    !$acc parallel loop collapse(2) default(present) private(upcu, vpcv) &
-    !$acc& reduction(+: qlhav(1), wthlsub(1), wqtsub(1), wthvsub(1), uwsub(1), vwsub(1), hurav(1), clwav(1), cliav(1), plwav(1), pliav(1)) async(1)
+    !$acc parallel loop collapse(2) default(present) private(upcu, vpcv, ilratio) &
+    !$acc& reduction(+: qlhav(1), wthlsub(1), wqtsub(1), wthvsub(1), uwsub(1), vwsub(1), hurav(1), clwav(1), cliav(1)) async(1)
     do j = 2, j1
       do i = 2, i1
         qlhav(1) = qlhav(1) + ql0h(i,j,1)
@@ -743,12 +729,6 @@ contains
         ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,1)-tdn) / (tup-tdn)))
         clwav(1) = clwav(1) + ql0(i,j,1) * ilratio
         cliav(1) = cliav(1) + ql0(i,j,1) * (1-ilratio)
-
-        if (iqr > 0) then
-           ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,1)-tdnrsg)/(tuprsg-tdnrsg)))
-           plwav(1) = plwav(1) + sv0(i,j,1,iqr) * ilratio
-           pliav(1) = pliav(1) + sv0(i,j,1,iqr) * (1-ilratio)
-        end if
       end do
     end do
 
@@ -782,10 +762,10 @@ contains
 
       !$acc loop collapse(2) &
       !$acc& private(qs0h, t0h, den, cthl, cqt, a_dry, b_dry, a_moist, b_moist, ekhalf, euhalf, evhalf, wthls, wthlr, &
-      !$acc&         wqts, wqtr, wqls, wqlr, wthvs, wthvr, uwr, vwr, uws, vws) &
+      !$acc&         wqts, wqtr, wqls, wqlr, wthvs, wthvr, uwr, vwr, uws, vws, ilratio) &
       !$acc& reduction(+:qlhav_s, wqlsub_s, wqlres_s, wthlsub_s, wthlres_s, wthvsub_s, wthvres_s, &
       !$acc&             wqtsub_s, wqtres_s, uwres_s, vwres_s, uwsub_s, vwsub_s, &
-      !$acc&             hurav_s, clwav_s, cliav_s, plwav_s, pliav_s)
+      !$acc&             hurav_s, clwav_s, cliav_s)
       do j = 2, j1
         do i = 2, i1
           !------------------------------------------------------
@@ -850,12 +830,6 @@ contains
           clwav_s = clwav_s + ql0(i,j,k) * ilratio
           cliav_s = cliav_s + ql0(i,j,k) * (1-ilratio)
 
-          if (iqr > 0) then
-            ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))
-            plwav_s = plwav_s + sv0(i,j,k,iqr) * ilratio
-            pliav_s = pliav_s + sv0(i,j,k,iqr) * (1-ilratio)
-          end if
-
           if (ql0h(i,j,k)>0) then
             wqlsub_s = wqlsub_s + wqls
           end if
@@ -893,9 +867,39 @@ contains
       hurav(k) = hurav_s
       clwav(k) = clwav_s
       cliav(k) = cliav_s
-      plwav(k) = plwav_s
-      pliav(k) = pliav_s
     end do
+
+    ! precip statistics: separate liquid (plw) and ice (pli) content specifically for simpleice
+    ! provide plw also for warm microphysics for compatibility
+    ! todo: move to microstat
+    iqr = get_tracer_index("qr")
+
+    if (iqr > 0) then
+       !$acc parallel loop gang default(present) private(plwav_s, pliav_s, ilratio) async(1)
+       do k = 1, kmax
+          if (imicro == imicro_sice .or. imicro == imicro_sice2) then
+             !$acc loop collapse(2) &
+             !$acc& reduction(+:plwav_s, pliav_s)
+             do j = 2, j1
+                do i = 2, i1
+                   ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))
+                   plwav_s = plwav_s + sv0(i,j,k,iqr) * ilratio
+                   pliav_s = pliav_s + sv0(i,j,k,iqr) * (1-ilratio)
+                end do
+             end do
+          else
+             !$acc loop collapse(2) &
+             !$acc& reduction(+:plwav_s)
+             do j = 2, j1
+                do i = 2, i1
+                   plwav_s = plwav_s + sv0(i,j,k,iqr)
+                end do
+             end do
+          end if
+          plwav(k) = plwav_s
+          pliav(k) = pliav_s
+       end do
+    end if
 
     !------------
     ! 2.3 MOMENTS
@@ -973,50 +977,43 @@ contains
 
     ! MPI communication
     !$acc wait(1)
-    !$acc host_data use_device(qlhav, wqlsub, wqlres, wthlsub, wthlres, wthvsub, &
-    !$acc&                     wthvres, uwsub, vwsub, uwres, vwres, u2av, v2av, &
-    !$acc&                     w2av, w3av, w2subav, qt2av, thl2av, thv2av, th2av, &
-    !$acc&                     ql2av, qlptav, sv2av, wsvsub, wsvres, cfracav, &
-    !$acc&                     hurav, clwav, cliav, plwav, pliav)
-    call D_MPI_ALLREDUCE(qlhav, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wqlsub, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wqlres, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wthlsub, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wthlres, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wqtsub, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wqtres, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wthvsub, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wthvres, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(uwsub, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(vwsub, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(uwres, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(vwres, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(u2av, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(v2av, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(w2av, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(w3av, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(w2subav, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(qt2av, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(thl2av, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(thv2av, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(th2av, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(ql2av, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(qlptav, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(cfracav,k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(hurav,k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(clwav,k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(cliav,k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(plwav,k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(pliav,k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(qlhav, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(wqlsub, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(wqlres, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(wthlsub, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(wthlres, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(wqtsub, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(wqtres, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(wthvsub, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(wthvres, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(uwsub, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(vwsub, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(uwres, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(vwres, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(u2av, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(v2av, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(w2av, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(w3av, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(w2subav, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(qt2av, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(thl2av, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(thv2av, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(th2av, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(ql2av, k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(cfracav,k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(hurav,k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(clwav,k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(cliav,k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(plwav,k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+    call D_MPI_ALLREDUCE(pliav,k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
 
     if (nsv > 0) then
       do n = 1, nsv
-        call D_MPI_ALLREDUCE(sv2av(:,n),k1, MPI_SUM, comm3d,mpierr)
-        call D_MPI_ALLREDUCE(wsvsub(:,n), k1, MPI_SUM, comm3d,mpierr)
-        call D_MPI_ALLREDUCE(wsvres(:,n), k1, MPI_SUM, comm3d,mpierr)
+        call D_MPI_ALLREDUCE(sv2av(:,n),k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+        call D_MPI_ALLREDUCE(wsvsub(:,n), k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
+        call D_MPI_ALLREDUCE(wsvres(:,n), k1, MPI_SUM, comm3d,mpierr, lacc=.true.)
       end do
     end if
-    !$acc end host_data
 
     !------------
     ! 4 NORMALIZE
@@ -1676,11 +1673,7 @@ contains
     deallocate(clwav,cliav,plwav,pliav)
     deallocate(svmav )
     deallocate(taav )
-    deallocate(uptav)
-    deallocate(vptav)
 
-    deallocate(thptav)
-    deallocate(qlptav)
     deallocate(uwtot )
     deallocate(vwtot )
     deallocate(uwres )

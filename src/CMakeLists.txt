@@ -12,7 +12,7 @@ set( dales_srcs
 	daleslib.f90
 	fftnew.f90
 	go.f90
-	le_drydepos_gas_depac.f90
+	le_drydepos_gas.f90
 	modAGScross.f90
 	modadvection.f90
 	modboundary.f90
@@ -22,6 +22,8 @@ set( dales_srcs
 	modbulkmicro3_column.f90
 	modbulkmicro3_point.f90
 	modbulkmicrostat.f90
+	modbulkmicro_data.f90
+  modbulkmicro_stat.f90
 	modbulkmicrostat3.f90
 	modcanopy.f90
 	modcape.f90
@@ -32,6 +34,7 @@ set( dales_srcs
 	modcufft.f90
 	moddatetime.f90
 	moddepcrosssection.f90
+	moddrizzle.f90
 	moddrydeposition.f90
 	modemisdata.f90
 	modemission.f90
@@ -43,18 +46,22 @@ set( dales_srcs
 	modgenstat.f90
 	modglobal.f90
 	modgpu.f90
-	modgpumpiinterface.f90
 	modheterostats.f90
 	modhypre.f90
+	modibm.f90
+	modibmdata.f90
 	modlsm.f90
 	modlsmcrosssection.f90
+	modlsmdata.f90
 	modlsmstat.f90
 	modmicrodata.f90
 	modmicrodata3.f90
 	modmicrophysics.f90
+	modmicroutil.f90
 	modmpi.f90
 	modmpiinterface.f90
 	modmsebudg.f90
+	modnamelist.f90
 	modnetcdf.f90
 	modnudge.f90
 	modnudgeboundary.f90
@@ -73,12 +80,18 @@ set( dales_srcs
 	modsampdata.f90
 	modsampling.f90
 	modsamptend.f90
+	modscalarpulse.f90
 	modsimpleice.f90
 	modsimpleice2.f90
-	modsimpleicestat.f90
+	modsimpleice_data.f90
+	modslabaverage.f90
+	modspraying.f90
+	modsprayingdata.f90
 	modstartup.f90
 	modstat_nc.f90
+	modstat_profiles.f90
 	modstattend.f90
+	modstringutils.f90
 	modsubgrid.f90
 	modsubgriddata.f90
 	modsurface.f90
@@ -90,9 +103,9 @@ set( dales_srcs
 	modtimedepsv.f90
 	modtimer.f90
 	modtimestat.f90
-	modtracdata.f90
-	modtracer_type.f90
-	modtracers.f90
+  modtracer_type.f90
+  modtracers.f90
+	modtranspose.f90
 	moduser.f90
 	modvarbudget.f90
 	program.f90
@@ -104,107 +117,107 @@ set( dales_srcs
 
 # RRTMG - longwave
 set( rrtmg_lw_srcs
-	RRTMG/RRTMG_LW/modules/parkind.f90
-	RRTMG/RRTMG_LW/modules/parrrtm.f90
-	RRTMG/RRTMG_LW/modules/rrlw_cld.f90
-	RRTMG/RRTMG_LW/modules/rrlw_con.f90
-	RRTMG/RRTMG_LW/modules/rrlw_kg01.f90
-	RRTMG/RRTMG_LW/modules/rrlw_kg02.f90
-	RRTMG/RRTMG_LW/modules/rrlw_kg03.f90
-	RRTMG/RRTMG_LW/modules/rrlw_kg04.f90
-	RRTMG/RRTMG_LW/modules/rrlw_kg05.f90
-	RRTMG/RRTMG_LW/modules/rrlw_kg06.f90
-	RRTMG/RRTMG_LW/modules/rrlw_kg07.f90
-	RRTMG/RRTMG_LW/modules/rrlw_kg08.f90
-	RRTMG/RRTMG_LW/modules/rrlw_kg09.f90
-	RRTMG/RRTMG_LW/modules/rrlw_kg10.f90
-	RRTMG/RRTMG_LW/modules/rrlw_kg11.f90
-	RRTMG/RRTMG_LW/modules/rrlw_kg12.f90
-	RRTMG/RRTMG_LW/modules/rrlw_kg13.f90
-	RRTMG/RRTMG_LW/modules/rrlw_kg14.f90
-	RRTMG/RRTMG_LW/modules/rrlw_kg15.f90
-	RRTMG/RRTMG_LW/modules/rrlw_kg16.f90
-	RRTMG/RRTMG_LW/modules/rrlw_ncpar.f90
-	RRTMG/RRTMG_LW/modules/rrlw_ref.f90
-	RRTMG/RRTMG_LW/modules/rrlw_tbl.f90
-	RRTMG/RRTMG_LW/modules/rrlw_vsn.f90
-	RRTMG/RRTMG_LW/modules/rrlw_wvn.f90
-	RRTMG/RRTMG_LW/src/rrtmg_lw_cldprop.f90
-	RRTMG/RRTMG_LW/src/rrtmg_lw_init.f90
-	RRTMG/RRTMG_LW/src/rrtmg_lw_rad.nomcica.f90
-	RRTMG/RRTMG_LW/src/rrtmg_lw_read_nc.f90
-	RRTMG/RRTMG_LW/src/rrtmg_lw_rtrn.f90
-	RRTMG/RRTMG_LW/src/rrtmg_lw_rtrnmc.f90
-	RRTMG/RRTMG_LW/src/rrtmg_lw_rtrnmr.f90
-	RRTMG/RRTMG_LW/src/rrtmg_lw_setcoef.f90
-	RRTMG/RRTMG_LW/src/rrtmg_lw_taumol.f90
-	RRTMG/RRTMG_LW/src/src_link
-	RRTMG/RRTMG_LW/src/util_link
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/parkind.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/parrrtm.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_cld.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_con.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_kg01.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_kg02.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_kg03.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_kg04.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_kg05.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_kg06.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_kg07.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_kg08.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_kg09.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_kg10.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_kg11.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_kg12.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_kg13.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_kg14.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_kg15.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_kg16.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_ncpar.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_ref.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_tbl.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_vsn.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/rrlw_wvn.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/src/rrtmg_lw_cldprop.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/src/rrtmg_lw_init.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/src/rrtmg_lw_rad.nomcica.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/src/rrtmg_lw_read_nc.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/src/rrtmg_lw_rtrn.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/src/rrtmg_lw_rtrnmc.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/src/rrtmg_lw_rtrnmr.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/src/rrtmg_lw_setcoef.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/src/rrtmg_lw_taumol.f90
 )
 
 # RRTMG - shortwave
 set( rrtmg_sw_srcs
-	RRTMG/RRTMG_SW/modules/parrrsw.f90
-	RRTMG/RRTMG_SW/modules/rrsw_aer.f90
-	RRTMG/RRTMG_SW/modules/rrsw_cld.f90
-	RRTMG/RRTMG_SW/modules/rrsw_con.f90
-	RRTMG/RRTMG_SW/modules/rrsw_kg16.f90
-	RRTMG/RRTMG_SW/modules/rrsw_kg17.f90
-	RRTMG/RRTMG_SW/modules/rrsw_kg18.f90
-	RRTMG/RRTMG_SW/modules/rrsw_kg19.f90
-	RRTMG/RRTMG_SW/modules/rrsw_kg20.f90
-	RRTMG/RRTMG_SW/modules/rrsw_kg21.f90
-	RRTMG/RRTMG_SW/modules/rrsw_kg22.f90
-	RRTMG/RRTMG_SW/modules/rrsw_kg23.f90
-	RRTMG/RRTMG_SW/modules/rrsw_kg24.f90
-	RRTMG/RRTMG_SW/modules/rrsw_kg25.f90
-	RRTMG/RRTMG_SW/modules/rrsw_kg26.f90
-	RRTMG/RRTMG_SW/modules/rrsw_kg27.f90
-	RRTMG/RRTMG_SW/modules/rrsw_kg28.f90
-	RRTMG/RRTMG_SW/modules/rrsw_kg29.f90
-	RRTMG/RRTMG_SW/modules/rrsw_ncpar.f90
-	RRTMG/RRTMG_SW/modules/rrsw_ref.f90
-	RRTMG/RRTMG_SW/modules/rrsw_tbl.f90
-	RRTMG/RRTMG_SW/modules/rrsw_vsn.f90
-	RRTMG/RRTMG_SW/modules/rrsw_wvn.f90
-	RRTMG/RRTMG_SW/src/rrtmg_sw_cldprop.f90
-	RRTMG/RRTMG_SW/src/rrtmg_sw_init.f90
-	RRTMG/RRTMG_SW/src/rrtmg_sw_rad.nomcica.f90
-	RRTMG/RRTMG_SW/src/rrtmg_sw_read_nc.f90
-	RRTMG/RRTMG_SW/src/rrtmg_sw_reftra.f90
-	RRTMG/RRTMG_SW/src/rrtmg_sw_setcoef.f90
-	RRTMG/RRTMG_SW/src/rrtmg_sw_spcvrt.f90
-	RRTMG/RRTMG_SW/src/rrtmg_sw_taumol.f90
-	RRTMG/RRTMG_SW/src/rrtmg_sw_vrtqdr.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/parrrsw.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_aer.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_cld.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_con.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_kg16.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_kg17.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_kg18.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_kg19.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_kg20.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_kg21.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_kg22.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_kg23.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_kg24.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_kg25.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_kg26.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_kg27.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_kg28.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_kg29.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_ncpar.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_ref.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_tbl.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_vsn.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/modules/rrsw_wvn.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/src/rrtmg_sw_cldprop.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/src/rrtmg_sw_init.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/src/rrtmg_sw_rad.nomcica.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/src/rrtmg_sw_read_nc.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/src/rrtmg_sw_reftra.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/src/rrtmg_sw_setcoef.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/src/rrtmg_sw_spcvrt.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/src/rrtmg_sw_taumol.f90
+	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/src/rrtmg_sw_vrtqdr.f90
 )
 
 # RTE-RRTMGP
 set( rrtmgp_srcs
 	# RTE
-	RTE-RRTMGP/rte/kernels-openacc/mo_optical_props_kernels.F90
-	RTE-RRTMGP/rte/kernels-openacc/mo_rte_solver_kernels.F90
-	RTE-RRTMGP/rte/kernels/mo_fluxes_broadband_kernels.F90
-	RTE-RRTMGP/rte/mo_fluxes.F90
-	RTE-RRTMGP/rte/mo_optical_props.F90
-	RTE-RRTMGP/rte/mo_rte_config.F90
-	RTE-RRTMGP/rte/mo_rte_kind.F90
-	RTE-RRTMGP/rte/mo_rte_lw.F90
-	RTE-RRTMGP/rte/mo_rte_sw.F90
-	RTE-RRTMGP/rte/mo_rte_util_array.F90
-	RTE-RRTMGP/rte/mo_source_functions.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-kernels/accel/mo_optical_props_kernels.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-kernels/accel/mo_rte_solver_kernels.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-kernels/mo_rte_util_array.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-kernels/mo_fluxes_broadband_kernels.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-kernels/mo_rte_kind.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_fluxes.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_optical_props.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_rte_config.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_rte_lw.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_rte_sw.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_source_functions.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_rte_util_array_validation.F90
 	# RRTMGP
-	RTE-RRTMGP/rrtmgp/kernels-openacc/mo_gas_optics_kernels.F90
-	RTE-RRTMGP/rrtmgp/mo_gas_concentrations.F90
-	RTE-RRTMGP/rrtmgp/mo_gas_optics.F90
-	RTE-RRTMGP/rrtmgp/mo_gas_optics_rrtmgp.F90
-	RTE-RRTMGP/rrtmgp/mo_rrtmgp_constants.F90
-	RTE-RRTMGP/rrtmgp/mo_rrtmgp_util_string.F90
-	# Cloud optics
-	RTE-RRTMGP/extensions/cloud_optics/mo_cloud_optics.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rrtmgp-kernels/accel/mo_gas_optics_rrtmgp_kernels.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rrtmgp-kernels/mo_cloud_optics_rrtmgp_kernels.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rrtmgp-frontend/mo_gas_optics_rrtmgp.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rrtmgp-frontend/mo_cloud_optics_rrtmgp.F90
+	# Gas optics
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/gas-optics/mo_gas_concentrations.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/gas-optics/mo_gas_optics.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/gas-optics/mo_gas_optics_constants.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/gas-optics/mo_gas_optics_util_string.F90
 	# Examples (why are these needed?)
-	RTE-RRTMGP/examples/all-sky/mo_load_cloud_coefficients.F90
-	RTE-RRTMGP/examples/mo_load_coefficients.F90
-	RTE-RRTMGP/examples/mo_simple_netcdf.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/examples/all-sky/mo_load_cloud_coefficients.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/examples/mo_load_coefficients.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/examples/mo_simple_netcdf.F90
 )
 
 if( "${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU" )
@@ -219,32 +232,27 @@ add_custom_target( tag_git_version ALL
   BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/modversion.f90
 )
 
-# Temporary, because we use CUDA-Fortran in these places
-if( ENABLE_ACC )
-  set_source_files_properties( modmpi.f90 modgpumpiinterface.f90 PROPERTIES COMPILE_OPTIONS -cuda )
-endif()
-
 # Stand-alone DALES program
 ecbuild_add_executable( TARGET dales
-						SOURCES
-							${dales_srcs}
-							${rrtmg_lw_srcs}
-							${rrtmg_sw_srcs}
-							${rrtmgp_srcs}
-							${CMAKE_CURRENT_BINARY_DIR}/modversion.f90
-						DEPENDS tag_git_version
-						INCLUDES
-							${NETCDF_INCLUDE_DIR}
-							$<$<BOOL:${ENABLE_FFTW}>:${FFTW_INCLUDE_DIRS}>
-						LIBS
-							NetCDF::NetCDF_Fortran
-                            NetCDF::NetCDF_C
-                            $<$<BOOL:${ENABLE_ACC}>:OpenACC::OpenACC_Fortran>
-                            $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3>
-                            $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3f>
-                            $<$<BOOL:${ENABLE_HYPRE}>:${HYPRE_LIB}> 
-                            $<$<BOOL:${ENABLE_ACC}>:CUDA::cufft> 
-                            $<$<BOOL:${ENABLE_NVTX}>:CUDA::nvToolsExt>
+                        SOURCES
+                          ${dales_srcs}
+                          $<$<BOOL:${ENABLE_RRTMG}>:${rrtmg_lw_srcs}>
+                          $<$<BOOL:${ENABLE_RRTMG}>:${rrtmg_sw_srcs}>
+                          ${rrtmgp_srcs}
+                          ${CMAKE_CURRENT_BINARY_DIR}/modversion.f90
+                        DEPENDS tag_git_version
+                        INCLUDES
+                          ${NetCDF_Fortran_INCLUDE_DIR}
+                          $<$<BOOL:${ENABLE_FFTW}>:${FFTW_INCLUDE_DIRS}>
+                        LIBS
+                          NetCDF::NetCDF_Fortran
+                          NetCDF::NetCDF_C
+                          $<$<BOOL:${ENABLE_ACC}>:OpenACC::OpenACC_Fortran>
+                          $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3>
+                          $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3f>
+                          $<$<BOOL:${ENABLE_HYPRE}>:${HYPRE_LIB}>
+                          $<$<BOOL:${ENABLE_ACC}>:CUDA::cufft>
+                          $<$<BOOL:${ENABLE_NVTX}>:CUDA::nvToolsExt>
 )
 # Temporary
 if( ENABLE_ACC )
@@ -253,20 +261,20 @@ endif()
 
 # DALES library, e.g. for use with OMUSE. Only built if -DENABLE_DALESLIB is turned on.
 ecbuild_add_library( TARGET libdales
-					 SOURCES
-     				   ${dales_srcs}
-					   ${rrtmg_lw_srcs}
-				       ${rrtmg_sw_srcs}
-					   ${rrtmgp_srcs}
-					   ${CMAKE_CURRENT_BINARY_DIR}/modversion.f90
-					 DEPENDS tag_git_version
-					 PUBLIC_INCLUDES
-					   ${NETCDF_INCLUDE_DIR}
-					   $<$<BOOL:${ENABLE_FFTW}>:${FFTW_INCLUDE_DIRS}>
-					 PUBLIC_LIBS
-					   NetCDF::NetCDF_Fortran
-					   $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3>
-     				   $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3f>
-					   $<$<BOOL:${ENABLE_HYPRE}>:${HYPRE_LIB}>
-					 CONDITION ENABLE_DALESLIB
+                     SOURCES
+                       ${dales_srcs}
+                       ${rrtmg_lw_srcs}
+                       ${rrtmg_sw_srcs}
+                       ${rrtmgp_srcs}
+                       ${CMAKE_CURRENT_BINARY_DIR}/modversion.f90
+                     DEPENDS tag_git_version
+                     PUBLIC_INCLUDES
+                       ${NetCDF_Fortran_INCLUDE_DIR}
+                       $<$<BOOL:${ENABLE_FFTW}>:${FFTW_INCLUDE_DIRS}>
+                     PUBLIC_LIBS
+                       NetCDF::NetCDF_Fortran
+                       $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3>
+                       $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3f>
+                       $<$<BOOL:${ENABLE_HYPRE}>:${HYPRE_LIB}>
+                     CONDITION ENABLE_DALESLIB
 )

@@ -49,7 +49,6 @@ module moddepcrosssection
 contains
   !> Initializing depcrosssection. Read out the namelist, initializing the variables
   subroutine initdepcrosssection
-    use mpi
     use modmpi, only : myid, comm3d, myidx, myidy, &
         mpierr, D_MPI_BCAST
     use modglobal, only : dtav_glob, ifnamopt, fname_options, &

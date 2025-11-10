@@ -209,7 +209,7 @@ SAVE
   real              :: gDav = -1
 
   ! Turbulent exchange variables
-  logical           :: lmostlocal  = .false.  !<  Switch to apply MOST locally to get local Obukhov length
+  logical           :: lmostlocal  = .true.   !<  Switch to apply MOST locally to get local Obukhov length
   logical           :: lsmoothflux = .false.  !<  Create uniform sensible and latent heat flux over domain
   logical           :: lneutral    = .false.  !<  Disable stability corrections
   real, allocatable :: obl   (:,:)            !<  Obukhov length [m]
@@ -240,7 +240,7 @@ SAVE
   real              :: ustin  = -1            !<  Prescribed friction velocity [m/s]
   real              :: wtsurf = -1e20         !<  Prescribed kinematic temperature flux [K m/s]
   real              :: wqsurf = -1e20         !<  Prescribed kinematic moisture flux [kg/kg m/s]
-  real              :: wsvsurf(100) = 0       !<  Prescribed surface scalar(n) flux [- m/s]
+  real(field_r), allocatable :: wsvsurf(:)    !<  Prescribed surface scalar(n) flux [- m/s]
   integer           :: i_expemis = -1         !<  Scalar index for which the exponential emission should be applied [-]
   real              :: expemis0 = 0.0         !<  Maximum exponential emission [ppb m/s]
   real              :: expemis1 = 0.0         !<  Time of maximum exponential emission [s]
@@ -311,5 +311,5 @@ SAVE
   logical           :: ltskininp = .false.
   real, allocatable :: tskininp(:,:,:), ttskin(:)
   integer           :: nttskin
-
+  !$acc declare create(xpatches, ypatches)
 end module modsurfdata

@@ -1,36 +1,22 @@
 module modtracer_type
 
   use modprecision, only: field_r
- 
-  implicit none
-  
-  type T_tracer
-  ! Fixed tracer properties
-      ! Tracer name
-      character(len=16) :: tracname
-      ! Tracer long name
-      character(len=64) :: traclong="dummy long name"
-      ! Tracer unit
-      character(len=16) :: unit="dummy unit"
-      ! Moleculare mass of tracer (g mol-1)
-      real(field_r)     :: molar_mass=-999.
-      ! Tracer index in sv0, svm, svp
-      integer           :: trac_idx=-1
-      ! Boolean if tracer is emitted 
-      logical           :: lemis=.false.
-      ! Boolean if tracer is reactive
-      logical           :: lreact=.false.
-      ! Boolean if tracer is deposited
-      logical           :: ldep=.false.
-      ! Boolean if in A-gs
-      logical           :: lags=.false.
-      ! Boolean if in cloud microphysics
-      logical           :: lmicro=.false.
-      ! Boolean if tracer is nudged
-      logical           :: lnudge=.false.
-      ! ! Static tracer properties:
-      ! real :: diffusivity
 
+  implicit none
+
+  type T_tracer
+    character(len=16) :: tracname           !< Tracer name
+    character(len=64) :: traclong = "dummy long name" !< Tracer long name
+    character(len=16) :: unit = "dummy unit" !< Tracer unit
+    real(field_r)     :: molar_mass = -999. !< Molecular mass of tracer (g mol-1)
+    integer           :: trac_idx = -1      !< Tracer index in sv0, svm, svp
+    logical           :: lemis = .false.    !< Boolean if tracer is emitted
+    logical           :: lreact = .false.   !< Boolean if tracer is reactive
+    logical           :: ldep = .false.     !< Boolean if tracer is deposited
+    logical           :: lags = .false.     !< Boolean if in A-gs
+    logical           :: lmicro = .false.   !< Boolean if in cloud microphysics
+    real(field_r)     :: wsvsurf = 0        !< Kinematic surface flux (- m/s)
+    logical           :: lnudge = .false.   !< Boolean if tracer is nudged
   contains
     procedure :: print_properties => tracer_print_properties
   end type T_tracer
@@ -38,7 +24,6 @@ module modtracer_type
 contains
 
   subroutine tracer_print_properties(self)
-
     class(T_tracer), intent(in) :: self
 
     write(*,*) "Tracer: ", self%tracname
@@ -51,7 +36,7 @@ contains
     write(*,*) "  ldep       : ", self%ldep
     write(*,*) "  lags       : ", self%lags
     write(*,*) "  lmicro     : ", self%lmicro
-
+    write(*,*) "  wsvsurf    : ", self%wsvsurf
   end subroutine tracer_print_properties
 
 end module modtracer_type

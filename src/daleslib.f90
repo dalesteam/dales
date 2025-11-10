@@ -157,15 +157,12 @@ module daleslib
             call inittimestat  ! Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
             call initgenstat   ! Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
             !call inittilt
-            call initsampling
             call initquadrant
             call initcrosssection
             call initAGScross
             call initlsmcrosssection
             !call initprojection
             call initcloudfield
-            call initfielddump
-            call initsamptend
             call initradstat
             call initradfield
             call initlsmstat
@@ -177,12 +174,15 @@ module daleslib
             call initvarbudget
             !call initstressbudget
             call initchem
+            call initsampling
+            call initfielddump
+            call initsamptend
             call initheterostats
             call initcanopy
-
+            
             !call initspectra2
             call initcape
-
+            
             !Set additional library information
             my_task=myid
             master_task=0
@@ -427,7 +427,7 @@ module daleslib
             use modtimedep,         only : timedep
             use modboundary,        only : boundary, grwdamp! JvdD ,tqaver
             use modthermodynamics,  only : thermodynamics
-            use modmicrophysics,    only : microsources
+            use modmicrophysics,    only : microphysics
             use modsurface,         only : surface
             use modsubgrid,         only : subgrid
             use modforces,          only : forces, coriolis, lstend
@@ -519,7 +519,7 @@ module daleslib
             call samptend(tend_ls)
 
             !call check_tend('after lstend')
-            call microsources !Drizzle etc.
+            call microphysics !Drizzle etc.
             !call check_tend('after microsources')
             call samptend(tend_micro)
 

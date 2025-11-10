@@ -41,6 +41,7 @@ save
       integer ::  i2
       integer ::  j2
       integer ::  nsv = 0       !< Number of additional scalar fields
+      !$acc declare create (imax, jmax, itot, jtot)
 
       integer ::  ih=3
       integer ::  jh=3
@@ -53,7 +54,11 @@ save
       integer(kind=longint) :: itrestart !<     * each trestart sec. a restart file is written to disk
       integer(kind=longint)    :: tnextrestart    !<     * each trestart sec. a restart file is written to disk
       character(50) :: startfile    !<    * name of the restart file
-      logical :: lstart_netcdf = .false.      !< Start from a NetCDF file
+
+      ! Format of input files
+      integer, parameter :: input_ascii = 1      !< Classic DALES ASCII input
+      integer, parameter :: input_netcdf = 2     !< NetCDF input
+      integer            :: iinput = input_ascii !< Selected input format
 
       logical :: llsadv   = .false. !<  switch for large scale forcings
       integer :: ntimedep = 100     !< maximum number of time points for time-dependent forcings
@@ -93,6 +98,7 @@ save
       real(field_r),parameter :: eps1     = 1.e-10           !<    *very small number*
       real,parameter :: epscloud = 1.e-5            !<    *limit for cloud calculation 0.01 g/kg
       real,parameter :: boltz    = 5.67e-8          !<    *Stefan-Boltzmann constant
+      real(field_r), parameter :: pirhow = pi*rhow/6 !< Microphysics, conversion of mass to diameter.
 
       ! Land-surface
       real,parameter :: rho_solid_soil = 2700       !< Density of dry solid soil (kg m-3)
@@ -101,8 +107,8 @@ save
       real,parameter :: gamma_T_matrix = 3.4293695508945325 !< Heat conductivity soil [J s-1 m-1 K-1]
       real,parameter :: gamma_T_water  = 0.57       !< Heat conductivity water [J s-1 m-1 K-1]
 
-      logical :: lcoriol  = .true.  !<  switch for coriolis force
-      logical :: lpressgrad = .true.  !<  switch for horizontal pressure gradient force
+      logical       :: lcoriol  = .true.  !<  switch for coriolis force
+      logical       :: lpressgrad = .false.  !<  switch for horizontal pressure gradient (not to be used in combination with coriolis force)
       integer       :: igrw_damp = 2 !< switch to enable gravity wave damping
       real(field_r) :: geodamptime = 7200. !< time scale for nudging to geowind in sponge layer, prevents oscillations
       real(field_r) :: uvdamprate = 0.  !< rate for damping mean horizontal wind
@@ -138,21 +144,12 @@ save
 
       real :: lambda_crit=100. !< maximum value for the smoothness. This controls if WENO or
 
-      ! Tabulated saturation relation
-      real, dimension(1:2000) :: ttab
-      real, dimension(1:2000) :: esatltab
-      real, dimension(1:2000) :: esatitab
-      real, dimension(1:2000) :: esatmtab
-      real, dimension(-100:4000) :: mygamma251
-      real, dimension(-100:4000) :: mygamma21
-
-      !$acc declare copyin(esatltab, esatitab, esatmtab)
-
       logical :: lmoist   = .true.  !<   switch to calculate moisture fields
       logical :: lnoclouds = .false. !<   switch to enable/disable thl calculations
       logical :: lfast_thermo = .true. !<   switch to enable faster icethermo scheme
       logical :: lsgbucorr= .false.  !<   switch to enable subgrid buoyancy flux
       logical :: lconstexner = .false.  !<  switch to use the initial pressure profile in the exner function
+      logical :: lbaseexner = .false.   !<  switch to use the base pressure profile in the exner function
 
       ! Poisson solver: modpois / modhypre
       ! set default solver, can be overridden in namoptions
@@ -278,6 +275,7 @@ contains
 !! Set courant number, calculate the grid sizes (both computational and physical), and set the coriolis parameter
   subroutine initglobal
     use modmpi, only : nprocx, nprocy, myid,comm3d, mpierr, D_MPI_BCAST
+    use modnetcdf, only: check
     implicit none
 
     integer :: advarr(4)
@@ -334,28 +332,6 @@ contains
 
     ! Global constants
 
-    ! esatltab(m) gives the saturation vapor pressure over water at T corresponding to m
-    ! esatitab(m) is the same over ice
-    ! esatmtab(m) is interpolated between the ice and liquid values with ilratio
-    ! http://www.radiativetransfer.org/misc/atmlabdoc/atmlab/h2o/thermodynamics/e_eq_water_mk.html
-    ! Murphy and Koop 2005 parameterization formula.
-    do m=1,2000
-      ttab(m)=150.+0.2*m
-      esatltab(m)=exp(54.842763-6763.22/ttab(m)-4.21*log(ttab(m))+0.000367*ttab(m)+&
-           tanh(0.0415*(ttab(m)-218.8))*(53.878-1331.22/ttab(m)-9.44523*log(ttab(m))+ 0.014025*ttab(m)))
-
-      esatitab(m)=exp(9.550426-5723.265/ttab(m)+3.53068*log(ttab(m))-0.00728332*ttab(m))
-      ilratio = max(0.,min(1.,(ttab(m)-tdn)/(tup-tdn)))
-      esatmtab(m) = ilratio*esatltab(m) + (1-ilratio)*esatitab(m)
-    end do
-
-    mygamma251(-100)=0.
-    mygamma21(-100)=0.
-    do m=-99,4000
-      mygamma251(m)=max(lacz_gamma(m/100._dp+2.5_dp)/lacz_gamma(m/100._dp+1._dp)*( ((m/100.+3)*(m/100.+2)*(m/100.+1))**(-1./2.) ),0.)
-      mygamma21(m)=max(lacz_gamma(m/100._dp+2._dp)/lacz_gamma(m/100._dp+1._dp)*( ((m/100.+3)*(m/100.+2)*(m/100.+1))**(-1./3.) ),0.)
-    end do
-
     ! Select advection scheme for scalars. If not set in the options file, the momentum scheme is used
     if (iadv_tke<0) iadv_tke = iadv_mom
     if (iadv_thl<0) iadv_thl = iadv_mom
@@ -371,13 +347,10 @@ contains
     phi    = xlat*pi/180.
     colat  = cos(phi)
     silat  = sin(phi)
-    if (lcoriol) then
-      omega = 7.292e-5
-      omega_gs = 7.292e-5
-    else
-      omega = 0.
-      omega_gs = 0.
-    end if
+
+    omega = 7.292e-5
+    omega_gs = 7.292e-5
+
     om22   = 2.*omega*colat
     om23   = 2.*omega*silat
     om22_gs   = 2.*omega_gs*colat
@@ -385,7 +358,6 @@ contains
 
     ! Variables
     write(cexpnr,'(i3.3)') iexpnr
-
 
     ! Create the physical grid variables
     allocate(dzf(k1), dzfi(k1))
@@ -404,15 +376,11 @@ contains
     ! Note, that the loop for reading zf and calculating zh
     ! has been split so that reading is only done on PE 1
 
-    if (lstart_netcdf) then
-      ierr = nf90_open('init.'//cexpnr//'.nc', NF90_NOWRITE, ncid)
-      if (ierr /= nf90_noerr) call abort
-      ierr = nf90_inq_varid(ncid, 'zh', height_id)
-      if (ierr /= nf90_noerr) call abort
-      ierr = nf90_get_var(ncid, height_id, zf, start=(/ 1 /), count=(/ kmax /))
-      if (ierr /= nf90_noerr) call abort
-      ierr = nf90_close(ncid)
-      if (ierr /= nf90_noerr) call abort
+    if (iinput == input_netcdf) then
+      call check(nf90_open('init.'//cexpnr//'.nc', NF90_NOWRITE, ncid),'init.'//cexpnr//'.nc', __LINE__)
+      call check(nf90_inq_varid(ncid, 'zh', height_id),'init.'//cexpnr//'.nc', __LINE__)
+      call check(nf90_get_var(ncid, height_id, zf, start=(/ 1 /), count=(/ kmax /)),'init.'//cexpnr//'.nc', __LINE__)
+      call check(nf90_close(ncid),'init.'//cexpnr//'.nc', __LINE__)
     else
       if(myid==0)then
         open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
@@ -512,14 +480,13 @@ contains
 !     tnextrestart = trestart/tres
 !     timeleft=ceiling(runtime/tres)
 
-    !$acc enter data copyin(dzf, dzh, dzfi,dzhi, zh, zf, delta, deltai, &
-    !$acc&                  esatmtab, esatitab, esatltab, mygamma251, mygamma21)
+    !$acc enter data copyin(dzf, dzh, dzfi, dzhi, zh, zf, delta, deltai)
+    !$acc update device (imax, jmax, itot, jtot)
 
   end subroutine initglobal
 !> Clean up when leaving the run
   subroutine exitglobal
-    !$acc exit data delete(dzf, dzh, zh, zf, delta, deltai, &
-    !$acc&                 esatmtab, esatitab, esatltab, mygamma251, mygamma21)
+    !$acc exit data delete(dzf, dzh, zh, zf, delta, deltai)
 
     deallocate(dzf,dzh,dzfi,dzhi,zh,zf,delta,deltai)
   end subroutine exitglobal

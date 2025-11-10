@@ -76,10 +76,10 @@ contains
     use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres,&
          checknamelisterror, output_prefix
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
-    use modtracers, only : tracer_prop
+    use modtracers, only : tracer_prop, get_tracer_index
     use modmicrodata, only : imicro, imicro_sice, imicro_sice2
     implicit none
-    integer :: ierr, n
+    integer :: ierr, n, iqr
     character(3) :: csvname
 
     namelist/NAMFIELDDUMP/ &
@@ -103,6 +103,14 @@ contains
          lcli = .false.
          lclw = .false.
       end if
+      if (lplw.or.lpli) then
+        iqr = get_tracer_index("qr")
+      endif
+      if ((iqr == 0).and.((lplw.or.lpli))) then
+        print *, "lplw or lpli are true but there is no qr tracer. Turning plw and pli output off."
+        lplw = .false.
+        lpli = .false. 
+      endif
     end if
     call D_MPI_BCAST(ncoarse     ,1,0,comm3d,ierr)
     call D_MPI_BCAST(klow        ,1,0,comm3d,ierr)
@@ -272,9 +280,10 @@ contains
                           timee,dt_lim,cexpnr,ifoutput,rtimee,cp,tdn,tup
     use modmpi,    only : myid,cmyidx, cmyidy
     use modstat_nc, only : lnetcdf, writestat_nc
-    use modmicrodata, only : iqr, imicro, imicro_none, tuprsg, tdnrsg
+    use modsimpleice_data, only: tuprsg, tdnrsg
     use modraddata, only   :lwu,lwd,swu,swd
     use modthermodynamics, only: qsat_tab
+    use modtracers, only : get_tracer_index
 #if defined(_OPENACC)
     use modgpu, only: update_host
 #endif
@@ -282,7 +291,7 @@ contains
 
     integer(KIND=selected_int_kind(4)), allocatable :: field(:,:,:)
     real, allocatable :: vars(:,:,:,:)
-    integer i,j,k,n,ii,jj
+    integer i,j,k,n,ii,jj,iqr
     integer :: writecounter = 1
     integer :: reclength
 
@@ -300,6 +309,9 @@ contains
 
     ! Only write fields if time is in the range (tmin, tmax)
     if (timee < itmin .or. timee > itmax) return
+
+    iqr = get_tracer_index("qr")
+
 
     !$acc update self(u0) if(lu) async
     !$acc update self(v0) if(lv) async
@@ -398,7 +410,8 @@ contains
     end if
 
     if (lbinary) then
-      if(imicro/=imicro_none) then
+      ! iqr was set via get_tracer_index, if iqr>0 qr exists and we can do calculations independent of microphysics scheme.
+      if(iqr>0) then
          do i=2-ih,i1+ih
             do j=2-jh,j1+jh
                do k=1,k1
@@ -457,6 +470,7 @@ contains
     ! liquid and ice precip
     ! assuming simpleice is used
     !rsgratio_= max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg))) ! rain vs snow/graupel partitioning   rsg = 1 if t > tuprsg
+    ! we're assuming iqr is nonzero as in initfielddump we checked qr presence and disabled lplw and lpli if qr was not present
     if (lnetcdf .and. lplw) vars(:,:,:,ind_plw) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,iqr) * &
          max(0._field_r,min(1._field_r,(tmp0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)-tdnrsg)/(tuprsg-tdnrsg)))
     if (lnetcdf .and. lpli) vars(:,:,:,ind_pli) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,iqr)  * &

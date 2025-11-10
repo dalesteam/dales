@@ -1,6 +1,7 @@
 module modbulkmicro3_column
-  use modprecision, only: field_r
-  use modmicrodata
+  use modglobal,    only: pirhow
+  use modmicrodata, only: delt
+  use modbulkmicro_data, only: l_lognormal, l_mur_cst, l_sb, mur_cst, sig_gr
   use modmicrodata3
   implicit none
   private
@@ -371,12 +372,12 @@ subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, precep_hr, tend)
               ! BUG: Dvr_spl unset? reusing the one from l_sb_classic
               Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr_spl
 
-              sed_qr(k) = 1.*sed_flux3(Nr_spl(k),Dgr,log(sig_gr)**2,D_s,3)
-              sed_Nr(k) = 1./pirhow*sed_flux3(Nr_spl(k),Dgr,log(sig_gr)**2,D_s,0)
+              sed_qr(k) = 1.*sed_flux3(Nr_spl(k),Dgr,log(real(sig_gr))**2,D_s,3)
+              sed_Nr(k) = 1./pirhow*sed_flux3(Nr_spl(k),Dgr,log(real(sig_gr))**2,D_s,0)
 
               ! correction for the fact that pwcont .ne. qr_spl
               ! actually in this way for every grid box a fall velocity is determined
-              pwcont = liq_cont3(Nr_spl(k),Dgr,log(sig_gr)**2,D_s,3)         ! note : kg m-3
+              pwcont = liq_cont3(Nr_spl(k),Dgr,log(real(sig_gr))**2,D_s,3)         ! note : kg m-3
               if (pwcont > eps1) then
                 sed_qr(k) = (qr_spl(k)*rhof(k)/pwcont)*sed_qr(k)
               end if
@@ -840,7 +841,7 @@ real function sed_flux3(Nin,Din,sig2,Ddiv,nnn)
   implicit none
 
   real, intent(in)    :: Nin, Din
-  real(field_r), intent(in)    :: Ddiv, sig2
+  real, intent(in)    :: Ddiv, sig2
   integer, intent(in) :: nnn
 
   ! para. def. lognormal DSD (sig2 = ln^2 sigma_g), D sep. droplets from drops
@@ -898,7 +899,7 @@ real function liq_cont3(Nin,Din,sig2,Ddiv,nnn)
   implicit none
 
   real, intent(in)    :: Nin, Din
-  real(field_r), intent(in) :: Ddiv, sig2
+  real, intent(in) :: Ddiv, sig2
   integer, intent(in) :: nnn
 
   ! para. def. lognormal DSD (sig2 = ln^2 sigma_g), D sep. droplets from drops
@@ -930,7 +931,7 @@ end function liq_cont3
 real function erfint3(beta, D, D_min, D_max, sig2,nnn )
   implicit none
   real, intent(in)    :: beta, D, D_min, D_max
-  real(field_r), intent(in) :: sig2
+  real, intent(in) :: sig2
   integer, intent(in) :: nnn
 
   real, parameter :: eps = 1e-10      &

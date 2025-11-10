@@ -1,10 +1,31 @@
 !###############################################################################
 !
-!                       Copyright by
-!   National Institute of Public Health and Environment
-!                      The Netherlands
-!   No part of this software may be used, copied or distributed 
-!           without permission of RIVM (2015)
+!  ** NOTICE **
+! This code is based on the DEPAC model developed by National Institute of 
+! Public Health and Environment of The Netherlands (RIVM, 2015). The original
+! model is copyrighted by RIVM under the name DEPAC. The derived version of
+! the model presented here deviates from the original version and is not to 
+! be used under the name DEPAC.
+!
+!
+! This file is part of DALES
+!
+! DALES is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! DALES is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with DALES.  If not, see <http://www.gnu.org/licenses/>.
+!
+!###############################################################################
+!
+! ** Original documentation of DEPAC **
 !
 !  MODULE             : LE_DryDepos_Gas_DEPAC
 !  INTERFACE          : DryDepos_Gas_DEPAC
@@ -399,11 +420,10 @@
 #define IF_NOTOK_RETURN(action) if (status/=0) then; TRACEBACK; action; return; end if
 #define IF_ERROR_RETURN(action) if (status> 0) then; TRACEBACK; action; return; end if
 !
-#include "le.inc"
 !
 !###############################################################################
 
-module LE_DryDepos_Gas_DEPAC
+module LE_DryDepos_Gas
 
   use GO, only : gol, goPr, goErr
   use modprecision, only : field_r
@@ -416,7 +436,7 @@ module LE_DryDepos_Gas_DEPAC
   private
   
   ! main routine:
-  public    ::  DryDepos_Gas_DEPAC
+  public    ::  DryDepos_Gas
   
   ! input function:
   public    ::  Get_N_S_Regime
@@ -425,7 +445,7 @@ module LE_DryDepos_Gas_DEPAC
   
   ! --- const ------------------------------------  
 
-  character(len=*), parameter   ::  mname = 'LE_DryDepos_Gas_DEPAC'
+  character(len=*), parameter   ::  mname = 'LE_DryDepos_Gas'
 
 ! Include constants and landuse dependent parameters from standard input files
 ! These files are also used by LE_Landuse_data for the rest of the model  
@@ -435,7 +455,7 @@ module LE_DryDepos_Gas_DEPAC
 !   rsoil_frozen(ncmp)
 !   diffc       (ncmp)
 ! Do not pass these as arguments too, this might give strange results ..
-#include "depac_lu.inc"
+#include "depos_lu.inc"
 
   ! NH3/SO2 ratio regimes:
   integer, parameter  ::  iratns_low      = 1 ! low ratio NH3/SO2
@@ -450,45 +470,45 @@ contains
 
 !**********************************************************************************
 !
-! main routine depac
+! main routine deposition model
 !
 !**********************************************************************************
 
 !-------------------------------------------------------------------
-! depac: compute total canopy (or surface) resistance Rc for gases
+! compute total canopy (or surface) resistance Rc for gases
 !-------------------------------------------------------------------
-subroutine DryDepos_Gas_DEPAC( compnam, day_of_year, lat, t, ust, glrad, sinphi, rh, &
-                                 lai, sai, nwet, lu, iratns, &
-                                 rc_tot, ccomp_tot, hlaw, react, &
-                                 status, &
-                                 p, tsea, smi, &
-                                 c_ave_prev_nh3, c_ave_prev_so2, catm, gamma_soil_water, &
-                                 ra, rb, rc_eff, &
-                                 gw_out, gstom_out, gsoil_eff_out, cw_out, cstom_out, csoil_out, &
-                                 calc_stom_o3flux, frac_sto_o3_lu, fac_surface_area_2_PLA )
+subroutine DryDepos_Gas( compnam, day_of_year, lat, t, ust, glrad, sinphi, rh, &
+                         lai, sai, nwet, lu, iratns, &
+                         rc_tot, ccomp_tot, hlaw, react, &
+                         status, &
+                         p, tsea, smi, &
+                         c_ave_prev_nh3, c_ave_prev_so2, catm, gamma_soil_water, &
+                         ra, rb, rc_eff, &
+                         gw_out, gstom_out, gsoil_eff_out, cw_out, cstom_out, csoil_out, &
+                         calc_stom_o3flux, frac_sto_o3_lu, fac_surface_area_2_PLA )
 
-!!DEC$ ATTRIBUTES DLLEXPORT:: DryDepos_Gas_DEPAC
+!!DEC$ ATTRIBUTES DLLEXPORT:: DryDepos_Gas
 
-! The last four rows of depac arguments are optional:
+! The last four rows of arguments are optional:
 !
 ! A. compute Rc_tot without compensation points (ccomp_tot will be zero):
-!     call depac (compnam, day_of_year, lat, t, ust, glrad, sinphi, rh, nwet, lu, iratns, rc_tot, ccomp_tot, [smi])
+!     call DryDepos_Gas (compnam, day_of_year, lat, t, ust, glrad, sinphi, rh, nwet, lu, iratns, rc_tot, ccomp_tot, [smi])
 !
 ! B. compute Rc_tot with compensation points (used for LOTOS-EUROS):
-!     call depac (compnam, day_of_year, lat, t, ust, glrad, sinphi, rh, nwet, lu, iratns, rc_tot, ccomp_tot, [smi], &
+!     call DryDepos_Gas (compnam, day_of_year, lat, t, ust, glrad, sinphi, rh, nwet, lu, iratns, rc_tot, ccomp_tot, [smi], &
 !                  c_ave_prev_nh3, c_ave_prev_so2, catm, gamma_soil_water)
 !
 ! C. compute effective Rc based on compensation points (used for OPS):
-!     call depac (compnam, day_of_year, lat, t, ust, glrad, sinphi, rh, nwet, lu, iratns, rc_tot, ccomp_tot, [smi], &
+!     call DryDepos_Gas (compnam, day_of_year, lat, t, ust, glrad, sinphi, rh, nwet, lu, iratns, rc_tot, ccomp_tot, [smi], &
 !                 c_ave_prev_nh3, c_ave_prev_so2, catm, gamma_soil_water, &
 !                 ra, rb, rc_eff)
 ! X1. Extra (optional) output variables: 
-!     call depac (compnam, day_of_year, lat, t, ust, glrad, sinphi, rh, nwet, lu, iratns, rc_tot, ccomp_tot, [smi], &
+!     call DryDepos_Gas (compnam, day_of_year, lat, t, ust, glrad, sinphi, rh, nwet, lu, iratns, rc_tot, ccomp_tot, [smi], &
 !                 c_ave_prev_nh3, c_ave_prev_so2, catm, gamma_soil_water, &
 !                 ra, rb, rc_eff, &
 !                 gw_out, gstom_out, gsoil_eff_out, cw_out, cstom_out, csoil_out, lai_out, sai_out)
 ! X2. Extra (optional) needed for stomatal ozone flux calculation (only sunlit leaves): 
-!     call depac (compnam, day_of_year, lat, t, ust, glrad, sinphi, rh, nwet, lu, iratns, rc_tot, ccomp_tot, [smi], &
+!     call DryDepos_Gas (compnam, day_of_year, lat, t, ust, glrad, sinphi, rh, nwet, lu, iratns, rc_tot, ccomp_tot, [smi], &
 !                 c_ave_prev_nh3, c_ave_prev_so2, catm, gamma_soil_water, &
 !                 ra, rb, rc_eff, &
 !                 gw_out, gstom_out, gsoil_eff_out, cw_out, cstom_out, csoil_out, lai_out, sai_out, &
@@ -499,7 +519,7 @@ implicit none
 character(len=*) , intent(in)  :: compnam          ! component name
                                                    ! 'HNO3','NO','NO2','O3','SO2','NH3'
 integer          , intent(in)  :: day_of_year      ! day of year, 1 ... 365 (366)
-real             , intent(in)  :: lat              ! latitude Northern hemisphere (degrees) (DEPAC cannot be used for S. hemisphere)
+real             , intent(in)  :: lat              ! latitude Northern hemisphere (degrees) (model cannot be used for S. hemisphere)
 real             , intent(in)  :: t                ! temperature (C)
                                                    ! NB discussion issue is temp T_2m or T_surf or T_leaf?
 real             , intent(in)  :: ust              ! friction velocity (m/s)
@@ -551,7 +571,7 @@ real, optional   , intent(out) :: frac_sto_o3_lu  ! contribution of stomatal con
 real, optional   , intent(out) :: fac_surface_area_2_PLA ! factor to convert from m2 surface area to m2 Projected Leaf Area (PLA) (-)
 
 ! constants:
-character(len=*), parameter   ::  rname = mname//'/DryDepos_Gas_DEPAC'
+character(len=*), parameter   ::  rname = mname//'/DryDepos_Gas'
 
 ! Local variables:
 real                           :: laimax          ! maximum leaf area index (-)
@@ -819,7 +839,7 @@ end if
 ! ok
 status = 0
 
-end subroutine DryDepos_Gas_DEPAC
+end subroutine DryDepos_Gas
 
 !************************************************************************************
 ! help routines
@@ -1305,7 +1325,7 @@ if (LAI_present) then
    end if
       
    ! influence of phenology on stom. conductance
-   ! ignored for now in DEPAC since influence of F_phen on lu classes in use is negligible.
+   ! ignored for now since influence of F_phen on lu classes in use is negligible.
    ! When other EMEP classes (e.g. med. broadleaf) are used f_phen might be too important to ignore
    F_phen = 1.
 
@@ -2034,4 +2054,4 @@ end function missing
   end function Get_N_S_Regime
 
 
-end module LE_DryDepos_Gas_DEPAC
+end module LE_DryDepos_Gas

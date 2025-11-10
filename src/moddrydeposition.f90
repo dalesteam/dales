@@ -6,8 +6,6 @@
 !! file in `tracernames`, and these will align with `emisnames` in case all emitted
 !! species are also deposited.
 !
-! Copyright (c) 2020-2022 TNO
-!
 ! This file is part of DALES
 !
 ! DALES is free software: you can redistribute it and/or modify
@@ -57,8 +55,7 @@ module moddrydeposition
                                               0.11e-4,  0.14e-4,  0.11e-4,  0.18e-4,  0.16e-4,  0.25e-4, &
                                               0.18e-4/)
 
-! Unfortunately, there is no other way to get the parameters from DEPAC (lai_par, laitype)
-#include "depac_lu.inc"
+#include "depos_lu.inc"
 
 contains
 
@@ -161,49 +158,49 @@ subroutine drydep  ! called in program.f90
 
 end subroutine drydep
 
-!> Wrapper function around call to DEPAC to calculate total canopy resistance
+!> Wrapper function around call to deposition model to calculate total canopy resistance
 !!
-!! Rc is calculated with the DEPAC model (v3.21 with minor changes by TNO) using the
-!! classical approach without compensation points.
+!! Rc is calculated with the DEPAC-derived deposition model (v3.21 with minor changes by TNO) using the
+!! classical approach without compensation points. 
 !!
-!! The DEPAC specific calculations are performed by `DryDepos_Gas_DEPAC`.
+!! The deposition specific calculations are performed by `DryDepos_Gas`.
 !!
 !! @param[in] ilu Tile index number (defined by land use class)
 !!
 !! @see M.C. van Zanten et al., "Description of the DEPAC module", RIVM report nr. 680180001/2010
-!! @see DryDepos_Gas_DEPAC
-subroutine depac_call(ilu, species, species_idx)                !GT added variable of species_idx for trac_id to allow looping in the calculations of ccomp
+!! @see DryDepos_Gas
+subroutine depos_call(ilu, species, species_idx)  !GT added variable of species_idx for trac_id to allow looping in the calculations of ccomp
   use modlsm, only : tile
   use modglobal, only : i1, j1, xday, xlat, xlon, xtime, rtimee
   use modfields, only : thl0, exnf, qt0, qsat, sv0             !GT added sv0
-  use le_drydepos_gas_depac, only : DryDepos_Gas_DEPAC
+  use le_drydepos_gas, only : DryDepos_Gas
   use modraddata, only : zenith, swd
   use utils, only : to_upper
   implicit none
 
-  integer, intent(in) :: ilu, species_idx               !GT added species_idx
+  integer, intent(in) :: ilu, species_idx
   character(*), intent(in) :: species
-  character(len=6) :: depac_species
-  integer :: i, j, nwet = 0, status, depac_ilu          !GT added isv as an integer
-  real :: T, RH, sinphi, lai, sai                       !GT removed ccomp_tot as a real variable
+  character(len=6) :: depos_species
+  integer :: i, j, nwet = 0, status, depos_ilu
+  real :: T, RH, sinphi, lai, sai
 
   ! Temporary values, until something better is available
   ! for now, assuming low NH3/SO2 ratios
   integer, parameter :: iratns = 1
 
-  ! TEMPORARY HACK, Assume NOx=NO2, since DEPAC needs NO/NO2
+  ! TEMPORARY HACK, Assume NOx=NO2, since deposition model needs NO/NO2
   if (trim(species) == 'nox') then
-    depac_species = 'NO2'
-  else
-    depac_species = to_upper(trim(species))
+    depos_species = 'NO2' 
+  else 
+    depos_species = to_upper(trim(species))
   end if
 
-  depac_ilu = get_depac_luindex(tile(ilu)%lushort)
+  depos_ilu = get_depos_luindex(tile(ilu)%lushort)
 
   ! Currently used conventions:
   ! - To calculate RH, qt0 and qsat are used. There may be a better way, in fact, I believe qt is the total
   !   specific humidity, which includes liquid moisture. Should ql be subtracted?
-  ! - Latitude fed to DEPAC is the latitude of the lower left corner of the domain
+  ! - Latitude fed to deposition model is the latitude of the lower left corner of the domain
   ! - As temperature, the temperature in the lowest layer is used. It is disputable whether this is correct, might need
   !   to be changed to 2m temperature or leaf temperature (provided they are available)
   ! - The `nwet` parameter is only used to discern between dry and wet; snow is not covered yet.
@@ -211,7 +208,7 @@ subroutine depac_call(ilu, species, species_idx)                !GT added variab
   ! - The parameter `ccomp_tot` needs to be provided, but is not used (default 0)
   ! - Parameters after `ccomp_tot` are: `hlaw` for Henry's law constant, which is not used for non-VBS
   !   species, `react` for reactivity (not used for non-VBS species) and `status` for registering errors,
-  !   but these are already handled in the depac routine.
+  !   but these are already handled in the deposition routine.
   call calc_lai_sai(tile(ilu)%lushort, xday, xlat, tile(ilu)%SAI_a(2, 2), &
                     tile(ilu)%SAI_b(2, 2), lai, sai)  ! running the LAI & SAI here save imax x jmax -
   sinphi = zenith(xtime*3600 + rtimee, xday, xlat, xlon)
@@ -221,11 +218,11 @@ subroutine depac_call(ilu, species, species_idx)                !GT added variab
       T = thl0(i, j, 1) * exnf(1)
       RH = qt0(i, j, 1) / qsat(i, j, 1) * 100
       ! swd needs to be negated, since it is pointing downward.
-      ! tsea is a temperature DEPAC needs in case of water LU classes
-      call DryDepos_Gas_DEPAC(depac_species, int(xday), xlat, T, &
-                              tile(ilu)%ustar(i, j), -swd(i, j, 1), sinphi, RH, lai, sai, nwet, &
-                              depac_ilu, iratns, Rc(i, j), Ccomp(i, j), 0.0, 0.0, status, tsea=tile(ilu)%tskin(i, j), c_ave_prev_nh3=nh3_avg, &
-                              c_ave_prev_so2=so2_avg, catm=sv0(i,j,1,species_idx))         !GT added everything behind tsea, variables needed to calculate comp. if values are set to 0 no comp is calculated
+      ! tsea is a temperature the deposition model needs in case of water LU classes
+      call DryDepos_Gas(depos_species, int(xday), xlat, T, &
+                        tile(ilu)%ustar(i, j), -swd(i, j, 1), sinphi, RH, lai, sai, nwet, &
+                        depos_ilu, iratns, Rc(i, j), Ccomp(i, j), 0.0, 0.0, status, tsea=tile(ilu)%tskin(i, j), c_ave_prev_nh3=nh3_avg, &
+                        c_ave_prev_so2=so2_avg, catm=sv0(i,j,1,species_idx))         !GT added everything behind tsea, variables needed to calculate comp. if values are set to 0 no comp is calculated
       ! check for missing Rc values, i.e. -9999, and return huge resistance, so virtually no deposition takes place
       if (missing_real(Rc(i, j), -9999.)) then
         Rc(i,j) = 1.e5
@@ -239,23 +236,23 @@ subroutine depac_call(ilu, species, species_idx)                !GT added variab
 
 
   !! DEBUG feedback
-  ! write (6, '("DEPAC: Land use class= ",a)') tile(ilu)%lushort
-  ! write (6, '("DEPAC: species = ",a)') to_upper(trim(species))
-  ! write (6, '("DEPAC: xday = ",i3)') int(xday)
-  ! write (6, '("DEPAC: xlat= ",f10.4)') xlat
-  ! write (6, '("DEPAC: ustar(2, 2) = ",e12.4)') tile(ilu)%ustar(2, 2)
-  ! write (6, '("DEPAC: -swd(2, 2, 1)= ",f10.2)') -swd(2, 2, 1)
-  ! write (6, '("DEPAC: sinphi= ",f10.4)') sinphi
-  ! write (6, '("DEPAC: temperature= ",f10.2)') T
-  ! write (6, '("DEPAC: qt0(2, 2, 1)= ",f10.4)') qt0(2, 2, 1)
-  ! write (6, '("DEPAC: qsat(2, 2, 1)= ",f10.4)') qsat(2, 2, 1)
-  ! write (6, '("DEPAC: RH= ",f10.3)') RH
-  ! write (6, '("DEPAC: LAI= ",f10.1)') lai
-  ! write (6, '("DEPAC: SAI= ",f10.1)') sai
-  ! write (6, '("DEPAC: DEPAC ilu= ",i3)') depac_ilu
-  ! write (6, '("DEPAC: Rc(2, 2)= ",f12.2)') Rc(2, 2)
-  ! write (6, '("DEPAC: ccomp_tot= ",f10.3)') ccomp_tot
-end subroutine depac_call
+  ! write (6, '("DEPOSITION: Land use class= ",a)') tile(ilu)%lushort
+  ! write (6, '("DEPOSITION: species = ",a)') to_upper(trim(species))
+  ! write (6, '("DEPOSITION: xday = ",i3)') int(xday)
+  ! write (6, '("DEPOSITION: xlat= ",f10.4)') xlat
+  ! write (6, '("DEPOSITION: ustar(2, 2) = ",e12.4)') tile(ilu)%ustar(2, 2)
+  ! write (6, '("DEPOSITION: -swd(2, 2, 1)= ",f10.2)') -swd(2, 2, 1)
+  ! write (6, '("DEPOSITION: sinphi= ",f10.4)') sinphi
+  ! write (6, '("DEPOSITION: temperature= ",f10.2)') T
+  ! write (6, '("DEPOSITION: qt0(2, 2, 1)= ",f10.4)') qt0(2, 2, 1)
+  ! write (6, '("DEPOSITION: qsat(2, 2, 1)= ",f10.4)') qsat(2, 2, 1)
+  ! write (6, '("DEPOSITION: RH= ",f10.3)') RH
+  ! write (6, '("DEPOSITION: LAI= ",f10.1)') lai
+  ! write (6, '("DEPOSITION: SAI= ",f10.1)') sai
+  ! write (6, '("DEPOSITION: DEPOSITION ilu= ",i3)') depos_ilu
+  ! write (6, '("DEPOSITION: Rc(2, 2)= ",f12.2)') Rc(2, 2)
+  ! write (6, '("DEPOSITION: ccomp_tot= ",f10.3)') ccomp_tot
+end subroutine depos_call
 
 !> Finalize deposition calculation.
 !!
@@ -282,7 +279,7 @@ subroutine calc_depfield
   use modglobal, only : i1, j1, fkar
   use modfields, only : sv0
   use modlsm, only : tile, nlu
-  ! Necessary to retrieve/calculate all parameters necessary for the DEPAC routine
+  ! Necessary to retrieve/calculate all parameters necessary for the deposition routine
   implicit none
 
   integer :: ilu, isv, idt, i, j ! Indices for land use type (ilu), scalar variable (isv) and deposited tracer (idt)
@@ -301,12 +298,12 @@ subroutine calc_depfield
     ! HACK: now running only on non-wet tiles. Wet surfaces still to be covered.
     do ilu = 1, nlu - 1
       ! ilu = 5
-      call depac_call(ilu, tracer_prop(isv)%tracname, tracer_prop(isv)%trac_idx) ! Update Rc
+      call depos_call(ilu, tracer_prop(isv)%tracname, tracer_prop(isv)%trac_idx) ! Update Rc
       ! Quasilaminar sublayer resistance according to Hicks et al, Water Air Soil Pollut., v35, p311-330, 1987
       do j = 2, j1
         do i = 2, i1
           if (tile(ilu)%frac(i,j) > 0.) then
-            Rb(i,j) = 1/(fkar*tile(ilu)%ra(i,j)) * ScPrfac
+            Rb(i,j) = 1/(fkar*tile(ilu)%ustar(i,j)) * ScPrfac
             vd(i,j) = (tile(ilu)%ra(i,j) + Rb(i,j) + Rc(i,j)) ** (-1)
             ! Deposition flux in ug * m / (g * s)
             depfield(i,j,idt) = depfield(i,j,idt) - tile(ilu)%frac(i,j) * vd(i,j) * (sv0(i,j,1,tracer_prop(isv)%trac_idx) - Ccomp(i,j))  !GT added ccomp_tot to the deposition flux
@@ -356,8 +353,8 @@ end function findval
 !> Calculate the leaf area and surface area indices as a function of growing season
 !!
 !! This is (hopefully) a temporary function to be used until the land use classes of
-!! the LSM model directly relate to the DEPAC classes. It uses data defined in
-!! `depac_lu.inc` for now.
+!! the LSM model directly relate to the deposition model classes. It uses data defined in
+!! `depos_lu.inc` for now.
 !!
 !! @param[in] luclass The acronym of the LU class to calculate the LAI for
 !! @param[in] doy Day of the year
@@ -375,9 +372,9 @@ subroutine calc_lai_sai(luclass, doy, latitude, SAI_a, SAI_b, lai, sai)
   integer :: idx
   real :: sgs, mgs, egs
 
-  idx = get_depac_luindex(luclass)  ! If the index is not found, returns zero
+  idx = get_depos_luindex(luclass)  ! If the index is not found, returns zero
   if (idx == 0) then
-    write (6, *) "moddrydeposition ERROR: Land use class not found in DEPAC"
+    write (6, *) "moddrydeposition ERROR: Land use class not found in deposition model"
     stop  ! ... so stop the calculations
   end if
   tab_data = lai_par(idx)
@@ -419,9 +416,9 @@ end subroutine calc_lai_sai
 
 !> Calculate the latitude dependent start, maximum and end of growing season
 !!
-!! From DEPAC routines
+!! From deposition model routines
 !!
-!! @param[in] tab_data List of LAI parameters from `depac_lu.inc`
+!! @param[in] tab_data List of LAI parameters from `depos_lu.inc`
 !! @param[in] latitude The latitude of the location
 !! @param[out] sgs Start of the growing season
 !! @param[out] mgs Maximum of the growin season
@@ -446,39 +443,39 @@ subroutine SGS_MGS_EGS(tab_data, latitude, sgs, mgs, egs)
 
 end subroutine SGS_MGS_EGS
 
-!> Retrieve the three letter LU class acronym from the tile and return the corresponding index in DEPAC arrays
+!> Retrieve the three letter LU class acronym from the tile and return the corresponding index in parameter arrays
 !!
-!! This function is an interface between the current LSM implementation in DALES and the one used in DEPAC.
-!! Once both DALES and DEPAC incorporate an LSM model that is not hard linked to data, this function is no longer needed.
+!! This function is an interface between the current LSM implementation in DALES and the one used in the deposition model.
+!! Once both DALES and the deposition model incorporate an LSM model that is not hard linked to data, this function is no longer needed.
 !!
 !! @param[in] luclass The LU class acronym from the tile (`lushort`)
-!! @returns The corresponding index in DEPAC arrays defined in `depac_lu.inc`
-pure integer function get_depac_luindex(luclass)
+!! @returns The corresponding index in parameter arrays defined in `depos_lu.inc`  
+pure integer function get_depos_luindex(luclass)
   implicit none
   character(len=3), intent(in) :: luclass
   integer :: idx(1)
-  character(len=3) :: depac_lu
+  character(len=3) :: depos_lu
 
   select case (luclass)
     case ('fcd', 'fce')
-      depac_lu = 'cnf'
+      depos_lu = 'cnf'
     case ('fbd', 'fbe')
-      depac_lu = 'dec'
+      depos_lu = 'dec'
     case ('aqu')
-      depac_lu = 'wai'
+      depos_lu = 'wai'
     case ('sem')
-      depac_lu = 'grs'
+      depos_lu = 'grs'
     case ('brn')
-      depac_lu = 'dsr'
+      depos_lu = 'dsr'
     case default
-      depac_lu = luclass
+      depos_lu = luclass
   end select
 
-  idx = findloc(lu_name_abbr, depac_lu)
-  get_depac_luindex = idx(1)
-end function get_depac_luindex
+  idx = findloc(lu_name_abbr, depos_lu)
+  get_depos_luindex = idx(1)
+end function get_depos_luindex
 
-!> Auxiliary function (source: le_drydepos_gas_depac.f90)
+!> Auxiliary function (source: le_drydepos_gas.f90)
 !!
 !! Apalling way to check for missing values...
 !!

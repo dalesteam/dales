@@ -120,12 +120,14 @@ contains
 
 !>Run crosssection.
   subroutine docape
-    use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,rk3step,timee,rtimee,dt_lim,grav,eps1,&
-    nsv,ttab,esatltab,esatitab,zf,dzf,tup,tdn,zh,kcb
+    use modglobal, only : imax,jmax,i1,j1,k1,kmax,rlv,cp,rv,rd,rk3step,timee,rtimee,dt_lim,grav,eps1,&
+    zf,dzf,tup,tdn,zh,kcb
     use modfields, only : u0,v0,thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf
     use modstat_nc, only : lnetcdf, writestat_nc
     use modgenstat, only : qlmnlast,wthvtmnlast
-    use modmicrodata, only : iqr, precep, imicro
+    use modmicrodata, only : precep, imicro, imicro_bulk, imicro_sice, imicro_sice2
+    use modthermodynamics, only: ttab, esatltab, esatitab
+    use modtracers, only: get_tracer_index
     use modmpi
 #if defined(_OPENACC)
     use modgpu, only: update_host
@@ -142,7 +144,7 @@ contains
     logical,allocatable :: capemask(:,:,:)
 
     ! LOCAL VARIABLES
-    integer :: i,j,k,ktest,tlonr,thinr,niter,nitert,kdmax,kdmaxl
+    integer :: i,j,k,ktest,tlonr,thinr,niter,nitert,kdmax,kdmaxl,iqr
     real :: Tnr,Tnr_old,ilratio,tlo,thi,esl1,esi1,qsatur,thlguess,thlguessmin,ttry,qvsl1,qvsi1
     real :: thv_sum, rho_sum, thv_avg, u_sum, v_sum, tmpk, tmpkp
 
@@ -246,8 +248,11 @@ contains
     enddo
     enddo
 
-    if(nsv>1) then
-    if(imicro>0) then
+    iqr = get_tracer_index("qr")
+    if (iqr == 0) then
+       iqr = get_tracer_index("qhr")
+    endif
+    if (iqr > 0) then
       do k=1,k1
       do j=2,j1
       do i=2,i1
@@ -255,12 +260,13 @@ contains
       enddo
       enddo
       enddo
+   endif
+   if (imicro == imicro_sice .or. imicro == imicro_sice2 .or. imicro == imicro_bulk) then
       do j=2,j1
       do i=2,i1
       sprec(i,j)=precep(i,j,1)*rhobf(1) ! correct for density to find total rain mass-flux
       enddo
       enddo
-    endif
     endif
 
     ! Cloud base level quantities and reset tops

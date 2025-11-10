@@ -38,6 +38,7 @@
 module modsimpleice2
   use modfields, only : rhobf
   use modprecision, only : field_r
+  use modtimer
   implicit none
   private
   public initsimpleice2, exitsimpleice2, simpleice2
@@ -58,23 +59,21 @@ module modsimpleice2
 !> Initializes and allocates the arrays
   subroutine initsimpleice2
     use modglobal, only : ih,i1,jh,j1,k1,lacz_gamma
-    use modmicrodata, only : qr, qrp, nr, nrp, thlpmcr, qtpmcr, sed_qr, qr_spl, &
+    use modmicrodata, only: qtpmcr, thlpmcr, iqr, precep
+    use modsimpleice_data, only : qr, qrp, sed_qr, qr_spl, &
                              ilratio, rsgratio, sgratio, &
                              lambdar, lambdas, lambdag, &
-                             qrmask, qcmask, precep, &
                              ccrz,ccsz,ccgz,ccrz2,ccsz2,ccgz2,&
-                             bbg,bbr,bbs,ddg,ddr,dds, iqr
+                             bbg,bbr,bbs,ddg,ddr,dds
     use modtracers, only: add_tracer
     implicit none
     integer:: i, j, k
 
     call add_tracer("qr", long_name="Total precipitation mixing ratio", &
-                    unit="kg/kg", lmicro=.true., isv=iqr) 
+                    unit="kg/kg", lmicro=.true., isv=iqr)
 
     allocate (qr(2:i1,2:j1,k1)        & ! qr (total precipitation!) converted from a scalar variable
              ,qrp(2:i1,2:j1,k1)       & ! qr tendency due to microphysics only, for statistics
-             ,nr(2:i1,2:j1,k1)        & ! qr (total precipitation!) converted from a scalar variable
-             ,nrp(2:i1,2:j1,k1)       & ! qr tendency due to microphysics only, for statistics
              ,thlpmcr(2:i1,2:j1,k1)   & ! thl tendency due to microphysics only, for statistics
              ,qtpmcr(2-ih:i1+ih,2-jh:j1+jh,k1) & ! qt tendency due to microphysics only, for statistics. Ghost cells for modvarbudget.
              ,sed_qr(2:i1,2:j1,k1)    & ! sedimentation rain droplets mixing ratio
@@ -86,20 +85,17 @@ module modsimpleice2
              ,lambdas(2:i1,2:j1,k1)   & ! slope parameter for snow
              ,lambdag(2:i1,2:j1,k1))    ! slope parameter for graupel
 
-    allocate (qrmask(2:i1,2:j1,k1)    & ! mask for rain water
-             ,qcmask(2:i1,2:j1,k1))     ! mask for cloud water
-
     allocate(precep(2:i1,2:j1,k1))      ! precipitation for statistics
 
     allocate(ccrz(k1),ccsz(k1),ccgz(k1))
     allocate(ccrz2(k1),ccsz2(k1),ccgz2(k1))
 
-    gamb1r=lacz_gamma(bbr+1)
-    gambd1r=lacz_gamma(bbr+ddr+1)
-    gamb1s=lacz_gamma(bbs+1)
-    gambd1s=lacz_gamma(bbs+dds+1)
-    gamb1g=lacz_gamma(bbg+1)
-    gambd1g=lacz_gamma(bbg+ddg+1)
+    gamb1r=lacz_gamma(bbr+1.0)
+    gambd1r=lacz_gamma(bbr+ddr+1.0)
+    gamb1s=lacz_gamma(bbs+1.0)
+    gambd1s=lacz_gamma(bbs+dds+1.0)
+    gamb1g=lacz_gamma(bbg+1.0)
+    gambd1g=lacz_gamma(bbg+ddg+1.0)
     gam2dr=lacz_gamma(2.5+0.5*ddr)
     gam2ds=lacz_gamma(2.5+0.5*dds)
     gam2dg=lacz_gamma(2.5+0.5*ddg)
@@ -107,39 +103,31 @@ module modsimpleice2
     gammadds3=lacz_gamma(3.+dds)
     gammaddg3=lacz_gamma(3.+ddg)
 
-    !$acc enter data create(nrp, nr, qrp, qr, thlpmcr, qtpmcr, sed_qr, qr_spl, &
+    !$acc enter data create(qrp, qr, thlpmcr, qtpmcr, sed_qr, qr_spl, &
     !$acc&                  ilratio, rsgratio, sgratio, lambdar, lambdas, &
-    !$acc&                  lambdag, qrmask, qcmask, precep, &
+    !$acc&                  lambdag, precep, &
     !$acc&                  ccrz, ccsz, ccgz, ccrz2, ccsz2, ccgz2)
 
-    !$acc parallel loop collapse(3) default(present)
-    do k = 1, k1
-      do j = 2, j1
-        do i = 2, i1
-          nrp(i,j,k)=0. ! not used in this scheme
-          nr (i,j,k)=0. ! set to 0 here in case the statistics use them
-        enddo
-      enddo
-    enddo
-
+    !$acc kernels default(present)
+    precep=0
+    !$acc end kernels
   end subroutine initsimpleice2
 
 !> Cleaning up after the run
   subroutine exitsimpleice2
-    use modmicrodata, only : nr,nrp,qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl, &
+    use modmicrodata, only: qtpmcr, thlpmcr, precep
+    use modsimpleice_data, only : qr,qrp,sed_qr,qr_spl, &
                              ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag, &
-                             qrmask,qcmask,precep, &
                              ccrz,ccsz,ccgz,ccrz2,ccsz2,ccgz2
     implicit none
 
-    !$acc exit data delete(nrp, nr, &
+    !$acc exit data delete( &
     !$acc&                 qrp, qr, thlpmcr, qtpmcr, sed_qr, qr_spl, &
     !$acc&                 ilratio, rsgratio, sgratio, lambdar, lambdas, &
-    !$acc&                 lambdag, qrmask, qcmask, precep, &
+    !$acc&                 lambdag, precep, &
     !$acc&                 ccrz, ccsz, ccgz, ccrz2, ccsz2, ccgz2)
 
-    deallocate(nr,nrp,qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag)
-    deallocate(qrmask,qcmask)
+    deallocate(qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag)
     deallocate(precep)
     deallocate(ccrz,ccsz,ccgz)
     deallocate(ccrz2,ccsz2,ccgz2)
@@ -150,18 +138,17 @@ module modsimpleice2
   subroutine simpleice2
     use modglobal, only : i1,ih,j1,jh,k1,rdt,rk3step,timee,rlv,cp,tup,tdn,pi,tmelt,kmax,dzf,dzh
     use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhof,tmp0,rhobf,qvsl,qvsi,esl,surf_rain
-    use modmicrodata, only : sed_qr,qrp,&
+    use modmicrodata, only: delt, qtpmcr, thlpmcr, Nc_0, iqr, precep, l_rain
+    use modsimpleice_data, only : sed_qr,qrp,&
                              aag,aar,aas,bbg,bbr,bbs,betag,betar,betas,ccg,ccr,ccs,&
                              ccgz2,ccrz2,ccsz2,ddg,ddr,dds,&
                              ccgz,ccrz,ccsz,&
                              n0rg,n0rr,n0rs,&
-                             betakessi,ceffgl,ceffri,ceffrl,ceffsi,ceffsl,ceffgi,courantp,delt,&
-                             qr,qtpmcr,thlpmcr,evapfactor,iqr,n0rg,n0rs,Nc_0,&
-                             qr_spl,precep,&
+                             betakessi,ceffgl,ceffri,ceffrl,ceffsi,ceffsl,ceffgi,courantp,&
+                             qr,evapfactor,n0rg,n0rs,&
+                             qr_spl,&
                              qcmin,qrmin,qli0,qll0,tdnrsg,tdnsg,tuprsg,tupsg,&
-                             l_berry,l_graupel,l_rain,l_warm,timekessl
-
-    use modsimpleicestat, only : simpleicetend
+                             l_berry,l_graupel,l_warm,timekessl
 
     implicit none
 
@@ -180,6 +167,7 @@ module modsimpleice2
     logical :: rain_present, snow_present, graupel_present   ! logicals for presence of different forms of water in the current cell
     logical :: any_qr, any_snow_graupel                      ! logicals for precense of any precipitation, and for presense of snow/graupel in the whole system
 
+    call timer_tic('modsimpleice2', 1)
     delt = rdt/ (4. - dble(rk3step))
 
     wfallmax = 9.9 ! cap for fall velocity
@@ -601,6 +589,7 @@ module modsimpleice2
 !    if (l_rain) then
 !      call simpleicetend !after corrections
 !    endif
+    call timer_toc('modsimpleice2')
   end subroutine simpleice2
 
 end module modsimpleice2

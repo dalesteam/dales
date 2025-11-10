@@ -50,7 +50,7 @@ contains
       ocean, usero3, co2_fraction, ch4_fraction, n2o_fraction, doperpetual, doseasons, iyear
 
     namelist/NAMRTERRTMGP/ &
-      nbatch, doclearsky, usepade
+      nbatch, doclearsky
 
     call timer_tic('modradiation/initradiation', 0)
 
@@ -100,7 +100,6 @@ contains
 
     call D_MPI_BCAST(nbatch,     1,0,comm3d,ierr)
     call D_MPI_BCAST(doclearsky, 1,0,comm3d,ierr)
-    call D_MPI_BCAST(usepade,    1,0,comm3d,ierr)
 
     allocate(thlprad   (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(swd       (2-ih:i1+ih,2-jh:j1+jh,k1) )
@@ -380,17 +379,17 @@ subroutine radpar
 
       if (mu > 0.035) then  !factor 0.035 needed for security
         tauc = 0.           ! column-integrated tau cloud
-        if (laero .or. lcloudshading) then ! not sure if I have to define the use of lcldoushading before
+        !cstepif (laero .or. lcloudshading) then ! not sure if I have to define the use of lcldoushading before
           do k = 1,kmax        
             tau(k) = 0.      ! tau laagje dz
-            if(laero) then ! there are aerosols
-              tau(k) = sv0(i,j,k,iDE)
-            else if (lcloudshading) then ! there are clouds
+        !cstep    if(laero) then ! there are aerosols
+        !cstep      tau(k) = sv0(i,j,k,iDE)
+        !cstep    else if (lcloudshading) then ! there are clouds
               if (ql0(i,j,k) > 1e-5)  tau(k)=1.5*ql0(i,j,k)*rhof(k)*dzf(k)/reff/rho_l
-            end if
+        !cstep    end if
             tauc=tauc+tau(k)
           end do
-        endif
+        !cstep endif
         if (lrsAgs) tauField(i,j) = tauc
         call sunray(tau,tauc,i,j)
       end if

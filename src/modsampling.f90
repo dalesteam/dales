@@ -65,14 +65,15 @@ contains
     use modglobal, only : ladaptive, dtmax,k1,ifnamopt,fname_options,kmax,   &
                           btime,tres,cexpnr,ifoutput,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
+    use modtracers, only : get_tracer_index
 !     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav
     implicit none
 
-    integer :: ierr
+    integer :: ierr,iqr,inr
 
     namelist/NAMSAMPLING/ &
     dtav,timeav,lsampcl,lsampco,lsampup,lsampbuup,lsampcldup,lsamptend,lprocblock,ltenddec,ltendleib, &
-    lsamptendu,lsamptendv,lsamptendw,lsamptendthl,lsamptendqt,lsamptendqr,lsamptendnr
+    lsamptendu,lsamptendv,lsamptendw,lsamptendthl,lsamptendqt,lsamptendqr,lsamptendnr, lqlflux
 
 !     dtav=dtav_glob;timeav=timeav_glob
 
@@ -82,7 +83,25 @@ contains
       call checknamelisterror(ierr, ifnamopt, 'NAMSAMPLING')
       write(6 ,NAMSAMPLING)
       close(ifnamopt)
+
+      ! we check the presence of qr and Nr here, so we can safely disable the modsamptend.f90 parts that require a nonzero iqr if
+      ! qr or Nr are not set.
+      if (lsamptendqr) then
+        iqr = get_tracer_index("qr")
+        if (iqr == 0) then
+          write(*,*) "lsamptendqr is true but tracer qr not found, disabling lsamptendqr"
+          lsamptendqr = .false.
+        endif
+      endif
+      if (lsamptendnr) then
+        inr = get_tracer_index("Nr")
+        if (inr == 0) then
+          write(*,*) "lsamptendnr is true but tracer qr not found, disabling lsamptendnr"
+          lsamptendnr = .false.
+        endif
+      endif
     end if
+
 
 
     call D_MPI_BCAST(timeav    ,1,0,comm3d,mpierr)
@@ -104,6 +123,7 @@ contains
     call D_MPI_BCAST(lprocblock,1,0,comm3d,mpierr)
     call D_MPI_BCAST(ltenddec,1,0,comm3d,mpierr)
     call D_MPI_BCAST(ltendleib,1,0,comm3d,mpierr)
+        call D_MPI_BCAST(lqlflux,1,0,comm3d,mpierr)
 
     isamptot = 0
     if (lsampall) then
@@ -359,13 +379,14 @@ contains
   subroutine dosampling
     use modglobal, only : i1,i2,j1,j2,kmax,k1,ih,jh,&
                           dx,dy,dzh,dzf,cp,rv,rlv,rd,ijtot, &
-                          grav,om22,cu,nsv,zh
+                          grav,om22,cu,zh
     use modfields, only : u0,v0,w0,thl0,thl0h,qt0,qt0h,ql0,ql0h,thv0h,exnf,exnh,rhobf,rhobh,thvh, &
                           sv0,wp
     use modsubgriddata,only : ekh,ekm
     use modmpi,    only : slabsum,comm3d,mpierr,mpi_sum,D_MPI_ALLREDUCE
     use modpois,   only : p
-    use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice,iqr
+    use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice
+    use modtracers,  only : get_tracer_index
     implicit none
 
     logical, allocatable, dimension(:,:,:) :: maskf
@@ -382,7 +403,7 @@ contains
     real, allocatable, dimension(:) :: whav0 ,wwthav0  ,wwshav0 ,sigh0
     integer, allocatable, dimension (:) :: nrsamph0l, nrsamph0
 
-    integer :: i,j,k,km,kp
+    integer :: i,j,k,km,kp,iqr
     real :: cqt,cthl,den,ekhalf,c2,c1,t0h,qs0h,ekav
     real :: wthvsh,wthvrh,wthlsh,wthlrh,wqtrh,wqtsh,wqlrh,wqls
 
@@ -634,6 +655,10 @@ contains
     end do
 
 
+    ! we get the qr tracer index instead of using iqr from modmicrodata as that is initialized to -1.
+    iqr = get_tracer_index("qr")
+
+
 !add fields and fluxes to mean
 !     1)       fields on full levels
     do k=1,kmax
@@ -647,7 +672,8 @@ contains
       pfavl   (k,isamp) = pfavl   (k,isamp)+sum  (p    (2:i1,2:j1,k),maskf(2:i1,2:j1,k))
       wwsfavl (k,isamp) = wwsfavl (k,isamp)+sum  (wwsf (2:i1,2:j1,k),maskf(2:i1,2:j1,k))
     end do
-    if(nsv>1) then
+    ! we check if the tracer index for qr exists, otherwise we just add zero.
+    if(iqr>0) then
       do k=1,kmax
       do j=2,j1
       do i=2,i2
@@ -683,7 +709,9 @@ contains
       nrsamph0l  (k)       = count(maskh(2:i1,2:j1,k))
       whav0l     (k)       = sum(w0   (2:i1,2:j1,k),maskh(2:i1,2:j1,k))
 
-      if((imicro==imicro_sice).or.(imicro==imicro_bulk).or.(imicro==imicro_bin)) then
+      ! if iqr == 0 it means something has gone wrong in initializing, this probably then needs to be caught earlier, but this
+      ! check prevents a segfault
+      if(((imicro==imicro_sice).or.(imicro==imicro_bulk).or.(imicro==imicro_bin)).and.(iqr>0)) then
         do j=2,j1
         do i=2,i1
          if (maskh(i,j,k)) then

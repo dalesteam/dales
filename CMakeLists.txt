@@ -12,6 +12,9 @@ endif()
 
 project( DALES VERSION 5.0.0 LANGUAGES Fortran )
 
+# Disable Intel's MKL FFTW
+set( FFTW_ENABLE_MKL OFF )
+
 # Options
 
 ecbuild_add_option( FEATURE FFTW
@@ -31,6 +34,10 @@ ecbuild_add_option( FEATURE FP32_POIS
                     DESCRIPTION "Use single precision for Poisson solver"
                     DEFAULT OFF )
 
+ecbuild_add_option( FEATURE FP32_RAD
+                    DESCRIPTION "Use single precision for RTE-RRTMGP (use with caution!)"
+                    DEFAULT OFF )
+
 ecbuild_add_option( FEATURE NVTX
                     DESCRIPTION "Enable NVTX profiling (only available when using NVIDIA compiler)"
                     CONDITION "${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NVHPC"
@@ -43,6 +50,10 @@ ecbuild_add_option( FEATURE DALESLIB
 ecbuild_add_option( FEATURE ACC
                     DESCRIPTION "Build with GPU support through OpenACC"
                     DEFAULT OFF )
+
+ecbuild_add_option( FEATURE RRTMG
+                    DESCRIPTION "Build with legacy RRTMG libraries"
+                    ADVANCED DEFAULT ON )
 
 # Check for required dependencies
 
@@ -70,6 +81,12 @@ endif()
 
 add_compile_definitions( POIS_PRECISION=${POIS_PRECISION} )
 
+if( ENABLE_FP32_RAD )
+  add_compile_definitions( RTE_USE_SP )
+  set( ENABLE_RRTMG OFF )
+  ecbuild_info( "RRTMG is disabled because single precision is selected for RTE-RRTMGP" )
+endif()
+
 # Additional options
 
 if( ENABLE_FFTW )
@@ -85,6 +102,10 @@ endif()
 
 if( ENABLE_NVTX )
   add_compile_definitions( USE_NVTX )
+endif()
+
+if( ENABLE_RRTMG )
+  add_compile_definitions( USE_RRTMG )
 endif()
 
 # GPU stuff

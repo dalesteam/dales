@@ -32,25 +32,39 @@
 ! 'location', i.e. switch scalar field represents which species?
 
 module modemisdata
-  
+
   implicit none
   save
+  
+  ! Define the PointSource type
+  type PointSource
+        integer :: npoints = 0            ! Number of point sources for each species
+        real, allocatable :: data(:,:,:)  ! (npoints, 6, 2) (6 data fields, 2 time slices)
+  end type PointSource
+
+  ! Declare an allocatable array of PointSource for each tracer species
+  type(PointSource), allocatable :: point_sources(:)
 
   integer  :: iname
+  
   ! ---------------------------------------------------------------------!
   ! Namelist variables                                                   !
   ! ---------------------------------------------------------------------!
-   
-  logical  :: l_emission = .false. ! scalar emission switch
-  integer  :: kemis    = -1, &     ! no. of layers to include for emission
-              svskip   =  0, &     ! no. scalars to exclude for emission
-              nemis    = 0         ! no. of emitted scalars  
+
+  logical  :: l_emission = .false.,&            ! scalar emission switch
+              l_points   = .false.,&            ! point sources switch
+              explicit_plume_rise = .false.     ! explicit plume rise simulation switch
+  
+  integer  :: kemis    = -1, &                  ! no. of layers to include for emission
+              svskip   =  0, &                  ! no. scalars to exclude for emission
+              nemis    =  0                     ! no. of emitted scalars
+
   logical  :: l_scale = .false.    ! emission scaling switch
   real, dimension(100) :: scalefactor = 1
 
-  character(len = 6), dimension(100) :: & 
+  character(len = 6), dimension(100) :: &
               emisnames = (/ ('      ', iname=1, 100) /) ! list with scalar names,
-                          ! each name must(!) be 6 characters long for now  
+                          ! each name must(!) be 6 characters long for now
 
   ! Interaction with AGs ------------------------------------------------
   integer :: svco2ags = -1       ! Scalar field number for AGs soil respiration

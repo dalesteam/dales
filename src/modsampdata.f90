@@ -50,5 +50,21 @@ SAVE
   logical :: lprocblock = .false. !< switch to write (so far only tendencies) per processor block instead of domain-averaged
   logical :: ltendleib = .false. !< switch to turn on leibniz tendencies
   logical :: ltenddec = .false. !< switch to get variables needed to scale-decompose (processor-averaged) advective tendencies
+  logical :: lqlflux = .false. !< switch to save ql flux
+
+  character(len=*), parameter :: tendnames(12) = [ &
+    'total/start         ', &
+    'horizontal advection', &
+    'vertical advection  ', &
+    'subgrid diffusion   ', &
+    'forces              ', &
+    'radiation           ', &
+    'large-scale forcing ', &
+    'microphysics        ', &
+    'top boundary        ', &
+    'Poisson solver      ', &
+    'addons              ', &
+    'Coriolis            '  &
+  ]
 
 end module modsampdata

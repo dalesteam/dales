@@ -367,7 +367,7 @@ contains
     !                    proc    (if present and length on horizontal cooridinates is 1 include processor starting edges and center)
     use modglobal, only : dx,dy,zf,zh,jmax,imax
     use modsurfdata, only : zsoilc,isurf
-    use modlsm, only : z_soil
+    use modlsmdata, only : z_soil
     use modmpi, only : myidx,myidy
     implicit none
     integer, intent(in) :: ncid
@@ -438,7 +438,7 @@ contains
   subroutine writestat_dims_q_nc(ncid,k1,k2)
     use modglobal, only : dx,dy,zf,zh,jmax,imax
     use modsurfdata, only : zsoilc,isurf
-    use modlsm, only : z_soil
+    use modlsmdata, only : z_soil
     use modmpi, only : myidx,myidy
     implicit none
     integer, intent(in) :: ncid,k1,k2

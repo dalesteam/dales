@@ -35,17 +35,29 @@ module modthermodynamics
 !   private
   public :: thermodynamics,calc_halflev
   public :: lqlnr
+  public :: ttab
+  public :: esatltab
+  public :: esatitab
+  public :: esatmtab
+
   logical :: lqlnr    = .true. !< switch for ql calc. with Newton-Raphson (on/off)
   real, allocatable :: th0av(:)
   real(field_r), allocatable :: thv0(:,:,:)
   real :: chi_half=0.5  !< set wet, dry or intermediate (default) mixing over the cloud edge
   real, allocatable :: thetah(:), qth(:), qlh(:)
 
+  real(field_r), protected :: ttab(1:2000)
+  real(field_r), protected :: esatltab(1:2000)
+  real(field_r), protected :: esatitab(1:2000)
+  real(field_r), protected :: esatmtab(1:2000)
+
+  !$acc declare create(ttab, esatltab, esatitab, esatmtab)
+
 contains
 
 !> Allocate and initialize arrays
   subroutine initthermodynamics
-    use modglobal, only : ih,i1,jh,j1,k1,tdn,tup,esatltab,esatitab,esatmtab,ttab
+    use modglobal, only : ih,i1,jh,j1,k1,tdn,tup
     use modmicrodata, only: imicro,imicro_bulk3
     implicit none
     real :: ilratio
@@ -79,15 +91,21 @@ contains
           esatmtab(m) = ilratio*esatltab(m) + (1-ilratio)*esatitab(m)
        end if
     end do
+
+    !$acc update device(ttab, esatltab, esatitab, esatmtab)
+
   end subroutine initthermodynamics
 
 !> Do moist thermodynamics.
 !! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure,
 !! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
-    use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds,lfast_thermo
-    use modfields, only : thl0, qt0, ql0, presf, exnf, thvh, thv0h, qt0av, ql0av, thvf, rhof
-    use modmpi, only : slabsum
+    use modglobal,  only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds,lfast_thermo
+    use modfields,  only : thl0, qt0, ql0, presf, exnf, thvh, thv0h, qt0av, ql0av, thvf, rhof
+    use modmpi,     only : slabsum
+    use modibm,     only : fluid_mask
+    use modibmdata, only : lapply_ibm
+    use modslabaverage, only : slabavg
     implicit none
     integer:: i, j, k
 
@@ -106,6 +124,9 @@ contains
        else
           call icethermo0
        end if
+    else
+       call calc_dry_tmp ! tmp0 is used in statistics
+                         ! can consider calculating it only when needed
     end if
     call diagfld
 
@@ -141,15 +162,20 @@ contains
     thvf(:) = 0.0
     !$acc end kernels
 
-    !$acc host_data use_device(thvh, thv0h, thvf, thv0)
-    call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
-    call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    !$acc end host_data
+    if (.not. lapply_ibm) then
+      call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.) ! redefine halflevel thv using calculated thv
+      call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
+    else
+      call slabavg(thv0h,fluid_mask,ih,thvh)
+      call slabavg(thv0,fluid_mask,ih,thvf)
+    end if
 
     !$acc kernels default(present) async(1)
-    thvh(:) = thvh(:)/ijtot
+    if (.not. lapply_ibm) then
+      thvh(:) = thvh(:)/ijtot
+      thvf(:) = thvf(:)/ijtot
+    end if
     thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
-    thvf(:) = thvf(:)/ijtot
     !$acc end kernels
 
     !$acc parallel loop default(present) async(1)
@@ -167,6 +193,26 @@ contains
     !$acc exit data delete(th0av, thv0, thetah, qth, qlh)
     deallocate(th0av, thv0, thetah, qth, qlh)
   end subroutine exitthermodynamics
+
+  !> Calculate real temperature tmp0 from thl0, for the dry case i.e. ql=0
+  subroutine calc_dry_tmp
+    use modglobal, only : i1,j1,k1
+    use modfields, only : thl0,exnf
+    use modfields, only : tmp0
+
+    implicit none
+    integer :: i, j, k
+
+    !$acc parallel loop collapse(3) default(present) async
+    do k = 1,k1
+       do j = 2,j1
+          do i = 2,i1
+             tmp0(i,j,k) = exnf(k)*thl0(i,j,k)
+          end do
+       end do
+    end do
+
+  end subroutine calc_dry_tmp
 
 !> Calculate thetav and dthvdz
   subroutine calthv
@@ -312,11 +358,14 @@ contains
 !!     qt,ql,exner,pressure and the density
 !! \author      Pier Siebesma   K.N.M.I.     06/01/1995
   subroutine diagfld
-  use modglobal, only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0,timee,lconstexner
-  use modfields, only : u0,v0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
+  use modglobal,  only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0,timee,lconstexner,lbaseexner
+  use modfields,  only : u0,v0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
                         presf,presh,exnf,exnh,rhof,thvf
   use modsurfdata,only : thls,ps
-  use modmpi,    only : slabsum
+  use modmpi,     only : slabsum
+  use modibm,     only : fluid_mask
+  use modibmdata, only : lapply_ibm
+  use modslabaverage, only : slabavg
   implicit none
 
   integer :: k,n
@@ -331,42 +380,56 @@ contains
 
 ! initialise local MPI arrays
 
+  !$acc kernels default(present)
+  u0av = 0.0
+  v0av = 0.0
+  thl0av = 0.0
+  th0av  = 0.0
+  qt0av  = 0.0
+  ql0av  = 0.0
+  sv0av = 0.
+  !$acc end kernels
+
+  !CvH changed momentum array dimensions to same value as scalars!
+  if (.not. lapply_ibm) then
+    call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
+    call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
+    call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
+    call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
+    call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
+    do n=1,nsv
+      call slabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
+    end do
+  else
+    call slabavg(u0,fluid_mask,ih,u0av)
+    call slabavg(v0,fluid_mask,ih,v0av)
+    call slabavg(thl0,fluid_mask,ih,thl0av)
+    call slabavg(qt0,fluid_mask,ih,qt0av)
+    call slabavg(ql0,fluid_mask,ih,ql0av)
+    do n=1,nsv
+      call slabavg(sv0(:,:,:,n),fluid_mask,ih,sv0av(:,n))
+    end do
+  end if
+
+  if (.not. lapply_ibm) then
     !$acc kernels default(present)
-    u0av = 0.0
-    v0av = 0.0
-    thl0av = 0.0
-    th0av  = 0.0
-    qt0av  = 0.0
-    ql0av  = 0.0
-    sv0av = 0.
+    u0av   = u0av  /ijtot + cu
+    v0av   = v0av  /ijtot + cv
+    thl0av = thl0av/ijtot
+    qt0av  = qt0av /ijtot
+    ql0av  = ql0av /ijtot
+    sv0av  = sv0av /ijtot
     !$acc end kernels
-
-!  !CvH changed momentum array dimensions to same value as scalars!
-   !$acc host_data use_device(u0av, u0, v0av, v0, thl0av, thl0, qt0av, qt0, &
-   !$acc&                     ql0av, ql0, sv0av, sv0)
-   call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   do n=1,nsv
-      call slabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   end do
-   !$acc end host_data
-
-   !$acc kernels default(present)
-   u0av   = u0av  /ijtot + cu
-   v0av   = v0av  /ijtot + cv
-   thl0av = thl0av/ijtot
-   qt0av  = qt0av /ijtot
-   ql0av  = ql0av /ijtot
-   sv0av  = sv0av /ijtot
-   if (timee < 0.01 .or. .not. lconstexner) then
-     exnf   = 1-grav*zf/(cp*thls)
-     exnh   = 1-grav*zh/(cp*thls)
-   endif
-   th0av  = thl0av+ (rlv/cp)*ql0av/exnf
-   !$acc end kernels
+  end if
+  if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
+    !$acc kernels default(present)
+    exnf   = 1-grav*zf/(cp*thls)
+    exnh   = 1-grav*zh/(cp*thls)
+    !$acc end kernels
+  endif
+  !$acc kernels default(present)
+  th0av  = thl0av+ (rlv/cp)*ql0av/exnf
+  !$acc end kernels
 
 !***********************************************************
 !  2.0   calculate average profile of pressure at full and *
@@ -379,7 +442,7 @@ contains
 
    !$acc kernels default(present)
    th0av = thl0av + (rlv/cp)*ql0av/exnf
-   if (timee < 0.01 .or. .not. lconstexner) then
+   if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
       exnf = (presf/pref0)**(rd/cp)
    endif
    !$acc end kernels
@@ -394,7 +457,7 @@ contains
 !***********************************************************
 
 !  3.1 determine exner
-   if (timee < 0.01 .or. .not. lconstexner) then
+   if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
      !$acc serial default(present) async(1)
      exnh(1) = (ps/pref0)**(rd/cp)
      exnf(1) = (presf(1)/pref0)**(rd/cp)
@@ -618,7 +681,6 @@ contains
 
   ! return esat for ice-liquid mix using table
   pure function esat_tab(T) result(es)
-    use modglobal, only : esatmtab
 
     implicit none
     !$acc routine seq
@@ -638,7 +700,6 @@ contains
 !> seems to be faster than the Magnus formula (on CPU)
   pure function qsat_tab(T, p) result(qsat)
     use modglobal, only : rd,rv
-    use modglobal, only : esatmtab
 
     implicit none
     !$acc routine seq
@@ -692,7 +753,6 @@ contains
     use modglobal, only : i1,j1,k1,rv,rlv,cp,rd
     use modfields, only : qt0,thl0,exnf,presf,ql0
     use modfields, only : tmp0, qsat, esl, qvsl, qvsi          ! consider not storing these
-    use modglobal, only : esatltab, esatitab
 
     implicit none
     integer :: i, j, k
@@ -824,7 +884,6 @@ contains
     use modglobal, only : i1,j1,k1,rv,rlv,cp,rd
     use modfields, only : qt0,thl0,exnf,presf,ql0
     use modfields, only : tmp0, qsat, esl, qvsl, qvsi          ! consider not storing these
-    use modglobal, only : esatltab, esatitab
 
     implicit none
     integer :: i, j, k
@@ -1045,7 +1104,7 @@ contains
 !> Calculates liquid water content.and temperature
 !! \author Steef B\"oing
 
-  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab
+  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp
   use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl,qsat
   implicit none
 
@@ -1153,7 +1212,7 @@ contains
 !> Calculates liquid water content.and temperature
 !! \author Steef B\"oing
 
-  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab
+  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp
   use modfields, only : qt0h,thl0h,exnh,presh,ql0h
   implicit none
 

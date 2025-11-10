@@ -43,8 +43,9 @@ contains
   subroutine initopenboundary
     ! Initialisation routine for openboundaries
     use modmpi, only : myidx, myidy, nprocx, nprocy, myid
-    use modglobal, only : imax,jmax,kmax,i1,j1,k1,dx,dy,itot,jtot,solver_id,nsv,cu,cv
+    use modglobal, only : imax,jmax,kmax,i1,j1,k1,dx,dy,itot,jtot,solver_id,nsv,cu,cv,dzf
     use modboundary, only: dsv
+    use modfields, only: rhobf
     implicit none
     integer :: i
 
@@ -163,16 +164,22 @@ contains
     call exitsynturb
   end subroutine exitopenboundary
 
-  subroutine openboundary_initfields
+   subroutine openboundary_initfields(tracer_prop)
     ! Routine that reads the fields for a heterogneous initialisation
     ! Variables not present in the input file are initialised to their profiles
     use modglobal, only : imax,jmax,kmax,i1,j1,cexpnr,nsv,i2,j2,k1
     use modfields, only : u0,um,v0,vm,w0,wm,thl0,thlm,qt0,qtm,e120,e12m, sv0, svm, &
       uprof,vprof,thlprof,qtprof,e12prof,svprof
     use modmpi, only : myidx,myidy,myid
+    use modtracer_type, only: T_tracer
+    use utils
+    
     implicit none
+    type(T_tracer), dimension(:), intent(in) :: tracer_prop
     integer :: VARID,STATUS,NCID,n
     integer, dimension(3) :: istart
+	character(len=100) :: varname  ! Variable name of scalars
+
     if(.not.lopenbc) return
     if(.not.linithetero) return
     u0 = 0.; um = 0.; v0 = 0.; vm = 0.; w0 = 0.; wm = 0.;
@@ -242,33 +249,61 @@ contains
       if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
       e12m = e120
     endif
-    if(nsv>0) then
-      STATUS = NF90_INQ_VARID(NCID,'sv0', VARID)
-      if(STATUS == NF90_ENOTVAR) then ! If not available initialise with profile
-        do n = 1,nsv
-          call take_prof(sv0(:,:,:,n),svm(:,:,:,n),svprof(:,n))
+    
+    
+    !old code, with code (sv) names:
+    !if(nsv>0) then
+      !STATUS = NF90_INQ_VARID(NCID,'sv0', VARID)
+      !if(STATUS == NF90_ENOTVAR) then ! If not available initialise with profile
+        !do n = 1,nsv
+          !call take_prof(sv0(:,:,:,n),svm(:,:,:,n),svprof(:,n))
+        !end do
+        !if(myid==0) print *, "sv initialized with scalar.inp"
+      !else ! Initial field taken from initfields.inp
+        !if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+        !STATUS = NF90_GET_VAR (NCID, VARID,sv0(2:i1,2:j1,1:kmax,1),start=istart,count=(/imax,jmax,kmax,nsv/))
+        !if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+        !svm = sv0
+      !endif
+    !endif
+    
+    
+    ! Loop over scalar tracers to read them by name
+    if (nsv > 0) then
+        do n = 1, nsv
+            varname = trim(to_lower(tracer_prop(n) % tracname))
+            STATUS = NF90_INQ_VARID(NCID, varname, VARID) 
+            
+            if (STATUS == NF90_NOERR) then
+                if (myid == 0) print *, "Variable ", trim(varname), " is found in initfields.inp."
+                	STATUS = NF90_GET_VAR(NCID, VARID, sv0(2:i1,2:j1,1:kmax,tracer_prop(n)%trac_idx), start=istart, count=(/imax, jmax, kmax/))
+                if (STATUS .ne. NF90_NOERR) call handle_err(STATUS)
+                	svm(:,:,:,tracer_prop(n)%trac_idx) = sv0(:,:,:,tracer_prop(n)%trac_idx)
+            else
+                if (myid == 0) print *, "Variable ", trim(varname), " is not found in initfields.inp.: Initializing with profile."
+                	call take_prof(sv0(:,:,:,n), svm(:,:,:,n), svprof(:,n))
+            endif
         end do
-        if(myid==0) print *, "sv initialized with scalar.inp"
-      else ! Initial field taken from initfields.inp
-        if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
-        STATUS = NF90_GET_VAR (NCID, VARID,sv0(2:i1,2:j1,1:kmax,1),start=istart,count=(/imax,jmax,kmax,nsv/))
-        if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
-        svm = sv0
-      endif
     endif
+    
     status = nf90_close(ncid)
     if (status /= nf90_noerr) call handle_err(status)
   end subroutine openboundary_initfields
 
-  subroutine openboundary_readboundary
+  subroutine openboundary_readboundary(tracer_prop)
     ! Routine reads the boundary input for all time steps
     use modglobal, only : cexpnr,imax,jmax,ntboundary,tboundary,nsv,iturb
     use modmpi, only : myidx,myidy
+    use modtracer_type, only: T_tracer
+    use utils
+
     implicit none
+    type(T_tracer), dimension(:), intent(in) :: tracer_prop
     integer :: ib
     character(len = nf90_max_name) :: RecordDimName
-    integer :: VARID,STATUS,NCID,timeID
+    integer :: VARID,STATUS,NCID,timeID,n
     integer, dimension(3) :: istart
+    character(len=100) :: varname  ! Variable name of scalars
 
     if(.not.lopenbc) return
     !--- open openboundaries.inp.xxx.nc ---
@@ -354,19 +389,43 @@ contains
       STATUS = NF90_GET_VAR (NCID, VARID, boundary(ib)%e12, start=istart, &
         & count=(/boundary(ib)%nx1,boundary(ib)%nx2,ntboundary/))
       if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
-      ! Read sv
-      if(nsv>0) then
-        STATUS = NF90_INQ_VARID(NCID, 'sv'//boundary(ib)%name, VARID)
-        if(STATUS == NF90_ENOTVAR) then
-          boundary(ib)%sv = 0.
-          if(myidx==0 .and. myidy==0) print *, "No boundary information for sv at boundary",ib,"Values set to 0"
-        else
-          if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
-          STATUS = NF90_GET_VAR (NCID, VARID, boundary(ib)%sv, start=(/istart,1/), &
-            & count=(/boundary(ib)%nx1,boundary(ib)%nx2,ntboundary,nsv/))
-          if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
-        endif
-      endif
+      
+      
+      
+      ! old Read of sv tracers
+      !if(nsv>0) then
+        !STATUS = NF90_INQ_VARID(NCID, 'sv'//boundary(ib)%name, VARID)
+        !if(STATUS == NF90_ENOTVAR) then
+          !boundary(ib)%sv = 0.
+          !if(myidx==0 .and. myidy==0) print *, "No boundary information for sv at boundary",ib,"Values set to 0"
+        !else
+          !if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+          !STATUS = NF90_GET_VAR (NCID, VARID, boundary(ib)%sv, start=(/istart,1/), &
+           ! & count=(/boundary(ib)%nx1,boundary(ib)%nx2,ntboundary,nsv/))
+          !if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+        !endif
+      !endif
+      
+      ! Loop over scalar tracers to read them by name
+      if (nsv > 0) then
+        do n = 1, nsv
+            varname = trim(to_lower(tracer_prop(n) % tracname)) // trim(boundary(ib)%name)
+            STATUS = NF90_INQ_VARID(NCID, varname, VARID) 
+            
+            if (STATUS == NF90_NOERR) then
+                if(myidx==0 .and. myidy==0) print *, "Variable ", trim(varname), " found in openboundaries file."
+                STATUS = NF90_GET_VAR(NCID, VARID, boundary(ib)%sv(:, :, :, tracer_prop(n) % trac_idx), &
+                    start=istart, count=(/boundary(ib)%nx1, boundary(ib)%nx2, ntboundary/))
+                if (STATUS .ne. NF90_NOERR) call handle_err(STATUS)
+            else
+             	boundary(ib)%sv(:, :, :, tracer_prop(n) % trac_idx) = 0.
+                if(myidx==0 .and. myidy==0) print *, "Variable ", trim(varname), " not found in openboundaries file: Initializing with profile."
+            endif
+        end do
+       endif
+
+      
+      
       ! Read input for turbulent pertubations
       if(lsynturb .and. iturb <10) then
         ! Read u2
@@ -444,9 +503,6 @@ contains
     implicit none
     real(field_r) :: sumdiv,div,divpart,divnew,divold
     integer :: i,j,k,it,icalc
-    ! Create 1/int(rho)
-    allocate(rhointi(k1))
-    rhointi = 1./(rhobf*dzf)
     ! Divergence correction
     if(myid==0) print *, "Start divergence correction boundaries"
     do it = 1,ntboundary
