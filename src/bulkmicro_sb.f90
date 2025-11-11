@@ -19,7 +19,7 @@
 module bulkmicro_sb
   use modglobal,         only: ih, jh, i1, j1, k1, nsv, rlv, cp, eps1, pi, rv, &
                                pirhow, rhow
-  use modmicrodata,      only: iqr, inr, Nc_0
+  use modmicrodata,      only: iqr, inr, Nc_0, delt
   use modbulkmicro_data, only: qrmin, qcmin, l_mur_cst, mur_cst, sig_gr, &
                                mygamma21, mygamma251
   use modprecision,      only: field_r
@@ -33,6 +33,8 @@ module bulkmicro_sb
   public :: accretion_sb
   public :: evaporation_sb
   public :: sedimentation_rain_sb
+  public :: calc_sed_qr_sb
+  public :: calc_sed_nr_sb
   public :: xrmin, xrmax
 
   ! Constants
@@ -53,6 +55,7 @@ module bulkmicro_sb
     kappa_r = 60.7,   & !< See eq. 11 in SB2006.
     k_br = 1000.,     & !< Parameter for break-up.
     k_c = 10.58e9,    & !< Long Kernel coefficient SB2006 (k'cc).
+    k_cc = 4.44e9,    & !< Cloud selfcollection efficiency SB2006.
     k_l = 5.e-5,      & !< Coefficient for phi function in accretion rate.
     k_r = 5.25,       & !< Kernel SB2006.
     k_rr = 7.12,      & !< See eq. 11 in SB2006.
@@ -64,7 +67,8 @@ module bulkmicro_sb
     xcmax = 2.6e-10,  & !< Max mean mass of cw.
     xrmin = xcmax,    & !< Min mean mass of pw.
     xrmax = 5.0e-6,   & !< Max mean maxx of pw.
-    x_s = xcmax         !< Drop mass separating the cloud and precipitation parts of the DSD.
+    x_s = xcmax,      & !< Drop mass separating the cloud and precipitation parts of the DSD.
+    eps = 1e-18
 
 contains
 
@@ -83,9 +87,10 @@ contains
   !! \param qtpmcr Tendency of $\q_t$.
   !! \param qrp Tendency of rain water mixing ratio.
   !! \param Nrp Tendency of rain drop number concentration.
-  subroutine autoconversion_sb(ql0, qr, exnf, rhof, qcbase, qcroof, thlpmcr, &
-                            qtpmcr, qrp, Nrp)
+  subroutine autoconversion_sb(ql0, nc, qr, exnf, rhof, qcbase, qcroof, thlpmcr, &
+                            qtpmcr, qrp, Nrp, Ncp)
     real(field_r), intent(in)    :: ql0(2-ih:i1+ih,2-jh:j1+jh,1:k1)
+    real(field_r), intent(in)    :: nc(2:,2:,:)
     real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
     real(field_r), intent(in)    :: exnf(1:k1)
     real(field_r), intent(in)    :: rhof(1:k1)
@@ -97,6 +102,12 @@ contains
     real(field_r), intent(inout) :: qrp(2:i1,2:j1,1:k1)
     real(field_r), intent(inout) :: Nrp(2:i1,2:j1,1:k1)
 
+    real(field_r), intent(inout), optional :: Ncp(2:,2:,:)
+
+    ! CJ: we declare Ncp as an optional argument, because it may or may not be
+    ! allocated depending whether or not prognositc CCN is enabled. If Ncp is
+    ! not allocated, the expression present(Ncp) will equate to .false.
+
     integer       :: i, j, k
     real(field_r) :: &
       au,   &
@@ -104,7 +115,8 @@ contains
       phi,  & !< correction function (see SB2001)
       xc,   & !< mean mass of cloud water droplets
       nuc,  & !< width parameter of cloud DSD
-      k_au    !< Coefficient for autoconversion rate
+      k_au, & !< Coefficient for autoconversion rate
+      sc
 
     if (qcbase > qcroof) return
 
@@ -119,18 +131,25 @@ contains
            if (ql0(i,j,k) > qcmin) then
               nuc = 1.58_field_r * (rhof(k) * ql0(i,j,k) * 1000.0_field_r) &
                     + 0.72_field_r - 1.0_field_r !G09a
-              xc = rhof(k) * ql0(i,j,k) / Nc_0 ! No eps0 necessary
+              xc = rhof(k) * ql0(i,j,k) / (nc(i,j,k) + eps)
               au = k_au * (nuc + 2) * (nuc + 4) / (nuc + 1)**2 &
                         * (ql0(i,j,k) * xc)**2 * 1.225_field_r ! *rho**2/rho/rho (= 1)
 
               tau = qr(i,j,k) / (ql0(i,j,k) + qr(i,j,k))
               phi = k_1 * tau**k_2 * (1 - tau**k_2)**3
               au = au * (1 + phi / (1 - tau)**2)
+              au = min(ql0(i,j,k) / delt, au) ! Limit to available cloud water
 
               qrp(i,j,k) = qrp(i,j,k) + au
               Nrp(i,j,k) = Nrp(i,j,k) + au / x_s
               qtpmcr(i,j,k) = qtpmcr(i,j,k) - au
               thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv / (cp * exnf(k))) * au
+
+              if (present(Ncp)) then
+                sc = -k_cc * (nuc + 2) / (nuc + 1) * 1.225_field_r / rhof(k) &
+                     * (ql0(i,j,k) * rhof(k))**2
+                Ncp(i,j,k) = Ncp(i,j,k) + sc - au / xc * rhof(k)
+              end if
            end if
         end do
       end do
@@ -157,9 +176,10 @@ contains
   !! \param qtpmcr Tendency of total water mixing ratio.
   !! \param qrp Tendency of rain water mixing ratio.
   !! \param Nrp Tendency of rain drop number concentration.
-  subroutine accretion_sb(ql0, qr, Nr, exnf, rhof, qcbase, qcroof, qrbase, qrroof, &
-                          thlpmcr, qtpmcr, qrp, Nrp)
+  subroutine accretion_sb(ql0, Nc, qr, Nr, exnf, rhof, qcbase, qcroof, qrbase, qrroof, &
+                          thlpmcr, qtpmcr, qrp, Nrp, Ncp)
     real(field_r), intent(in)    :: ql0(2-ih:i1+ih,2-jh:j1+jh,1:k1)
+    real(field_r), intent(in)    :: Nc(2:,2:,:)
     real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
     real(field_r), intent(in)    :: Nr(2:i1,2:j1,1:k1)
     real(field_r), intent(in)    :: exnf(1:k1)
@@ -172,13 +192,15 @@ contains
     real(field_r), intent(inout) :: qrp(2:i1,2:j1,1:k1)
     real(field_r), intent(inout) :: Nrp(2:i1,2:j1,1:k1)
 
+    real(field_r), intent(inout), optional :: Ncp(2:,2:,:)
+
     integer :: i,j,k
 
     real(field_r) :: ac, sc, br
     real(field_r) :: phi     !  correction function (see SB2001)
     real(field_r) :: phi_br
     real(field_r) :: tau     !  internal time scale
-    real(field_r) :: xr, dvr, mur, lbdr
+    real(field_r) :: xr, dvr, mur, lbdr, xc
 
     if (max(qrbase, qcbase) > min(qrroof, qcroof)) return
 
@@ -197,6 +219,11 @@ contains
              qrp(i,j,k) = qrp(i,j,k) + ac
              qtpmcr(i,j,k) = qtpmcr(i,j,k) - ac
              thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv / (cp * exnf(k))) * ac
+
+             if (present(Ncp)) then
+               xc = rhof(k) * ql0(i,j,k) / (Nc(i,j,k) + eps)
+               Ncp(i,j,k) = Ncp(i,j,k) - ac / xc
+             end if
           end if
         end do
       end do
@@ -338,6 +365,58 @@ contains
     call timer_toc('bulkmicro_sb/evaporation')
 
   end subroutine evaporation_sb
+
+  !> Calculate the sedimentation rate of the rain water content.
+  !!
+  !! @param[in] qr Rain water content.
+  !! @param[in] nr Rain droplet number concentration.
+  !! @param[in] rho Air density.
+  !!
+  !! @returns sedimentation rate of qr.
+  elemental function calc_sed_qr_sb(qr, nr, rho) result(sed_qr)
+
+    real(field_r), intent(in) :: qr, nr, rho
+    
+    real(field_r) :: xr, dvr, mur, lbdr, wfall_qr, sed_qr
+
+    !$acc routine seq
+
+    xr = calc_xr(rho, qr, nr, xrmin, xrmax)
+    dvr = calc_dvr(xr)
+    mur = calc_mur(qr, rho)
+    lbdr = calc_lbdr(mur, dvr)
+
+    wfall_qr = max(0._field_r, (a_tvsb - b_tvsb * (1 + c_tvsb / lbdr)**(-1 * (mur+4))))
+
+    sed_qr  = wfall_qr * qr * rho ! m/s * kg/m3
+
+  end function calc_sed_qr_sb
+
+  !> Calculate the sedimentation rate of the rain water content.
+  !!
+  !! @param[in] qr Rain water content.
+  !! @param[in] nr Rain droplet number concentration.
+  !! @param[in] rho Air density.
+  !!
+  !! @returns sedimentation rate of nr.
+  elemental function calc_sed_nr_sb(qr, nr, rho) result(sed_nr)
+
+    real(field_r), intent(in) :: qr, nr, rho
+    
+    real(field_r) :: xr, dvr, mur, lbdr, wfall_nr, sed_nr
+
+    !$acc routine seq
+
+    xr = calc_xr(rho, qr, nr, xrmin, xrmax)
+    dvr = calc_dvr(xr)
+    mur = calc_mur(qr, rho)
+    lbdr = calc_lbdr(mur, dvr)
+
+    wfall_nr = max(0._field_r, (a_tvsb - b_tvsb * (1 + c_tvsb / lbdr)**(-1 * (mur+1))))
+
+    sed_nr  = wfall_nr * nr
+
+  end function calc_sed_nr_sb
 
   !> Calculate the sedimentation term.
   !!

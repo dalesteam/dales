@@ -45,18 +45,20 @@ module modbulkmicro
 !
 !   bulkmicro is called from *modmicrophysics*
 !*********************************************************************
-  use modglobal,    only: dzf, ih, jh, i1, j1, pi, rhow, rlv, cp, &
+  use modglobal,    only: dzf, ih, jh, i1, j1, k1, pi, rhow, rlv, cp, &
                           ifnamopt, checknamelisterror
   use modprecision, only : field_r
   use modtimer,     only: timer_tic, timer_toc
-  use modmicrodata, only: Nc_0, sig_g, qtpmcr, thlpmcr, l_rain
+  use modmicrodata, only: Nc_0, sig_g, qtpmcr, thlpmcr, l_rain, Ncp, inc, Nc
   use modbulkmicro_data, only: qrbase, qrroof, qcbase, qcroof, qcmin, l_sb, &
                           l_sedc, l_mur_cst, l_lognormal, mur_cst, &
-                          sig_gr, c_St, mygamma21, mygamma251
+                          sig_gr, c_St, mygamma21, mygamma251, qrmin
   use bulkmicro_sb, only: autoconversion_sb, &
-                          accretion_sb, evaporation_sb, sedimentation_rain_sb
+                          accretion_sb, evaporation_sb, sedimentation_rain_sb, &
+                          calc_sed_qr_sb, calc_sed_nr_sb
   use bulkmicro_kk, only: autoconversion_kk, &
-                          accretion_kk, evaporation_kk, sedimentation_rain_kk
+                          accretion_kk, evaporation_kk, sedimentation_rain_kk, &
+                          calc_sed_qr_kk, calc_sed_nr_kk
   use modbulkmicro_stat, only: init_bulkmicro_stat, bulkmicro_stat
   use modmpi, only: myid, D_MPI_BCAST, comm3d, mpierr, print_info_stderr
   implicit none
@@ -73,9 +75,10 @@ module modbulkmicro
 
 !> Initializes and allocates the arrays
   subroutine initbulkmicro
+    use modaerosol, only: laerosol
     use modglobal, only : i1,j1,k1,ih,jh
-    use modmicrodata, only: iqr, inr, lstat, precep
-    use modbulkmicro_data, only : Nr, Nrp, qr, qrp 
+    use modmicrodata, only: iqr, inr, lstat, precep, Nc_0, Nc, Ncp, inc
+    use modbulkmicro_data, only : Nr, Nrp, qr, qrp
     use modtracers,   only: add_tracer
     implicit none
 
@@ -88,12 +91,22 @@ module modbulkmicro
     call add_tracer("Nr", long_name="rain droplet number concentration", &
                     unit="1/m^3", lmicro=.true., isv=inr)
 
+    ! If aerosol scheme is enabled, we need an extra tracer for the
+    ! prognostic cloud droplet number concentration
+    if (laerosol) then
+      call add_tracer("Nc", long_name="cloud droplet number concentration", &
+                      unit="1/m^3", lmicro=.true., isv=inc)
+      allocate(Ncp(2:i1,2:j1,k1))
+    end if
+
                                         ! Fields accessed by:
     allocate(Nr       (2:i1,2:j1,k1)  & ! dobulkmicrostat, dosimpleicestat
             ,qr       (2:i1,2:j1,k1)  & ! dobulkmicrostat, dosimpleicestat
             ,Nrp      (2:i1,2:j1,k1)  & ! bulkmicrotend, simpleicetend
             ,qrp      (2:i1,2:j1,k1)  & ! bulkmicrotend, simpleicetend
-            ,precep   (2:i1,2:j1,k1)  ) ! dobulkmicrostat, dosimpleicestat, docape
+            ,precep   (2:i1,2:j1,k1)  & ! dobulkmicrostat, dosimpleicestat, docape
+            ,Nc(2:i1,2:j1,k1))
+
 
     allocate(thlpmcr  (2:i1,2:j1,k1)  & !
             ,qtpmcr(2-ih:i1+ih,2-jh:j1+jh,k1))  ! ghost cells added here for modvarbudget
@@ -102,6 +115,8 @@ module modbulkmicro
     gamma25=gamma(2.5)
     gamma3=2.
     gamma35=gamma(3.5)
+
+    Nc(:,:,:) = Nc_0
 
     ! Setup lookup tables for ventilation factor in SB evaporation.
     ! Entries are computed in double precision, and stored in field_r precision.
@@ -122,7 +137,7 @@ module modbulkmicro
       !$acc update device(mygamma21, mygamma251)
     end if
 
-    !$acc enter data copyin(Nr, qr, Nrp, qrp, precep, thlpmcr, qtpmcr)
+    !$acc enter data copyin(Nr, qr, Nrp, qrp, precep, thlpmcr, qtpmcr, Nc)
 
     if (lstat) call init_bulkmicro_stat
 
@@ -146,22 +161,25 @@ module modbulkmicro
 
 !> Calculates the microphysical source term.
   subroutine bulkmicro
+    use modaerosol, only: laerosol, aerosol_prepare, aerosol_activation, aerosol_finish, &
+                          aerosol_cloud_to_rain, aerosol_resuspend_rain,&
+                          aerosol_sedimentation_rain, aerosol_resuspend_cloud
     use modglobal, only : i1,j1,kmax,k1,rdt,rk3step,timee,rlv,cp, dzf
-    use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof, esl, qt0, qvsl, tmp0
+    use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof, esl, qt0, qvsl, tmp0, w0
     use modbulkmicrostat, only : bulkmicrotend
     use modmpi,    only : myid
     use modbulkmicro_data, only : Nr, qr, Nrp, qrp,  &
-                             l_sedc, l_mur_cst, l_lognormal, l_rain, &
+                             l_sedc, l_mur_cst, l_lognormal,&
                              qrmin, qcmin, &
                              mur_cst, l_sb
-    use modmicrodata, only: iqr, inr, lstat, precep, delt, qtpmcr, thlpmcr
+    use modmicrodata, only: iqr, inr, lstat, precep, delt, qtpmcr, thlpmcr, l_rain
     use modmicroutil, only: zero_field, sum_fields
     use modstat_profiles, only: sample_field
     implicit none
     integer :: i, j, k
     real :: qrtest,nr_cor,qr_cor
     real :: qrsum_neg, qrsum, Nrsum_neg, Nrsum
-    real(field_r), allocatable :: qrp_tmp(:,:,:), nrp_tmp(:,:,:)
+    real(field_r), allocatable :: qrp_tmp(:,:,:), nrp_tmp(:,:,:), ncp_tmp(:,:,:), qlp_tmp(:,:,:)
 
     !$acc parallel loop collapse(3) default(present)
     do k = 1, k1
@@ -176,6 +194,18 @@ module modbulkmicro
         enddo
       enddo
     enddo
+
+    if (laerosol) then
+      !$acc parallel loop collapse(3) default(present)
+      do k = 1, k1
+        do j = 2, j1
+          do i = 2, i1
+            Nc(i,j,k) = max(sv0(i,j,k,inc), 0.0)
+            Ncp(i,j,k) = 0
+          end do
+        end do
+      end do
+    end if
 
     delt = rdt/ (4. - dble(rk3step))
 
@@ -265,12 +295,35 @@ module modbulkmicro
       qcroof = min(k1, qcroof)
     endif
 
+    if (laerosol) then
+      allocate(ncp_tmp(2:i1,2:j1,1:k1), qlp_tmp(2:i1,2:j1,1:k1))
+
+      !$acc enter data create(ncp_tmp)
+
+      call zero_field(ncp_tmp)
+      call zero_field(qlp_tmp)
+
+      call aerosol_prepare
+
+      call aerosol_activation(ql0, w0, nc, delt, ncp_tmp)
+
+      call sum_fields(ncp_tmp, ncp)
+      call zero_field(ncp_tmp)
+
+      ! Compute cloud droplet number concentration tendency due to saturation
+      ! adjustment, and correct the aerosol number concentration as well.
+      call aerosol_resuspend_cloud(ql0, nc, delt, ncp_tmp)
+
+      call sum_fields(ncp_tmp, ncp)
+      call zero_field(ncp_tmp)
+    end if
+
     ! if there is nothing to do, we can return at this point
     ! if (min(qrbase,qcbase).gt.max(qrroof,qcroof)) return
 
     if (l_sedc) then
-      call sedimentation_cloud(ql0, rhof, exnf, qcbase, qcroof, qtpmcr, thlpmcr)
-      if(lstat) call sample_field('qtpsedc', qtpmcr) ! First process, no need to zero beforehand
+      call sedimentation_cloud(ql0, Nc, rhof, exnf, qcbase, qcroof, qtpmcr, thlpmcr)
+      if (lstat) call sample_field('qtpsedc', qtpmcr) ! First process, no need to zero beforehand
     endif
 
     ! Rain processes
@@ -284,11 +337,11 @@ module modbulkmicro
 
       ! 1. Autoconversion
       if (l_sb) then
-        call autoconversion_sb(ql0, qr, exnf, rhof, qcbase, qcroof, thlpmcr, &
-                               qtpmcr, qrp_tmp, Nrp_tmp)
+        call autoconversion_sb(ql0, Nc, qr, exnf, rhof, qcbase, qcroof, thlpmcr, &
+                               qtpmcr, qrp_tmp, Nrp_tmp, Ncp_tmp)
       else
-        call autoconversion_kk(ql0, rhof, exnf, qcbase, qcroof, thlpmcr, &
-                               qtpmcr, qrp_tmp, Nrp_tmp)
+        call autoconversion_kk(ql0, Nc, rhof, exnf, qcbase, qcroof, thlpmcr, &
+                               qtpmcr, qrp_tmp, Nrp_tmp, Ncp_tmp)
       end if
 
       if (lstat) then
@@ -299,16 +352,22 @@ module modbulkmicro
       call sum_fields(qrp_tmp, qrp)
       call sum_fields(nrp_tmp, nrp)
 
+      if (laerosol) then
+        call aerosol_cloud_to_rain(ql0, qrp_tmp)
+        call sum_fields(ncp_tmp, ncp)
+        call zero_field(ncp_tmp)
+      end if
+
       call zero_field(qrp_tmp)
       call zero_field(nrp_tmp)
 
       ! 2. Accretion
       if (l_sb) then
-        call accretion_sb(ql0, qr, Nr, exnf, rhof, qcbase, qcroof, qrbase, qrroof, &
-                          thlpmcr, qtpmcr, qrp_tmp, Nrp_tmp)
+        call accretion_sb(ql0, Nc, qr, Nr, exnf, rhof, qcbase, qcroof, qrbase, qrroof, &
+                          thlpmcr, qtpmcr, qrp_tmp, Nrp_tmp, Ncp_tmp)
       else
-        call accretion_kk(ql0, qr, exnf, qcbase, qcroof, qrbase, qrroof, &
-                          thlpmcr, qtpmcr, qrp_tmp)
+        call accretion_kk(ql0, Nc, qr, rhof, exnf, qcbase, qcroof, qrbase, qrroof, &
+                          thlpmcr, qtpmcr, qrp_tmp, Ncp_tmp)
       end if
 
       if (lstat) then
@@ -318,6 +377,12 @@ module modbulkmicro
 
       call sum_fields(qrp_tmp, qrp)
       call sum_fields(nrp_tmp, nrp)
+
+      if (laerosol) then
+        call aerosol_cloud_to_rain(ql0, qrp_tmp)
+        call sum_fields(ncp_tmp, ncp)
+        call zero_field(ncp_tmp)
+      end if
 
       call zero_field(qrp_tmp)
       call zero_field(nrp_tmp)
@@ -341,17 +406,16 @@ module modbulkmicro
       call sum_fields(qrp_tmp, qrp)
       call sum_fields(nrp_tmp, nrp)
 
+      if (laerosol) then
+        call aerosol_resuspend_rain(qr, qrp_tmp, nrp_tmp, delt)
+      end if
+
       call zero_field(qrp_tmp)
       call zero_field(nrp_tmp)
 
       ! 4. Sedimentation
-      if (l_sb) then
-        call sedimentation_rain_sb(qr, Nr, rhof, dzf, qrbase, qrroof, &
-                                   l_lognormal, delt, qrp_tmp, Nrp_tmp, precep)
-      else
-        call sedimentation_rain_kk(qr, Nr, rhof, dzf, qrbase, qrroof, delt, &
-                                   qrp_tmp, Nrp_tmp, precep)
-      end if
+      call sedimentation_rain(qr, nr, rhof, dzf, qrbase, qrroof, delt, &
+                              qrp_tmp, nrp_tmp, precep)
 
       if (lstat) then
         call sample_field('qrpsed', qrp_tmp)
@@ -361,40 +425,44 @@ module modbulkmicro
       call sum_fields(qrp_tmp, qrp)
       call sum_fields(nrp_tmp, nrp)
 
+      if (laerosol) call aerosol_sedimentation_rain(qr, nr, rhof, dzf, qrbase, &
+                                                    qrroof, delt)
+
       call zero_field(qrp_tmp)
       call zero_field(nrp_tmp)
 
-    end if
 
-    !*********************************************************************
-    ! remove negative values and non physical low values
-    !*********************************************************************
-    !$acc parallel loop collapse(3) default(present) private(qr_cor, Nr_cor)
-    do k = 1, k1
-      do j = 2, j1
-        do i = 2, i1
-          qr_cor = min(svp(i,j,k,iqr) + qrp(i,j,k) + (svm(i,j,k,iqr) / delt), &
-                       0.0_field_r)
-          Nr_cor = min(svp(i,j,k,iNr) + Nrp(i,j,k) + (svm(i,j,k,iNr) / delt), &
-                       0.0_field_r)
+      !*********************************************************************
+      ! remove negative values and non physical low values
+      !*********************************************************************
+      !$acc parallel loop collapse(3) default(present) private(qr_cor, Nr_cor)
+      do k = 1, k1
+        do j = 2, j1
+          do i = 2, i1
+            qr_cor = min(svp(i,j,k,iqr) + qrp(i,j,k) + (svm(i,j,k,iqr) / delt), &
+                         0.0_field_r)
+            Nr_cor = min(svp(i,j,k,iNr) + Nrp(i,j,k) + (svm(i,j,k,iNr) / delt), &
+                         0.0_field_r)
 
-          qrp_tmp(i,j,k) = - qr_cor
-          Nrp_tmp(i,j,k) = - Nr_cor
+            qrp_tmp(i,j,k) = - qr_cor
+            Nrp_tmp(i,j,k) = - Nr_cor
+          end do
         end do
       end do
-    end do
 
-    if (lstat) then
-      call sample_field('qrpclip', qrp_tmp)
-      call sample_field('npclip', nrp_tmp)
-    end if
+      if (lstat) then
+        call sample_field('qrpclip', qrp_tmp)
+        call sample_field('npclip', nrp_tmp)
+      end if
 
-    call sum_fields(qrp_tmp, qrp)
-    call sum_fields(nrp_tmp, nrp)
+      call sum_fields(qrp_tmp, qrp)
+      call sum_fields(nrp_tmp, nrp)
 
-    if (lstat) then
-      call sample_field('qrptot', qrp)
-      call sample_field('nptot', nrp)
+      if (lstat) then
+        call sample_field('qrptot', qrp)
+        call sample_field('nptot', nrp)
+      end if
+    
     end if
 
     !$acc parallel loop collapse(3) default(present)
@@ -410,9 +478,24 @@ module modbulkmicro
       enddo
     enddo
 
+    if (laerosol) then
+      call aerosol_finish
+
+      do k = 1, k1
+        do j = 2, j1
+          do i = 2, i1
+            svp(i,j,k,inc) = svp(i,j,k,inc) + Ncp(i,j,k)
+          end do
+        end do
+      end do
+
+    end if
+
     !$acc exit data delete(qrp_tmp, nrp_tmp)
 
-    deallocate(qrp_tmp, nrp_tmp)
+    if (l_rain) deallocate(qrp_tmp, nrp_tmp)
+
+    if (laerosol) deallocate(ncp_tmp, qlp_tmp)
 
     if (lstat) call bulkmicro_stat
 
@@ -426,9 +509,10 @@ module modbulkmicro
   !! lognormal CDSD is assumed (1 free parameter : sig_g)
   !! terminal velocity : Stokes velocity is assumed (v(D) ~ D^2)
   !! flux is calc. anal.
-  subroutine sedimentation_cloud(ql, rhof, exnf, qcbase, qcroof, qtpmcr, thlpmcr)
+  subroutine sedimentation_cloud(ql, nc, rhof, exnf, qcbase, qcroof, qtpmcr, thlpmcr)
 
     real(field_r), intent(in)    :: ql(2:,2:,:)
+    real(field_r), intent(in)    :: nc(2:,2:,:)
     real(field_r), intent(in)    :: rhof(:)
     real(field_r), intent(in)    :: exnf(:)
     integer,       intent(in)    :: qcbase, qcroof
@@ -456,7 +540,7 @@ module modbulkmicro
       do j = 2, j1
         do i = 2, i1
           if (ql(i,j,k) > qcmin) then
-            sedc = csed*Nc_0**(-2./3.)*(ql(i,j,k)*rhof(k))**(5./3.)
+            sedc = csed*nc(i,j,k)**(-2./3.)*(ql(i,j,k)*rhof(k))**(5./3.)
 
             !$acc atomic update
             qtpmcr(i,j,k)  = qtpmcr (i,j,k) - sedc /(dzf(k)*rhof(k))
@@ -477,5 +561,98 @@ module modbulkmicro
     call timer_toc(routine)
 
   end subroutine sedimentation_cloud
+
+  subroutine sedimentation_rain(qr, nr, rho, dzf, qrbase, qrroof, delt, qrp, nrp, precep)
+
+    real(field_r), intent(in)    :: qr(2:,2:,:), nr(2:,2:,:), rho(:), dzf(:), delt
+    integer,       intent(inout) :: qrbase
+    integer,       intent(in)    :: qrroof
+    real(field_r), intent(inout) :: qrp(2:,2:,:), nrp(2:,2:,:)
+    real(field_r), intent(out)   :: precep(2:,2:,:)
+
+    character(len=*), parameter :: routine = modname//'/sedimentation_rain'
+    real(field_r), parameter :: wfallmax = 9.9
+
+    integer :: &
+      i, j, k, &
+      n_spl,   &
+      ts
+    real(field_r) :: &
+      sed_qr,        &
+      sed_nr,        &
+      dt_spl
+    real(field_r), pointer :: &
+      qr_spl(:,:,:),          &
+      nr_spl(:,:,:)
+
+    n_spl = ceiling(wfallmax * delt / minval(dzf))
+    dt_spl = delt / real(n_spl, kind=field_r)
+
+    allocate(qr_spl(2:i1,2:j1,1:k1), nr_spl(2:i1,2:j1,1:k1))
+
+    !$acc enter data create(qr_spl, nr_spl)
+
+    !$acc parallel loop collapse(3) default(present)
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
+          qr_spl(i,j,k) = qr(i,j,k)
+          nr_spl(i,j,k) = nr(i,j,k)
+        end do
+      end do
+    end do
+
+    do ts = 1, n_spl ! Time splitting loop
+      ! TODO: check if compiler succesfully unswitches and inlines function calls.
+      !$acc parallel loop gang vector collapse(3) default(present)
+      do k = qrbase, qrroof
+        do j = 2, j1
+          do i = 2, i1
+            if (qr_spl(i,j,k) > qrmin .and. nr(i,j,k) > 0) then
+              if (l_sb) then
+                sed_qr = calc_sed_qr_sb(qr_spl(i,j,k), nr_spl(i,j,k), rho(k))
+                sed_nr = calc_sed_nr_sb(qr_spl(i,j,k), nr_spl(i,j,k), rho(k))
+              else
+                sed_qr = calc_sed_qr_kk(qr_spl(i,j,k), nr_spl(i,j,k), rho(k))
+                sed_nr = calc_sed_nr_kk(qr_spl(i,j,k), nr_spl(i,j,k), rho(k))
+              end if
+              !$acc atomic update
+              qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr * dt_spl / (dzf(k) * rho(k))
+              !$acc atomic update
+              nr_spl(i,j,k) = nr_spl(i,j,k) - sed_nr * dt_spl / dzf(k)
+              if (k > 1) then
+                !$acc atomic update
+                qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr * dt_spl &
+                                  / (dzf(k-1) * rho(k-1))
+                !$acc atomic update
+                nr_spl(i,j,k-1) = nr_spl(i,j,k-1) + sed_nr * dt_spl / dzf(k-1)
+              end if
+              if (ts == 1) then
+                precep(i,j,k) = sed_qr / rho(k)
+              end if
+            end if
+          end do
+        end do
+      end do
+      ! Lower the rain base by one level to include the rain fall from the
+      ! previous step
+      qrbase = max(1, qrbase - 1)
+    end do
+
+    !$acc parallel loop collapse(3) default(present)
+    do k = qrbase, qrroof
+      do j = 2, j1
+        do i = 2, i1
+          qrp(i,j,k) = qrp(i,j,k) + (qr_spl(i,j,k) - qr(i,j,k)) / delt
+          nrp(i,j,k) = nrp(i,j,k) + (nr_spl(i,j,k) - nr(i,j,k)) / delt
+        end do
+      end do
+    end do
+
+    !$acc exit data delete(qr_spl, nr_spl)
+
+    deallocate(qr_spl, nr_spl)
+
+  end subroutine sedimentation_rain
 
 end module modbulkmicro

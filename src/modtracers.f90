@@ -134,8 +134,8 @@ contains
     integer                     :: s
     character(len=1024)         :: message = ''
     type(T_tracer), allocatable :: tmp(:)
-    
-    
+
+
 
     ! Check if we have already allocated memory
     if (allocated(sv0)) then
@@ -261,7 +261,7 @@ contains
 
   !> \brief Setup tracers from ASCII input files
   !!
-  !! \param file_profiles Name of file containing profiles of tracers. From 
+  !! \param file_profiles Name of file containing profiles of tracers. From
   !! this file, the number of tracers is determined.
   !! \param file_properties Name of file containing tracer attributes.
   subroutine tracer_props_from_ascii(file_profiles, file_properties)
@@ -364,7 +364,7 @@ contains
                   wsvsurf, defltvalue=0.0_field_r) &
       )
     end do
-    
+
   end subroutine tracer_props_from_ascii
 
   !> \brief Read tracer properties from tracers.XXX.nc

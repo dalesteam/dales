@@ -2,7 +2,7 @@
 !! \param qr Rain water mixing ratio.
 !! \param rho Air density.
 !! \return Mu.
-function calc_mur(qr, rho) result(mu)
+pure function calc_mur(qr, rho) result(mu)
 
   real(field_r), intent(in) :: qr, rho
 
@@ -24,14 +24,14 @@ end function calc_mur
 !! \param xrmin Lower bound of mass.
 !! \param xrmax Upper bound of mass.
 !! \return Droplet mass.
-function calc_xr(rho, qr, nr, xrmin, xrmax) result(xr)
+pure function calc_xr(rho, qr, nr, xrmin, xrmax) result(xr)
 
   real(field_r), intent(in) :: rho, qr, nr, xrmin, xrmax
 
   real(field_r) :: xr
   !$acc routine seq
 
-  xr = rho * qr / (nr + 1e-6)
+  xr = rho * qr / (nr + 1E-16)
   xr = min(max(xr, xrmin), xrmax)
 
 end function calc_xr
@@ -39,7 +39,7 @@ end function calc_xr
 !> Compute mean droplet diameter.
 !! \param xr Mass of droplet.
 !! \return Droplet diameter.
-function calc_dvr(xr) result(d)
+pure function calc_dvr(xr) result(d)
 
   real(field_r), intent(in) :: xr
 
@@ -54,7 +54,7 @@ end function calc_dvr
 !! \param mur Mu parameter of the Gamma distribution.
 !! \param dr Mean droplet diameter.
 !! \return Lambda.
-function calc_lbdr(mur, dr) result(lambda)
+pure function calc_lbdr(mur, dr) result(lambda)
 
   real(field_r), intent(in) :: mur, dr
 

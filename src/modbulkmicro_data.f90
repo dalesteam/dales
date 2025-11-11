@@ -36,7 +36,6 @@ module modbulkmicro_data
   !$acc declare create(mur_cst)
 
   integer :: &
-    iNc,     & !< Tracer index of cloud droplet number concentration.
     qcbase,  & !< Lowest model layer with cloud.
     qcroof,  & !< Highest model layer with cloud.
     qrbase,  & !< Lowest model layer with rain.
@@ -44,10 +43,8 @@ module modbulkmicro_data
 
   ! Arrays
   real(field_r), pointer :: &
-    Nc(:,:,:),              & !< Cloud droplet number concentration.
     Nr(:,:,:),              & !< Rain droplet number concentration.
     qr(:,:,:),              & !< Rain specific mixing ratio.
-    Ncp(:,:,:),             & !< Tendency of cloud droplet number concentration.
     Nrp(:,:,:),             & !< Tendency of rain droplet number concentration.
     qrp(:,:,:)                !< Tendency of rain specific mixing ratio.
 

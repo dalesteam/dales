@@ -10,11 +10,15 @@ set( dales_srcs
 	bulkmicro_kk.f90
 	bulkmicro_sb.f90
 	daleslib.f90
+	debug.c
 	fftnew.f90
 	go.f90
 	le_drydepos_gas.f90
 	modAGScross.f90
 	modadvection.f90
+	modaerosol.f90
+	modaerosol_common.f90
+	modaerosol_mode_t.f90
 	modboundary.f90
 	modbudget.f90
 	modbulkmicro.f90

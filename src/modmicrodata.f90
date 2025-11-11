@@ -41,6 +41,7 @@ module modmicrodata
 
   ! Thresholds for statistics
   real(field_r), parameter :: &
+    qcmin = 1.0e-7,           &
     epscloud = 0.01e-3,       &
     epsprec = 3.65e-5,        &
     epsqr = 1.0e-8
@@ -57,9 +58,15 @@ module modmicrodata
     Nc_0 = 70e6,   & !< Cloud droplet number concentration [1/m^3].
     sig_g = 1.34     !< Std. dev. of cloud droplet size distribution.
 
+  ! Arrays for cloud droplet number concentration.
+  real(field_r), allocatable :: &
+    Nc(:,:,:),                  &
+    Ncp(:,:,:)
+
   ! Indices of rain-related tracers in tracer array. Kept here, because some
   ! statistics use them. Better to switch to using get_tracer_index in the future.
   integer ::  &
+    inc = -1, & !< Cloud droplet number concentration.
     inr = -1, & !< Rain droplet number concentration.
     iqr = -1    !< Rain water mixing ratio.
 

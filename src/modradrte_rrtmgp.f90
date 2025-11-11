@@ -496,22 +496,27 @@ contains
   subroutine setupColumnProfiles(ibatch)
 
     use modglobal,   only: imax, jmax, kmax, i1, grav, kind_rb, rlv, cp, rd, pref0, tup, tdn
-    use modfields,   only: thl0, qt0, ql0, exnf, rhof
+    use modfields,   only: thl0, qt0, ql0, exnf, rhof, sv0
     use modsurfdata, only: tskin, ps
     use modmicrodata, only : Nc_0,sig_g
+    use modtracers, only: get_tracer_index
 
     implicit none
 
     integer, intent(in) :: ibatch
     integer :: jstart, jend
     integer :: i, j, k, icol
+    integer :: inc
     real, parameter :: pi = 3.14159265358979
     real, parameter :: rho_liq = 1000., IWC0=50e-3 ! both in kg/m3
 
     real(kind=kind_rb) :: exners, reff_factor, ilratio, layerMass, qci, qcl, B_function
+    real(kind_rb), allocatable :: nc_slice(:,:)
+
+    allocate(nc_slice(ncol,nlay+1))
 
     exners = (ps/pref0)**(rd/cp)
-    reff_factor = 1e6*(3. /(4.*pi*Nc_0*rho_liq) )**(1./3.) * exp(log(sig_g)**2 )
+    !reff_factor = 1e6*(3. /(4.*pi*Nc_0*rho_liq) )**(1./3.) * exp(log(sig_g)**2 )
 
     ! Set up j indices to be treated
     jstart = (ibatch-1) * jmax/nbatch + 2
@@ -557,7 +562,10 @@ contains
     IWP_slice = 0.0
     liquidRe = 0.
     iceRe = 0.
+    nc_slice = 0.0
     !$acc end kernels
+
+    inc = get_tracer_index('nc')
 
     !$acc parallel loop collapse(3) default(present) private(icol,ilratio,layerMass,qcl,qci,B_function)
     do k=1,kmax
@@ -573,11 +581,17 @@ contains
           LWP_slice(icol,k) = qcl * layerMass*1e3 !g/m2
           IWP_slice(icol,k) = qci * layerMass*1e3 !g/m2
 
+          if (inc > 0) then
+            nc_slice(icol,k) = sv0(i,j,k,iNc)
+          else
+            nc_slice(icol,k) = Nc_0
+          end if
+
           if (LWP_slice(icol,k).gt.0.) then
-            !cstep liquidRe(icol, k) = 1.e6*( 3.*( 1.e-3*LWP_slice(icol,k)/layerMass ) &
-            !cstep                  /(4.*pi*Nc_0*rho_liq) )**(1./3.) * exp(log(sig_g)**2 )
+            liquidRe(icol, k) = 1.e6*( 3.*( 1.e-3*LWP_slice(icol,k)/layerMass ) &
+                              /(4.*pi*nc_slice(icol,k)*rho_liq) )**(1./3.) * exp(log(sig_g)**2 )
             !cstep: equation above contains function of many constants, are now absorbed in reff_factor
-            liquidRe(icol, k) = reff_factor  * qcl**(1./3.)
+            !liquidRe(icol, k) = reff_factor  * qcl**(1./3.)
 
             if(liquidRe(icol,k).lt.2.5) liquidRe(icol,k) = 2.5
             if(liquidRe(icol,k).gt.20.) liquidRe(icol,k) = 20.
@@ -601,6 +615,8 @@ contains
         enddo
       enddo
     enddo
+
+    deallocate(nc_slice)
 
   end subroutine setupColumnProfiles
 

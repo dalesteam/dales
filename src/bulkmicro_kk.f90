@@ -18,7 +18,7 @@
 !> Kernels for Khairoutdinov-Kogan microphysics.
 module bulkmicro_kk
   use modglobal,         only: i1, ih, j1, jh, k1, rlv, cp, pi, rv, pirhow
-  use modmicrodata,      only: Nc_0
+  use modmicrodata,      only: Nc_0, delt
   use modbulkmicro_data, only: qrmin, qcmin, l_mur_cst, mur_cst
   use modprecision,      only: field_r
   use modtimer,          only: timer_tic, timer_toc
@@ -31,6 +31,8 @@ module bulkmicro_kk
   public :: accretion_kk
   public :: evaporation_kk
   public :: sedimentation_rain_kk
+  public :: calc_sed_qr_kk
+  public :: calc_sed_nr_kk
   public :: xrmin, xrmax
 
   real(field_r), parameter :: &
@@ -40,7 +42,8 @@ module bulkmicro_kk
     Kt = 2.5e-2,    & !< Conductivity of heat [J/(sKm)].
     wfallmax = 9.9, & !< Terminal fall velocity.
     xrmin = 0.0,    &
-    xrmax = 5.2e-7    !< Max mean mass of pw.
+    xrmax = 5.2e-7, & !< Max mean mass of pw.
+    eps = 1e-18
 
 contains
 
@@ -57,9 +60,10 @@ contains
   !! \param qtpmcr Tendency of $\q_t$.
   !! \param qrp Tendency of rain water mixing ratio.
   !! \param Nrp Tendency of rain drop number concentration.
-  subroutine autoconversion_kk(ql0, rhof, exnf, qcbase, qcroof, thlpmcr, &
-                            qtpmcr, qrp, Nrp)
+  subroutine autoconversion_kk(ql0, Nc, rhof, exnf, qcbase, qcroof, thlpmcr, &
+                            qtpmcr, qrp, Nrp, Ncp)
     real(field_r), intent(in)    :: ql0(2-ih:i1+ih,2-jh:j1+jh,1:k1)
+    real(field_r), intent(in)    :: nc(2:,2:,:)
     real(field_r), intent(in)    :: rhof(1:k1)
     real(field_r), intent(in)    :: exnf(1:k1)
 
@@ -70,8 +74,12 @@ contains
     real(field_r), intent(inout) :: qrp(2:i1,2:j1,1:k1)
     real(field_r), intent(inout) :: Nrp(2:i1,2:j1,1:k1)
 
+    real(field_r), intent(inout), optional :: Ncp(2:i1,2:j1,1:k1)
+
     integer       :: i, j, k
-    real(field_r) :: au
+    real(field_r) :: &
+      au, &
+      xc
 
     if (qcbase > qcroof) return
 
@@ -84,10 +92,15 @@ contains
            if (ql0(i,j,k) > qcmin) then
               au = 1350 * ql0(i,j,k)**(2.47_field_r) &
                    * (Nc_0 / 1E6)**(-1.79_field_r)
+              au = min(ql0(i,j,k) / delt, au)
               qrp(i,j,k) = qrp(i,j,k) + au
               qtpmcr(i,j,k) = qtpmcr(i,j,k) - au
               thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv / (cp * exnf(k))) * au
               Nrp(i,j,k) = Nrp(i,j,k) + au * rhof(k) / (pirhow * D0**3)
+              if (present(Ncp)) then
+                xc = rhof(k) * ql0(i,j,k) / (Nc(i,j,k) + eps)
+                Ncp(i,j,k) = Ncp(i,j,k) - au / xc * rhof(k)
+              end if
            endif
         enddo
       enddo
@@ -109,10 +122,12 @@ contains
   !! \param thlpmcr Tendency of $\theta_l$.
   !! \param qtpmcr Tendency of total water mixing ratio.
   !! \param qrp Tendency of rain water mixing ratio.
-  subroutine accretion_kk(ql0, qr, exnf, qcbase, qcroof, qrbase, qrroof, &
-                          thlpmcr, qtpmcr, qrp)
+  subroutine accretion_kk(ql0, Nc, qr, rhof, exnf, qcbase, qcroof, qrbase, qrroof, &
+                          thlpmcr, qtpmcr, qrp, Ncp)
     real(field_r), intent(in)    :: ql0(2-ih:i1+ih,2-jh:j1+jh,1:k1)
+    real(field_r), intent(in)    :: Nc(2:i1,2:j1,1:k1)
     real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
+    real(field_r), intent(in)    :: rhof(1:k1)
     real(field_r), intent(in)    :: exnf(1:k1)
 
     integer,       intent(in)    :: qcbase, qcroof
@@ -122,8 +137,12 @@ contains
     real(field_r), intent(inout) :: qtpmcr(2-ih:i1+ih,2-jh:j1+jh,1:k1)
     real(field_r), intent(inout) :: qrp(2:i1,2:j1,1:k1)
 
+    real(field_r), intent(inout), optional :: Ncp(2:i1,2:j1,1:k1)
+
     integer       :: i, j, k
-    real(field_r) :: ac
+    real(field_r) :: &
+      ac, &
+      xc
 
     if (max(qrbase, qcbase) > min(qcroof, qcroof)) return
 
@@ -138,6 +157,10 @@ contains
             qrp(i,j,k) = qrp(i,j,k) + ac
             qtpmcr(i,j,k) = qtpmcr(i,j,k) - ac
             thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv / (cp * exnf(k))) * ac
+            if (present(Ncp)) then
+              xc = rhof(k) * ql0(i,j,k) / (Nc(i,j,k) + eps)
+              Ncp(i,j,k) = Ncp(i,j,k) - ac / xc * rhof(k)
+            end if
           endif
         enddo
       enddo
@@ -235,6 +258,54 @@ contains
     call timer_toc('bulkmicro_kk/evaporation')
 
   end subroutine evaporation_kk
+
+  !> Calculate the sedimentation rate of the rain water content.
+  !!
+  !! @param[in] qr Rain water content.
+  !! @param[in] nr Rain droplet number concentration.
+  !! @param[in] rho Air density.
+  !!
+  !! @returns sedimentation rate of nr.
+  elemental function calc_sed_qr_kk(qr, nr, rho) result(sed_qr)
+
+    real(field_r), intent(in) :: qr, nr, rho
+    
+    real(field_r) :: xr, dvr, wfall_qr, sed_qr
+
+    !$acc routine seq
+
+    xr = calc_xr(rho, qr, nr, xrmin, xrmax)
+    dvr = calc_dvr(xr)
+
+    wfall_qr = max(0._field_r, 0.006_field_r * 1E6 * dvr - 0.2_field_r)
+
+    sed_qr  = wfall_qr * qr * rho ! m/s * kg/m3
+
+  end function calc_sed_qr_kk
+
+  !> Calculate the sedimentation rate of the rain water content.
+  !!
+  !! @param[in] qr Rain water content.
+  !! @param[in] nr Rain droplet number concentration.
+  !! @param[in] rho Air density.
+  !!
+  !! @returns sedimentation rate of nr.
+  elemental function calc_sed_nr_kk(qr, nr, rho) result(sed_nr)
+
+    real(field_r), intent(in) :: qr, nr, rho
+    
+    real(field_r) :: xr, dvr, wfall_nr, sed_nr
+
+    !$acc routine seq
+
+    xr = calc_xr(rho, qr, nr, xrmin, xrmax)
+    dvr = calc_dvr(xr)
+
+    wfall_nr = max(0._field_r, 0.0035_field_r * 1E6 * dvr - 0.1_field_r)
+
+    sed_nr  = wfall_nr * nr
+
+  end function calc_sed_nr_kk
 
   !> Calculate the sedimentation term.
   !!
