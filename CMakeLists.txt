@@ -108,9 +108,9 @@ if( ENABLE_RRTMG )
   add_compile_definitions( USE_RRTMG )
 endif()
 
-if( ENABLE_ZSTANDARD )
-  add_compile_definitions( NC_ZSTANDARD )
-endif()
+# Zstandard compression
+include( dales_check_zstandard )
+dales_check_zstandard()
 
 # GPU stuff
 
@@ -137,4 +137,5 @@ if( ENABLE_ACC OR ENABLE_NVTX )
 endif()
 
 include( dales_compile_options )
+
 add_subdirectory( src )
