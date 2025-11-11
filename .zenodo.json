@@ -39,6 +39,10 @@
         "name": "Pim van Dorp"
       },
       {
+        "affiliation": "Wageningen University and Research",
+        "name": "Marloes van Driel"
+      },
+      {
         "orcid": "0000-0001-8073-6541",
         "name": "Johan van der Dussen"
       },
@@ -51,6 +55,14 @@
 	"orcid":"0000-0002-2438-7292"
       },
       {
+        "affiliation": "TNO",
+        "name": "Leon Geers"
+      },
+      {
+         "affiliation": "Delft University of Technology",
+         "name": "André van Ginkel"
+      },
+      {
         "orcid": "0000-0001-7202-3525",
         "affiliation": "Wageningen University and Research",
         "name": "Chiel van Heerwaarden"
@@ -58,6 +70,10 @@
       {
         "orcid": "0000-0003-2650-2423",
         "name": "Thijs Heus"
+      },
+      {
+        "affiliation": "TNO",
+        "name": "Ruud Janssen"
       },
       {
         "orcid": "0000-0003-2905-6692",
@@ -73,13 +89,24 @@
         "name": "Harm Jonker"
       },
       {
-	"affiliation": "Delft University of Technology",
+        "orcid": "0009-0001-1031-9010",
+        "affiliation": "Delft University of Technology",
         "name": "Caspar Jungbacker"
+      },
+      {
+        "orcid": "0000-0001-9150-0892",
+        "affiliation": "Delft University of Technology",
+        "name": "Steven van der Linden"
       },
       {
 	"affiliation": "Monash University",
         "name": "Frans Liqui Lung",
 	"orcid": "0000-0002-7835-2132"
+      },
+      {
+        "orcid": "0009-0004-7386-2813",
+        "affiliation": "Eviden",
+        "name": "Loris Lucido"
       },
       {
         "orcid": "0000-0003-3614-8544",
