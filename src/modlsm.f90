@@ -156,38 +156,30 @@ subroutine lsm
     call timer_toc('lsm_integrate_theta_soil')
 
     !$acc wait(1)
-    do ilu=1,nlu
-       if (tile(ilu)%lveg) then
-          if (acc) then
-             !$acc update host(tile(ilu)%phiw_mean)
-          else
-             !$acc update device(tile(ilu)%phiw_mean)
-          endif
-       endif
-    enddo
-        !$acc update host (f1)
-        !$acc update host (f2b)
-        do ilu=1,nlu
-           !$acc update host(tile(ilu)%f2)
-           !$acc update host(tile(ilu)%f3)
-           !$acc update host(tile(ilu)%rs)
-        enddo
 
-    !$acc update host(du_tot, thv_1)
+    !not needed
+    !!$acc update host(du_tot, thv_1)
+
+    ! keep
+    !$acc update host(lambdah,lambda)
+    !$acc update host(tsoil)
+    !$acc update host(wl, wlm, throughfall, interception) ! XXX: interception: never read again
+    !$acc update host (f1)
+    !$acc update host (f2b)
+
+    !XXX
+    !$acc update host(H,LE,G0,ustar,qskin,tskin,rsveg,rssoil,thlflux,qtflux,obl,dthldz,dqtdz,dudz,dvdz,cliq,ra,rsveg,rssoil)
+
+    !$acc update host(lambdas,gammas)
+    !$acc update host(lambdash,gammash)
+    !$acc update host(phiwm)
+
     do ilu=1, nlu
        !$acc update host(tile(ilu)%db,tile(ilu)%obuk,tile(ilu)%ustar,tile(ilu)%ra)
     enddo
-    !$acc update host(H,LE,G0,ustar,qskin,tskin,rsveg,rssoil,thlflux,qtflux,obl,dthldz,dqtdz,dudz,dvdz,cliq,ra,rsveg,rssoil)
     do ilu=1,nlu
        !$acc update host(tile(ilu)%tskin,tile(ilu)%H,tile(ilu)%LE,tile(ilu)%G,tile(ilu)%wthl,tile(ilu)%wqt,tile(ilu)%thlskin,tile(ilu)%qtskin)
     enddo
-    !$acc update host(lambdah,lambda)
-    !$acc update host(tsoil)
-    !$acc update host(lambdas,gammas)
-    !$acc update host(lambdash,gammash)
-    ! XXX: interception: never read again
-    !$acc update host(wl, wlm, throughfall, interception)
-    !$acc update host(phiwm)
 
     call update_gpu()
     call timer_toc('lsm')
