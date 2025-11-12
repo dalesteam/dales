@@ -8,3 +8,5 @@ build/
 .idea/
 build/
 runs/
+doc/html
+doc/latex
