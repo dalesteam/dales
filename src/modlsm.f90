@@ -63,7 +63,7 @@ subroutine lsm
        H, LE, G0, tskin, qskin, thlflux, qtflux, dthldz, dqtdz, &
        dudz, dvdz, ustar, obl, cliq, ra, rsveg, rssoil, phiw, &
        lambda, lambdah, tsoil, lambdas, gammas, lambdash, gammash, &
-       wl, wlm
+       wl, wlm, phiwm
 
   implicit none
 
@@ -158,9 +158,12 @@ subroutine lsm
     ! Set grid point averaged boundary conditions (thls, qts, gradients, ..)
     call timer_tic('lsm_calc_bulk_bcs', 0)
     call calc_bulk_bcs
-
     !$acc wait(1)
     !$acc update host(H,LE,G0,ustar,qskin,tskin,rsveg,rssoil,thlflux,qtflux,obl,dthldz,dqtdz,dudz,dvdz,cliq,ra,rsveg,rssoil)
+    do ilu=1,nlu
+       !$acc wait(1)
+       !$acc update host(tile(ilu)%tskin,tile(ilu)%H,tile(ilu)%LE,tile(ilu)%G,tile(ilu)%wthl,tile(ilu)%wqt,tile(ilu)%thlskin,tile(ilu)%qtskin)
+    enddo
     call timer_toc('lsm_calc_bulk_bcs')
 
     ! Calculate soil tendencies
@@ -195,13 +198,15 @@ subroutine lsm
     ! Update liquid water reservoir
     call timer_tic('lsm_calc_liquid_reservoir', 0)
     call calc_liquid_reservoir
-    ! XXX: throughfall, interception: never read again
+    ! XXX: interception: never read again
     !$acc wait(1)
     !$acc update host(wl, wlm, throughfall, interception)
     call timer_toc('lsm_calc_liquid_reservoir')
     ! Solve diffusion equation:
     call timer_tic('lsm_integrate_theta_soil', 0)
     call integrate_theta_soil
+    !$acc wait(1)
+    !$acc update host(phiwm)
     call timer_toc('lsm_integrate_theta_soil')
 
     call timer_toc('lsm')
@@ -1113,11 +1118,6 @@ subroutine calc_bulk_bcs
       endif
     enddo
 
-    do ilu=1,nlu
-       !$acc wait(1)
-       !$acc update host(tile(ilu)%tskin,tile(ilu)%H,tile(ilu)%LE,tile(ilu)%G,tile(ilu)%wthl,tile(ilu)%wqt,tile(ilu)%thlskin,tile(ilu)%qtskin)
-    enddo
-
     !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
         do i=2,i1
@@ -1522,17 +1522,21 @@ subroutine integrate_theta_soil
     real :: tend, rk3coef, flux_top, fac
 
     rk3coef = rdt / (4. - dble(rk3step))
-    if(rk3step == 1) phiwm(:,:,:) = phiw(:,:,:)
+    if(rk3step == 1) then
+       !$acc kernels default(present) async(1)
+       phiwm(:,:,:) = phiw(:,:,:)
+       !$acc end kernels
+    endif
 
     fac = 1./(rhow * rlv)
 
      ! Top soil layer
     k = kmax_soil
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
         do i=2,i1
           do ilu=1,nlu
-            !if (trim(tile(ilu)%lushort) == 'bs') then
-            if (trim(tile(ilu)%lushort) == 'bs' .or. trim(tile(ilu)%lushort) == 'brn') then !TODO; special function for bare soil
+            if (tile(ilu)%lunum == lu_bs .or. tile(ilu)%lunum == lu_brn) then !TODO; special function for bare soil
               flux_top = tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j) * fac + throughfall(i,j)
               tend = (-flux_top - (lambdash(i,j,k) * (phiw(i,j,k) - phiw(i,j,k-1)) * dzhi_soil(k)))*dzi_soil(k) &
                     - gammash(i,j,k) * dzi_soil(k) + phiw_source(i,j,k)
@@ -1544,6 +1548,7 @@ subroutine integrate_theta_soil
 
     ! Bottom soil layer
     k = 1
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
         do i=2,i1
             tend = ((lambdash(i,j,k+1) * (phiw(i,j,k+1) - phiw(i,j,k)) * dzhi_soil(k+1)))*dzi_soil(k) &
@@ -1555,6 +1560,7 @@ subroutine integrate_theta_soil
 
     ! Interior
     do k=2,kmax_soil-1
+        !$acc parallel loop collapse(2) default(present) async(1)
         do j=2,j1
             do i=2,i1
                 tend = ((lambdash(i,j,k+1) * (phiw(i,j,k+1) - phiw(i,j,k  )) * dzhi_soil(k+1)) &
@@ -1567,6 +1573,7 @@ subroutine integrate_theta_soil
     end do
 
     ! Range check of phiw
+    !$acc update host(phiw)
     call check_array(phiw, "phiw", "integrate_theta_soil", [0.0, 1.0])
 
 end subroutine integrate_theta_soil
@@ -1672,7 +1679,7 @@ end subroutine initlsm
 
 subroutine allocate_on_device()
 
-  use modsurfdata, only : tsoil, tsoilm, phiw, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah, lambdas, gammas, lambdash, gammash, wl, wlm
+  use modsurfdata, only : tsoil, tsoilm, phiw, phiwm, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah, lambdas, gammas, lambdash, gammash, wl, wlm
 
   implicit none
 
@@ -1698,6 +1705,7 @@ subroutine allocate_on_device()
   !$acc enter data copyin(gammash)
   !$acc enter data copyin(land_frac)
   !$acc enter data copyin(phiw)
+  !$acc enter data copyin(phiwm)
   !$acc enter data copyin(rho_C)
   !$acc enter data copyin(rssoil)
   !$acc enter data copyin(rsveg)
@@ -1763,7 +1771,7 @@ end subroutine allocate_on_device
 
 subroutine deallocate_from_device()
 
-  use modsurfdata, only : tsoil, tsoilm, phiw, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah, lambdas, gammas, lambdash, gammash, wl, wlm
+  use modsurfdata, only : tsoil, tsoilm, phiw, phiwm, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah, lambdas, gammas, lambdash, gammash, wl, wlm
 
   implicit none
 
@@ -1791,6 +1799,7 @@ subroutine deallocate_from_device()
   !$acc exit data delete(land_frac)
   !$acc exit data delete(LE)
   !$acc exit data delete(phiw)
+  !$acc exit data delete(phiwm)
   !$acc exit data delete(rho_C)
   !$acc exit data delete(rssoil)
   !$acc exit data delete(rsveg)
