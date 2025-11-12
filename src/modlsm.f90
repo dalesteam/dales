@@ -159,20 +159,24 @@ subroutine lsm
 
     !not needed
     !!$acc update host(du_tot, thv_1)
+    !!$acc update host(lambdas,gammas)
+    !!$acc update host(lambdash,gammash)
+    !!$acc update host(lambdah,lambda)
+    !!$acc update host(phiwm)
+    ! throughfall, interception) ! XXX: interception: never read again
+
+    ! testing
+    !$acc update host(H,LE,G0,ustar,qskin,tskin,rsveg)
+    !$acc update host(rssoil,thlflux,qtflux,obl,dthldz,dqtdz,dudz,dvdz,cliq,ra,rsveg,rssoil)
 
     ! keep
-    !$acc update host(lambdah,lambda)
     !$acc update host(tsoil)
-    !$acc update host(wl, wlm, throughfall, interception) ! XXX: interception: never read again
+    !$acc update host(wl)
+    !$acc update host(wlm)
+
+    ! keep?
     !$acc update host (f1)
     !$acc update host (f2b)
-
-    !XXX
-    !$acc update host(H,LE,G0,ustar,qskin,tskin,rsveg,rssoil,thlflux,qtflux,obl,dthldz,dqtdz,dudz,dvdz,cliq,ra,rsveg,rssoil)
-
-    !$acc update host(lambdas,gammas)
-    !$acc update host(lambdash,gammash)
-    !$acc update host(phiwm)
 
     do ilu=1, nlu
        !$acc update host(tile(ilu)%db,tile(ilu)%obuk,tile(ilu)%ustar,tile(ilu)%ra)
@@ -181,7 +185,7 @@ subroutine lsm
        !$acc update host(tile(ilu)%tskin,tile(ilu)%H,tile(ilu)%LE,tile(ilu)%G,tile(ilu)%wthl,tile(ilu)%wqt,tile(ilu)%thlskin,tile(ilu)%qtskin)
     enddo
 
-    call update_gpu()
+    !call update_gpu()
     call timer_toc('lsm')
 end subroutine lsm
 
