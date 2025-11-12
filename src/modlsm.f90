@@ -91,14 +91,6 @@ subroutine lsm
        call timer_toc('lsm_calc_tile_fractions')
     end if
 
-    !$acc update device(soil_index)
-    !$acc update device(phiw,theta_wp,theta_fc)
-    do ilu=1,nlu
-       if (tile(ilu)%lveg) then
-          !$acc update device(tile(ilu)%root_frac)
-       endif
-    enddo
-
     acc=.true.
     ! Calculate root fraction weighted mean soil water content.
     call timer_tic('lsm_calc_theta_mean', 0)
@@ -107,17 +99,6 @@ subroutine lsm
         call calc_theta_mean(tile(ilu), acc=acc)
       end if
     end do
-
-    !$acc wait(1)
-    do ilu=1,nlu
-       if (tile(ilu)%lveg) then
-          if (acc) then
-             !$acc update host(tile(ilu)%phiw_mean)
-          else
-             !$acc update device(tile(ilu)%phiw_mean)
-          endif
-       endif
-    enddo
     call timer_toc('lsm_calc_theta_mean')
 
     ! Calculate canopy/soil resistances.
@@ -131,62 +112,32 @@ subroutine lsm
     else
         call timer_tic('lsm_calc_canopy_resistance_js', 0)
         call calc_canopy_resistance_js
-
-        !$acc wait(1)
-        !$acc update host (f1)
-        !$acc update host (f2b)
-        do ilu=1,nlu
-           !$acc update host(tile(ilu)%f2)
-           !$acc update host(tile(ilu)%f3)
-           !$acc update host(tile(ilu)%rs)
-        enddo
-
         call timer_toc('lsm_calc_canopy_resistance_js')
     endif
 
     ! Calculate aerodynamic resistance (and u*, obuk).
     call timer_tic('lsm_calc_stability', 0)
     call calc_stability
-
-    !$acc wait(1)
-    !$acc update host(du_tot, thv_1)
-    do ilu=1, nlu
-       !$acc update host(tile(ilu)%db,tile(ilu)%obuk,tile(ilu)%ustar,tile(ilu)%ra)
-    enddo
     call timer_toc('lsm_calc_stability')
 
     ! Set grid point averaged boundary conditions (thls, qts, gradients, ..)
     call timer_tic('lsm_calc_bulk_bcs', 0)
     call calc_bulk_bcs
-    !$acc wait(1)
-    !$acc update host(H,LE,G0,ustar,qskin,tskin,rsveg,rssoil,thlflux,qtflux,obl,dthldz,dqtdz,dudz,dvdz,cliq,ra,rsveg,rssoil)
-    do ilu=1,nlu
-       !$acc wait(1)
-       !$acc update host(tile(ilu)%tskin,tile(ilu)%H,tile(ilu)%LE,tile(ilu)%G,tile(ilu)%wthl,tile(ilu)%wqt,tile(ilu)%thlskin,tile(ilu)%qtskin)
-    enddo
     call timer_toc('lsm_calc_bulk_bcs')
 
     ! Calculate soil tendencies
     ! Calc diffusivity heat:
     call timer_tic('lsm_calc_thermal_properties', 0)
     call calc_thermal_properties
-
-    !$acc wait(1)
-    !$acc update host(lambdah,lambda)
     call timer_toc('lsm_calc_thermal_properties')
     ! Solve diffusion equation:
     call timer_tic('lsm_integrate_t_soil', 0)
     call integrate_t_soil
-    !$acc wait(1)
-    !$acc update host(tsoil)
     call timer_toc('lsm_integrate_t_soil')
 
     ! Calc diffusivity and conductivity soil moisture:
     call timer_tic('lsm_calc_hydraulic_properties', 0)
     call calc_hydraulic_properties
-    !$acc wait(1)
-    !$acc update host(lambdas,gammas)
-    !$acc update host(lambdash,gammash)
     call timer_toc('lsm_calc_hydraulic_properties')
     ! Calculate tendency due to root water extraction
     call timer_tic('lsm_calc_root_water_extraction', 0)
@@ -198,20 +149,48 @@ subroutine lsm
     ! Update liquid water reservoir
     call timer_tic('lsm_calc_liquid_reservoir', 0)
     call calc_liquid_reservoir
-    ! XXX: interception: never read again
-    !$acc wait(1)
-    !$acc update host(wl, wlm, throughfall, interception)
     call timer_toc('lsm_calc_liquid_reservoir')
     ! Solve diffusion equation:
     call timer_tic('lsm_integrate_theta_soil', 0)
     call integrate_theta_soil
-    !$acc wait(1)
-    !$acc update host(phiwm)
     call timer_toc('lsm_integrate_theta_soil')
 
-    call timer_toc('lsm')
+    !$acc wait(1)
+    do ilu=1,nlu
+       if (tile(ilu)%lveg) then
+          if (acc) then
+             !$acc update host(tile(ilu)%phiw_mean)
+          else
+             !$acc update device(tile(ilu)%phiw_mean)
+          endif
+       endif
+    enddo
+        !$acc update host (f1)
+        !$acc update host (f2b)
+        do ilu=1,nlu
+           !$acc update host(tile(ilu)%f2)
+           !$acc update host(tile(ilu)%f3)
+           !$acc update host(tile(ilu)%rs)
+        enddo
+
+    !$acc update host(du_tot, thv_1)
+    do ilu=1, nlu
+       !$acc update host(tile(ilu)%db,tile(ilu)%obuk,tile(ilu)%ustar,tile(ilu)%ra)
+    enddo
+    !$acc update host(H,LE,G0,ustar,qskin,tskin,rsveg,rssoil,thlflux,qtflux,obl,dthldz,dqtdz,dudz,dvdz,cliq,ra,rsveg,rssoil)
+    do ilu=1,nlu
+       !$acc update host(tile(ilu)%tskin,tile(ilu)%H,tile(ilu)%LE,tile(ilu)%G,tile(ilu)%wthl,tile(ilu)%wqt,tile(ilu)%thlskin,tile(ilu)%qtskin)
+    enddo
+    !$acc update host(lambdah,lambda)
+    !$acc update host(tsoil)
+    !$acc update host(lambdas,gammas)
+    !$acc update host(lambdash,gammash)
+    ! XXX: interception: never read again
+    !$acc update host(wl, wlm, throughfall, interception)
+    !$acc update host(phiwm)
 
     call update_gpu()
+    call timer_toc('lsm')
 end subroutine lsm
 
 !
