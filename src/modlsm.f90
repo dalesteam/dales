@@ -1523,6 +1523,7 @@ subroutine integrate_theta_soil
     end do
 
     ! Range check of phiw
+    !$acc wait(1)
     !$acc update host(phiw)
     call check_array(phiw, "phiw", "integrate_theta_soil", [0.0, 1.0])
 
