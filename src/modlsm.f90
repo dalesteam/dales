@@ -47,8 +47,6 @@ subroutine lsm
 
   implicit none
 
-    logical :: acc
-
     if (.not. llsm) return
     call timer_tic('lsm', 0)
     !$acc wait(1)
@@ -66,12 +64,11 @@ subroutine lsm
        call timer_toc('lsm_calc_tile_fractions')
     end if
 
-    acc=.true.
     ! Calculate root fraction weighted mean soil water content.
     call timer_tic('lsm_calc_theta_mean', 0)
     do ilu=1,nlu
       if (tile(ilu)%lveg) then
-        call calc_theta_mean(tile(ilu), acc=acc)
+        call calc_theta_mean(tile(ilu))
       end if
     end do
     !$acc wait(1)
@@ -309,27 +306,25 @@ end subroutine calc_liquid_reservoir
 !
 ! Calculate root fraction weighted mean soil water content
 !
-subroutine calc_theta_mean(tile, acc)
+subroutine calc_theta_mean(tile)
     use modglobal,   only : i1, j1
     use modsurfdata, only : phiw
     implicit none
 
     type(T_lsm_tile), intent(inout) :: tile
-    logical, intent(in) :: acc
     integer :: i, j, k, si
     real :: theta_lim
 
-    !$acc kernels default(present) async(1) if(acc)
+    !$acc kernels default(present) async(1)
     tile%phiw_mean(:,:) = 0.
     !$acc end kernels
 
     do k=1, kmax_soil
-        !$acc parallel loop collapse(2) default(present) async(1) if(acc)
+        !$acc parallel loop collapse(2) default(present) async(1)
         do j=2,j1
             do i=2,i1
                 si = soil_index(i,j,k)
                 theta_lim = max(phiw(i,j,k), theta_wp(si))
-                ! NOTE: GPU accuracy divergence with the division
                 tile%phiw_mean(i,j) = tile%phiw_mean(i,j) + tile%root_frac(i,j,k) * &
                     (theta_lim - theta_wp(si)) / (theta_fc(si) - theta_wp(si))
             end do
