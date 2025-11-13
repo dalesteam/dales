@@ -31,10 +31,30 @@ module modlsm
 
 contains
 
+subroutine update_host
+    use modfields,    only : rhof, thl0, qt0, exnf, presf, svm, exnh, u0, v0, thvh
+    use modglobal, only: zf
+    use modsurfdata, only: z0m, z0h, obl, tskin, qskin, Cm, Cs, &
+                           ustar, dudz, dvdz, thlflux, qtflux, &
+                           dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf
+    use modraddata,  only : swd, swu, lwd, lwu
+    use modmicrodata, only: precep
+
+    implicit none
+
+    !$acc update self(&
+    !needed
+    !$acc&                rhof, thl0, qt0, exnf, presf, svm, exnh, u0, v0, thvh,&
+    !$acc&                ustar, dudz, dvdz, thlflux, qtflux)
+
+    !!$acc&                z0m, z0h, obl, tskin, qskin, Cm, Cs, &
+    !!$acc&                dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf)
+
+end subroutine update_host
+
 subroutine lsm
   use modglobal, only : ldrydep
   use modtimer,  only : timer_tic, timer_toc
-  use modgpu, only: update_host, update_gpu, host_is_updated
   ! XXX: delete v
   use modsurfdata, only : &
        H, LE, G0, tskin, qskin, thlflux, qtflux, dthldz, dqtdz, &
@@ -49,9 +69,6 @@ subroutine lsm
     if (.not. llsm) return
     call timer_tic('lsm', 0)
 
-    ! NOTE: these are updated in update_gpu so I assume they are located in GPU
-    ! when lsm is called
-    host_is_updated=.false.
     call update_host()
 
     ! Calculate dynamic tile fractions,
@@ -118,8 +135,6 @@ subroutine lsm
     ! Calculate tendency due to root water extraction
     call timer_tic('lsm_calc_root_water_extraction', 0)
     call calc_root_water_extraction
-    !$acc wait(1)
-    !$acc update host(phiw_source)
     call timer_toc('lsm_calc_root_water_extraction')
 
     ! Update liquid water reservoir
@@ -132,14 +147,6 @@ subroutine lsm
     call timer_toc('lsm_integrate_theta_soil')
 
     !$acc wait(1)
-
-    !not needed
-    !!$acc update host(du_tot, thv_1)
-    !!$acc update host(lambdas,gammas)
-    !!$acc update host(lambdash,gammash)
-    !!$acc update host(lambdah,lambda)
-    !!$acc update host(phiwm)
-    ! throughfall, interception) ! XXX: interception: never read again
 
     ! testing
     !$acc update host(rsveg)
