@@ -51,6 +51,7 @@ subroutine lsm
 
     if (.not. llsm) return
     call timer_tic('lsm', 0)
+    !$acc wait(1)
 
     ! Calculate dynamic tile fractions,
     ! based on the amount of liquid water on vegetation.
@@ -73,6 +74,7 @@ subroutine lsm
         call calc_theta_mean(tile(ilu), acc=acc)
       end if
     end do
+    !$acc wait(1)
     call timer_toc('lsm_calc_theta_mean')
 
     ! Calculate canopy/soil resistances.
@@ -86,45 +88,54 @@ subroutine lsm
     else
         call timer_tic('lsm_calc_canopy_resistance_js', 0)
         call calc_canopy_resistance_js
+        !$acc wait(1)
         call timer_toc('lsm_calc_canopy_resistance_js')
     endif
 
     ! Calculate aerodynamic resistance (and u*, obuk).
     call timer_tic('lsm_calc_stability', 0)
     call calc_stability
+    !$acc wait(1)
     call timer_toc('lsm_calc_stability')
 
     ! Set grid point averaged boundary conditions (thls, qts, gradients, ..)
     call timer_tic('lsm_calc_bulk_bcs', 0)
     call calc_bulk_bcs
+    !$acc wait(1)
     call timer_toc('lsm_calc_bulk_bcs')
 
     ! Calculate soil tendencies
     ! Calc diffusivity heat:
     call timer_tic('lsm_calc_thermal_properties', 0)
     call calc_thermal_properties
+    !$acc wait(1)
     call timer_toc('lsm_calc_thermal_properties')
     ! Solve diffusion equation:
     call timer_tic('lsm_integrate_t_soil', 0)
     call integrate_t_soil
+    !$acc wait(1)
     call timer_toc('lsm_integrate_t_soil')
 
     ! Calc diffusivity and conductivity soil moisture:
     call timer_tic('lsm_calc_hydraulic_properties', 0)
     call calc_hydraulic_properties
+    !$acc wait(1)
     call timer_toc('lsm_calc_hydraulic_properties')
     ! Calculate tendency due to root water extraction
     call timer_tic('lsm_calc_root_water_extraction', 0)
     call calc_root_water_extraction
+    !$acc wait(1)
     call timer_toc('lsm_calc_root_water_extraction')
 
     ! Update liquid water reservoir
     call timer_tic('lsm_calc_liquid_reservoir', 0)
     call calc_liquid_reservoir
+    !$acc wait(1)
     call timer_toc('lsm_calc_liquid_reservoir')
     ! Solve diffusion equation:
     call timer_tic('lsm_integrate_theta_soil', 0)
     call integrate_theta_soil
+    !$acc wait(1)
     call timer_toc('lsm_integrate_theta_soil')
 
     !$acc wait(1)
