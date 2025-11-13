@@ -166,13 +166,16 @@ subroutine lsm
     ! throughfall, interception) ! XXX: interception: never read again
 
     ! testing
-    !$acc update host(H,LE,G0,ustar,qskin,tskin,rsveg)
+    !$acc update host(rsveg)
     !$acc update host(rssoil,thlflux,qtflux,obl,dthldz,dqtdz,dudz,dvdz,cliq,ra,rsveg,rssoil)
 
     ! keep
     !$acc update host(tsoil)
     !$acc update host(wl)
     !$acc update host(wlm)
+    !$acc update host(ustar)
+    !$acc update host(qskin,tskin)
+    !$acc update host(H,LE,G0)
 
     ! keep?
     !$acc update host (f1)
@@ -185,7 +188,6 @@ subroutine lsm
        !$acc update host(tile(ilu)%tskin,tile(ilu)%H,tile(ilu)%LE,tile(ilu)%G,tile(ilu)%wthl,tile(ilu)%wqt,tile(ilu)%thlskin,tile(ilu)%qtskin)
     enddo
 
-    !call update_gpu()
     call timer_toc('lsm')
 end subroutine lsm
 
@@ -2150,6 +2152,10 @@ subroutine init_lsm_tiles
       tile(ilu) % thlskin(:,:) = thlprof(1)
       tile(ilu) % qtskin (:,:) = qtprof(1)
       tile(ilu) % obuk   (:,:) = -0.1
+
+      !$acc update device(tile(ilu)%thlskin)
+      !$acc update device(tile(ilu)%qtskin)
+      !$acc update device(tile(ilu)%obuk)
     end do
 
 end subroutine init_lsm_tiles
