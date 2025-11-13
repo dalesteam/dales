@@ -134,3 +134,4 @@ endif()
 
 include( dales_compile_options )
 add_subdirectory( src )
+add_subdirectory( doc )
