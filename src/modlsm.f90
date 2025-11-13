@@ -29,28 +29,11 @@ module modlsm
 
     public :: initlsm, lsm, exitlsm, init_lsm_tiles
 
+#ifdef _OPENACC
+    real :: rhocp_i(1), rholv_i(1)
+#endif
+
 contains
-
-subroutine update_host
-    use modfields,    only : rhof, thl0, qt0, exnf, presf, svm, exnh, u0, v0, thvh
-    use modglobal, only: zf
-    use modsurfdata, only: z0m, z0h, obl, tskin, qskin, Cm, Cs, &
-                           ustar, dudz, dvdz, thlflux, qtflux, &
-                           dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf
-    use modraddata,  only : swd, swu, lwd, lwu
-    use modmicrodata, only: precep
-
-    implicit none
-
-    !$acc update self(&
-    !needed
-    !$acc&                rhof, thl0, qt0, exnf, presf, svm, exnh, u0, v0, thvh,&
-    !$acc&                ustar, dudz, dvdz, thlflux, qtflux)
-
-    !!$acc&                z0m, z0h, obl, tskin, qskin, Cm, Cs, &
-    !!$acc&                dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf)
-
-end subroutine update_host
 
 subroutine lsm
   use modglobal, only : ldrydep
@@ -68,8 +51,6 @@ subroutine lsm
 
     if (.not. llsm) return
     call timer_tic('lsm', 0)
-
-    call update_host()
 
     ! Calculate dynamic tile fractions,
     ! based on the amount of liquid water on vegetation.
@@ -924,11 +905,15 @@ subroutine calc_tile_bcs(tile)
     type(T_lsm_tile), intent(inout) :: tile
     integer :: i, j
     real :: Ts, esats, qsats, desatdTs, dqsatdTs, &
-        rs_lim, fH, fLE, fG, num, denom, Ta, qsat_new, &
-        rhocp_i, rholv_i, Qnet
+        rs_lim, fH, fLE, fG, num, denom, Ta, qsat_new, Qnet
+#ifndef _OPENACC
+    real :: rhocp_i(1), rholv_i(1)
+#endif
 
-    rhocp_i = 1. / (rhof(1) * cp)
-    rholv_i = 1. / (rhof(1) * rlv)
+    !$acc kernels default(present) async(1)
+    rhocp_i(1) = 1. / (rhof(1) * cp)
+    rholv_i(1) = 1. / (rhof(1) * rlv)
+    !$acc end kernels
 
     !$acc parallel loop collapse(2) default(present) async(1)
     do j=2, j1
@@ -983,8 +968,8 @@ subroutine calc_tile_bcs(tile)
                 tile%G (i,j) = fG  * (tsoil(i,j,kmax_soil) - tile%tskin(i,j))
 
                 ! Calculate kinematic surface fluxes
-                tile%wthl(i,j) = tile%H (i,j) * rhocp_i
-                tile%wqt (i,j) = tile%LE(i,j) * rholv_i
+                tile%wthl(i,j) = tile%H (i,j) * rhocp_i(1)
+                tile%wqt (i,j) = tile%LE(i,j) * rholv_i(1)
 
                 ! Calculate surface values
                 tile%thlskin(i,j) = thl0(i,j,1) + tile%wthl(i,j) * tile%ra(i,j)
@@ -1062,11 +1047,16 @@ subroutine calc_bulk_bcs
     implicit none
 
     integer :: i, j
-    real :: rhocp_i, rholv_i, ucu, vcv, bflux
+    real :: ucu, vcv, bflux
+#ifndef _OPENACC
+    real :: rhocp_i(1), rholv_i(1)
+#endif
     real, pointer :: ustar_3D(:,:,:)
 
-    rhocp_i = 1. / (rhof(1) * cp)
-    rholv_i = 1. / (rhof(1) * rlv)
+    !$acc kernels default(present) async(1)
+    rhocp_i(1) = 1. / (rhof(1) * cp)
+    rholv_i(1) = 1. / (rhof(1) * rlv)
+    !$acc end kernels
 
     ! Calculate surface temperature for each tile, and calculate
     ! surface fluxes (H, LE, G0, wthl, wqt) and values (thlskin, qtskin)
@@ -1111,8 +1101,8 @@ subroutine calc_bulk_bcs
         do i=2,i1
 
             ! Kinematic surface fluxes
-            thlflux(i,j) =  H(i,j)  * rhocp_i
-            qtflux (i,j) =  LE(i,j) * rholv_i
+            thlflux(i,j) =  H(i,j)  * rhocp_i(1)
+            qtflux (i,j) =  LE(i,j) * rholv_i(1)
 
         enddo
     enddo
@@ -1727,6 +1717,8 @@ subroutine allocate_on_device()
      !$acc enter data copyin(tile(ilu)%z0h)
      !$acc enter data copyin(tile(ilu)%z0m)
   enddo
+
+  !$acc enter data create(rhocp_i, rholv_i)
 end subroutine allocate_on_device
 
 subroutine deallocate_from_device()
@@ -1820,6 +1812,8 @@ subroutine deallocate_from_device()
      !$acc exit data delete(tile(ilu))
   enddo
   !$acc exit data delete(tile)
+
+  !$acc exit data delete(rhocp_i, rholv_i)
 end subroutine deallocate_from_device
 
 !
