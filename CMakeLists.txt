@@ -51,6 +51,10 @@ ecbuild_add_option( FEATURE ACC
                     DESCRIPTION "Build with GPU support through OpenACC"
                     DEFAULT OFF )
 
+ecbuild_add_option( FEATURE DOCS
+                    DESCRIPTION "Enable documentation"
+                    DEFAULT OFF )
+
 ecbuild_add_option( FEATURE RRTMG
                     DESCRIPTION "Build with legacy RRTMG libraries"
                     ADVANCED DEFAULT ON )
