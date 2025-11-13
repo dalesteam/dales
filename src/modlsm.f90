@@ -138,20 +138,10 @@ subroutine lsm
     !$acc wait(1)
 
     ! testing
-    !$acc update host(rsveg)
-    !$acc update host(rssoil,thlflux,qtflux,obl,dthldz,dqtdz,dudz,dvdz,cliq,ra,rsveg,rssoil)
+    !$acc update host(thlflux,qtflux,dthldz,dqtdz,dudz,dvdz)
 
     ! keep
-    !$acc update host(tsoil)
-    !$acc update host(wl)
-    !$acc update host(wlm)
-    !$acc update host(ustar)
-    !$acc update host(qskin,tskin)
-    !$acc update host(H,LE,G0)
-
-    ! keep?
-    !$acc update host (f1)
-    !$acc update host (f2b)
+    !$acc update host(qskin)
 
     do ilu=1, nlu
        !$acc update host(tile(ilu)%db,tile(ilu)%obuk,tile(ilu)%ustar,tile(ilu)%ra)
