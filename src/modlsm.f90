@@ -31,29 +31,6 @@ module modlsm
 
 contains
 
-subroutine lsm_update_device
-    ! data that should reside on CPU
-    use modsurfdata, only : phiw, phiwm, lambda, lambdah, tsoil, tsoilm, lambdash, gammas, gammash, wl, wlm
-
-    ! data that should reside on GPU
-    use modfields, only : svm, thl0, qt0, exnf, presf, rhof, u0, v0, thvh, exnh
-    use modglobal, only: zf
-    use modsurfdata, only : tskin, qskin, thlflux, qtflux, dthldz, dqtdz, dudz, dvdz, ustar, obl, ra, svflux
-    use modraddata, only : swd, swu, lwd, lwu
-    use modmicrodata, only : precep
-    use modsurfdata,  only : wl, wlm
-
-    implicit none
-
-    !$acc update device(tsoil,phiw)
-    !$acc update device(wlm,wl)
-
-    do ilu=1, nlu
-       !$acc update device(tile(ilu)%thlskin,tile(ilu)%qtskin)
-    enddo
-
-end subroutine lsm_update_device
-
 subroutine lsm
   use modglobal, only : ldrydep
   use modtimer,  only : timer_tic, timer_toc
@@ -76,7 +53,6 @@ subroutine lsm
     ! when lsm is called
     host_is_updated=.false.
     call update_host()
-    call lsm_update_device()
 
     ! Calculate dynamic tile fractions,
     ! based on the amount of liquid water on vegetation.
