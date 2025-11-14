@@ -28,6 +28,6 @@ jobs:
         allow_empty_commit: false
         force_orphan: true
         publish_branch: gh-pages
-        destination_dir: docs/release
+        destination_dir: docs
         keep_files: true
         enable_jekyll: true
