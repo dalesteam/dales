@@ -1,0 +1,32 @@
+name: Documentation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-documentation:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update && sudo apt-get -y install doxygen
+
+    - name: Build docs 
+      run: |
+        cd doc
+        doxygen ./Doxyfile
+    
+    - name: Upload artifacts
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./doc/html
+        allow_empty_commit: false
+        force_orphan: true
+        publish_branch: gh-pages
+        destination_dir: docs/release
+        keep_files: true
+        enable_jekyll: true
