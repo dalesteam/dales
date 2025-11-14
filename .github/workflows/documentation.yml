@@ -1,6 +1,7 @@
 name: Documentation
 
 on:
+  push:
   workflow_dispatch:
 
 jobs:
