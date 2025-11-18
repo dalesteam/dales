@@ -1,83 +1,3 @@
-!> \file program.f90
-!! Main program
-
-!>
-!! \mainpage
-!! Dutch Atmospheric Large Eddy Simulation
-!! \section DALES Dutch Atmospheric Large Eddy Simulation
-!!
-!! @version 4.4.2
-!!
-!! @author
-!! Steef Boing
-!! (TU Delft)
-!! \author
-!! Huug Ouwersloot
-!! (Wageningen University)
-!! \author
-!! Johan van der Dussen
-!! (TU Delft)
-!! \author
-!! Steef B\"oing
-!! (TU Delft)
-!>
-!! \section Log Change log
-!! \par New Features
-!! \par Main Changes
-!! \todo
-
-!! Notes
-!! This subversion
-!! Huug:
-!! - Included heterosurf routine
-!! - Statistics for heterosurf routine
-!! Steef:
-!! - Important note; adapted by Huug: ekm and ekh is again set to just Kh for right calculation of subgrid fluxes
-!!   mosts statistic have been adjusted accordingly, however, budgets still need full update
-!! - Anelastic baseprofile maker
-!! - Anelastic advection
-!! - Anelastic poisson solver
-!! - Anelastic diffusion
-!! - Resolved buoyancy (based on theta_l,q_l -> theta_v), using mean theta_v in divisor
-!!   Subtracting mean state theta_v before Poisson solver
-!! - Rainwater loading included in buoyancy (modforces)
-!! - Simple ice microphysics scheme (Grabowski 98, with switches for autoconversion and graupel)
-!! - Updated microstat for bulk and ice scheme
-!! - Diagnostic temperature and saturation fields included, used to speed up micro (adjusted restart files accordingly)
-!! - Speeded up gamma functions in bulkmicro and ice-micro using tabulation
-!! - Reviewed saturation pressure with table lookup formula (Murphy and Koop, unified water/ice)
-!! - Analytical functions for surface forcing (currently hard-coded)
-!! - Larger fielddump range for temperatures
-!! - Fixed statistics for heights above 10000 m
-!! - Combined sampling/tendency routine (experimental)
-!! - CAPE/CIN etc routine (experimental)
-!! - CFL criterion based on pythagorean CFL
-!! - Sampling written to separate netcdf files
-!! - Modsampling update
-!! - Radiation and bulkmicro tendencies exner function correction
-!! - Consistent notation of theta_v in output
-!! - Radiation negative qt crash
-!! - Integrate WENO advection (Johan)
-!! - Removed tqaver
-!! - Subsidence with local values
-!! - top boundary conditions (thl,qt-gradients) time-dependent
-!! \par todo (this release)
-!! - Scalasca CMake and Marmot options (Johan)
-!! - Consistent modbudget and modgenstat with anelastic dynamics (Steef)
-!! \par todo (future)
-!! - General code cleanup
-!! - Unified and simpler diagnostics
-!! - Fielddump timing (Johan)
-!! - Input header detection (Steef)
-!! - Cleanup namoptions, remove dtav and timeav from some of the namoptions
-!! - Check warm startup for interactive radiation cases
-!! - 2D Parallelization
-!! - Use more complicated theta_l formulation, include latent heat of freezing
-!! - Adjust buoyancy and subgrid accordingly
-!! - Integrate precipitation loading in theta_v
-!! - Add 2-moment scheme? (Thijs working on complicated scheme, use Grabowski/Morrison?)
-!!
-!! \section License License
 !!  This file is part of DALES.
 !!
 !!  DALES is free software; you can redistribute it and/or modify it under the
@@ -95,6 +15,8 @@
 !!  Copyright 1993-2009 Delft University of Technology, Wageningen University,
 !! Utrecht University, KNMI
 !!
+
+!> The main program.
 program DALES
 
 !!----------------------------------------------------------------
