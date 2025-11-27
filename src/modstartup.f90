@@ -143,8 +143,6 @@ contains
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge,lfast_thermo,lconstexner,lbaseexner
     namelist/DYNAMICS/ &
         llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
-    namelist/SOLVER/ &
-        solver_id, maxiter, tolerance, n_pre, n_post, precond_id, maxiter_precond, hypre_logging
     namelist/OPENBC/ &
         lopenbc,linithetero,lper,lbuoytop,dxint,dyint,dzint,dxturb,dyturb,taum,tauh,pbc,lsynturb,iturb,tau,lambda,nmodes,lambdas,lambdas_x,lambdas_y,lambdas_z,lbuoytop
 
@@ -184,10 +182,6 @@ contains
       read (ifnamopt,DYNAMICS,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'DYNAMICS')
       write(6 ,DYNAMICS)
-      rewind(ifnamopt)
-      read (ifnamopt,SOLVER,iostat=ierr)
-      call checknamelisterror(ierr, ifnamopt, 'SOLVER')
-      write(6 ,SOLVER)
       rewind(ifnamopt)
       read (ifnamopt,OPENBC,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'OPENBC')
@@ -318,14 +312,6 @@ contains
     call D_MPI_BCAST(iadv_sv ,1,0,commwrld,mpierr)
 
     call D_MPI_BCAST(lnoclouds  ,1,0,commwrld,mpierr)
-
-    call D_MPI_BCAST(solver_id,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(maxiter,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(n_pre,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(n_post,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(tolerance,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(precond_id,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(maxiter_precond,1,0,commwrld,mpierr)
 
     ! Broadcast openboundaries Variables
     call D_MPI_BCAST(lopenbc,    1, 0,commwrld,mpierr)

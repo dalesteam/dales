@@ -28,11 +28,16 @@
 !
 
 module modpois
+use modglobal,    only : solver_id, maxiter, tolerance, n_pre, n_post, &
+                         precond_id, maxiter_precond, hypre_logging, ifnamopt, &
+                         checknamelisterror
+use modmpi,       only : myid, commwrld, d_mpi_bcast
 use modprecision, only : pois_r
 use modtimer
 implicit none
 private
 public :: initpois,poisson,exitpois,p,Fp,xyrt,solmpj,ps,pe,qs,qe
+public :: poisson_solver_read_namelist
 
 save
 
@@ -47,6 +52,32 @@ save
   real(pois_r), allocatable :: a(:), b(:), c(:) ! Work arrays for solver
 
 contains
+
+  subroutine poisson_solver_read_namelist(nml_filename)
+
+    character(len=*), intent(in) :: nml_filename !< Name of namelist file.
+
+    integer :: ierr !< Error code.
+
+    namelist /solver/ solver_id, maxiter, tolerance, n_pre, n_post, &
+      precond_id, maxiter_precond, hypre_logging
+
+    if (myid == 0) then
+      open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
+      read(ifnamopt, solver, iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'solver')
+      close(ifnamopt)
+    end if
+
+    call d_mpi_bcast(solver_id, 1, 0, commwrld, ierr)
+    call d_mpi_bcast(maxiter, 1, 0, commwrld, ierr)
+    call d_mpi_bcast(n_pre, 1, 0, commwrld, ierr)
+    call d_mpi_bcast(n_post, 1, 0, commwrld, ierr)
+    call d_mpi_bcast(tolerance, 1, 0, commwrld, ierr)
+    call d_mpi_bcast(precond_id, 1, 0, commwrld, ierr)
+    call d_mpi_bcast(maxiter_precond, 1, 0, commwrld, ierr)
+
+  end subroutine poisson_solver_read_namelist
 
   subroutine initpois
     use modglobal, only : solver_id,i1,j1,ih,jh,k1,kmax,solver_id,maxiter,tolerance,precond_id,n_pre,n_post,psolver,maxiter_precond
