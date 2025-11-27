@@ -28,28 +28,17 @@
 !
 
 module modpois
-use modglobal,    only : solver_id, maxiter, tolerance, n_pre, n_post, &
-                         precond_id, maxiter_precond, hypre_logging, ifnamopt, &
-                         checknamelisterror
+use modglobal,    only : ifnamopt, checknamelisterror
 use modmpi,       only : myid, commwrld, d_mpi_bcast
 use modprecision, only : pois_r
+use modpois_data, only: p, Fp, d, xyrt, pup, pvp, pwp, a, b, c, ps, pe, qs, &
+                          qe, maxiter, tolerance, n_pre, n_post, precond_id, &
+                          maxiter_precond, hypre_logging, psolver, solver_id
 use modtimer
 implicit none
 private
-public :: initpois,poisson,exitpois,p,Fp,xyrt,solmpj,ps,pe,qs,qe
+public :: initpois,poisson,exitpois
 public :: poisson_solver_read_namelist
-
-save
-
-  real(pois_r), pointer     :: p(:,:,:)    ! pressure fluctuations in real space
-  real(pois_r), pointer     :: Fp(:,:,:)   ! pressure fluctuations in fourier space
-  real(pois_r), allocatable :: d(:,:,:)    ! work array for tridiagonal solver
-  real(pois_r), allocatable :: xyrt(:,:)   ! constant factors in the poisson equation
-
-  integer :: ps,pe,qs,qe           ! start and end index of fourier space matrices
-
-  real(pois_r), allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:) ! Work arrays for rhs
-  real(pois_r), allocatable :: a(:), b(:), c(:) ! Work arrays for solver
 
 contains
 
@@ -80,7 +69,7 @@ contains
   end subroutine poisson_solver_read_namelist
 
   subroutine initpois
-    use modglobal, only : solver_id,i1,j1,ih,jh,k1,kmax,solver_id,maxiter,tolerance,precond_id,n_pre,n_post,psolver,maxiter_precond
+    use modglobal, only : i1,j1,ih,jh,k1,kmax
     use modfft2d, only : fft2dinit
     use modfftw, only : fftwinit
     use modhypre, only : inithypre_grid, inithypre_solver
@@ -128,7 +117,6 @@ contains
   end subroutine initpois
 
   subroutine exitpois
-    use modglobal, only : solver_id,psolver
     use modfft2d, only : fft2dexit
     use modhypre, only : exithypre_grid, exithypre_solver
     use modfftw, only : fftwexit
@@ -155,7 +143,6 @@ contains
   end subroutine exitpois
 
   subroutine poisson
-    use modglobal, only : solver_id,psolver
     use modmpi, only : myid
     use modhypre, only : solve_hypre, set_zero_guess
     use modfftw, only : fftwf, fftwb

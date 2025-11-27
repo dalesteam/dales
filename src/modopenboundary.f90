@@ -43,7 +43,8 @@ contains
   subroutine initopenboundary
     ! Initialisation routine for openboundaries
     use modmpi, only : myidx, myidy, nprocx, nprocy, myid
-    use modglobal, only : imax,jmax,kmax,i1,j1,k1,dx,dy,itot,jtot,solver_id,nsv,cu,cv,dzf
+    use modglobal, only : imax,jmax,kmax,i1,j1,k1,dx,dy,itot,jtot,nsv,cu,cv,dzf
+    use modpois_data, only: solver_id
     use modboundary, only: dsv
     use modfields, only: rhobf
     implicit none

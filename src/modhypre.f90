@@ -25,9 +25,10 @@ use iso_c_binding
 use modprecision, only : pois_r, real64
 use modmpi, only : myid, myidx, myidy, nprocx, nprocy, MPI_COMM_WORLD &
                  , MPI_Wtime
-use modglobal, only : i1, j1, ih, jh, imax, jmax, kmax, solver_id, maxiter &
-                    , n_pre, n_post, tolerance, dzf, dzh, dx, dy &
-                    , itot, jtot, solver_type, hypre_logging
+use modglobal,      only: itot, jtot, imax, jmax, kmax, i1, j1, ih, jh, dx, &
+                          dy, dzf, dzh
+use modpois_data, only: solver_id, maxiter, n_pre, n_post, tolerance, &
+                          solver_type, hypre_logging
 use modfields, only : rhobf, rhobh
 implicit none
 
