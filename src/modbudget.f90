@@ -220,7 +220,7 @@ contains
                           dxi,dyi,dx2i,dy2i
     use modsurfdata,only : ustar
     use modsubgriddata, only : ekm,anis_fac
-    use modpois,    only : p
+    use modpois_data,    only : p
     use modfields,  only : u0,v0,w0,thv0h,u0av,v0av,rhobf,rhobh,thvh
 !cstep    use modtilt,    only : adjustbudget,ltilted
     use modmpi,     only : comm3d,mpi_sum,mpierr, D_MPI_ALLREDUCE

@@ -384,7 +384,7 @@ contains
                           sv0,wp
     use modsubgriddata,only : ekh,ekm
     use modmpi,    only : slabsum,comm3d,mpierr,mpi_sum,D_MPI_ALLREDUCE
-    use modpois,   only : p
+    use modpois_data,   only : p
     use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice
     use modtracers,  only : get_tracer_index
     implicit none
