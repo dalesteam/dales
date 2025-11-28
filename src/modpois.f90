@@ -51,6 +51,15 @@ contains
     namelist /solver/ solver_id, maxiter, tolerance, n_pre, n_post, &
       precond_id, maxiter_precond, hypre_logging
 
+    ! Set a default solver based on how DALES is compiled.
+#if defined(DALES_GPU)
+    solver_id = 200
+#elif defined(USE_FFTW)
+    solver_id = 100
+#else
+    solver_id = 0
+#endif
+
     if (myid == 0) then
       open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
       read(ifnamopt, solver, iostat=ierr)
