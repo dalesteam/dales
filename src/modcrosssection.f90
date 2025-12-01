@@ -30,8 +30,10 @@ module modcrosssection
 
   use modglobal, only  : longint, kmax, nsv
   use modtracers, only : tracer_prop
+  use modlogging, only: finish
 
 implicit none
+character(len=*), parameter :: modname = 'modcrosssection'
 private
 PUBLIC :: initcrosssection, crosssection,exitcrosssection
 save
@@ -76,9 +78,10 @@ contains
     use modglobal,only :imax,jmax,itot,jtot,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,&
                         tres,btime,checknamelisterror,output_prefix
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
+    use fortran_support, only: nnml_output
 
    implicit none
-
+    character(len=*), parameter :: routine = modname//'/initcrosssection'
     integer :: ierr,k,n
 
     namelist/NAMCROSSSECTION/ &
@@ -100,7 +103,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCROSSSECTION,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMCROSSSECTION')
-      write(6 ,NAMCROSSSECTION)
+      write(nnml_output ,NAMCROSSSECTION)
       close(ifnamopt)
     end if
 
@@ -116,10 +119,10 @@ contains
     call D_MPI_BCAST(nvar       ,1,0,comm3d,mpierr)
 
     if(any((crossheight(1:100).gt.kmax)) .or. any(crossplane > jtot+1) .or. any(crossortho > itot+1) ) then
-      stop 'CROSSSECTION: crosssection out of range'
+      call finish(routine, 'CROSSSECTION: crosssection out of range')
     end if
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'CROSSSECTION: dtav should be a integer multiple of dtmax'
+      call finish(routine, 'CROSSSECTION: dtav should be a integer multiple of dtmax')
     end if
 
     k=1

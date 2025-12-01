@@ -23,10 +23,13 @@
 !
 
 module moddatetime
+  use modlogging, only: finish
 
   implicit none
 
   save
+
+  character(len=*), parameter :: modname = 'moddatetime'
 
   ! Namelist variables
   logical :: l_datetime = .false.
@@ -45,8 +48,10 @@ module moddatetime
 
     use modmpi,    only : myid, comm3d, D_MPI_BCAST
     use modglobal, only : ifnamopt, fname_options, xtime
+    use fortran_support, only : nnml_output
    
     implicit none
+    character(len=*), parameter :: routine = modname//'/initdatetime'
    
     ! Auxiliary variables
     integer :: ierr
@@ -61,10 +66,10 @@ module moddatetime
 
       if (ierr > 0) then
         print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMDATETIME'
+        call finish(routine, 'ERROR: Problem in namoptions NAMDATETIME')
       endif
 
-      write(6, NAMDATETIME)
+      write(nnml_output, NAMDATETIME)
       close(ifnamopt)
 
     endif
@@ -102,7 +107,7 @@ module moddatetime
       ! Catch non specified starting date while l_datetime = True ---------------
       ! We check on date only, because time is filled from variables shared with
       ! other functionalities, that thus have non-zero values.  
-      if (sum(datex(1:3)) == 0) stop 'ERROR: Trying to use datetime functionality without specified date.' 
+      if (sum(datex(1:3)) == 0) call finish(routine, 'ERROR: Trying to use datetime functionality without specified date.' )
     endif
   end subroutine initdatetime
 
@@ -205,6 +210,8 @@ module moddatetime
     !-----------------------------------------------------------------------
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/julday'
+
     ! input, output
     integer,intent(in) :: mm  ! month
     integer,intent(in) :: id  ! day
@@ -218,7 +225,7 @@ module moddatetime
     !
     iyyy=iy
     if ( iy == 0 ) then
-       stop 'julday:  ERROR invalid year 0 AD'
+       call finish(routine, 'julday:  ERROR invalid year 0 AD')
     end if
     if ( iy < 0 ) then
        iyyy=iy+1

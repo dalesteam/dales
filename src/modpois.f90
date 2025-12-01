@@ -36,6 +36,7 @@ use modpois_data, only: p, Fp, d, xyrt, pup, pvp, pwp, a, b, c, ps, pe, qs, &
                           maxiter_precond, hypre_logging, psolver, solver_id
 use modtimer
 implicit none
+character(len=*), parameter :: modname = 'modpois'
 private
 public :: initpois,poisson,exitpois
 public :: poisson_solver_read_namelist
@@ -86,9 +87,11 @@ contains
 
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/initpois'
+
 #ifdef DALES_GPU
     if (solver_id /= 200) then
-       STOP 'Running on GPU requires solver_id = 200 (cufft)'
+       call finish(routine, 'Running on GPU requires solver_id = 200 (cufft)')
     end if
 #endif
 

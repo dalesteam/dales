@@ -58,6 +58,7 @@ contains
   SUBROUTINE initcanopy
     use modmpi,    only : myid, comm3d, mpierr, D_MPI_BCAST
     use modglobal, only : kmax, ifnamopt, fname_options, ifinput, cexpnr, zh, dzh, dzf, checknamelisterror
+    use fortran_support, only: nnml_output
 
     implicit none
 
@@ -72,7 +73,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCANOPY,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMCANOPY')
-      write(6 ,NAMCANOPY)
+      write(nnml_output ,NAMCANOPY)
       close(ifnamopt)
 
       ncanopy = min(ncanopy,kmax)

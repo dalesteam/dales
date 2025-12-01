@@ -115,6 +115,7 @@ program DALES
   use modradiation,      only : radiation
   use modpois,           only : poisson
   use tstep,             only : tstep_update,  tstep_integrate
+  use modlogging,        only : initlogging, exitlogging, enable_init_error_logging, disable_init_error_logging
   !use modedgecold,       only : coldedge
 
 !----------------------------------------------------------------
@@ -191,6 +192,8 @@ program DALES
 !----------------------------------------------------------------
   ! call initmpi initmpi depends on options in the namelist, call moved to startup
   call initmpicomm
+  call enable_init_error_logging
+  call initlogging
   call startup
 
 !---------------------------------------------------------
@@ -236,7 +239,9 @@ program DALES
   call update_gpu
 #endif
 
-
+  ! all initialization should be done now, we collect any init errors from other processes and if one process has failed, 
+  ! we let it print its traceback. We don't do this later in the program as it uses slow inter-process communication.
+  call disable_init_error_logging
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
 !------------------------------------------------------
@@ -434,6 +439,7 @@ program DALES
   call exitnudgeboundary  !cstep
   call exitmodules
   call exit_profiles
+  call exitlogging
 
 
 end program DALES

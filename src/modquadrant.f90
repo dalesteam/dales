@@ -28,8 +28,10 @@
 module modquadrant
 
 use modglobal, only : longint
+use modlogging, only: finish
 
 implicit none
+character(len=*), parameter :: modname = 'modquadrant'
 private
 PUBLIC :: initquadrant, quadrant, exitquadrant
 save
@@ -65,7 +67,10 @@ contains
     use modglobal, only : ladaptive, dtmax,ifnamopt,fname_options,kmax,   &
                            dtav_glob,btime,tres,cexpnr,ifoutput,nsv,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_q_nc
+    use fortran_support, only: nnml_output
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initquadrant'
 
     integer      :: ierr,n
     character(3) :: csvname
@@ -81,7 +86,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMquadrant,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMquadrant')
-      write(6 ,NAMquadrant)
+      write(nnml_output,NAMquadrant)
       close(ifnamopt)
 
       if (timeav .lt. 0.0) timeav = dtav
@@ -116,10 +121,10 @@ contains
     tnextwrite       = itimeav + btime
 
     if (abs(timeav/dtav-nint(timeav/dtav))>1e-4) then
-      stop 'timeav must be a integer multiple of dtav'
+      call finish(routine,  'timeav must be a integer multiple of dtav')
     end if
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'dtav should be a integer multiple of dtmax'
+      call finish(routine,  'dtav should be a integer multiple of dtmax')
     end if
 
     nvar   = 22 + 4 * nsv

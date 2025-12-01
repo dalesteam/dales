@@ -69,6 +69,7 @@ contains
     use modglobal, only : dtmax,idtmax, i2, j2, k1, ifnamopt,fname_options, ifoutput, cexpnr,dtav_glob,timeav_glob,ladaptive,dt_lim,btime,tres
     use modstat_nc, only : lnetcdf, redefine_nc,define_nc,ncinfo
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
+    use fortran_support, only: nnml_output
 
     implicit none
 
@@ -81,7 +82,7 @@ contains
     if(myid==0)then
        open(ifnamopt,file=fname_options,status='old',iostat=ierr)
        read (ifnamopt,NAMSTRESS,iostat=ierr)
-       write(6 ,NAMSTRESS)
+       write(nnml_output ,NAMSTRESS)
        close(ifnamopt)
     end if
 

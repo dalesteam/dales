@@ -28,8 +28,10 @@
 module modlsmstat
 
   use modglobal, only : longint
+  use modlogging, only: finish
 
 implicit none
+character(len=*), parameter :: modname = 'modlsmstat'
 !private
 PUBLIC :: initlsmstat, lsmstat, exitlsmstat
 save
@@ -67,7 +69,10 @@ contains
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
     use modsurfdata,only : ksoilmax,isurf
     use modlsm, only : kmax_soil
+    use fortran_support, only: nnml_output
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initlsmstat'
 
     integer ierr, kdim_soil
     namelist/NAMLSMSTAT/ &
@@ -80,7 +85,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMLSMSTAT,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMLSMSTAT')
-      write(6 ,NAMLSMSTAT)
+      write(nnml_output ,NAMLSMSTAT)
       close(ifnamopt)
     end if
 
@@ -99,10 +104,10 @@ contains
     dt_lim = min(dt_lim,tnext)
 
     if (abs(timeav/dtav-nsamples)>1e-4) then
-      stop 'timeav must be a integer multiple of dtav'
+      call finish(routine, 'timeav must be a integer multiple of dtav')
     end if
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'dtav should be a integer multiple of dtmax'
+      call finish(routine, 'dtav should be a integer multiple of dtmax')
     end if
 
     if (isurf == 1) then

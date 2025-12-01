@@ -63,7 +63,11 @@
 module modsurface
   use modtimer
   use modsurfdata
+  use modlogging, only: finish
   implicit none
+
+  character(len=*), parameter :: modname = 'moduser'
+
   !public  :: initsurface, surface, exitsurface
 
 save
@@ -75,9 +79,12 @@ contains
     use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg,irad_rte_rrtmgp
     use modmpi,     only : myid,  myidx, myidy, comm3d, mpierr, D_MPI_BCAST
     use modtracers, only : tracer_prop
+    use fortran_support, only: nnml_output
     use netcdf
 
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initsurface'
 
     integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1, isv
     integer   :: tempx,tempy
@@ -120,7 +127,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMSURFACE,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMSURFACE')
-      write(6 ,NAMSURFACE)
+      write(nnml_output ,NAMSURFACE)
       close(ifnamopt)
     end if
 
@@ -191,8 +198,8 @@ contains
     if(lsplitleaf .and. (.not. (rad_shortw .and. ((iradiation.eq.irad_par).or.(iradiation .eq. irad_user) &
                                                                           .or.(iradiation .eq. irad_rrtmg) &
                                                                           .or.(iradiation .eq. irad_rte_rrtmgp))))) then
-      if(myid==0) stop "WARNING::: You set lsplitleaf to .true., but that needs direct and diffuse calculations. Make sure you enable rad_shortw"
-      if(myid==0) stop "WARNING::: Since there is no direct and diffuse radiation calculated in the atmopshere, we set lsplitleaf to .false."
+      if(myid==0) call finish(routine, "WARNING::: You set lsplitleaf to .true., but that needs direct and diffuse calculations. Make sure you enable rad_shortw")
+      if(myid==0) call finish(routine, "WARNING::: Since there is no direct and diffuse radiation calculated in the atmopshere, we set lsplitleaf to .false.")
       lsplitleaf = .false.
     endif
 
@@ -242,15 +249,15 @@ contains
     if(lhetero) then
 
       if(xpatches .gt. mpatch) then
-        stop "NAMSURFACE: more xpatches defined than possible (change mpatch in modsurfdata to a higher value)"
+        call finish(routine, "NAMSURFACE: more xpatches defined than possible (change mpatch in modsurfdata to a higher value)")
       endif
       if(ypatches .gt. mpatch) then
-        stop "NAMSURFACE: more ypatches defined than possible (change mpatch in modsurfdata to a higher value)"
+        call finish(routine, "NAMSURFACE: more ypatches defined than possible (change mpatch in modsurfdata to a higher value)")
       endif
       if (lsmoothflux .eqv. .true.) write(6,*) 'WARNING: You selected to use uniform heat fluxes (lsmoothflux) and ',&
       'heterogeneous surface conditions (lhetero) at the same time'
-      if (mod(itot,xpatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the x-direction"
-      if (mod(jtot,ypatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the y-direction"
+      if (mod(itot,xpatches) .ne. 0) call finish(routine, "NAMSURFACE: Not an integer amount of grid points per patch in the x-direction")
+      if (mod(jtot,ypatches) .ne. 0) call finish(routine, "NAMSURFACE: Not an integer amount of grid points per patch in the y-direction")
 
       allocate(horvpatch(xpatches,ypatches))
       allocate(z0mav_patch(xpatches,ypatches))
@@ -326,20 +333,20 @@ contains
                 ps_land(i), ustin_land(i), wt_land(i), wq_land(i), wsv_land(1:nsv,i)
 
               if (ustin_land(i) .lt. 0) then
-                if (myid == 0) stop "NAMSURFACE: A ustin value in the surface input file is negative"
+                if (myid == 0) call finish(routine, "NAMSURFACE: A ustin value in the surface input file is negative")
               endif
               if(isurf .ne. 3) then
                 if(z0mav_land(i) .lt. 0) then
-                  if (myid == 0) stop "NAMSURFACE: a z0mav value is not set or negative in the surface input file"
+                  if (myid == 0) call finish(routine, "NAMSURFACE: a z0mav value is not set or negative in the surface input file")
                 end if
                 if(z0hav_land(i) .lt. 0) then
-                  if (myid == 0) stop "NAMSURFACE: a z0hav value is not set or negative in the surface input file"
+                  if (myid == 0) call finish(routine, "NAMSURFACE: a z0hav value is not set or negative in the surface input file")
                 end if
               end if
 
               if (landtype(i) .eq. 0) landtype_0 = i
               do j = 1, (i-1)
-                if (landtype(i) .eq. landtype(j)) stop "NAMSURFACE: Two land types have the same type number"
+                if (landtype(i) .eq. landtype(j)) call finish(routine, "NAMSURFACE: Two land types have the same type number")
               enddo
 
             endif
@@ -366,21 +373,21 @@ contains
                     gD_land(i), wsv_land(1:nsv,i)
 
                   if(z0mav_land(i) .lt. 0) then
-                    if (myid == 0) stop "NAMSURFACE: a z0mav value is not set or negative in the surface input file"
+                    if (myid == 0) call finish(routine, "NAMSURFACE: a z0mav value is not set or negative in the surface input file")
                   end if
                   if(z0hav_land(i) .lt. 0) then
-                    if (myid == 0) stop "NAMSURFACE: a z0hav value is not set or negative in the surface input file"
+                    if (myid == 0) call finish(routine, "NAMSURFACE: a z0hav value is not set or negative in the surface input file")
                   end if
                   if (albedo_land(i) .lt. 0) then
-                    if (myid == 0) stop "NAMSURFACE: An albedo value in the surface input file is negative"
+                    if (myid == 0) call finish(routine, "NAMSURFACE: An albedo value in the surface input file is negative")
                   endif
                   if (albedo_land(i) .gt. 1) then
-                    if (myid == 0) stop "NAMSURFACE: An albedo value in the surface input file is greater than 1"
+                    if (myid == 0) call finish(routine, "NAMSURFACE: An albedo value in the surface input file is greater than 1")
                   endif
 
                   if (landtype(i) .eq. 0) landtype_0 = i
                   do j = 1, (i-1)
-                    if (landtype(i) .eq. landtype(j)) stop "NAMSURFACE: Two land types have the same type number"
+                    if (landtype(i) .eq. landtype(j)) call finish(routine, "NAMSURFACE: Two land types have the same type number")
                   enddo
 
                 endif
@@ -407,26 +414,26 @@ contains
                     ps_land(i), albedo_land(i), rsisurf2_land(i), ustin_land(i), wt_land(i), wq_land(i), wsv_land(1:nsv,i)
 
                   if (ustin_land(i) .lt. 0) then
-                    if (myid == 0) stop "NAMSURFACE: A ustin value in the surface input file is negative"
+                    if (myid == 0) call finish(routine, "NAMSURFACE: A ustin value in the surface input file is negative")
                   endif
                   if (albedo_land(i) .lt. 0) then
-                    if (myid == 0) stop "NAMSURFACE: An albedo value in the surface input file is negative"
+                    if (myid == 0) call finish(routine, "NAMSURFACE: An albedo value in the surface input file is negative")
                   endif
                   if (albedo_land(i) .gt. 1) then
-                    if (myid == 0) stop "NAMSURFACE: An albedo value in the surface input file is greater than 1"
+                    if (myid == 0) call finish(routine, "NAMSURFACE: An albedo value in the surface input file is greater than 1")
                   endif
                   if(isurf .ne. 3) then
                     if(z0mav_land(i) .lt. 0) then
-                      if (myid == 0) stop "NAMSURFACE: a z0mav value is not set or negative in the surface input file"
+                      if (myid == 0) call finish(routine, "NAMSURFACE: a z0mav value is not set or negative in the surface input file")
                     end if
                     if(z0hav_land(i) .lt. 0) then
-                      if (myid == 0) stop "NAMSURFACE: a z0hav value is not set or negative in the surface input file"
+                      if (myid == 0) call finish(routine, "NAMSURFACE: a z0hav value is not set or negative in the surface input file")
                     end if
                   end if
 
                   if (landtype(i) .eq. 0) landtype_0 = i
                   do j = 1, (i-1)
-                    if (landtype(i) .eq. landtype(j)) stop "NAMSURFACE: Two land types have the same type number"
+                    if (landtype(i) .eq. landtype(j)) call finish(routine, "NAMSURFACE: Two land types have the same type number")
                   enddo
 
                 endif
@@ -438,7 +445,7 @@ contains
 
       if (myid == 0) then
         if (landtype_0 .eq. -1) then
-          stop "NAMSURFACE: no standard land type (0) is defined"
+          call finish(routine, "NAMSURFACE: no standard land type (0) is defined")
         else
           print "(a,i2,a,i2)","There are ",defined_landtypes,&
           " land types defined in the surface input file. The standard land type is defined by line ",landtype_0
@@ -575,10 +582,10 @@ contains
 
       if(isurf .ne. 3) then
         if(z0mav == -1) then
-          stop "NAMSURFACE: z0mav is not set"
+          call finish(routine, "NAMSURFACE: z0mav is not set")
         end if
         if(z0hav == -1) then
-          stop "NAMSURFACE: z0hav is not set"
+          call finish(routine, "NAMSURFACE: z0hav is not set")
         end if
       end if
 
@@ -587,47 +594,47 @@ contains
 
     if(isurf == 1) then
       if(tsoilav(1) == -1 .or. tsoilav(2) == -1 .or. tsoilav(3) == -1 .or. tsoilav(4) == -1) then
-        stop "NAMSURFACE: tsoil is not set"
+        call finish(routine, "NAMSURFACE: tsoil is not set")
       end if
       if(tsoildeepav == -1) then
-        stop "NAMSURFACE: tsoildeep is not set"
+        call finish(routine, "NAMSURFACE: tsoildeep is not set")
       end if
       if(phiwav(1) == -1 .or. phiwav(2) == -1 .or. phiwav(3) == -1 .or. phiwav(4) == -1) then
-        stop "NAMSURFACE: phiw is not set"
+        call finish(routine, "NAMSURFACE: phiw is not set")
       end if
       if(rootfav(1) == -1 .or. rootfav(2) == -1 .or. rootfav(3) == -1 .or. rootfav(4) == -1) then
-        stop "NAMSURFACE: rootf is not set"
+        call finish(routine, "NAMSURFACE: rootf is not set")
       end if
       if(Cskinav == -1) then
-        stop "NAMSURFACE: Cskinav is not set"
+        call finish(routine, "NAMSURFACE: Cskinav is not set")
       end if
       if(lambdaskinav == -1) then
-        stop "NAMSURFACE: lambdaskinav is not set"
+        call finish(routine, "NAMSURFACE: lambdaskinav is not set")
       end if
       if(albedoav == -1) then
-        stop "NAMSURFACE: albedoav is not set"
+        call finish(routine, "NAMSURFACE: albedoav is not set")
       end if
       if(Qnetav == -1) then
-        stop "NAMSURFACE: Qnetav is not set"
+        call finish(routine, "NAMSURFACE: Qnetav is not set")
       end if
       if(cvegav == -1) then
-        stop "NAMSURFACE: cvegav is not set"
+        call finish(routine, "NAMSURFACE: cvegav is not set")
       end if
       if(rsminav == -1) then
-        stop "NAMSURFACE: rsminav is not set"
+        call finish(routine, "NAMSURFACE: rsminav is not set")
       end if
       if(rssoilminav == -1) then
         print *,"WARNING: RSSOILMINAV is undefined... RSMINAV will be used as a proxy"
         rssoilminav = rsminav
       end if
       if(LAIav == -1) then
-        stop "NAMSURFACE: LAIav is not set"
+        call finish(routine, "NAMSURFACE: LAIav is not set")
       end if
       if(gDav == -1) then
-        stop "NAMSURFACE: gDav is not set"
+        call finish(routine, "NAMSURFACE: gDav is not set")
       end if
       if(Wlav == -1) then
-        stop "NAMSURFACE: Wlav is not set"
+        call finish(routine, "NAMSURFACE: Wlav is not set")
       end if
     end if
 
@@ -658,11 +665,11 @@ contains
     allocate(Cs(i2,j2))
 
     if(rad_shortw .and. albedoav == -1) then
-      stop "NAMSURFACE: albedoav is not set"
+      call finish(routine, "NAMSURFACE: albedoav is not set")
     end if
     if(iradiation == 1) then
       if(albedoav == -1) then
-        stop "NAMSURFACE: albedoav is not set"
+        call finish(routine, "NAMSURFACE: albedoav is not set")
       end if
       allocate(swdavn(i2,j2,nradtime))
       allocate(swuavn(i2,j2,nradtime))
@@ -771,6 +778,8 @@ contains
     use moduser,    only : surf_user
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/surface'
+
     call timer_tic('modsurface/surface', 0)
     select case (isurf)
       case (1) ! Interactive land surface model
@@ -814,7 +823,7 @@ contains
         call timer_toc('modsurface/surface')
         return
       case default
-        stop "Invalid option selected for isurf"
+        call finish(routine, "Invalid option selected for isurf")
     end select
 
     call timer_toc('modsurface/surface')
@@ -1330,6 +1339,8 @@ contains
                           D_MPI_BCAST
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/getobl'
+
     integer             :: i,j,iter,patchx,patchy
     real                :: thv, thvsl, horv2, oblavl, thvpatch(xpatches,ypatches), horvpatch(xpatches,ypatches)
     real                :: L, Lend, Lstart, Lold
@@ -1407,7 +1418,7 @@ contains
                    if(Rib < 0) L = -0.01
                 end if
                 if(abs((L - Lold)/L) < 1e-4) exit
-                if(iter > 1000) stop 'Obukhov length calculation does not converge!'
+                if(iter > 1000) call finish(routine, 'Obukhov length calculation does not converge!')
              end do
 
              if (abs(L)>1e6) L = sign(1.0e6,L)
@@ -1548,7 +1559,7 @@ contains
              if(Rib < 0) L = -0.01
           end if
           if(abs((L - Lold)/L) < 1e-4) exit
-          if(iter > 1000) stop 'Obukhov length calculation does not converge!'
+          if(iter > 1000)  call finish(routine, 'Obukhov length calculation does not converge!')
        end do
 
        if (abs(L)>1e6) L = sign(1.0e6,L)

@@ -31,7 +31,11 @@ module modstat_nc
     use netcdf
     use modprecision, only: field_r
     use modmpi,       only: myid
+    use modlogging, only: finish
     implicit none
+
+    character(len=*), parameter :: modname = 'modstat_nc'
+
     logical :: lnetcdf = .true.
     logical :: lsync   = .false.     ! Sync NetCDF file after each writestat_*_nc
     logical :: lclassic = .false.    ! Create netCDF in CLASSIC format (less RAM usage, compression not supported)
@@ -67,12 +71,15 @@ module modstat_nc
     private :: read_nc_attribute_r8
     private :: read_nc_attribute_logical
 
+    private :: modname
+
 contains
 
 
   subroutine initstat_nc
     use modglobal, only : ifnamopt,fname_options,checknamelisterror
     use modmpi,    only : mpierr,comm3d,myid,D_MPI_BCAST
+    use fortran_support, only : nnml_output
     implicit none
 
     integer             :: ierr
@@ -84,7 +91,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMNETCDFSTATS,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMNETCDFSTATS')
-      write(6, NAMNETCDFSTATS)
+      write(nnml_output, NAMNETCDFSTATS)
       close(ifnamopt)
     end if
 
@@ -441,6 +448,9 @@ contains
     use modlsmdata, only : z_soil
     use modmpi, only : myidx,myidy
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/writestat_dims_q_nc'
+    
     integer, intent(in) :: ncid,k1,k2
     integer             :: i=0,iret,length,varid
     iret = nf90_inq_varid(ncid, 'xt', VarID)
@@ -476,10 +486,7 @@ contains
     iret = nf90_inq_varid(ncid, 'zq', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid,zqID, len=length)
     if (length .ne. (1+k2-k1)) then
-      print *,"k1     = ",k1
-      print *,"k2     = ",k2
-      print *,"length = ",length
-      stop "Problem in writestat_dims_q_nc: not matching lengths"
+      call finish(routine, "Problem in writestat_dims_q_nc: not matching lengths. k1=",k1,", k2=" ,k2,", length=",length)
     endif
     if (iret==0) iret = nf90_put_var(ncid, varID, zh(k1:k2),(/1/))
 
@@ -677,6 +684,8 @@ contains
     logical,      intent(in), optional :: default
 
     integer :: ierr, value_
+
+    character(len=*), parameter :: routine = modname//'/read_nc_attribute_logical'
     
     ierr = nf90_get_att(ncid, varid, attname, value_)
 
@@ -694,8 +703,7 @@ contains
           case (0)
             value = .false.
           case default
-            if (myid == 0) write(*,*) "Invalid value provided for ", attname
-            stop
+            call finish(routine, "Invalid value provided for ", attname)
         end select
       case default
         call nchandle_error(ierr)
@@ -721,8 +729,8 @@ contains
     integer, intent(in) :: status
 
     if(status /= nf90_noerr) then
-      print *, trim(nf90_strerror(status))
-      call abort
+      ! print *, trim(nf90_strerror(status))
+      call finish("NETCDF", trim(nf90_strerror(status)))
     end if
 
   end subroutine nchandle_error

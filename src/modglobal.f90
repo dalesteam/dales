@@ -25,8 +25,11 @@ module modglobal
 use iso_c_binding
 use modprecision
 use netcdf
+use modlogging, only: finish
 implicit none
 save
+
+      character(len=*), parameter :: modname = 'modglobal'
 
       ! Simulation dimensions (parconst.f90)
       integer :: itot = 64
@@ -253,7 +256,10 @@ contains
   subroutine initglobal
     use modmpi, only : nprocx, nprocy, myid,comm3d, mpierr, D_MPI_BCAST
     use modnetcdf, only: check
+    use modlogging, only : profile_output, warning
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initglobal'
 
     integer :: advarr(4)
     real phi, colat, silat, omega, omega_gs
@@ -362,8 +368,7 @@ contains
       if(myid==0)then
         open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
         if (ierr /= 0) then
-           write(6,*) 'Cannot open the file ', 'prof.inp.'//cexpnr
-           STOP
+           call finish(routine, 'Cannot open the file prof.inp.'//cexpnr)
         end if
         read(ifinput,'(a72)') chmess
         read(ifinput,'(a72)') chmess
@@ -422,8 +427,7 @@ contains
 
     if(myid==0)then
       if (.not.leq) then
-        write(6,*) &
-            'WARNING, You are working with a non-equidistant grid!!!!'
+        call warning(routine,'WARNING, You are working with a non-equidistant grid!!!!')
       end if
     end if ! end if myid==0
 
@@ -443,14 +447,14 @@ contains
     dzi5    = 0.5*dzi
 
     if(myid==0)then
-      write (6,*) 'lev    dz     zf      zh       dzh    delta'
+      write (profile_output,*) 'lev    dz     zf      zh       dzh    delta'
       do k=k1,1,-1
-        write(6,'(i4,5f10.2)') k,dzf(k),zf(k),zh(k),dzh(k),delta(k)
+        write(profile_output,'(i4,5f10.2)') k,dzf(k),zf(k),zh(k),dzh(k),delta(k)
       end do
 
       do k=1,k1
         if (dzf(k) <= 0 .or. dzh(k) <= 0) then
-          stop "Zero or negative level spacing found in dzf or dzh."
+          call finish(routine, "Zero or negative level spacing found in dzf or dzh.")
         end if
       end do
     end if

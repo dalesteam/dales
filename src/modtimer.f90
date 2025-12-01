@@ -11,6 +11,7 @@ module modtimer
   use, intrinsic :: iso_fortran_env, only: dp => real64
   use modmpi
   use modglobal, only : checknamelisterror, ifnamopt, fname_options
+  use fortran_support, only: nnml_output
 #if defined(USE_NVTX)
   use modnvtx
 #endif
@@ -45,7 +46,7 @@ contains
       open(ifnamopt, file=fname_options, status='old', iostat=ierr)
       read(ifnamopt, TIMER, iostat=ierr)
       call checknamelisterror(ierr, ifnamopt , 'TIMER')
-      write(6, TIMER)
+      write(nnml_output, TIMER)
       close(ifnamopt)
     end if
 

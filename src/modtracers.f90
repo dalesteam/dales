@@ -34,14 +34,15 @@ module modtracers
   use modstat_nc
   use utils
   use modtracer_type, only: T_tracer  ! Use the type from modtracer_type
+  use modlogging,     only: warning, finish
 
   implicit none
 
   private
+  character(len=*), parameter :: modname = 'modtracers'
 
   save
 
-  character(len=*), parameter :: modname = 'modtracers'
 
   public :: get_tracer_index
   public :: inittracers
@@ -73,7 +74,7 @@ contains
 
   !> Initialize tracer definition.
   subroutine inittracers
-    character(len=*), parameter :: routine = modname//'::inittracers'
+    character(len=*), parameter :: routine = modname//'/inittracers'
 
     character(len=128) :: file_profs
     logical            :: file_exists
@@ -95,7 +96,7 @@ contains
         call tracer_props_from_netcdf(file_profs)
       end if
     else
-      call print_info_stderr(routine, trim(file_profs)//' not found')
+      call warning(routine, trim(file_profs)//' not found')
       nsv_user = 0
     end if
 
@@ -129,7 +130,7 @@ contains
     real(field_r),    intent(in),  optional :: wsvsurf
     integer,          intent(out), optional :: isv
 
-    character(len=*), parameter :: routine = modname//'::add_tracer'
+    character(len=*), parameter :: routine = modname//'/add_tracer'
 
     integer                     :: s
     character(len=1024)         :: message = ''
@@ -139,9 +140,8 @@ contains
 
     ! Check if we have already allocated memory
     if (allocated(sv0)) then
-      call print_info_stderr(routine, 'adding new tracers after memory is &
-        &allocated is not allowed (tracer: '//trim(name)//')')
-      error stop
+      call finish(routine, 'adding new tracers after memory is &
+        & allocated is not allowed (tracer: '//trim(name)//')')
     end if
 
     ! Check if the tracer already exists. If so, don't add a new one.
@@ -150,7 +150,7 @@ contains
         if (trim(to_lower(name)) == &
             trim(to_lower(tracer_prop(s) % tracname))) then
           write(message, '(a,a,a)') 'tracer ', trim(name), ' already defined'
-          call print_info_stderr(routine, message)
+          call warning(routine, message)
           if(present(isv)) isv = s
           return
         end if
@@ -194,6 +194,7 @@ contains
 
   !> Allocates all tracer fields
   subroutine allocate_tracers
+    use modlogging, only: profile_output
     integer        :: isv
     type(T_tracer) :: tracer
 
@@ -201,7 +202,7 @@ contains
 
     ! Print tracer properties
     if (myid == 0) then
-      write(6, '(a17,a17,a7,a9,a10,a11,a11)') &
+      write(profile_output, '(a17,a17,a7,a9,a10,a11,a11)') &
         'Tracer           ', &
         'Unit             ', &
         'Index  ', &
@@ -209,10 +210,10 @@ contains
         'Reactive  ', &
         'Deposited  ', &
         'Surf. Flux '
-      write(6, '(a)') repeat('-', 81)
+      write(profile_output, '(a)') repeat('-', 81)
       do isv = 1, nsv
         tracer = tracer_prop(isv)
-        write(6, '(a,x,a,x,i3,4x,l3,6x,l3,7x,l3,8x,e10.4,x)') & ! Ugh
+        write(profile_output, '(a,x,a,x,i3,4x,l3,6x,l3,7x,l3,8x,e10.4,x)') & ! Ugh
           tracer%tracname, &
           tracer%unit, &
           tracer%trac_idx, &
@@ -269,7 +270,7 @@ contains
     character(len=*), intent(in) :: file_properties
 
     character(len=*), parameter :: routine = &
-      modname//'::tracer_props_from_ascii'
+      modname//'/tracer_props_from_ascii'
     integer,          parameter :: max_tracs = 100 !< Max. number of tracers that can be defined
 
     character(len=512) :: line
@@ -293,8 +294,7 @@ contains
     open(1, file=file_profiles, status='old', iostat=ierr)
 
     if (ierr /= 0) then
-      call print_info_stderr(routine, 'Error opening '//trim(file_profiles))
-      error stop
+      call finish(routine, 'Error opening '//trim(file_profiles))
     end if
 
     read(1, '(a512)') line
@@ -311,7 +311,7 @@ contains
     open(1, file=file_properties, status='old', iostat=ierr)
 
     if (ierr /= 0) then
-      call print_info_stderr(routine, 'Error opening '//trim(file_properties))
+      call warning(routine, 'Error opening '//trim(file_properties))
     else
       ierr = 0
       isv = 0
@@ -374,7 +374,7 @@ contains
     character(len=*), intent(in)  :: filename
 
     character(len=*), parameter :: routine = &
-      modname//'::tracer_props_from_netcdf'
+      modname//'/tracer_props_from_netcdf'
 
     integer              :: ncid, nvars, ivar
     logical              :: file_exists

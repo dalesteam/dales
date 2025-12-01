@@ -41,6 +41,7 @@ module modchecksim
   use modmpi,         only: myid, comm3d, mpierr, mpi_sum, mpi_max, D_MPI_ALLREDUCE, &
                             D_MPI_BCAST, MPI_Wtime, nprocx, nprocy
   use modtimer
+  use modlogging, only: finish
 
   implicit none
 
@@ -102,7 +103,7 @@ contains
   
   !> Read checksim namelist.
   subroutine checksim_read_namelist(nml_filename)
-
+    use fortran_support, only: nnml_output
     character(len=*), intent(in) :: nml_filename
 
     integer :: ierr
@@ -113,7 +114,7 @@ contains
       open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
       read(ifnamopt, NAMCHECKSIM, iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMCHECKSIM')
-      write(6, NAMCHECKSIM) ! Maybe write to separate file, for cleaner terminal
+      write(nnml_output, NAMCHECKSIM) ! Maybe write to separate file, for cleaner terminal
       close(ifnamopt)
     end if
 
@@ -521,6 +522,8 @@ contains
 
   subroutine check_array_3d_int(array, name, step, threshold, lacc)
 
+    character(len=*), parameter :: routine = modname//'/check_array_3d_int'
+
     integer,          intent(in) :: array(:,:,:), threshold(2)
     character(len=*), intent(in) :: name
     character(len=*), intent(in) :: step
@@ -545,7 +548,7 @@ contains
           end if
           if (lstop) then
             call dump_state([i,j,k])
-            error stop
+            call finish(routine, "Stopped due to CHECKSIM parameter lstop")
           end if
         end do
       end do
@@ -554,6 +557,8 @@ contains
   end subroutine check_array_3d_int
 
   subroutine check_array_3d_r4(array, name, step, threshold, lacc)
+
+    character(len=*), parameter :: routine = modname//'/check_array_3d_r4'
 
     real(real32),     intent(in) :: array(:,:,:)
     character(len=*), intent(in) :: name
@@ -584,7 +589,7 @@ contains
           end if
           if (lstop) then
             call dump_state([i-ih+1,j-jh+1,k])
-            error stop
+            call finish(routine, "Stopped due to CHECKSIM parameter lstop")
           end if
         end do
       end do
@@ -593,6 +598,8 @@ contains
   end subroutine check_array_3d_r4
 
   subroutine check_array_3d_r8(array, name, step, threshold, lacc)
+    
+    character(len=*), parameter :: routine = modname//'/check_array_3d_r8'
 
     real(real64),     intent(in) :: array(:,:,:)
     character(len=*), intent(in) :: name
@@ -623,7 +630,7 @@ contains
           end if
           if (lstop) then
             call dump_state([i-ih+1,j-jh+1,k])
-            error stop
+            call finish(routine, "Stopped due to CHECKSIM parameter lstop")
           end if
         end do
       end do

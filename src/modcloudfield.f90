@@ -28,8 +28,10 @@
 module modcloudfield
 
   use modglobal, only : longint
+  use modlogging, only: finish
 
 implicit none
+character(len=*), parameter :: modname = 'modcloudfield'
 private
 PUBLIC :: initcloudfield, cloudfield
 save
@@ -44,7 +46,9 @@ contains
   subroutine initcloudfield
     use modmpi,   only :myid,mpierr,comm3d,D_MPI_BCAST
     use modglobal,only :ifnamopt,fname_options,dtmax,dtav_glob,btime,ladaptive,tres,checknamelisterror
+    use fortran_support, only: nnml_output
     implicit none
+    character(len=*), parameter :: routine = modname//'/initcloudfield'
     integer :: ierr
     namelist/NAMCLOUDFIELD/ &
     dtav,lcloudfield, laddinfo
@@ -55,7 +59,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCLOUDFIELD,iostat=ierr)
        call checknamelisterror(ierr, ifnamopt, 'NAMCLOUDFIELD')
-      write(6 ,NAMCLOUDFIELD)
+      write(nnml_output ,NAMCLOUDFIELD)
       close(ifnamopt)
     end if
 
@@ -69,7 +73,7 @@ contains
     if(.not.(lcloudfield)) return
 
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'dtav should be a integer multiple of dtmax'
+      call finish(routine, 'dtav should be a integer multiple of dtmax')
     end if
 
 

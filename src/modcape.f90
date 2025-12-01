@@ -27,9 +27,11 @@
 module modcape
   use modprecision, only : field_r
   use modglobal, only : longint,kmax
+  use modlogging, only: finish
 
 implicit none
 private
+character(len=*), parameter :: modname = 'modcape'
 PUBLIC :: initcape,docape,exitcape
 save
 !NetCDF variables
@@ -51,8 +53,9 @@ contains
     use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,dt_lim,cexpnr,tres,btime,checknamelisterror,&
                         output_prefix
     use modstat_nc,only : lnetcdf,open_nc, define_nc, redefine_nc,ncinfo,nctiminfo,writestat_dims_nc
+    use fortran_support, only: nnml_output
    implicit none
-
+    character(len=*), parameter :: routine = modname//'/initcape'
     integer :: ierr
 
     namelist/NAMCAPE/ &
@@ -63,7 +66,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCAPE,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMCAPE')
-      write(6 ,NAMCAPE)
+      write(nnml_output ,NAMCAPE)
       close(ifnamopt)
     end if
 
@@ -76,7 +79,7 @@ contains
     dt_lim = min(dt_lim,tnext)
 
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'cape: dtav should be a integer multiple of dtmax'
+      call finish(routine, 'dtav should be a integer multiple of dtmax')
     end if
     if (lnetcdf) then
     fname(6:13) = cmyid

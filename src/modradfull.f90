@@ -31,7 +31,9 @@ module modradfull
   use RandomNumbers
   use modglobal, only : pi
   use modprecision, only: field_r
+  use modlogging, only: finish
   implicit none
+  character(len=*), parameter :: modname = 'modradfull'
   private
   public :: radfull,d4stream
   logical, save     :: d4stream_initialized = .False.
@@ -1681,9 +1683,11 @@ contains
 
     integer :: ib
 
+    character(len=*), parameter :: routine = modname//'/computeIRBandWeights'
+
     if(size(bands) /= size(bandweights)) &
-      stop "Didn't provide the right amount of storage for band weights"
-    if(any(isSolar(bands))) stop "Can't compute IR band weights for solar bands."
+      call finish(routine, "Didn't provide the right amount of storage for band weights")
+    if(any(isSolar(bands))) call finish(routine, "Can't compute IR band weights for solar bands.")
 
     if (weighted) then
        do ib = 1, size(bands)
@@ -1705,10 +1709,13 @@ contains
     real, dimension(:), intent(out) :: bandweights
 
     integer :: i
+
+    character(len=*), parameter :: routine = modname//'/computeSolarBandWeights'
+
     i=1
         if(size(bands) /= size(bandweights)) &
-         stop "Didn't provide the right amount of storage for band weights"
-    if(any(.not. isSolar(bands))) stop "Can't compute solar band weights in IR"
+         call finish(routine, "Didn't provide the right amount of storage for band weights")
+    if(any(.not. isSolar(bands))) call finish(routine, "Can't compute solar band weights in IR")
 
     if(weighted) then
        bandweights(:) = (/ (power(bands(i))/totalpower, i = 1, size(bands)) /)
@@ -1725,6 +1732,8 @@ contains
     use modglobal, only : cexpnr
     use modmpi, only : myid
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/init_ckd'
 
     integer :: i, j, k, l, n, ib, ii, mbs, mbir
     logical :: check
@@ -1812,7 +1821,7 @@ contains
              end if
           end if
        end do
-       if (.not.check) stop 'TERMINATING: Gases do not span bands'
+       if (.not.check) call finish(routine, 'TERMINATING: Gases do not span bands')
        band(ib)%ngases = ii
        allocate(band(ib)%gas_id(ii))
        band(ib)%gas_id(:) = gasesinband(1:ii)
@@ -1831,11 +1840,11 @@ contains
     i = 1; j = 1
     do ib = 1, mb
        if(isSolar(band(ib))) then
-          if(i > size(solar_bands)) stop 'TERMINATING: mismatch in solar bands'
+          if(i > size(solar_bands)) call finish(routine, 'TERMINATING: mismatch in solar bands')
           solar_bands(i) = copy_band_properties(band(ib))
           i = i + 1
        else
-          if(j > size(ir_bands))    stop 'TERMINATING: mismatch in solar bands'
+          if(j > size(ir_bands))    call finish(routine, 'TERMINATING: mismatch in solar bands')
           ir_bands(j) = copy_band_properties(band(ib))
           j = j + 1
        end if
@@ -1874,6 +1883,8 @@ contains
 
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/gases'
+
     type(band_properties), &
              intent (in) :: this_band
     integer, intent (in) :: ig
@@ -1884,7 +1895,7 @@ contains
 
     integer :: k, n, igg, nn
     real    :: xfct
-    if (.not.ckd_Initialized) stop 'TERMINATING:  ckd_gases not initialized'
+    if (.not.ckd_Initialized) call finish(routine, 'TERMINATING:  ckd_gases not initialized')
     do k = 1, nv
        tg(k) = 0.
     end do
@@ -1925,7 +1936,7 @@ contains
           end do
 
        case default
-          stop 'TERMINATING: overlap type not supported'
+          call finish(routine, 'TERMINATING: overlap type not supported')
        end select
     end do
 
@@ -2095,6 +2106,9 @@ contains
   !>
   subroutine init_cldwtr
     use modglobal, only : cexpnr
+
+    character(len=*), parameter :: routine = modname//'/init_cldwtr'
+
     integer, parameter  :: nrec = 21600
 
     real, dimension(mb) :: cntrs
@@ -2106,12 +2120,11 @@ contains
     filenm = 'cldwtr.inp.'//cexpnr
     open ( unit = 71, file = filenm, status = 'old', recl=nrec,iostat=ierr)
     if (ierr.ne.0) then
-       write (6,*) 'cldwtr.inp not present. terminate run'
-       stop
+       call finish(routine, 'cldwtr.inp not present. terminate run')
     endif
     if (ierr==0) read (71,'(2I3)') nsizes, nbands
     if (nbands /= mb .or. nsizes*nbands*15 > nrec) &
-         stop 'TERMINATING: incompatible cldwtr.dat file'
+         call finish(routine, 'TERMINATING: incompatible cldwtr.dat file')
 
     allocate (re(nsizes),fl(nsizes),bz(nsizes,mb),wz(nsizes,mb),gz(nsizes,mb))
     write(frmt,'(A1,I2.2,A8)') '(',mb,'E15.7)    '
@@ -2119,7 +2132,7 @@ contains
     if (ierr==0) read (71,frmt) (cntrs(i), i=1,mb)
     do i=1,mb
        if (spacing(1.) < abs(cntrs(i)- center(band(i))) ) &
-            stop 'TERMINATING: cloud properties not matched to band structure'
+            call finish(routine, 'TERMINATING: cloud properties not matched to band structure')
     end do
 
     write(frmt,'(A1,I2.2,A9)') '(',nsizes,'E15.7)   '
@@ -2133,7 +2146,7 @@ contains
     if (ierr==0) close (71)
 
     if (minval((/bz,wz,gz/)) < 0.) &
-         stop 'TERMINATING: cloud properties out of bounds'
+         call finish(routine, 'TERMINATING: cloud properties out of bounds')
 
     cldwtr_Initialized = .True.
 
@@ -2148,6 +2161,8 @@ contains
 
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/cloud_water'
+
     integer, intent (in) :: ib
     real, dimension (nv), intent (in) :: pre, pcw, dz
     real, intent (out) :: tw(nv), ww(nv), www(nv,4)
@@ -2155,7 +2170,7 @@ contains
     integer :: k, j, j0, j1
     real    :: gg, wght, cwmks
 
-    if (.not.cldwtr_Initialized) stop 'TERMINATING: Cloud not cldwtr_Initialized'
+    if (.not.cldwtr_Initialized) call finish(routine, 'TERMINATING: Cloud not cldwtr_Initialized')
 
     do k = 1, nv
        cwmks = pcw(k)*1.e-3

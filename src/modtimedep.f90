@@ -31,8 +31,11 @@
 
 module modtimedep
 
+  use modlogging, only: finish
+
 
 implicit none
+character(len=*), parameter :: modname = 'modtimedep'
 private
 public :: inittimedep, timedep,ltimedep,ltimedepuv,exittimedep
 
@@ -83,6 +86,9 @@ contains
                                   tb_uadv,tb_vadv,tb_qtadv,tb_thladv,tb_Qnet
 
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/inittimedep'
+
 
     character (80):: chmess
     character (1) :: chmess1
@@ -212,13 +218,12 @@ contains
         do while (timeflux(t) < runtime)
           t=t+1
           if (t > kflux) then
-             write (*,*) "Too many time points in file ", 'ls_flux.inp.'//cexpnr, ", the limit is kflux = ", kflux
-             stop
+             call finish(routine, "Too many time points in file ", 'ls_flux.inp.'//cexpnr, ", the limit is kflux = ", kflux)
           end if
           read(ifinput,*, iostat = ierr) timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t)
           write(*,'(i8,6e12.4)') t,timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t)
           if (ierr < 0) then
-            stop 'STOP: No time dependend data for end of run (surface fluxes)'
+            call finish(routine, 'STOP: No time dependend data for end of run (surface fluxes)')
           end if
         end do
         if(timeflux(1)>runtime) then
@@ -238,15 +243,14 @@ contains
         do while (timels(t) < runtime)
           t = t + 1
           if (t > kls) then
-             write (*,*) "Too many time points in file ", 'nudge.inp.'//cexpnr, ", the limit is kls = ", kls
-             stop
+             call finish(routine, "Too many time points in file ", 'nudge.inp.'//cexpnr, ", the limit is kls = ", kls)
           end if
           chmess1 = "#"
           ierr = 1 ! not zero
           do while (.not.(chmess1 == "#" .and. ierr ==0)) !search for the next line consisting of "# time", from there onwards the profiles will be read
             read(ifinput,*,iostat=ierr) chmess1,timels(t)
             if (ierr < 0) then
-              stop 'STOP: No time dependend data for end of run'
+              call finish(routine, 'STOP: No time dependend data for end of run')
             end if
           end do
 
@@ -410,6 +414,8 @@ contains
 
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/timedepz'
+
     integer t,k
     real fac
 
@@ -455,7 +461,7 @@ contains
   !******include rho if rho = rho(z) /= 1.0 ***********
 
     if (llsadv) then
-      if (myid==0) stop 'llsadv should not be used anymore. Large scale gradients were calculated in a non physical way (and lmomsubs had to be set to true to retain conservation of mass)'
+      if (myid==0) call finish(routine, 'llsadv should not be used anymore. Large scale gradients were calculated in a non physical way (and lmomsubs had to be set to true to retain conservation of mass)')
     end if
 
     dudxls   = 0.0

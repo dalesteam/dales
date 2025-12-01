@@ -34,8 +34,10 @@
 module modtimestat
   use modtimer
   use modprecision, only : longint, field_r
+  use modlogging, only: finish
 
 implicit none
+character(len=*), parameter :: modname = 'modtimestat'
 ! private
 ! PUBLIC :: inittimestat, timestat
 save
@@ -95,7 +97,11 @@ contains
     use modstat_nc, only : lnetcdf, open_nc, define_nc, ncinfo, nctiminfo
     use modraddata, only : iradiation
     use modlsm, only : lags
+    use fortran_support, only: nnml_output
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/inittimestat'
+
     integer :: ierr,k,location = 1
     integer :: i,j
 
@@ -109,7 +115,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMTIMESTAT,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMTIMESTAT')
-      write(6 ,NAMTIMESTAT)
+      write(nnml_output ,NAMTIMESTAT)
       close(ifnamopt)
     end if
 
@@ -144,7 +150,7 @@ contains
     dt_lim = min(dt_lim,tnext)
 
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'TIMESTAT: dtav should be a integer multiple of dtmax'
+      call finish(routine, 'TIMESTAT: dtav should be a integer multiple of dtmax')
     end if
 
     allocate(blh_fld(2-ih:i1+ih,2-jh:j1+jh,k1),sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -182,7 +188,7 @@ contains
         if (myid==0) write (*,*) 'TIMESTAT: blh_tres =',blh_thres
       end if
     case default
-      stop 'TIMESTAT: Incorrect iblh_meth'
+      call finish(routine, 'TIMESTAT: Incorrect iblh_meth')
     end select
 
     if(myid==0) then

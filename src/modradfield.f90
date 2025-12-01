@@ -24,8 +24,10 @@ module modradfield
   use modprecision, only : field_r
   use modglobal, only : longint
   use modprecision, only : field_r
+  use modlogging, only: finish
 
 implicit none
+character(len=*), parameter :: modname = 'modradfield'
 private
 PUBLIC :: initradfield, radfield, exitradfield
 save
@@ -51,7 +53,11 @@ contains
          timeav_glob,ladaptive,dt_lim,btime,tres,checknamelisterror,&
          output_prefix
     use modstat_nc,only : open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
+    use fortran_support, only: nnml_output
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initradfield'
+
     integer :: ierr
 
     namelist/NAMRADFIELD/ &
@@ -64,7 +70,7 @@ contains
        open(ifnamopt,file=fname_options,status='old',iostat=ierr)
        read(ifnamopt,NAMRADFIELD,iostat=ierr)
        call checknamelisterror(ierr, ifnamopt, 'NAMRADFIELD')
-       write(6, NAMRADFIELD)
+       write(nnml_output, NAMRADFIELD)
        close(ifnamopt)
     end if
     call D_MPI_BCAST(dtav       ,1,0,comm3d,ierr)
@@ -82,11 +88,11 @@ contains
 
 
     if (abs(timeav/dtav-nsamples)>1e-4) then
-       stop 'radfield timeav must be a integer multiple of dtav'
+       call finish(routine, 'radfield timeav must be a integer multiple of dtav')
     end if
 
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-       stop 'radfield dtav should be a integer multiple of dtmax'
+       call finish(routine, 'radfield dtav should be a integer multiple of dtmax')
     end if
 
     allocate(field_2D_mn(2-ih:i1+ih,2-jh:j1+jh,nvar))

@@ -427,6 +427,7 @@ module LE_DryDepos_Gas
 
   use GO, only : gol, goPr, goErr
   use modprecision, only : field_r
+  use modlogging, only: finish
   
   implicit none
   
@@ -779,7 +780,7 @@ if (.not. ready) then
    if ( present(rc_eff) ) then
       ! check on required arguments:
       if ( (.not. present(catm)) .or. (.not. present(ra)) .or. (.not. present(rb)) ) then
-        stop 'output argument rc_eff requires input arguments catm, ra and rb'
+        call finish(rname, 'output argument rc_eff requires input arguments catm, ra and rb') 
       end if
       ! compute rc_eff :
       call rc_comp_point_rc_eff( ccomp_tot, catm, ra, rb, rc_tot, rc_eff, status )
@@ -863,6 +864,8 @@ real            , intent(out) :: rc_tot          ! total canopy resistance Rc (s
 logical         , intent(out) :: ready           ! Rc has been set
 real            , intent(out) :: ccomp_tot       ! total compensation point (ug/m3)
 
+character(len=*), parameter   :: rmame = mname//'/rc_special'
+
 ! rc_tot is not yet set:
 ready = .false.
 
@@ -908,9 +911,7 @@ case default
       ready = .true.
     end if
   else
-   print *, 'error in subroutine rc_special '
-   print *, 'component ',trim(compnam),' not supported'
-   stop
+   call finish(rmame,  'component ' // trim(compnam) // ' not supported') 
   end if
 end select
 
@@ -933,6 +934,8 @@ integer         , intent(in)  :: nwet    ! wetness indicator; nwet=0 -> dry; nwe
 logical         , intent(in)  :: SAI_present
 real            , intent(in)  :: sai     ! one-sided leaf area index (-)
 real            , intent(out) :: gw      ! external leaf conductance (m/s)
+
+character(len=*), parameter   :: rmame = mname//'/rc_gw'
 
 select case(trim(compnam))
 
@@ -963,9 +966,7 @@ case default
     ! conversion from leaf resistance to canopy resistance by multiplying with SAI:
     Gw = sai*gw
   else
-   print *, 'error in subroutine rc_gw '
-   print *, 'component ',trim(compnam),' not supported'
-   stop
+   call finish(rmame,  'component ' // trim(compnam) // ' not supported') 
   end if
 end select
 
@@ -1125,6 +1126,8 @@ real, optional,    intent(in) :: p             ! pressure (Pa)
 real, optional,    intent(in) :: smi           ! soil moisture index      
 logical, optional, intent(in) :: calc_stom_o3flux  ! calculate stomatal ozone flux??
 
+character(len=*), parameter   :: rmame = mname//'/rc_gstom'
+
 ! variables from module
 ! LAI_present: vegetation is present
 ! dwat: diffusion coefficient of water vapour
@@ -1177,9 +1180,7 @@ case default
       gstom = 0.0
     endif
   else
-    print *, 'error in subroutine rc_gstom '
-    print *, 'component ',trim(compnam),' not supported'
-    stop
+    call finish(rmame, 'component ' // trim(compnam) // ' not supported')
   end if
 end select
 
@@ -1484,6 +1485,8 @@ real   , intent(out) :: rc_tot     ! total canopy resistance Rc (s/m)
 ! Local variables:
 real, parameter :: rssnow = 2000.  ! constant resistance in case of snow and ipar_snow = 1
 
+character(len=*), parameter   ::  rname = mname//'/rc_snow'
+
 ! Choose parameterisation with constant or temperature dependent parameterisation:
 if (ipar_snow .eq. 1) then
    rc_tot = rssnow
@@ -1496,9 +1499,7 @@ elseif (ipar_snow .eq. 2) then
       rc_tot = 70.*(2.-t)
    endif
 else
-   write(*,*) ' programming error in subroutine rc_snow'
-   write(*,*) ' unknown value of ipar_snow: ',ipar_snow
-   stop
+   call finish(rname, 'Unknown value of ipar_snow: ', ipar_snow)
 endif
 
 end subroutine rc_snow
