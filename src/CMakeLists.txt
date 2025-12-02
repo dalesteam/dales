@@ -54,8 +54,7 @@ set( dales_srcs
 	modhypre.f90
 	modibm.f90
 	modibmdata.f90
-	logging/modlogging.f90
-	logging/modloghelpers.f90
+	modlogging.f90
 	modlsm.f90
 	modlsmcrosssection.f90
 	modlsmdata.f90

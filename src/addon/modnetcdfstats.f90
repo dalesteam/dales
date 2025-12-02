@@ -100,6 +100,7 @@ contains
     use netcdf
     use modmpi
     use modglobal
+    use fortran_support, only: nnml_output
 
     implicit none
 
@@ -115,7 +116,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMNETCDFSTATS,iostat=ierr)
-      write(6, NAMNETCDFSTATS)
+      write(nnml_output, NAMNETCDFSTATS)
       close(ifnamopt)
     end if
 

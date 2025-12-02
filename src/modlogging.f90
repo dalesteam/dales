@@ -1,25 +1,27 @@
 
 module modlogging
     use iso_fortran_env,   only: error_unit
-    use modmpi, only: myid, D_MPI_ALLREDUCE, comm3d, MPI_SUM
-    use mpi, only: mpi_abort
-    use fortran_support, only: util_abort, open_nml_output, close_nml_output, find_next_free_unit,fg_green, fg_default
-    use modloghelpers, only: init_logger, set_msg_timestamp, fs_message=>message, fs_finish=>finish, fs_warning=>warning
-    integer :: profile_output
+    use modmpi, only: mpierr, myid, commwrld, d_mpi_bcast
+    use mpi, only: mpi_abort, MPI_FINALIZE
+    use fortran_support, only: init_logger, open_nml_output, close_nml_output, nnml_output, find_next_free_unit, & 
+                               fg_green, fg_default, fs_message=>message, fs_finish=>finish, fs_warning=>warning, filename_max
 
-    save
 
-    logical :: is_initializing
+    character(len=*), parameter :: modname = 'modlogging'
+
+    integer :: profile_output !< the unit for the ascii output of profiles/fields/tracers.
+
+    character(filename_max) :: profile_output_file = "profiles_used.txt"    !< path of the profile output file
+    character(filename_max) :: namelist_output_file = "namelist_used.txt"   !< path of the namelist output file
+
 
     contains
 
     subroutine abort_with_mpi
-      use modmpi, only: mpicomm=>MPI_COMM_WORLD, mpierr
-      use mpi
       implicit none
       integer, parameter :: return_code = 1
 
-      call MPI_ABORT(mpicomm%MPI_VAL, return_code, mpierr)
+      call MPI_ABORT(commwrld%MPI_VAL, return_code, mpierr)
       
     end subroutine abort_with_mpi
 
@@ -29,25 +31,29 @@ module modlogging
       if (myid == 0) write_output = .true.
 
       call init_logger(proc_id=myid, l_write_output=write_output, nerr_unit=error_unit, callback_abort=abort_with_mpi)
-      call open_nml_output("namelist_used.nml")
-      call open_profile_input("profiles_used.txt")
+
+      if (myid == 0) then
+        call open_nml_output(namelist_output_file)
+      endif
+      call open_profile_input(profile_output_file)
 
     end subroutine initlogging
 
     subroutine exitlogging
       implicit none
-      call close_nml_output
+      if (myid == 0) then
+        call close_nml_output
+      end if
       call close_profile_output
     end subroutine exitlogging
 
-    subroutine handle_exit
-      implicit none
-    end subroutine handle_exit
-
   !>
-  !! close the ASCII output that contains all the profile information
+  !! opens the ASCII output file that contains all the profile information
   subroutine open_profile_input(file)
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/open_profile_input'
+
     character(len=*), intent(in) :: file
     integer :: istat
 
@@ -56,68 +62,66 @@ module modlogging
     open (profile_output, FILE=TRIM(file), IOSTAT=istat)
 
     if (istat /= 0) THEN
-      call finish('open_nml_output', 'Could not open '//TRIM(file))
+      call finish(routine, 'Could not open '//TRIM(file))
     end if
 
     end subroutine open_profile_input
 
   !>
-  !!  close the ASCII output that contains all the profile information
-  !!
+  !!  close the ASCII output file that contains all the profile information
   subroutine close_profile_output
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/close_profile_input'
+
     integer :: istat
 
     close (profile_output, IOSTAT=istat)
 
     if (istat /= 0) THEN
-      call finish('close_profile_output', 'Could not close the profile output')
+      call finish(routine, 'Could not close the profile output')
     end if
 
   end subroutine close_profile_output
 
-
+  !>
+  !!  wrapper around the fortran-support finish function that enables writing also numbers without having to format and define an extra character array
   subroutine finish(name, text1, text2, text3, text4, text5, text6, text7, text8, text9, text10)
-    use modmpi, only: myid
     implicit none
-    character(len=*), intent(in) :: name
+    character(len=*), intent(in) :: name !< the name of the routine which caused an error
     class(*), intent(in), optional :: text1, text2, text3, text4, text5
     class(*), intent(in), optional :: text6, text7, text8, text9, text10
-    logical :: write_backtrace
-    write_backtrace = (.not.is_initializing)
-    call fs_finish(name=name, text=convertstring(text1, text2, text3, text4, text5, text6, text7, text8, text9, text10), write_backtrace=write_backtrace)
+  
+    call fs_finish(name=name, text=convertstring(text1, text2, text3, text4, text5, text6, text7, text8, text9, text10))
+
   end subroutine finish
 
+  !>
+  !!  wrapper around the fortran-support warning function that enables writing also numbers without having to format and define an extra character array
   subroutine warning(name, text1, text2, text3, text4, text5, text6, text7, text8, text9, text10)
     implicit none
-    character(len=*), intent(in) :: name
+    character(len=*), intent(in) :: name !< the name of the routine which sends this warning
     class(*), intent(in), optional :: text1, text2, text3, text4, text5
     class(*), intent(in), optional :: text6, text7, text8, text9, text10
 
     call fs_warning(name, text=convertstring(text1, text2, text3, text4, text5, text6, text7, text8, text9, text10))
+
   end subroutine warning
 
+  !>
+  ! wrapper around the fortran-support message function that enables writing also numbers without having to format and define an extra character array
   subroutine message(name, text1, text2, text3, text4, text5, text6, text7, text8, text9, text10, all_print)
     implicit none
-    character(len=*), intent(in) :: name
+    character(len=*), intent(in) :: name !< the name of the routine which sends this message
     logical, intent(in), optional :: all_print
     class(*), intent(in), optional :: text1, text2, text3, text4, text5
     class(*), intent(in), optional :: text6, text7, text8, text9, text10
 
     call fs_message(name, text=convertstring(text1, text2, text3, text4, text5, text6, text7, text8, text9, text10), all_print=all_print)
+
   end subroutine message
 
-  subroutine enable_init_error_logging
-    implicit none
-    is_initializing = .true.
-  end subroutine enable_init_error_logging
-
-  subroutine disable_init_error_logging
-    implicit none
-    is_initializing = .false.
-  end subroutine disable_init_error_logging
- 
- 
+  !> converts up to 10 optional arguments and returns a line with all of them concatenated
   ! based on public domain source code from https://fortranwiki.org/fortran/show/tostring
   function convertstring(text1, text2, text3, text4, text5, text6, text7, text8, text9, text10)
     implicit none
@@ -128,7 +132,6 @@ module modlogging
     character(len=4096)        :: curpart
     integer                    :: istart
     integer i
-
 
     istart=1
     if (present(text1)) call print_part(text1)

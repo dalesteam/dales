@@ -730,7 +730,7 @@ contains
 
     if(status /= nf90_noerr) then
       ! print *, trim(nf90_strerror(status))
-      call finish("NETCDF", trim(nf90_strerror(status)))
+      call finish("modstat:", trim(nf90_strerror(status)))
     end if
 
   end subroutine nchandle_error

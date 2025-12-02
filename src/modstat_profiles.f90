@@ -10,6 +10,7 @@ module modstat_profiles
   use modprecision,   only: field_r, longint
   use modslabaverage, only: slabavg
   use modlogging, only: finish
+  use fortran_support, only: nnml_output
 
   implicit none
 
@@ -131,6 +132,7 @@ contains
       open(ifnamopt, file=fname_options, status='old', iostat=ierr)
       read(ifnamopt, NAMOUT1D, iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMOUT1D')
+      write(nnml_output, NAMOUT1D)
       close(ifnamopt)
     end if
 

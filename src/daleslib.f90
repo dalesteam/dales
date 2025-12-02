@@ -99,6 +99,7 @@ module daleslib
             use modbudget,          only : initbudget
             use modheterostats,     only : initheterostats
             use modvarbudget,       only : initvarbudget
+            use modlogging,         only : initlogging
 
             ! modules below are disabled by default to improve compilation time
             !use modstress,         only : initstressbudget
@@ -122,6 +123,7 @@ module daleslib
             !----------------------------------------------------------------
 
             call initmpicomm(mpi_communicator)
+            call initlogging
 
             !----------------------------------------------------------------
             !     1      READ NAMELISTS,INITIALISE GRID, CONSTANTS AND FIELDS
