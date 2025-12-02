@@ -45,6 +45,8 @@ contains
 
   subroutine poisson_solver_read_namelist(nml_filename)
 
+    use fortran_support, only: nnml_output
+
     character(len=*), intent(in) :: nml_filename !< Name of namelist file.
 
     integer :: ierr !< Error code.
@@ -65,6 +67,7 @@ contains
       open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
       read(ifnamopt, solver, iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'solver')
+      write(nnml_output ,solver)
       close(ifnamopt)
     end if
 
