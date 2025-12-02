@@ -208,13 +208,17 @@ contains
   !! and a core scaling number, it/s * (gridcells / core)
   subroutine ETA_stat
 
-    real                 :: checksimtimeinterval, iterationpersecond, scalingspeed, wallcockpersimsecond
+    real                 :: checksimtimeinterval, iterationpersecond, scalingspeed, wallcockpersimsecond, simsecondperwallclock
 
     integer              :: remainingtime, hh, mm, ss
+
+    character(len=15)    :: str_simspeed
 
     checksimtimeinterval = (MPI_Wtime() - wtime)
 
     wallcockpersimsecond = checksimtimeinterval / ((prevtimeleft - timeleft) * tres)
+
+    simsecondperwallclock = 1 / wallcockpersimsecond
 
     remainingtime = int(wallcockpersimsecond * (timeleft * tres))
     iterationpersecond = real(ntrun - prevntrun) / checksimtimeinterval
@@ -227,10 +231,17 @@ contains
     hh = remainingtime / 3600
     mm = mod(remainingtime, 3600) / 60
     ss = mod(remainingtime, 60)
-    
-    write (*,'(A,I4.2,A,I2.2,A,I2.2,A,F5.2,A,ES10.2E2,A)') 'ETA: ', &
-           hh, ':', mm, ':', ss, ' ', 1/wallcockpersimsecond, ' sim_sec/s   Scaling: ', &
-           scalingspeed, ' (it/s)(gridpoints/cores)'
+
+    if (simsecondperwallclock < 60) then
+      write(str_simspeed, '(F5.2,A)') simsecondperwallclock, ' sim_sec/s'
+    else if (simsecondperwallclock < 3600) then
+      write(str_simspeed, '(F5.2,A)') simsecondperwallclock/60, ' sim_min/s'
+    else
+      write(str_simspeed, '(F5.2,A)') simsecondperwallclock/3600, ' sim_hrs/s'
+    end if
+    write (*,'(A,I4.2,A,I2.2,A,I2.2,A,A,A,ES10.2E2,A)') 'ETA: ', &
+            hh, ':', mm, ':', ss, ' ', str_simspeed, '   Scaling: ', &
+            scalingspeed, ' (it/s)(gridpoints/cores)'
 
   end subroutine ETA_stat
 
