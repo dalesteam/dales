@@ -1,14 +1,3 @@
-
-# set(BUILD_TESTING OFF)
-# set(BUILD_SHARED_LIBS OFF)
-# set(FS_ENABLE_BACKTRACE_TEST ON)
-# set(FS_ENABLE_OMP OFF)
-# set(FS_ENABLE_OPENACC  ENABLE_ACC)
-# set(FS_ENABLE_MIXED_PRECISION  OFF)
-# set(FS_ENABLE_SINGLE_PRECISION  FP32_FIELDS)
-# set(fortran-support_ROOT "external/libfortran-support")
-
-
 # Where the external project will be installed
 set(EXTERNAL_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/libfortan_install)
 
@@ -28,7 +17,6 @@ ExternalProject_Add(
         -DFS_ENABLE_SINGLE_PRECISION=FP32_FIELDS
         -DFS_ENABLE_MIXED_PRECISION=OFF
         -DCMAKE_INSTALL_MESSAGE=LAZY
-    TEST_COMMAND ""               # skip tests
 )
 
 ecbuild_add_library(TARGET libfortran-support_external TYPE INTERFACE DEPENDS libfortran-support_ep)
