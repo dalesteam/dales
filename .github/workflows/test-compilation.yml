@@ -14,13 +14,13 @@ jobs:
         toolchain:
           - {compiler: gcc, version: 13}
           - {compiler: intel, version: '2025.0'}
-          - {compiler: nvidia-hpc, version: '25.1'}
+          - {compiler: nvidia-hpc, version: '25.7'}
         target: ["CPU"]
         prec: ["DP"]
         hypre: ["OFF"]
         include:
           # GPU build
-          - toolchain: {compiler: nvidia-hpc, version: '25.1'}
+          - toolchain: {compiler: nvidia-hpc, version: '25.7'}
             target: "GPU"
             prec: "DP"
             hypre: "OFF"
