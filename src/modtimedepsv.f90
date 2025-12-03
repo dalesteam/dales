@@ -31,9 +31,11 @@
 
 
 module modtimedepsv
+use modlogging, only: finish
 
 
 implicit none
+character(len=*), parameter :: modname = 'modtimedepsv'
 private
 public :: inittimedepsv, timedepsv,ltimedepsv,exittimedepsv
 save
@@ -60,6 +62,8 @@ contains
     use modtestbed, only :ltestbed,ntnudge
     
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/inittimedepsv'
 
     character (80):: chmess
     character (1) :: chmess1
@@ -113,7 +117,7 @@ contains
         read(ifinput,*, iostat = ierr) timesvsurf(t), (wsvst(t,n),n=1,nsv)
         write(*,'(f7.1,4e12.4)') timesvsurf(t), (wsvst(t,n),n=1,nsv)
         if (ierr < 0) then
-            stop 'STOP: No time dependend data for end of run (surface fluxes of scalar)'
+            call finish(routine, 'STOP: No time dependend data for end of run (surface fluxes of scalar)')
         end if
       end do
       if(timesvsurf(1)>runtime) then
@@ -136,7 +140,7 @@ contains
         do while (.not.(chmess1 == "#" .and. ierr ==0))
           read(ifinput,*,iostat=ierr) chmess1,timesvz(t)
           if (ierr < 0) then
-            stop 'STOP: No time dependend data (scalars) for end of run'
+            call finish(routine, 'STOP: No time dependend data (scalars) for end of run')
           end if
         end do
         write (*,*) 'timesvz = ',timesvz(t)

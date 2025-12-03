@@ -54,6 +54,7 @@ set( dales_srcs
 	modhypre.f90
 	modibm.f90
 	modibmdata.f90
+	modlogging.f90
 	modlsm.f90
 	modlsmcrosssection.f90
 	modlsmdata.f90
@@ -249,6 +250,7 @@ ecbuild_add_executable( TARGET dales
                         INCLUDES
                           ${NetCDF_Fortran_INCLUDE_DIR}
                           $<$<BOOL:${ENABLE_FFTW}>:${FFTW_INCLUDE_DIRS}>
+						  ${EXTERNAL_INSTALL_DIR}/include
                         LIBS
                           NetCDF::NetCDF_Fortran
                           NetCDF::NetCDF_C
@@ -258,6 +260,7 @@ ecbuild_add_executable( TARGET dales
                           $<$<BOOL:${ENABLE_HYPRE}>:${HYPRE_LIB}>
                           $<$<BOOL:${ENABLE_ACC}>:CUDA::cufft>
                           $<$<BOOL:${ENABLE_NVTX}>:CUDA::nvToolsExt>
+						  LibFortranSupport::libfortran-support
 )
 # Temporary
 if( ENABLE_ACC )

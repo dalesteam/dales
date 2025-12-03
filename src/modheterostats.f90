@@ -21,9 +21,13 @@
 module modheterostats
 
 use modglobal, only: nsv, kmax,longint
+use modlogging, only: finish
 
 implicit none
 private
+
+character(len=*), parameter :: modname = 'modheterostats'
+
 public :: initheterostats, heterostats, exitheterostats
 
 save
@@ -81,8 +85,11 @@ contains
     use netcdf
     use modmpi
     use modglobal
+    use fortran_support, only: nnml_output
 
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initheterostats'
 
     integer             :: status
     character(len = 20) :: ncfile
@@ -97,7 +104,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMHETEROSTATS,iostat=ierr)
-      write(6, NAMHETEROSTATS)
+      write(nnml_output, NAMHETEROSTATS)
       close(ifnamopt)
     end if
 
@@ -111,7 +118,7 @@ contains
     dt_lim = min(dt_lim,tnext)
 
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'HETEROSTATS: dtav should be a integer multiple of dtmax'
+      call finish(routine, 'HETEROSTATS: dtav should be a integer multiple of dtmax')
     end if
 
     if(myidx .ne. 0) return
@@ -1165,11 +1172,12 @@ contains
     use netcdf
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/nchandle_error'
+
     integer, intent(in) :: status
 
     if(status /= nf90_noerr) then
-      print *, trim(nf90_strerror(status))
-      stop "Stopped"
+      call finish(routine, "Stopped due to netCDF error: ", trim(nf90_strerror(status)))
     end if
 
   end subroutine nchandle_error

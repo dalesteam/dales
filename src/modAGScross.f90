@@ -30,8 +30,12 @@ module modAGScross
 
 
   use modglobal, only : longint,kmax
+  use modlogging, only: finish
 
 implicit none
+
+character(len=*), parameter :: modname = 'modAGScross'
+
 private
 PUBLIC :: initAGScross, AGScross,exitAGScross
 save
@@ -57,9 +61,11 @@ contains
     use modstat_nc,only : open_nc, define_nc,ncinfo,writestat_dims_nc,nctiminfo
     use modsurfdata, only : lrsAgs, ksoilmax,lsplitleaf
     use modraddata,only   : irad_par,irad_rrtmg,irad_rte_rrtmgp,iradiation
+    use fortran_support, only: nnml_output
    implicit none
 
     integer :: ierr
+    character(len=*), parameter :: routine = modname//'/initAGScross'
 
     namelist/NAMAGScross/ &
     lAGScross, dtav
@@ -69,7 +75,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMAGScross,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMAGScross')
-      write(6 ,NAMAGScross)
+      write(nnml_output ,NAMAGScross)
       close(ifnamopt)
     end if
 
@@ -83,9 +89,9 @@ contains
     if(.not.(lAGScross)) return
     dt_lim = min(dt_lim,tnext)
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'AGScross: dtav should be a integer multiple of dtmax'
+      call finish(routine, 'AGScross: dtav should be a integer multiple of dtmax')
     end if
-    if (ksoilmax /= 4) stop 'ksoilmax is not equal to 4... this can give problems with AGScross.f90... update this file as well'
+    if (ksoilmax /= 4) call finish(routine, 'ksoilmax is not equal to 4... this can give problems with AGScross.f90... update this file as well')
     fnameAGS(10:17) = cmyid
     fnameAGS(19:21) = cexpnr
 

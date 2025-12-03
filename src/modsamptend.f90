@@ -24,8 +24,10 @@
 module modsamptend
   use modglobal, only : longint
   use modsampdata
+  use modlogging, only: finish
   implicit none
   private
+  character(len=*), parameter :: modname = 'modsamptend'
   public :: initsamptend, samptend, exitsamptend, leibniztend, writesamptend
   save
 !NetCDF variables
@@ -65,6 +67,8 @@ subroutine initsamptend
     use modstat_nc, only : lnetcdf
 
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initsamptend'
 
     if (.not. lsamptend) return
 
@@ -110,14 +114,14 @@ subroutine initsamptend
 
 
     if (abs(timeav/dtav-nint(timeav/dtav))>1e-4) then
-      stop 'timeav must be a integer multiple of dtav'
+      call finish(routine, 'timeav must be a integer multiple of dtav')
     end if
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'dtav should be a integer multiple of dtmax'
+      call finish(routine, 'dtav should be a integer multiple of dtmax')
     end if
 
     if (ltenddec .and. .not. lprocblock) then
-      stop 'ltenddec is only intended to be used to complement processor-averaged budgets'
+      call finish(routine, 'ltenddec is only intended to be used to complement processor-averaged budgets')
     end if
 
     if (lsamptendu) allocate (uptm(k1,nrfields,isamptot), upmn(k1,nrfields,isamptot), upav(k1,nrfields,isamptot), ust(k1,isamptot))

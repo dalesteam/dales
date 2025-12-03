@@ -22,7 +22,10 @@ module modlsm
     use modprecision, only : field_r
     use ieee_arithmetic, only: ieee_is_nan
     use modlsmdata
+    use modlogging, only: finish, message
     implicit none
+
+    character(len=*), parameter :: modname = 'modlsm'
 
     public :: initlsm, lsm, exitlsm, init_lsm_tiles
 
@@ -87,6 +90,8 @@ subroutine calc_tile_fractions
     use modsurfdata, only : wl
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/calc_tile_fractions'
+
     integer :: i, j
     real :: c_liq
     real :: base_frac_sum
@@ -126,12 +131,10 @@ subroutine calc_tile_fractions
         end do
 
         if (sum_frac < 1.-1e-5) then
-          print*,'ERROR: sum of LU fractions below 1:',sum_frac
-          stop
+          call finish(routine,'ERROR: sum of LU fractions below 1: ',sum_frac)
         endif
         if (sum_basefrac < 1.-1e-5) then
-          print*,'ERROR: sum of LU base fractions below 1:',sum_basefrac
-          stop
+          call finish(routine,'ERROR: sum of LU base fractions below 1: ',sum_basefrac)
         endif
       end do
     end do
@@ -323,6 +326,8 @@ subroutine calc_canopy_resistance_ags
     use modtracers,  only : tracer_prop
 
     implicit none
+    
+    character(len=*), parameter :: routine = modname//'/calc_canopy_resistance_ags'
 
     ! NOTE: these should become a namelist switches...
     logical, parameter :: lsplitleaf = .false.
@@ -426,8 +431,7 @@ subroutine calc_canopy_resistance_ags
                 to_mgm3 = rhof(1) * Mco2 / Mair          ! convert ppm (1e-6) to mg/m3
                 from_mgm3 = 1.0 / to_mgm3 
             else
-                print *, 'ERROR: CO2 has unsupported unit - ', trim(tracer_prop(l)%unit)
-                STOP 'CO2 must use either ppm or ppb units'
+                call finish(routine, 'ERROR: CO2 has unsupported unit - ', trim(tracer_prop(l)%unit), 'CO2 must use either ppm or ppb units')
             endif
         endif
     enddo
@@ -589,8 +593,7 @@ subroutine calc_canopy_resistance_ags
                     alphac = alpha0 * (co2_abs - co2_comp) / (co2_abs + 2*co2_comp)
                       
                     if (lsplitleaf) then
-                        print*,'Splitleaf A-Gs not (yet) implemented!'
-                        stop
+                        call finish(routine, 'Splitleaf A-Gs not (yet) implemented!')
                         
                     else
                         ! Calculate upscaling from leaf to canopy: net flow CO2 into the plant (An)
@@ -609,8 +612,7 @@ subroutine calc_canopy_resistance_ags
                     endif
 
                     if (lrelaxgc) then
-                        print*,'Relax GC A-Gs not (yet) implemented!'
-                        stop
+                        call finish(routine, 'Relax GC A-Gs not (yet) implemented!')
                 !  if (gc_old_set) then
                 !    gcco2       = gc_old(i,j) + min(kgc*rk3coef, 1.0) * (gc_inf - gc_old(i,j))
                 !    if (rk3step ==3) then
@@ -1029,6 +1031,9 @@ end subroutine calc_bulk_bcs
 subroutine interpolate_soil(fieldh, field, iinterp)
     use modglobal, only : i1, j1
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/interpolate_soil'
+
     real, intent(inout) :: fieldh(:,:,:)
     real, intent(in)    :: field(:,:,:)
     integer, intent(in) :: iinterp
@@ -1068,8 +1073,7 @@ subroutine interpolate_soil(fieldh, field, iinterp)
             end do
         end do
     else
-        print*,'ERROR: invalid soil interpolation type iinterp=',iinterp
-        stop
+        call finish(routine,'ERROR: invalid soil interpolation type iinterp=',iinterp)
     end if
 
 end subroutine interpolate_soil
@@ -1328,8 +1332,11 @@ subroutine initlsm
     use modmpi,      only : myid, comm3d, mpierr, D_MPI_BCAST
     use modsurfdata, only : isurf
     use modemisdata, only : l_emission
+    use fortran_support, only : nnml_output
 
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initlsm'
 
     integer :: ierr
     logical :: lheterogeneous
@@ -1347,7 +1354,7 @@ subroutine initlsm
             open(ifnamopt, file=fname_options, status='old', iostat=ierr)
             read(ifnamopt, NAMLSM, iostat=ierr)
             call checknamelisterror(ierr, ifnamopt, 'NAMLSM')
-            write(6, NAMLSM)
+            write(nnml_output, NAMLSM)
             close(ifnamopt)
         end if
 
@@ -1368,13 +1375,11 @@ subroutine initlsm
         end if
 
         allocate(tile(nlu), stat=ierr)
-        if (ierr/=0) stop
+        if (ierr/=0) call finish(routine, "error allocating tiles. ierr=", ierr)
 
         ! Checks on input
         if (lags .and. .not. l_emission .and. (co2_index == -1)) then
-            print*,'With A-Gs enabled and without the emission module, the `co2_index`'
-            print*,'in the scalar array should be specified in the `NAMLSM` group.'
-            stop
+            call finish(routine, 'With A-Gs enabled and without the emission module, the `co2_index` in the scalar array should be specified in the `NAMLSM` group.')
         endif
 
         ! Create/calculate soil grid properties
@@ -1726,6 +1731,7 @@ subroutine init_homogeneous
     use modglobal,   only : ifnamopt, fname_options, checknamelisterror, lwarmstart, eps1
     use modmpi,      only : myid, comm3d, mpierr, D_MPI_BCAST
     use modsurfdata, only : tsoil, tsoilm, phiw, phiwm, wl, wlm, wmax
+    use fortran_support, only: nnml_output
     implicit none
 
     integer :: ierr, k
@@ -1765,7 +1771,7 @@ subroutine init_homogeneous
         open(ifnamopt, file=fname_options, status='old', iostat=ierr)
         read(ifnamopt, NAMLSM_HOMOGENEOUS, iostat=ierr)
         call checknamelisterror(ierr, ifnamopt, 'NAMLSM_HOMOGENEOUS')
-        write(6, NAMLSM_HOMOGENEOUS)
+        write(nnml_output, NAMLSM_HOMOGENEOUS)
         close(ifnamopt)
     end if
 
@@ -1965,7 +1971,9 @@ subroutine init_heterogeneous_nc
     use modglobal,   only : imax, jmax, itot, jtot, ldrydep
 
     use modsurfdata, only : tsoil, tskin, phiw, wl, wlm, wmax
+    use modlogging, only : profile_output
     implicit none
+    character(len=*), parameter :: routine = modname//'/init_heterogeneous_nc'
 
     !integer       :: ilu_lv, ilu_hv, ilu_aq, ilu_ap, ilu_ws, ilu_bs
     integer       :: ilu_ws
@@ -1978,31 +1986,27 @@ subroutine init_heterogeneous_nc
 
     write(input_file(9:11), '(i3.3)') iexpnr
 
-    write(6,"(A18, A32)") "Reading LSM input: ", input_file
+    write(profile_output,"(A18, A32)") "Reading LSM input: ", input_file
     call check( nf90_open(input_file, nf90_nowrite, ncid) )
-
     if (myid==0) then
       call check( nf90_inq_dimid(ncid, 'nlu', varid) )
       call check( nf90_inquire_dimension(ncid, varid, len=nlu_file) )
 
       ! check if nlu_file==nlu-1 ('wet skin' is not in file)
       if (nlu-1 /= nlu_file) then
-        write(6,"(A58, i3, A3, i3)") "STOPPED. Number of LU types in file differs from nlu-1:  ", nlu-1, " /=", nlu_file
-        stop
+        call finish(routine, "STOPPED. Number of LU types in file differs from nlu-1:  ", nlu-1, " /=", nlu_file)
       end if
 
       ! check if dimensions of lsm.inp_xxx.nc agree with the DALES domain
       call check( nf90_inq_dimid(ncid, 'x', varid) )
       call check( nf90_inquire_dimension(ncid, varid, len=len_x) )
       if (len_x /= itot) then
-        write(6,"(A62, i3, A3, i3)") "STOPPED. x-dimension of lsm.inp differs from DALES domain: ", len_x, " /=", itot
-        stop
+        call finish(routine, "STOPPED. x-dimension of lsm.inp differs from DALES domain: ", len_x, " /=", itot)
       end if
       call check( nf90_inq_dimid(ncid, 'y', varid) )
       call check( nf90_inquire_dimension(ncid, varid, len=len_y) )
       if (len_y /= jtot) then
-        write(6,"(A62, i3, A3, i3)") "STOPPED. y-dimension of lsm.inp differs from DALES domain: ", len_y, " /=", jtot
-        stop
+        call finish(routine,  "STOPPED. y-dimension of lsm.inp differs from DALES domain: ", len_y, " /=", jtot)
       end if
     end if
 
@@ -2027,8 +2031,7 @@ subroutine init_heterogeneous_nc
       else if (trim(lvegs(ilu)) .eq. "F") then
         tile(ilu)%lveg = .false.
       else
-        print *,'logical lveg not defined'
-        stop
+        call finish(routine, 'logical lveg not defined')
       end if
 
       call check( nf90_inq_varid( ncid, 'laqu', varid) )
@@ -2040,8 +2043,7 @@ subroutine init_heterogeneous_nc
       else if (trim(laqus(ilu)) .eq. "F") then
         tile(ilu)%laqu = .false.
       else
-        print *,'logical laqu not defined'
-        stop
+        call finish(routine, 'logical laqu not defined')
       end if
 
     end do
@@ -2089,7 +2091,7 @@ subroutine init_heterogeneous_nc
       tile(ilu)%G = 0
       tile(ilu)%ustar = 0
 
-      write(*,*) 'reading variables for LU type: ', trim(tile(ilu)%lushort)
+      write(profile_output,*) 'reading variables for LU type: ', trim(tile(ilu)%lushort)
       ! LU cover
       call check( nf90_inq_varid( ncid, 'cover_'//trim(tile(ilu)%lushort), varid) )
       call check( nf90_get_var(ncid, varid, tile(ilu)%base_frac(2:i1, 2:j1) , &
@@ -2357,11 +2359,14 @@ end subroutine init_heterogeneous_nc
 subroutine read_soil_table
     use modmpi, only : myid, comm3d, mpierr, D_MPI_BCAST
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/read_soil_table'
+
     integer :: table_size, ncid, dimid, varid
 
     if (myid == 0) then
         ! Open the NetCDF file and read the table size
-        print*,'Reading "van_genuchten_parameters.nc"'
+        call message(routine,'Reading "van_genuchten_parameters.nc"')
         call check( nf90_open('van_genuchten_parameters.nc', nf90_nowrite, ncid) )
         call check( nf90_inq_dimid(ncid, 'index', dimid) )
         call check( nf90_inquire_dimension(ncid, dimid, len=table_size) )

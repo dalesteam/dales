@@ -121,8 +121,11 @@ module modchem
 
   use modprecision, only : longint, field_r
   use modtracers, only : tracer_prop
+  use modlogging, only: finish
 
 implicit none
+
+character(len=*), parameter :: modname = 'modchem'
 
 private
 ! PUBLIC :: lchem, initchem,inputchem, twostep, PL_scheme, nchsp, firstchem, lastchem, RH, choffset, CO2
@@ -235,9 +238,10 @@ SUBROUTINE initchem
   use modglobal,   only : i1,j1,nsv, ifnamopt, fname_options, ifoutput, cexpnr,timeav_glob,btime,tres,lwarmstart,checknamelisterror
   use modmpi,      only : myid, comm3d, mpierr, D_MPI_BCAST
   use modsurfdata, only : lCHon ! TODO: duplicate of lchem: remove?
+  use fortran_support, only: nnml_output
 
   implicit none
-
+  character(len=*), parameter :: routine = modname//'/initchem'
   integer i, ierr
 
   namelist/NAMCHEM/ lchem, lcloudKconst, tnor, nchsp, ldiuvar,h_ref,lchconst, t_ref, q_ref, p_ref,lchmovie, dtchmovie,lsegr
@@ -263,7 +267,7 @@ SUBROUTINE initchem
     open(ifnamopt,file=fname_options,status='old',iostat=ierr)
     read (ifnamopt,NAMCHEM,iostat=ierr)
     call checknamelisterror(ierr, ifnamopt, 'NAMCHEM')
-    write(6 ,NAMCHEM)
+    write(nnml_output ,NAMCHEM)
     close(ifnamopt)
   endif
 
@@ -307,9 +311,7 @@ SUBROUTINE initchem
   write(6,"(A24, A6)") "Last reactive tracer:   ", tracer_prop(lastchem)%tracname
 
   if (nchsp_tmp /= nchsp) then
-    write(6,"(A80, i3, A3, i3)") "STOPPED. Number of reactive tracers differs from nchsp:  ", nchsp_tmp, " /=", nchsp
-    write(6,"(A30)") "Check NAMTRACERS: tracernames"
-    stop
+    call finish(routine, "Number of reactive tracers differs from nchsp:  ", nchsp_tmp, " /=", nchsp, " check NAMTRACERS: tracernames")
   end if
 
   allocate(PL_scheme(nchsp))
@@ -375,6 +377,8 @@ subroutine inputchem
  use utils,     only : to_lower
 
  implicit none
+
+  character(len=*), parameter :: routine = modname//'/inputchem'
 
   integer i,j,k,l,react
   integer number
@@ -466,8 +470,7 @@ subroutine inputchem
       number = number + 1
       react = react + 1
       if( react > tnor ) then
-        write(6,*) 'Number of reactions is greater then tnor specified in namoptions',tnor
-        STOP
+        call finish(routine, 'Number of reactions is greater then tnor specified in namoptions',tnor)
       endif
       if (myid == 0) then
         write(*,'(i2,2x,a)') number,trim(line)
@@ -481,8 +484,7 @@ subroutine inputchem
 300   j=j-1
 
       if ((func1 == 6 .or. (raddep==1 .and. func1== 4)) .and. H2Oloc == 0) then
-        write(*,*) 'Function 6 or 4 needs H2O and this is not specified as a chemical component'
-        STOP
+        call finish(routine, 'Function 6 or 4 needs H2O and this is not specified as a chemical component')
       endif
 
       !determine the number of chemical components
@@ -553,19 +555,15 @@ subroutine inputchem
                   read( spec(j)(1:i-1),*)coefficient
                 endif
                 if( (prod .eqv. .false.) .and. ((coefficient +.0005)< 1.))then
-                  write(*,*) 'Sorry, coefficient on input should be a multiply of 1'
-                  STOP
+                  call finish(routine, 'Sorry, coefficient on input should be a multiply of 1')
                 endif
                 if( (prod .eqv. .false.) .and. (coefficient/int(coefficient) > 1.005) ) then
-                  write(*,*) 'Sorry, coefficient on input should be a multiply of 1 found:',spec(j)
-                  STOP
+                  call finish(routine, 'Sorry, coefficient on input should be a multiply of 1 found:',spec(j))
                 endif
                 exit
               else
                 if (i >= len(spec(j)) )then
-                  write(*,*)'Probably space between coefficient and chemical component'
-                  write(*,*) 'look between ',spec(j),spec(j+1)
-                  STOP
+                  call finish(routine, 'Probably space between coefficient and chemical component. Look between ', spec(j), spec(j+1))
                 endif
               endif
             enddo
@@ -575,8 +573,7 @@ subroutine inputchem
             do while(tempname /= chem_name(i) )
               i= i+1
               if (i > nchsp) then
-                if (myid == 0) print *,'Name ',tempname, 'NOT FOUND in speciesline after @'
-                STOP
+                call finish(routine, 'Name ',tempname, ' NOT FOUND in speciesline after @')
               end if
             end do
 
@@ -655,8 +652,7 @@ subroutine inputchem
           reactions(i)%inp(j)%chem_nr = l    !put chem component number in reaction
           PL_scheme(l)%nr_PL = PL_scheme(l)%nr_PL +1 !count number of reactions
           if ( PL_scheme(l)%nr_PL > mrpcc ) then
-            print *, 'mrpcc too low, increase mrpcc in modchem'
-            stop
+            call finish(routine, 'mrpcc too low, increase mrpcc in modchem')
           end if
           PL_scheme(l)%PL(PL_scheme(l)%nr_PL)%r_nr = i   !store reaction number index to RC
           PL_scheme(l)%PL(PL_scheme(l)%nr_PL)%PorL = 2   !this is a loss reaction for this component
@@ -669,8 +665,7 @@ subroutine inputchem
         reactions(i)%inp(j)%chem_nr = k
         PL_scheme(l)%nr_PL = PL_scheme(l)%nr_PL +1
         if ( PL_scheme(l)%nr_PL > mrpcc ) then
-          print *, 'mrpcc too low, increase mrpcc in modchem'
-          stop
+          call finish(routine, 'mrpcc too low, increase mrpcc in modchem')
         end if
         PL_scheme(l)%PL(PL_scheme(l)%nr_PL)%r_nr = i   !store reaction number
         PL_scheme(l)%PL(PL_scheme(l)%nr_PL)%PorL = 2   !this is a loss reaction for this component
@@ -688,8 +683,7 @@ subroutine inputchem
           reactions(i)%outp(j)%chem_nr = l
           PL_scheme(l)%nr_PL = PL_scheme(l)%nr_PL +1
           if ( PL_scheme( l)%nr_PL > mrpcc ) then
-            print *, 'mrpcc too low, increase mrpcc in modchem'
-            stop
+            call finish(routine, 'mrpcc too low, increase mrpcc in modchem')
           end if
           PL_scheme(l)%PL(PL_scheme(l)%nr_PL)%r_nr = i   !store reaction number
           PL_scheme(l)%PL(PL_scheme(l)%nr_PL)%PorL = 1   !this is a production reaction for this component
@@ -702,8 +696,7 @@ subroutine inputchem
         reactions(i)%outp(j)%chem_nr = k
         PL_scheme(l)%nr_PL = PL_scheme(l)%nr_PL +1
         if ( PL_scheme(l)%nr_PL > mrpcc ) then
-          print *, 'mrpcc too low, increase mrpcc in modchem'
-          stop
+          call finish(routine, 'mrpcc too low, increase mrpcc in modchem')
         end if
         PL_scheme(l)%PL(PL_scheme(l)%nr_PL)%r_nr = i   !store reaction number
         PL_scheme(l)%PL(PL_scheme(l)%nr_PL)%PorL = 1   !this is a production reaction for this component
@@ -991,8 +984,7 @@ subroutine inputchem
 RETURN
 
 100 if (myid == 0)  then
-      print *,'error in inputchem'
-      STOP
+      call finish(routine, 'error in inputchem')
     ENDIF
 
 
@@ -1007,6 +999,7 @@ SUBROUTINE read_chem(chem_name)
   use utils,       only : to_lower
 
   implicit none
+  character(len=*), parameter :: routine = modname//'/read_chem'
 
   character*6, dimension(nchsp) ::chem_name
   character*255 scalarline
@@ -1041,8 +1034,7 @@ SUBROUTINE read_chem(chem_name)
 
 RETURN
 
-100 print *, 'error in reading chem species in chem.inp'
-    STOP
+100 call finish(routine, 'error in reading chem species in chem.inp')
 
 
 end subroutine read_chem
@@ -1112,7 +1104,7 @@ use modmpi, only: comm3d, mpierr,mpi_max,mpi_min,mpi_sum,myid,nprocs &
 use modtimestat, only: we, zi, ziold, calcblheight
 
 implicit none
-
+  character(len=*), parameter :: routine = modname//'/twostep2'
 !!!!! we access the chemicals from 1 to nchsp so we are independent of other scalars in svm
   real(field_r) y(2-ih:i1+ih,2-jh:j1+jh,k1,1:nchsp)
 
@@ -1186,8 +1178,7 @@ implicit none
     nstart = 0
     !c Initial stepsize computation.
     if (dtmin.eq.kdtmax) then
-      write(6,*) 'dtmin.eq.kdtmax'
-      stop
+      call finish(routine, 'dtmin.eq.kdtmax')
     endif
 
     call calc_K(pl)
@@ -1668,6 +1659,7 @@ subroutine calc_K(k)
 use modglobal, only :rlv, cp, i1,j1, imax,jmax,timee
 use modfields, only :thl0,exnf,ql0,presf,svm
 implicit none
+  character(len=*), parameter :: routine = modname//'/calc_K'
 
   integer k
   integer i
@@ -1737,8 +1729,7 @@ implicit none
       case(7) ! same as 3 but third order so conv_ppb to the power 2
         keffT(:,:,RC(i)%Kindex) = RC(i)%A * (T_abs(:,:)/RC(i)%B)**RC(i)%C * exp(RC(i)%D / T_abs(:,:))* (convppb(:,:)**2)
       case default !if someone put by mistake a different number
-        write (*,*) 'Unknown function specified'
-        STOP
+        call finish(routine, 'Unknown function specified')
       end select
 
       if( timee>=tnextwrite) then

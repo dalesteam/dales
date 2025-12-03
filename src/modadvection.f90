@@ -26,6 +26,10 @@
 
 module modadvection
 use modtimer
+use modlogging, only: finish
+
+character(len=*), parameter :: modname = 'modadvection'
+
 contains
 !> Advection redirection function
 subroutine advection
@@ -50,6 +54,7 @@ subroutine advection
   use modopenboundary,only : advecc_2nd_boundary_buffer,advecu_2nd_boundary_buffer,advecv_2nd_boundary_buffer,advecw_2nd_boundary_buffer
   implicit none
   integer :: n,istart,iend,jstart,jend,ibuffer,jbuffer
+  character(len=*), parameter :: routine = modname//'/advection'
 
   call timer_tic('modadvection/advection', 0)
 
@@ -128,9 +133,9 @@ subroutine advection
       !$acc wait(1,2,3)
     case(iadv_null)
       ! null advection scheme
-      stop "Null advection scheme selected for iadv_mom - probably a bad idea."
+      call finish(routine, "Null advection scheme selected for iadv_mom - probably a bad idea.")
     case default
-      stop "Unknown advection scheme "
+      call finish(routine, "Unknown advection scheme ")
   end select
 
 istart = 2; iend = i1; jstart = 2; jend = j1
@@ -157,7 +162,7 @@ istart = 2; iend = i1; jstart = 2; jend = j1
     case(iadv_kappa)
       call hadvecc_kappa(thl0,thlp)
     case(iadv_upw)
-      if (.not. leq) stop "advec_upw does not support a non-uniform vertical grid."
+      if (.not. leq) call finish(routine, "advec_upw does not support a non-uniform vertical grid.") 
       call hadvecc_upw(thl0,thlp)
     case(iadv_hybrid)
        !if (.not. leq) stop "advec_hybrid does not support a non-uniform vertical grid."
@@ -167,9 +172,9 @@ istart = 2; iend = i1; jstart = 2; jend = j1
       call hadvecc_hybrid_f(thl0,thlp,1.0)
     case(iadv_null)
       ! null advection scheme
-      stop "Null advection scheme selected for iadv_thl - probably a bad idea."
+      call finish(routine, "Null advection scheme selected for iadv_thl - probably a bad idea.")
     case default
-      stop "Unknown advection scheme "
+      call finish(routine, "Unknown advection scheme ")
   end select
 
   if (lmoist) then
@@ -197,7 +202,7 @@ istart = 2; iend = i1; jstart = 2; jend = j1
       case(iadv_kappa)
         call hadvecc_kappa(qt0,qtp)
       case(iadv_upw)
-        if (.not. leq) stop "advec_upw does not support a non-uniform vertical grid."
+        if (.not. leq) call finish(routine, "advec_upw does not support a non-uniform vertical grid.") 
         call hadvecc_upw(qt0,qtp)
       case(iadv_hybrid)
         !if (.not. leq) stop "advec_hybrid does not support a non-uniform vertical grid."
@@ -207,9 +212,9 @@ istart = 2; iend = i1; jstart = 2; jend = j1
         call hadvecc_hybrid_f(qt0,qtp,1e-3)
       case(iadv_null)
         ! null advection scheme
-        stop "Null advection scheme selected for iadv_qt - probably a bad idea."
+        call finish(routine, "Null advection scheme selected for iadv_qt - probably a bad idea.")  
       case default
-        stop "Unknown advection scheme "
+        call finish(routine, "Unknown advection scheme ")  
     end select
   end if
 
@@ -238,7 +243,7 @@ istart = 2; iend = i1; jstart = 2; jend = j1
     case(iadv_kappa)
       call hadvecc_kappa(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_upw)
-      if (.not. leq) stop "advec_upw does not support a non-uniform vertical grid."
+      if (.not. leq) call finish(routine, "advec_upw does not support a non-uniform vertical grid.") 
       call hadvecc_upw(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_hybrid)
       !if (.not. leq) stop "advec_hybrid does not support a non-uniform vertical grid."
@@ -249,7 +254,7 @@ istart = 2; iend = i1; jstart = 2; jend = j1
     case(iadv_null)
        ! null advection scheme - do nothing
     case default
-      stop "Unknown advection scheme "
+      call finish(routine,"Unknown advection scheme ") 
     end select
   end do
   !$acc wait
@@ -421,9 +426,9 @@ istart = 2; iend = i1; jstart = 2; jend = j1
         call vadvecc_hybrid_f(e120,e12p)
       case(iadv_null)
         ! null advection scheme
-        stop "Null advection scheme selected for iadv_tke - probably a bad idea."
+        call finish(routine, "Null advection scheme selected for iadv_tke - probably a bad idea.") 
       case default
-        stop "Unknown advection scheme "
+        call finish(routine, "Unknown advection scheme ")  
     end select
   end if
   call samptend(tend_vadv)

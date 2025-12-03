@@ -72,6 +72,7 @@ contains
     use modmpi, only : myid,comm3d,mpierr, my_real,mpi_logical, mpi_integer
     use modglobal, only : dtmax,ladaptive, dt_lim
     use modsurface, only : isurf
+    use fortran_support, only: nnml_output
 
     implicit none
 
@@ -88,7 +89,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMNETCDFMOVIE,iostat=ierr)
-      write(6, NAMNETCDFMOVIE)
+      write(nnml_output, NAMNETCDFMOVIE)
       close(ifnamopt)
     end if
 

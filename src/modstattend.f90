@@ -27,8 +27,10 @@
 !
 module modstattend
   use modprecision, only : longint, field_r
+  use modlogging, only: finish
 
   implicit none
+  character(len=*), parameter :: modname = 'modstattend'
 !   private
 !   public :: initstattend, stattend, exitstattend
   save
@@ -57,8 +59,12 @@ subroutine initstattend
     ladaptive, dt_lim,btime,tres,ifoutput,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modgenstat, only : ncid_prof=>ncid
+    use fortran_support, only: nnml_output
 
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initstattend'
+
     integer :: ierr
 
 
@@ -71,7 +77,7 @@ subroutine initstattend
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMSTATTEND,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMSTATTEND')
-      write(6 ,NAMSTATTEND)
+      write(nnml_output ,NAMSTATTEND)
       close(ifnamopt)
     end if
 
@@ -89,10 +95,10 @@ subroutine initstattend
     dt_lim = min(dt_lim,tnext)
 
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'dtav should be a integer multiple of dtmax'
+      call finish(routine, 'dtav should be a integer multiple of dtmax')
     end if
     if (abs(timeav/dtav-nsamples)>1e-4) then
-      stop 'timeav should be a integer multiple of dtav'
+      call finish(routine, 'timeav should be a integer multiple of dtav')
     end if
 
     allocate (upmn(k1,nrfields),vpmn(k1,nrfields),wpmn(k1,nrfields),thlpmn(k1,nrfields),qtpmn(k1,nrfields))

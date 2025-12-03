@@ -68,6 +68,7 @@ contains
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
     use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,kmax,dt_lim,tres,btime,cexpnr,zf,checknamelisterror
     use modstat_nc, only : open_nc,define_nc,ncinfo, writestat_dims_nc,lnetcdf,nctiminfo
+    use fortran_support, only: nnml_output
     implicit none
 
     integer :: ierr
@@ -80,7 +81,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMprojection,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMprojection')
-      write(6 ,NAMprojection)
+      write(nnml_output ,NAMprojection)
       close(ifnamopt)
     end if
     do ksplit=1,kmax

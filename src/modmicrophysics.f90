@@ -49,6 +49,7 @@ module modmicrophysics
   use modmpi,            only: myid, D_MPI_BCAST, comm3d, print_info_stderr
   use modtimer,          only: timer_tic, timer_toc
   use moduser,           only: micro_user
+  use modlogging,        only: finish
 
   implicit none
 
@@ -74,6 +75,7 @@ contains
 
   !> Read microphysics namelist entry and broadcast settings.
   subroutine microphysics_read_namelist(nml_filename)
+    use fortran_support, only: nnml_output
 
     character(len=*), intent(in) :: nml_filename
 
@@ -100,7 +102,7 @@ contains
       open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
       read(ifnamopt, nammicrophysics, iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'nammicrophysics')
-      write(6, nammicrophysics)
+      write(nnml_output, nammicrophysics)
       close(ifnamopt)
     end if
 
@@ -159,9 +161,8 @@ contains
 
     ! Perform some checks
     if (Nc_0 < 1e4) then
-      call print_info_stderr(routine, &
+      call finish(routine, &
         'Nc_0 is suspiciously small (unit should be number per m3).')
-      error stop
     end if
 
   end subroutine microphysics_read_namelist
