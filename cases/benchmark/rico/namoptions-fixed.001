@@ -1,7 +1,7 @@
 &RUN
 iexpnr     =  001
 lwarmstart =  .false.
-startfile  =  'initd001h00mx000y000.001'
+startfile  =  'initd_latest_x000y000.001'
 runtime    =  100
 trestart   =  100
 ladaptive  =  .false.
