@@ -97,6 +97,10 @@ module modbulkmicro
       call add_tracer("Nc", long_name="cloud droplet number concentration", &
                       unit="1/m^3", lmicro=.true., isv=inc)
       allocate(Ncp(2:i1,2:j1,k1))
+
+      Ncp(:,:,:) = 0.0_field_r
+
+      !$acc enter data copyin(Ncp(2:i1,2:j1,1:k1))
     end if
 
                                         ! Fields accessed by:
@@ -298,7 +302,7 @@ module modbulkmicro
     if (laerosol) then
       allocate(ncp_tmp(2:i1,2:j1,1:k1), qlp_tmp(2:i1,2:j1,1:k1))
 
-      !$acc enter data create(ncp_tmp)
+      !$acc enter data create(ncp_tmp, qlp_tmp)
 
       call zero_field(ncp_tmp)
       call zero_field(qlp_tmp)
@@ -414,8 +418,10 @@ module modbulkmicro
       call zero_field(nrp_tmp)
 
       ! 4. Sedimentation
+      if (qrroof > qrbase) then
       call sedimentation_rain(qr, nr, rhof, dzf, qrbase, qrroof, delt, &
                               qrp_tmp, nrp_tmp, precep)
+      end if
 
       if (lstat) then
         call sample_field('qrpsed', qrp_tmp)
@@ -425,8 +431,10 @@ module modbulkmicro
       call sum_fields(qrp_tmp, qrp)
       call sum_fields(nrp_tmp, nrp)
 
+      if (qrroof > qrbase) then
       if (laerosol) call aerosol_sedimentation_rain(qr, nr, rhof, dzf, qrbase, &
                                                     qrroof, delt)
+      end if
 
       call zero_field(qrp_tmp)
       call zero_field(nrp_tmp)
@@ -481,6 +489,7 @@ module modbulkmicro
     if (laerosol) then
       call aerosol_finish
 
+      !$acc parallel loop collapse(3) default(present)
       do k = 1, k1
         do j = 2, j1
           do i = 2, i1
@@ -495,7 +504,10 @@ module modbulkmicro
 
     if (l_rain) deallocate(qrp_tmp, nrp_tmp)
 
-    if (laerosol) deallocate(ncp_tmp, qlp_tmp)
+    if (laerosol) then
+      !$acc exit data delete(ncp_tmp, qlp_tmp)
+      deallocate(ncp_tmp, qlp_tmp)
+    end if
 
     if (lstat) call bulkmicro_stat
 
@@ -568,7 +580,7 @@ module modbulkmicro
     integer,       intent(inout) :: qrbase
     integer,       intent(in)    :: qrroof
     real(field_r), intent(inout) :: qrp(2:,2:,:), nrp(2:,2:,:)
-    real(field_r), intent(out)   :: precep(2:,2:,:)
+    real(field_r), intent(inout) :: precep(2:,2:,:)
 
     character(len=*), parameter :: routine = modname//'/sedimentation_rain'
     real(field_r), parameter :: wfallmax = 9.9

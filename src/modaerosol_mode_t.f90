@@ -161,6 +161,12 @@ contains
              this%q(2:i1,2:j1,1:k1,this%nspecies), &
              this%qp(2:i1,2:j1,1:k1,this%nspecies))
 
+    !$acc enter data copyin(this)
+    !$acc enter data create(this%n(2:i1,2:j1,1:k1), &
+    !$acc                   this%np(2:i1,2:j1,1:k1), &
+    !$acc                   this%q(2:i1,2:j1,1:k1,1:this%nspecies), &
+    !$acc                   this%qp(2:i1,2:j1,1:k1,1:this%nspecies))
+
   end subroutine aerosol_mode_init
 
   !> Initialize temporary memory before aerosol dynamics.
@@ -181,6 +187,7 @@ contains
 
     call timer_tic(routine, 3)
 
+    !$acc parallel loop collapse(3) default(present) async wait(1)
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
@@ -190,6 +197,7 @@ contains
       end do
     end do
 
+    !$acc parallel loop collapse(4) default(present) async wait(1)
     do s = 1, this%nspecies 
       do k = 1, kmax 
         do j = 2, j1
@@ -223,6 +231,7 @@ contains
 
     call timer_tic(routine, 3)
 
+    !$acc parallel loop collapse(3) default(present) async wait(1)
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
@@ -231,6 +240,7 @@ contains
       end do
     end do
 
+    !$acc parallel loop collapse(4) default(present) async wait(1)
     do s = 1, this%nspecies
       do k = 1, kmax
         do j = 2, j1
@@ -288,6 +298,12 @@ contains
     allocate(this%q(2:i1,2:j1,1:k1,this%nspecies), &
              this%qp(2:i1,2:j1,1:k1,this%nspecies))
 
+    this%q(:,:,:,:) = 0
+    this%qp(:,:,:,:) = 0
+
+    !$acc enter data copyin(this, this%q(2:i1,2:j1,1:k1,1:this%nspecies), &
+    !$acc                   this%qp(2:i1,2:j1,1:k1,1:this%nspecies))
+
   end subroutine hydrometeor_mode_init
 
   !> Initialize temporary memory before aerosol dynamics.
@@ -309,6 +325,7 @@ contains
 
     call timer_tic(routine, 3)
 
+    !$acc parallel loop collapse(4) default(present) async wait(1)
     do s = 1, this%nspecies 
       do k = 1, kmax 
         do j = 2, j1
@@ -342,6 +359,7 @@ contains
 
     call timer_tic(routine, 3)
 
+    !$acc parallel loop collapse(4) default(present) async wait(1)
     do s = 1, this%nspecies
       do k = 1, kmax
         do j = 2, j1
