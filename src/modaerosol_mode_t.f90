@@ -8,6 +8,7 @@ module modaerosol_mode_t
   use modprecision,      only: field_r
   use modtracers,        only: get_tracer_index, add_tracer
   use modmpi,            only: print_info_stderr
+  use modtimer,          only: timer_tic, timer_toc
 
   implicit none
 
@@ -173,8 +174,12 @@ contains
     real(field_r), intent(in) :: &
       sv(2-ih:,2-jh:,:,:)
 
+    character(len=*), parameter :: routine = modname//'/aerosol_mode_prepare'
+
     integer :: &
       i, j, k, s
+
+    call timer_tic(routine, 3)
 
     do k = 1, kmax
       do j = 2, j1
@@ -196,6 +201,8 @@ contains
       end do
     end do
 
+    call timer_toc(routine)
+
   end subroutine aerosol_mode_prepare
 
   !> Copy out tendencies.
@@ -209,8 +216,12 @@ contains
     real(field_r), intent(inout) :: &
       svp(2-ih:,2-jh:,:,:)
 
+    character(len=*), parameter :: routine = modname//"/aerosol_mode_finish"
+
     integer :: &
       i, j, k, s ! Loop indices
+
+    call timer_tic(routine, 3)
 
     do k = 1, kmax
       do j = 2, j1
@@ -230,6 +241,8 @@ contains
         end do
       end do
     end do
+
+    call timer_toc(routine)
 
   end subroutine aerosol_mode_finish
 
@@ -288,8 +301,13 @@ contains
     real(field_r), intent(in) :: &
       sv(2-ih:,2-jh:,:,:)
 
+    character(len=*), parameter :: routine = &
+      modname//'/hydrometeor_mode_prepare'
+
     integer :: &
       i, j, k, s
+
+    call timer_tic(routine, 3)
 
     do s = 1, this%nspecies 
       do k = 1, kmax 
@@ -301,6 +319,8 @@ contains
         end do
       end do
     end do
+
+    call timer_toc(routine)
 
   end subroutine hydrometeor_mode_prepare
   
@@ -315,8 +335,12 @@ contains
     real(field_r), intent(inout) :: &
       svp(2-ih:,2-jh:,:,:)
 
+    character(len=*), parameter :: routine = modname//'/hydrometeor_mode_finish'
+
     integer :: &
       i, j, k, s
+
+    call timer_tic(routine, 3)
 
     do s = 1, this%nspecies
       do k = 1, kmax
@@ -328,6 +352,8 @@ contains
         end do
       end do
     end do
+
+    call timer_toc(routine)
 
   end subroutine hydrometeor_mode_finish
 

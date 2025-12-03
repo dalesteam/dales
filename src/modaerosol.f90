@@ -163,7 +163,7 @@ contains
     integer :: &
       imod
 
-    call timer_tic(routine, 1)
+    call timer_tic(routine, 2)
 
     do imod = 1, maxmodes
       call modes(imod)%p%prepare(sv0)
@@ -182,7 +182,7 @@ contains
     integer :: &
       imod
 
-    call timer_tic(routine, 1)
+    call timer_tic(routine, 2)
 
     do imod = 1, maxmodes
       call modes(imod)%p%finish(svp)
@@ -278,7 +278,7 @@ contains
       tend_m,        & ! Real tendency of mass concentration.
       w0               ! Updraft velocity.
 
-    call timer_tic(routine, 1)
+    call timer_tic(routine, 2)
 
     m_ais => modes_f(iAIS)
     m_acs => modes_f(iACS)
@@ -404,7 +404,7 @@ contains
     real(field_r) :: &
       dqadt ! Tendency of in-rain aerosol
 
-    call timer_tic(routine, 1)
+    call timer_tic(routine, 2)
 
     m_inc => modes_h(iINC)
     m_inr => modes_h(iINR)
@@ -476,7 +476,7 @@ contains
       fn,                & ! Number fraction of aerosol resuspended in ACS mode.
       fm                   ! Mass fraction of aerosol resuspended in COS mode.
 
-    call timer_tic(routine, 1)
+    call timer_tic(routine, 2)
 
     m_acs => modes_f(iACS)
     m_cos => modes_f(iCOS)
@@ -571,7 +571,7 @@ contains
       fn,                & ! Number fraction of aerosol resuspended in ACS mode.
       fm                   ! Mass fraction of aerosol resuspended in COS mode.
 
-    call timer_tic(routine, 1)
+    call timer_tic(routine, 2)
 
     m_acs => modes_f(iACS)
     m_cos => modes_f(iCOS)
@@ -674,7 +674,7 @@ contains
       nr_spl(:,:,:),          & ! Rain number concentration at sub-timesteps.
       qa_spl(:,:,:,:)           ! Aerosol mass at sub-timesteps.
 
-    call timer_tic(routine, 1)
+    call timer_tic(routine, 2)
 
     m_inr => modes_h(iINR)
 
