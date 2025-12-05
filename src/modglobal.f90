@@ -244,7 +244,7 @@ save
       logical :: lmomsubs = .false.  !<  switch to apply subsidence on the momentum or not
       logical :: ldrydep = .false.         !< On/Off switch dry deposition
 
-      character(80) :: author='', version='DALES 4.4.2'
+      character(80) :: author='', version='DALES 5.0.0'
 
       ! We are running with a debugger
       logical :: ldebug = .false.

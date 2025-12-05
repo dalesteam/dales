@@ -1,7 +1,7 @@
 &RUN
 iexpnr     = 001
 lwarmstart = .false.
-startfile  = 'initstart'
+startfile  =  'initd_latest_x000y000.001'
 runtime    = 14400
 trestart   = 3600
 dtmax      = 1
@@ -9,9 +9,8 @@ ladaptive  = .true.
 irandom    = 43
 randthl    = 0.2
 randqt     = 0.
-nsv        = 0
-nprocy     = 4
-nprocx     = 4
+!nprocy     = 4
+!nprocx     = 4
 /
 
 &DOMAIN
@@ -42,12 +41,10 @@ z0mav      = 0.1
 z0hav      = 0.1
 wtsurf     = 0.24
 wqsurf     = 0.0
-wsvsurf    = 0.0
 lmostlocal = .true.
 /
 
 &DYNAMICS
-lqlnr      =  .false.
 cu         =  0
 cv         =  0.
 iadv_mom    =  2
@@ -55,7 +52,7 @@ iadv_tke    =  2
 iadv_thl    =  2
 iadv_qt     =  2
 iadv_sv     =  2
-ibas_prf    = 2
+ibas_prf    =  2
 /
 
 &NAMSUBGRID
@@ -99,12 +96,10 @@ ltend       = .false.
 &NAMFIELDDUMP
 dtav        =  10
 lfielddump  = .false.
-lbinary     = .false.
 /
 
 &NAMCROSSSECTION
 lcross  = .false.
 dtav    = 1800 
 crossheight = 10
-lbinary = .true.
 /

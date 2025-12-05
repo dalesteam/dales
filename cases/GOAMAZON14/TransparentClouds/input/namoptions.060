@@ -3,9 +3,9 @@ iexpnr     = 060
 nprocx     = 36
 nprocy     = 36 
 lwarmstart =  .false.
-startfile  =  'initd06h00m000.001'
-runtime    =  43200 
-trestart   = -50000
+startfile  =  'initd_latest_x000y000.001'
+runtime    =  43200
+trestart   =  43200
 dtmax      =  1
 ladaptive  = .true.
 courant    =  1.
@@ -152,7 +152,6 @@ dtav = 60.
 
 &DYNAMICS
 llsadv     =  .false.
-lqlnr      =  .false.
 cu         =  -7.
 cv         =  -1.
 
