@@ -12,7 +12,7 @@ contains
   !> @brief Binds devices to MPI ranks
   subroutine initgpu(commwrld)
     use openacc
-    use modmpi, only: MPI_Comm_split_type, MPI_Comm_rank
+    use modmpi, only: MPI_Comm_split_type, MPI_Comm_rank, MPI_Comm
     implicit none
     type(MPI_COMM), intent(in) :: commwrld
     type(MPI_COMM) :: commlocal
