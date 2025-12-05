@@ -11,6 +11,8 @@ module modcufft
 
   implicit none
 
+  character(len=*), parameter :: modname = 'modcufft'
+
 #if defined(_OPENACC)
 
   save
