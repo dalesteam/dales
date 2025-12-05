@@ -14,13 +14,13 @@ jobs:
         toolchain:
           - {compiler: gcc, version: 13}
           - {compiler: intel, version: '2025.0'}
-          - {compiler: nvidia-hpc, version: '25.7'}
+          - {compiler: nvidia-hpc, version: '25.1'}
         target: ["CPU"]
         prec: ["DP"]
         hypre: ["OFF"]
         include:
           # GPU build
-          - toolchain: {compiler: nvidia-hpc, version: '25.7'}
+          - toolchain: {compiler: nvidia-hpc, version: '25.1'}
             target: "GPU"
             prec: "DP"
             hypre: "OFF"
@@ -119,7 +119,7 @@ jobs:
           cd build
 
           if ${{ matrix.target == 'GPU' }}; then
-            export CUDAToolkit_ROOT=/opt/nvidia/hpc_sdk/Linux_x86_64/25.7/cuda/12.9
+            export CUDAToolkit_ROOT=/opt/nvidia/hpc_sdk/Linux_x86_64/25.1/cuda/12.8
           fi
 
           FC=${{ env.MPI_COMPILER }} cmake -DCMAKE_BUILD_TYPE=DEBUG \
