@@ -27,12 +27,10 @@ xday       =  263.
 xtime      =  12.00
 /
 &NAMSURFACE
+isurf      =  4
 lmostlocal = .true.
 z0mav      = 0.1
 z0hav      = 0.1
-/
-
-&PHYSICS
 z0         =  0.1
 ustin      =  0.1
 ps         =  100000.00
@@ -59,10 +57,10 @@ wsvsurf(17) = 0.0
 wsvsurf(18) = 0.0
 wsvsurf(19) = 0.0
 wsvsurf(20) = 0.0
+/
 
-
+&PHYSICS
 lmoist     =  .true.
-isurf      =  4
 irad       =  0
 timerad    =  3600
 lcoriol    =  .true.

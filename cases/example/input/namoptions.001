@@ -25,19 +25,19 @@ xtime      =  10.
 /
 
 &PHYSICS
-ustin      =  0.0
-ps         =  100000.00
-thls       =  296.
-wtsurf     =  0.1
-wqsurf     =  0.0001
 lmoist     =  .true.
-isurf      =  4
 iradiation =  0
 useMcICA   =  .true.
 lcoriol    =  .true.
 /
 
 &NAMSURFACE
+isurf      =  4
+ustin      =  0.0
+ps         =  100000.00
+thls       =  296.
+wtsurf     =  0.1
+wqsurf     =  0.0001
 lmostlocal   = .false.
 lsmoothflux  = .false.
 rsisurf2     = 0.

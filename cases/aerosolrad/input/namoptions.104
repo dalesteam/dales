@@ -27,10 +27,7 @@ xtime         =  6
 /
 
 &PHYSICS
-isurf         =  1
 iradiation    =  2
-ps         =  101300.00
-thls       =  286.5
 lcoriol    = .true.
 rad_shortw = .true.
 rad_longw  = .false.
@@ -96,6 +93,9 @@ dtav = 600
 /
 
 &NAMSURFACE
+isurf         =  1
+ps         =  101300.00
+thls       =  286.5
 tsoilav(1)   = 286.60
 tsoilav(2)   = 287.50
 tsoilav(3)   = 288.00

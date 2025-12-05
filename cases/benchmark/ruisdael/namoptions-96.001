@@ -30,8 +30,6 @@ xtime  = 12
 /
 
 &PHYSICS
-ps = 1e5
-thls = 300       ! Surface thl
 lmoist = .true.
 lcoriol = .false.
 ltimedep = .true.
@@ -43,6 +41,8 @@ ltimedepuv = .true.
 
 &NAMSURFACE
 isurf = 1           ! 1 = LSM, 2 = Ts+q=qsat(Ts), 4 = thl+qt flux, calculate u*
+ps = 1e5
+thls = 300       ! Surface thl
 ! l_vg  = .true.      ! Van Genuchten parameterisation
 z0mav = 0.075       ! Fred; mean regional roughness heat
 z0hav = 0.003       ! Fred;

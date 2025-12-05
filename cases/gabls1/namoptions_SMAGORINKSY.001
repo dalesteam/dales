@@ -25,9 +25,6 @@ xtime      =  0.
 /
 
 &PHYSICS
-z0         =  0.1
-ps         =  100000.00
-thls       =  263.5
 ltimedep   =  .true.
 lmoist     =  .false.
 iradiation =  0

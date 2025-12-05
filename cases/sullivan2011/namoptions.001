@@ -25,18 +25,16 @@ xlon       =  0.
 
 &PHYSICS
 ltimedep   =  .false.
-isurf      = 4
-ps         =  100000.00
-thls       =  300.
 lmoist     =  .false.
 lcoriol    =  .true.
 iradiation = 0
-z0         = 0.1
 /
 
 &NAMSURFACE
 isurf      = 4
+z0         = 0.1
 ps         = 100000.0
+thls       =  300.
 z0mav      = 0.1
 z0hav      = 0.1
 wtsurf     = 0.24

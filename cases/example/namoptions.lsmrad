@@ -25,19 +25,20 @@ xtime      =  8.
 /
 
 &PHYSICS
-ustin      =  0.0
-ps         =  100000.00
-thls       =  296.
-wtsurf     =  0.1
-wqsurf     =  0.0001
 lmoist     =  .true.
-isurf      =  1
 iradiation =  1
 useMcICA   =  .true.
 lcoriol    =  .true.
 /
 
 &NAMSURFACE
+isurf      =  1
+ustin      =  0.0
+ps         =  100000.00
+thls       =  296.
+wtsurf     =  0.1
+wqsurf     =  0.0001
+
 tsoilav(1)   = 290.
 tsoilav(2)   = 287.
 tsoilav(3)   = 285.

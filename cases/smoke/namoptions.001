@@ -27,16 +27,9 @@ xtime      =  0.
 /
 
 &PHYSICS
-z0         =  0.1
-ustin      =  0.2
-ps         =  100000.00
-thls       =  288.0
-wtsurf     =  0.0
-wqsurf     =  0.0
 !wsvsurf    =  0.0 ! since DALES 5.0 this goes in tracerdata.inp
 
 lmoist     =  .false.
-isurf      =  4
 iradiation =  2
 rad_smoke  = .true.
 rad_longw  = .true.
@@ -48,6 +41,16 @@ isvsmoke   =  1
 rka        =  0.02
 igrw_damp  = 0
 
+/
+
+&NAMSURFACE
+isurf      =  4
+z0         =  0.1
+ustin      =  0.2
+ps         =  100000.00
+thls       =  288.0
+wtsurf     =  0.0
+wqsurf     =  0.0
 /
 
 &DYNAMICS

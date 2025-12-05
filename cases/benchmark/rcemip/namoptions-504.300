@@ -34,12 +34,9 @@ xtime      =  12
 
 &PHYSICS
 igrw_damp  =  2
-isurf      =  2
 
 timerad    =  60
 iradiation =  4
-ps         =  101480
-thls       =  298.743
 
 rad_ls     = .false.
 rad_longw  = .true.
@@ -60,6 +57,9 @@ sw0        = 551.58
 !n2ofactor  = 306e-9
 /
 &NAMSURFACE
+isurf      =  2
+ps         =  101480
+thls       =  298.743
 z0         =  2e-4
 z0mav      =  2e-4
 z0hav      =  2e-4

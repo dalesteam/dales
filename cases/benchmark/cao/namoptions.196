@@ -28,9 +28,6 @@ xtime      =  0.
 /
 
 &PHYSICS
-z0         =  6.6e-4
-ps         =  100900.
-thls       = 275.495697
 lmoist     =  .true.
 iradiation =  4
 timerad    =  60.
@@ -40,6 +37,9 @@ useMcICA   = .false.
 /
 
 &NAMSURFACE
+z0         =  6.6e-4
+ps         =  100900.
+thls       = 275.495697
 isurf      = 2
 z0mav      = 6.6e-4
 z0hav      = 3.7e-6
