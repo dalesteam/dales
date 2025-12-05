@@ -31,7 +31,9 @@
 module modthermodynamics
   use modprecision, only : field_r
   use modtimer
+  use modlogging, only: finish
   implicit none
+  character(len=*), parameter :: modname = 'modthermodynamics'
 !   private
   public :: thermodynamics,calc_halflev
   public :: lqlnr
@@ -755,6 +757,9 @@ contains
     use modfields, only : tmp0, qsat, esl, qvsl, qvsi          ! consider not storing these
 
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/icethermo0_fast'
+
     integer :: i, j, k
     real(field_r) :: Tl, qsat_, qt, ql, b, T
     real(field_r) :: Tl_min, Tl_max, qt_max
@@ -772,8 +777,8 @@ contains
        Tl_min = minval(thl0(2:i1,2:j1,k)) * exnf(k)
        Tl_max = maxval(thl0(2:i1,2:j1,k)) * exnf(k)
        qt_max = maxval(qt0(2:i1,2:j1,k))
-       if (Tl_min < 150) STOP 'icethermo0_fast: Tl_min below limit 150K'
-       if (esat_tab(Tl_max + 5) > presf(k)) STOP 'icethermo0_fast: Tl_max too close to boiling point'
+       if (Tl_min < 150) call finish(routine, 'icethermo0_fast: Tl_min below limit 150K')
+       if (esat_tab(Tl_max + 5) > presf(k)) call finish(routine, 'icethermo0_fast: Tl_max too close to boiling point')
 
        qsat_ = qsat_tab(Tl_min, presf(k)) ! lowest possible qsat in this slab
        if (qt_max > qsat_) then
@@ -886,6 +891,9 @@ contains
     use modfields, only : tmp0, qsat, esl, qvsl, qvsi          ! consider not storing these
 
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/icethermo0_fast_gpu'
+
     integer :: i, j, k
     real(field_r) :: Tl, qsat_, qt, ql, b, T
     real(field_r) :: Tl_min, PrDiff_min
@@ -906,8 +914,8 @@ contains
         end do
       end do
     end do
-    if (Tl_min < 150) stop 'icethermo0_fast: Tl_min below limit 150K'
-    if (PrDiff_min < 0) stop 'icethermo0_fast: Tl_max too close to boiling point'
+    if (Tl_min < 150) call finish(routine, 'icethermo0_fast: Tl_min below limit 150K')
+    if (PrDiff_min < 0) call finish(routine, 'icethermo0_fast: Tl_max too close to boiling point')
 
     !$acc parallel loop collapse(3) private(Tl, qsat_, qt, ql, b, T, esi1, tlo, thi, tlonr) default(present)
     do k = 1, k1
@@ -979,6 +987,7 @@ contains
     use modfields, only : qt0h,thl0h,exnh,presh,ql0h
 
     implicit none
+    character(len=*), parameter :: routine = modname//'/icethermoh_fast'
     integer :: i, j, k
     real(field_r) :: Tl, qsat, qt, ql, b
     real(field_r) :: Tl_min, Tl_max, qt_max
@@ -988,8 +997,8 @@ contains
        ! if they in combination are not saturated, the whole slab is below saturation
        Tl_min = minval(thl0h(2:i1,2:j1,k)) * exnh(k)
        Tl_max = maxval(thl0h(2:i1,2:j1,k)) * exnh(k)
-       if (Tl_min < 150) STOP 'icethermoh_fast: Tl_min below limit 150K'
-       if (esat_tab(Tl_max + 5) > presh(k)) STOP 'icethermoh_fast: Tl_max too close to boiling point'
+       if (Tl_min < 150) call finish(routine, 'icethermoh_fast: Tl_min below limit 150K')
+       if (esat_tab(Tl_max + 5) > presh(k)) call finish(routine, 'icethermoh_fast: Tl_max too close to boiling point')
        qt_max = maxval(qt0h(2:i1,2:j1,k))
        qsat = qsat_tab(Tl_min, presh(k))
        if (qt_max > qsat) then
@@ -1047,6 +1056,7 @@ contains
     use modfields, only : qt0h, thl0h, exnh, presh, ql0h
 
     implicit none
+    character(len=*), parameter :: routine = modname//'/icethermoh_fast_gpu'
     integer :: i, j, k
     real(field_r) :: Tl, qsat, qt, ql, b
     real(field_r) :: Tl_min, PrDiff_min
@@ -1064,8 +1074,8 @@ contains
         end do
       end do
     end do
-    if (Tl_min < 150) stop 'icethermoh_fast: Tl_min below limit 150K'
-    if (PrDiff_min < 0.0) stop 'icethermoh_fast: Tl_max too close to boiling point'
+    if (Tl_min < 150) call finish(routine, 'icethermoh_fast: Tl_min below limit 150K')
+    if (PrDiff_min < 0.0) call finish(routine, 'icethermoh_fast: Tl_max too close to boiling point')
 
     !$acc parallel loop collapse(3) default(present) private(Tl, qt, qsat, b, ql)
     do k = 1, k1

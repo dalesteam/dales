@@ -77,7 +77,6 @@ lcoriol    =  .true.
 
 &DYNAMICS
 llsadv     =  .false.
-lqlnr      =  .false.
 cu         =   0.
 cv         =   0.
 
@@ -85,7 +84,7 @@ iadv_mom    =  5
 iadv_tke    =  5
 iadv_thl    =  5
 iadv_qt     =  5
-iadv_sv     =  100*7
+iadv_sv     =  7
 /
 
 &NAMCHECKSIM
@@ -114,7 +113,6 @@ dtav        = 60
 &NAMFIELDDUMP
 lfielddump  = .false.
 dtav        = 4
-ldiracc     = .false.
 /
 &NAMSTATTEND
 dtav        = 60

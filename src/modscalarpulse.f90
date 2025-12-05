@@ -48,6 +48,7 @@ contains
                          mpierr,commwrld
     use modglobal, only :cexpnr,runtime,ifnamopt,fname_options, &
                          checknamelisterror,tres,k1
+    use fortran_support, only: nnml_output
 
     implicit none
 
@@ -59,7 +60,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMSCALARPULSE,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMSCALARPULSE')
-      write(6 ,NAMSCALARPULSE)
+      write(nnml_output ,NAMSCALARPULSE)
       close(ifnamopt)
     end if
 

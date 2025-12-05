@@ -23,10 +23,14 @@
 !
 
 module modnudgeboundary
+use modlogging, only: finish
 implicit none
 
 public  :: initnudgeboundary, nudgeboundary, exitnudgeboundary
 save
+
+    character(len=*), parameter :: modname = 'modnudgeboundary'
+
     logical :: lnudge_boundary    = .false. ! Switch boundary nudging of thermodynamics
     logical :: lnudge_boundary_sv = .false. ! Switch boundary nudging of scalars
     logical :: lperturb_boundary  = .false. ! Switch perturbation of thl near boundary
@@ -120,8 +124,11 @@ contains
         use modglobal,   only : ifnamopt, fname_options, imax, jmax, dx, dy, i1, j1, k1, ih, jh, lwarmstart, kmax, zf, checknamelisterror, nsv
         use modboundary, only : boundary
         use modemisdata, only : svskip
+        use fortran_support, only : nnml_output
 
         implicit none
+
+        character(len=*), parameter :: routine = modname//'/initnudgeboundary'
 
         integer :: ierr, k
 
@@ -135,7 +142,7 @@ contains
             open(ifnamopt, file=fname_options, status='old', iostat=ierr)
             read (ifnamopt, NAMNUDGEBOUNDARY, iostat=ierr)
             call checknamelisterror(ierr, ifnamopt, 'NAMNUDGEBOUNDARY')
-            write(6, NAMNUDGEBOUNDARY)
+            write(nnml_output, NAMNUDGEBOUNDARY)
             close(ifnamopt)
         end if
 
@@ -164,7 +171,7 @@ contains
             if (myid==0) then
                ! Require offset + 2 standard deviations of the nudging profile to fit inside one tile
                if (imax * dx < (nudge_offset+2*nudge_width) .or. jmax * dy < (nudge_offset+2*nudge_width) ) then
-                  STOP "Tile size is too small compared to boundary nudging range."
+                  call finish(routine, "Tile size is too small compared to boundary nudging range.")
                end if
             end if
 

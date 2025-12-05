@@ -1,7 +1,7 @@
 &RUN
 iexpnr     =  300
 lwarmstart = .false.
-startfile  = 'initd1080h00mx001y012.300'              
+startfile  =  'initd_latest_x000y000.001'
 runtime    = 300
 trestart   = 300
 dtmax      = 5.
@@ -75,7 +75,7 @@ iadv_mom   =  5
 iadv_tke   =  5
 iadv_thl   =  5
 iadv_qt    =  7
-iadv_sv    =  0 5
+iadv_sv    =  5
 lambda_crit = 20.
 /
 &NAMMICROPHYSICS

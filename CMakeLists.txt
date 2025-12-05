@@ -1,5 +1,5 @@
 cmake_minimum_required( VERSION 3.17 FATAL_ERROR )
-
+include(ExternalProject)
 list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/external/ecbuild/cmake" )
 find_package( ecbuild REQUIRED )
 
@@ -108,6 +108,7 @@ if( ENABLE_RRTMG )
   add_compile_definitions( USE_RRTMG )
 endif()
 
+include ( dales_add_fortran_support )
 # GPU stuff
 
 include( dales_find_cuda )

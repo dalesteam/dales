@@ -27,7 +27,9 @@ use netcdf
 use modglobal,only: lsynturb,iturb,lboundary,lperiodic,boundary,nmodes,lambda,tau,dxturb,dyturb,itot,jtot,dx,dy,kmax
 use RandomNumbers, only : getRandomReal,randomNumberSequence,new_RandomNumberSequence
 use modprecision, only: field_r
+use modlogging, only: finish
 implicit none
+character(len=*), parameter :: modname = 'modsynturb'
 real, allocatable, dimension(:,:) :: kn,p,q,vturb,wturb,k_thl,k_qt
 real, allocatable, dimension(:) :: omega,omega_thl,omega_qt,p_thl,p_qt,q_thl,q_qt
 real(field_r), allocatable, dimension(:) :: xf,xh,yf,yh
@@ -60,6 +62,9 @@ contains
     use modglobal, only : dx,dy,imax,jmax,i1,j1,lambdas,lambdas_x,lambdas_y,lambdas_z,kmax,k1,cexpnr,lmoist
     use modmpi, only : myidx, myidy
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initsynturb'
+
     integer :: i,j,ib
     if(.not.lsynturb) return
     if(any(lboundary.and..not.(lperiodic))) then
@@ -73,7 +78,7 @@ contains
         nyturb = int(dy/dyturb*real(jtot));
         nzturb = kmax
         if (nxturb < 1 .or. nyturb < 1) then
-           STOP 'nxturb or nyturb < 1, perhaps dxturb or dyturb is too large.'
+           call finish(routine, 'nxturb or nyturb < 1, perhaps dxturb or dyturb is too large.')
         end if
         lambdas = merge(lambda,lambdas,lambdas==-1.)
         lambdasxyz = (/merge(lambdas,lambdas_x,lambdas_x==-1.), &
@@ -329,6 +334,9 @@ contains
   subroutine sepsim()
     use modglobal, only : rtimee,lmoist
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/sepsim'
+
     integer :: ib
     do ib = 1,5
       if(.not.lboundary(ib).or.lperiodic(ib)) cycle
@@ -338,8 +346,7 @@ contains
           itimestep = itimestep+1
         end do
         if(abs(tturb(itimestep)-real(rtimee))>0.01 .and. real(rtimee)>5.) then
-          print *, 'mistake in time', itimestep,tturb(itimestep),real(rtimee)
-          stop
+          call finish(routine, 'mistake in time', itimestep,tturb(itimestep),real(rtimee))
         endif
         boundary(ib)%uturb = uturbin(:,:,itimestep)
         boundary(ib)%vturb = vturbin(:,:,itimestep)

@@ -36,6 +36,7 @@ use modpois_data, only: p, Fp, d, xyrt, pup, pvp, pwp, a, b, c, ps, pe, qs, &
                           maxiter_precond, hypre_logging, psolver, solver_id
 use modtimer
 implicit none
+character(len=*), parameter :: modname = 'modpois'
 private
 public :: initpois,poisson,exitpois
 public :: poisson_solver_read_namelist
@@ -43,6 +44,8 @@ public :: poisson_solver_read_namelist
 contains
 
   subroutine poisson_solver_read_namelist(nml_filename)
+
+    use fortran_support, only: nnml_output
 
     character(len=*), intent(in) :: nml_filename !< Name of namelist file.
 
@@ -64,6 +67,7 @@ contains
       open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
       read(ifnamopt, solver, iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'solver')
+      write(nnml_output ,solver)
       close(ifnamopt)
     end if
 
@@ -86,9 +90,11 @@ contains
 
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/initpois'
+
 #ifdef DALES_GPU
     if (solver_id /= 200) then
-       STOP 'Running on GPU requires solver_id = 200 (cufft)'
+       call finish(routine, 'Running on GPU requires solver_id = 200 (cufft)')
     end if
 #endif
 

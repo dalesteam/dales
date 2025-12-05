@@ -26,6 +26,7 @@ module modradrte_rrtmgp
   use modraddata
   use modprecision, only : field_r
   use modtimer
+  use modlogging, only: finish
   ! RTE-RRTMGP modules
   use mo_optical_props,       only: ty_optical_props, &
                                     ty_optical_props_arry, &
@@ -38,6 +39,8 @@ module modradrte_rrtmgp
   use mo_rte_kind,            only: wl
 
   implicit none
+
+  character(len=*), parameter :: modname = 'modradrte_rrtmgp'
 
   private
   ! RRTMGP variables
@@ -62,12 +65,12 @@ contains
     use iso_fortran_env, only : error_unit
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/stop_on_err'
+
     character(len=*), intent(in) :: error_msg
 
     if(error_msg /= "") then
-      write (error_unit,*) trim(error_msg)
-      write (error_unit,*) "modradrte_rrtmgp stopped"
-      error stop 1
+      call finish(routine, 'Error: ', trim(error_msg))
     end if
   end subroutine stop_on_err
 
@@ -84,6 +87,8 @@ contains
     use modglobal,             only: imax, jmax, kmax, k1
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/init_radrte_rrtmgp'
+
     integer                 :: k, npatch, ierr(3)=0
     character(len=256)      :: k_dist_file_lw = "rrtmgp-gas-lw-g128.nc"
     character(len=256)      :: k_dist_file_sw = "rrtmgp-gas-sw-g112.nc"
@@ -96,8 +101,7 @@ contains
     if(npatch_end.ne.npatch_start) then
       npatch = npatch_end - npatch_start + 1
     else
-      if(myid==0) write(*,*) 'No sounding levels above the LES domain, check sounding input file'
-      stop 'ERROR: No valid radiation sounding found (modradrte_rrtmgp.f90)'
+      call finish(routine,  'ERROR: No valid radiation sounding found above the LES domain, check sounding input file')
     end if
 
     !old notations nlay-1=kradmax=nzrad, nlay=krad1, nlev=krad2
@@ -111,7 +115,7 @@ contains
     !Set the default value of nbatch if not provided in nameoptions
     if(nbatch==0) nbatch = jmax
     !Check if jmax is a mutliple of nbatch, if user provided
-    if(mod(jmax,nbatch)/=0) stop 'ERROR: Wrong batch number specified in modradrte_rrtmgp.f90'
+    if(mod(jmax,nbatch)/=0) call finish(routine, 'ERROR: Wrong batch number specified')
     ncol = imax*jmax/nbatch
 
     ! Allocating working variables
@@ -144,8 +148,7 @@ contains
                STAT=ierr(3))
     endif
     if(any(ierr(:)/=0)) then
-      if(myid==0) write(*,*) 'Could not allocate input/output arrays in modradrte_rrtmgp'
-      stop 'ERROR: Radiation variables could not be allocated in modradrte_rrtmgp.f90'
+      call finish(routine, 'ERROR: Could not allocate input/output arrays for radiation variables')
     end if
 
     ! Pressure, trace gases and sounding (patch above the DALES domain) initialization
@@ -234,7 +237,7 @@ contains
       ! Load k distributions
       call load_and_init(k_dist_lw, k_dist_file_lw, gas_concs)
       if(.not. k_dist_lw%source_is_internal()) &
-        stop "modradrte_rrtmgp: k-distribution file isn't LW"
+        call finish(routine, "k-distribution file isn't LW")
       nbndlw = k_dist_lw%get_nband()
 
       ! Initialize gas optical properties
@@ -281,7 +284,7 @@ contains
       ! Load k distributions
       call load_and_init(k_dist_sw, k_dist_file_sw, gas_concs)
       if(k_dist_sw%source_is_internal()) &
-        stop "modradrte_rrtmgp: k-distribution file isn't SW"
+        call finish(routine, "k-distribution file isn't SW")
       nbndsw = k_dist_sw%get_nband()
       ngptsw = k_dist_sw%get_ngpt()
 

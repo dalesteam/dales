@@ -1,9 +1,12 @@
 module modradrrtmg
   use modprecision, only : field_r, kind_im
   use modraddata
+  use modlogging, only: finish, message
   implicit none
 
   private
+
+  character(len=*), parameter :: modname = 'modradrrtmg'
 
   public :: radrrtmg
   public :: readSounding
@@ -26,7 +29,10 @@ contains
     use shr_orb_mod,   only : shr_orb_params
     use rrtmg_sw_init, only : rrtmg_sw_ini
     use rrtmg_sw_rad,  only : rrtmg_sw
+    use modlogging,    only : profile_output
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/radrrtmg'
 
     integer                :: npatch    ! Sounding levels above domain
     integer                :: i,j,k,ierr(4)
@@ -48,8 +54,7 @@ contains
       if(npatch_end.ne.npatch_start) then
         npatch = npatch_end - npatch_start + 1
       else
-        if(myid==0) write(*,*) 'No sounding levels above the LES domain, check sounding input file'
-        stop 'ERROR: No valid radiation sounding found (modradrrtmg.f90)'
+        call finish(routine,  'No sounding levels above the LES domain, check sounding input file. ERROR: No valid radiation sounding found (modradrrtmg.f90)')
       end if
 
       nzrad  = kmax + npatch    !old notation
@@ -131,8 +136,7 @@ contains
                ecaersw(imax,krad1,14),  &
                STAT=ierr(4))
       if(any(ierr(:)/=0)) then
-        if(myid==0) write(*,*) 'Could not allocate input/output arrays in modradrrtmg'
-        stop 'ERROR: Radiation variables could not be allocated in modradrrtmg.f90'
+        call finish(routine, 'Could not allocate input/output arrays in modradrrtm. ERROR: Radiation variables could not be allocated in modradrrtmg.f90')
       else
         isAllocated_RadInputsOutputs = .true.
       end if
@@ -152,7 +156,7 @@ contains
       end if
       call readTraceProfs
 
-      if(myid==0) write(*,*) 'Trace gas profile have been read'
+      call message(routine, 'Trace gas profile have been read')
       isReadTraceProfiles = .true.
     end if
 
@@ -163,7 +167,7 @@ contains
       end if
       if (rad_shortw) then
         call shr_orb_params(iyear,eccen,obliq,mvelp,obliqr,lambm0,mvelpp,.false.)
-        if (myid==0) write(*,*) 'orb_params = ',eccen,obliq,mvelp,obliqr,lambm0,mvelpp
+        if (myid==0) write(profile_output,*) 'orb_params = ',eccen,obliq,mvelp,obliqr,lambm0,mvelpp
         call rrtmg_sw_ini(cpdair)
       end if
       isInitializedRrtmg = .true.
@@ -284,8 +288,7 @@ contains
 #else
     use modmpi, only: myid
     if (myid == 0) then
-      write(6,*) "RRTMG is disabled when compiling with -DENABLE_FP32_RAD=ON"
-      stop
+      call finish(routine, "RRTMG is disabled when compiling with -DENABLE_FP32_RAD=ON")
     end if
 #endif
     !if(myid==0) write(*,*) 'RadiationDone'
@@ -300,7 +303,10 @@ contains
     use modglobal, only     : cexpnr
     use modmpi, only        : myid
     use netcdf
+    use modlogging, only    : profile_output
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/readSounding'
 
     real,intent(in)        :: ptop_model
     integer,intent(out)    :: npatch_start,npatch_end        ! the level#s of the sounding above the model
@@ -316,7 +322,7 @@ contains
     SoundingFileName = 'backrad.inp.'//cexpnr//'.nc'
 
     sts        = nf90_open(trim(SoundingFileName),nf90_nowrite,ncid)
-    if (sts.ne.nf90_noerr) stop 'ERROR: Sounding file not found!'
+    if (sts.ne.nf90_noerr) call finish(routine, 'ERROR: Sounding file not found!')
 
     ! get number of pressure levels
     sts        = nf90_inq_dimid(ncid,"lev",dimIDp)
@@ -332,10 +338,7 @@ contains
     end if
 
     if(nlev.gt.nzsnd) then
-      write(*,*) 'ERROR in modradrrtmg.f90'
-      write(*,*) '***** number of levels in ', TRIM(SoundingFileName)
-      write(*,*) '***** exceeds nzsnd.  Reset nzsnd in modraddata.f90'
-      stop 'ERROR in readSounding'
+      call finish(routine, 'ERROR in readSounding, number of levels in ', TRIM(SoundingFileName), ' exceeds nzsnd. Reset nzsnd in modraddata.f90')
     end if
 
     allocate(psnd_in(nlev,ntime), tsnd_in(nlev,ntime), qsnd_in(nlev,ntime), &
@@ -343,9 +346,7 @@ contains
              psnd(nlev), tsnd(nlev), qsnd(nlev), o3snd(nlev), &
              STAT=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'ERROR in modradrrtmg.f90'
-      write(*,*) '***** Could not allocate arrays to read in sounding'
-      stop 'ERROR in readSounding'
+      call finish(routine, 'Could not allocate arrays to read in sounding') 
     end if
 
     ! get pressure levels (in Pascal)
@@ -405,21 +406,19 @@ contains
 
     if(myid == 0) then
       write(*,*)
-      write(*,*) 'Background sounding, p (mb), T (K), q (kg/kg)'
+      write(profile_output,*) 'Background sounding, p (mb), T (K), q (kg/kg)'
       do k = 1,nlev
-        if(k.eq.npatch_start) write(*,*) '**** Start Patch Here *****'
-        write(*,998) k,psnd(k), tsnd(k), qsnd(k)
+        if(k.eq.npatch_start) write(profile_output,*) '**** Start Patch Here *****'
+        write(profile_output,998) k,psnd(k), tsnd(k), qsnd(k)
 998     format(i4,f8.3,f8.3,e12.4)
-        if(k.eq.npatch_end) write(*,*) '**** End Patch Here *****'
+        if(k.eq.npatch_end) write(profile_output,*) '**** End Patch Here *****'
       end do
-      if(npatch_start.gt.nlev) write(*,*) '**** No patching required -- model top is deeper than sounding ****'
+      if(npatch_start.gt.nlev) write(profile_output,*) '**** No patching required -- model top is deeper than sounding ****'
     end if
 
     deallocate(psnd_in, tsnd_in, qsnd_in, o3snd_in, STAT=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'ERROR in modradrrtmg.f90'
-      write(*,*) '***** Could not allocate arrays to read in sounding'
-      stop 'ERROR in readSounding'
+      call finish(routine, 'Could not allocate arrays to read in sounding')
     end if
 
   end subroutine readSounding
@@ -431,7 +430,10 @@ contains
     use modglobal, only : kind_rb, grav
     use modmpi, only    : myid
     use netcdf
+    use modlogging, only : profile_output
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/readTraceProfs'
 
     integer, parameter :: nTraceGases = 9
 !    integer :: nz_tracegases
@@ -463,8 +465,7 @@ contains
            cfc12(krad1), cfc22(krad1), ccl4(krad1), &
            STAT=ierr)
       if(ierr.ne.0) then
-        write(*,*) 'ERROR: could not allocate trace gas arrays in tracesini'
-        stop 'ERROR in readTraceProfs'
+        call finish(routine, 'ERROR: could not allocate trace gas arrays in tracesini')
       else
         isAllocated_TraceGases=.true.
       end if
@@ -481,15 +482,13 @@ contains
     sts(5)  = nf90_inquire_dimension(ncid, dimIDab,tmpName, nab)
 
     if (any(sts.ne.nf90_noerr)) then
-      write(*,*) 'ERROR: input file either not found or incorrectly formatted'
-      stop 'rrtmg_lw.nc input file either not found or incorrectly formatted'
+      call finish(routine, 'ERROR: rrtmg_lw.nc input file either not found or incorrectly formatted')
     end if
 
     ! allocate local variables and set their value to zero
     allocate(pMLS(np), trace(nTraceGases,np), trace_in(nab,np), STAT=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'ERROR: could not declare arrays in tracesini'
-      stop 'ERROR: Could not allocate (in readTraceProfs, modradrrtmg.f90)'
+      call finish(routine, 'ERROR: c ould not declare arrays in tracesini')
     end if
     pMLS=0. ; trace=0. ; trace_in=0.
 
@@ -508,8 +507,7 @@ contains
     end do
 
     if(maxval(abs(sts(:))).ne.nf90_noerr) then
-      write(*,*) 'Error in reading trace gas sounding from RRTMG_data/rrtmg_lw.nc'
-      stop 'ERROR: tracegas data could not be read from rrtmg_lw.nc'
+      call finish(routine, 'ERROR: trace gas sounding data could not be read from RRTMG_data/rrtmg_lw.nc')
     end if
 
     ! An extra layer is added to the existing pressure profiles (for better results?)
@@ -607,19 +605,18 @@ contains
     end if
 
     if(myid==0)then
-      write(*,*) 'RRTMG rrtmg_lw.nc trace gas profile: number of levels=',np
-      write(*,*) 'gas traces vertical profiles (ppmv *10^-6):'
-      write(*,*) 'p, hPa', ('       ',traceGasNameOrder(m),m=1,nTraceGases)
+      write(profile_output,*) 'RRTMG rrtmg_lw.nc trace gas profile: number of levels=',np
+      write(profile_output,*) 'gas traces vertical profiles (ppmv *10^-6):'
+      write(profile_output,*) 'p, hPa', ('       ',traceGasNameOrder(m),m=1,nTraceGases)
       do k=1,krad1
-        write(*,*) tmppresf(k),o3(k),co2(k),ch4(k),n2o(k),o2(k), &
+        write(profile_output,*) tmppresf(k),o3(k),co2(k),ch4(k),n2o(k),o2(k), &
              cfc11(k),cfc12(k), cfc22(k),ccl4(k)
       end do
     end if
 
     deallocate(pMLS, trace, trace_in, STAT=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'ERROR: could not deallocate arrays in tracesini'
-      stop 'ERROR: Could not deallocate (in readTraceProfs, modradrrtmg.f90)'
+      call finish(routine, 'ERROR: Could not deallocate arrays in tracesini')
     end if
   end subroutine readTraceProfs
 

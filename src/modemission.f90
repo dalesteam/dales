@@ -28,8 +28,11 @@ use modprecision, only: field_r
 use ieee_arithmetic, only: ieee_is_nan
 use modemisdata
 use modtracers,       only : tracer_prop
+use modlogging, only: finish, warning, message
 
 implicit none
+
+character(len=*), parameter :: modname = 'modemission'
 
 contains
 
@@ -38,6 +41,8 @@ contains
     use modglobal,    only : i2, j2,kmax, nsv, ifnamopt, fname_options, checknamelisterror
     use modmpi,       only : myid, comm3d, d_mpi_bcast
     use moddatetime,  only : datex, prevday, nextday
+    use fortran_support, only : nnml_output
+    use modlogging, only: profile_output
 
     implicit none
 
@@ -53,7 +58,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMEMISSION,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMEMISSION')
-      write(6, NAMEMISSION)
+      write(nnml_output, NAMEMISSION)
       close(ifnamopt)
 
     endif
@@ -99,16 +104,16 @@ contains
 
 
     if (myid == 0) then
-      write(6,*) 'modemission: co2fields (scalar fields with CO2 0=no, 1=yes)'
-      write(6,*) co2fields
-      write(6,*) 'modemission: svco2ags (scalar field number for AGS emissions)'
-      write(6,*) svco2ags
-      write(6,*) 'modemission: svco2veg (scalar field number for AGS emissions)'
-      write(6,*) svco2veg
-      write(6,*) 'modemission: svco2sum (scalar field number for AGS emissions)'
-      write(6,*) svco2sum
-      write(6,*) 'number of emitted species'
-      write(6,*) nemis
+      write(profile_output,*) 'modemission: co2fields (scalar fields with CO2 0=no, 1=yes)'
+      write(profile_output,*) co2fields
+      write(profile_output,*) 'modemission: svco2ags (scalar field number for AGS emissions)'
+      write(profile_output,*) svco2ags
+      write(profile_output,*) 'modemission: svco2veg (scalar field number for AGS emissions)'
+      write(profile_output,*) svco2veg
+      write(profile_output,*) 'modemission: svco2sum (scalar field number for AGS emissions)'
+      write(profile_output,*) svco2sum
+      write(profile_output,*) 'number of emitted species'
+      write(profile_output,*) nemis
     endif
 
     ! --- Local pre-calculations and settings
@@ -211,6 +216,8 @@ contains
 
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/reademission'
+
     integer, intent(in)  :: iyear, imonth, iday, ihour
     ! real, intent(out)    :: emisfield(i2, j2, kemis, 1+svskip:nsv)
     real, intent(out)    :: emisfield(i2, j2, kemis, nemis)
@@ -224,7 +231,7 @@ contains
     ! Create string from given date
     write(sdatetime, "(I0.4,2I0.2,2I0.2)") iyear, imonth, iday, ihour, 0
 
-    write(6,"(A18, A12)") "Reading emission: ", sdatetime
+    call message(routine, "Reading emission: ", sdatetime)
 
     iem = 1
     do isv = 1, nsv
@@ -232,9 +239,9 @@ contains
         ! check tracer unit
         ! give warning when emission file is not available for a species which is emitted
         if (iem > nemis) then
-          write(6,"(A52, I2, A3, I2)") "More emitted species than declared in NAMEMISSION: ", iem, " > ", nemis
+          call warning(routine, "More emitted species than declared in NAMEMISSION: ", iem, " > ", nemis)
         endif
-        write(6,"(A17, I2, A7)") "Reading tracer: ", tracer_prop(isv)%trac_idx, trim(tracer_prop(isv)%tracname)
+        call message(routine, "Reading tracer: ", tracer_prop(isv)%trac_idx, " ", trim(tracer_prop(isv)%tracname))
         call check( nf90_open( 'emissions/'//trim(tracer_prop(isv)%tracname)//'_emis_'//sdatetime//'_3d.nc', NF90_NOWRITE, ncid))
         call check( nf90_inq_varid( ncid, tracer_prop(isv)%tracname, varid) )
         call check( nf90_get_var  ( ncid, varid, emisfield(2:i1,2:j1,1:kemis,iem), &
@@ -246,11 +253,11 @@ contains
         ! write(6,"(A22, A22)") "Reading tracer unit: ", trim(unit)
         if ( trim(unit) /= 'kg hour-1' ) then
           !!! TODO: make this an ERROR after updating the emission pre-processor
-          write(6,"(A38, A36, A14)") "WARNING: emission units do not match: " , trim(unit), " /= kg hour-1"
+          call warning(routine, "WARNING: emission units do not match: " , trim(unit), " /= kg hour-1")
         endif
         iem = iem + 1
       else
-        write(6,"(A20, I2, A7)") "Tracer not emitted: ", tracer_prop(isv)%trac_idx, trim(tracer_prop(isv)%tracname)
+        call warning(routine,"Tracer not emitted: ", tracer_prop(isv)%trac_idx, trim(tracer_prop(isv)%tracname))
       endif
     end do
 
@@ -260,8 +267,7 @@ contains
     integer, intent(in) :: status
 
     if(status /= nf90_noerr) then
-      print *, trim(nf90_strerror(status))
-      stop 'NetCDF error in modemission. See outputfile for more information.'
+      call finish(routine, 'NetCDF error in modemission. See outputfile for more information. Error ', trim(nf90_strerror(status)))
     end if
   end subroutine check
 
@@ -303,6 +309,8 @@ contains
 
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/emission'
+
     integer         :: i, j, k, l, iem
 
     real            :: emistime_s, emistime_e ! Emission timers
@@ -341,13 +349,11 @@ contains
             elseif ( trim(tracer_prop(l)%unit) == 'ppm' ) then
               factor = 1.e6
             else
-              print *, trim(tracer_prop(l)%unit)
-              STOP 'factor not defined for this unit'
+              call finish(routine, 'factor not defined for this unit: ', trim(tracer_prop(l)%unit))
             endif
 
             if (tracer_prop(l)%molar_mass < 0. ) then
-              print *, trim(tracer_prop(l)%tracname)
-              STOP 'molar mass not defined for this tracer'
+              call finish(routine, 'molar mass not defined for this tracer: ', trim(tracer_prop(l)%tracname))
             endif
             conv_factor = 1/(rhof(k)*dzf(k)*dx*dy) * div3600 * MW_air/tracer_prop(l)%molar_mass * factor
 
@@ -488,6 +494,8 @@ contains
 
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/inquirepoints'
+
     integer, intent(in) :: iyear, imonth, iday, ihour
     integer :: ncid, ndimid, np, l
     logical :: points_exist
@@ -516,10 +524,10 @@ contains
             call check(nf90_inquire_dimension(ncid, ndimid, len=np))
             point_sources(l)%npoints = np
             call check(nf90_close(ncid))
-            write(6,*) 'Filename: ', filename, ' Tracer:', trim(tracname), ' npoints=', np
+            call message(routine, 'Filename: ', trim(filename), ' Tracer:', trim(tracname), ' npoints=', np)
         else
             point_sources(l)%npoints = 0
-            write(6,*) 'Filename: ', filename, ' Tracer: ', trim(tracname), ' has no point sources.'
+            call message(routine, 'Filename: ', trim(filename), ' Tracer: ', trim(tracname), ' has no point sources.')
         end if
     end do
 
@@ -528,8 +536,7 @@ contains
     subroutine check(status)
         integer, intent(in) :: status
         if (status /= nf90_noerr) then
-            print *, trim(nf90_strerror(status))
-            stop 'NetCDF error in inquirepoints.'
+            call finish(routine, 'NetCDF error in inquirepoints: ', trim(nf90_strerror(status)))
         end if
     end subroutine check
 
@@ -544,6 +551,8 @@ contains
     use modmpi,    only: myidx, myidy
     use modglobal, only: nsv
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/readpoints'
 
     integer, intent(in) :: iyear, imonth, iday, ihour, itime
 
@@ -591,7 +600,7 @@ contains
 
         call check(nf90_close(ncid))
 
-        write(6,*) 'Read ', np, ' point sources', ' from ', filename, ' for tracer: ', trim(tracname)
+        call message(routine, 'Read ', np, ' point sources', ' from ', trim(filename), ' for tracer: ', trim(tracname))
     end do
 
   contains
@@ -599,8 +608,7 @@ contains
     subroutine check(status)
         integer, intent(in) :: status
         if (status /= nf90_noerr) then
-            print *, trim(nf90_strerror(status))
-            stop 'NetCDF error in readpoints.'
+            call finish(routine, 'NetCDF error in readpoints.', trim(nf90_strerror(status)))
         end if
     end subroutine check
 
@@ -686,6 +694,8 @@ contains
 
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/applypoints'
+
     integer, intent(in) :: l, iem
     integer :: ipoint, ix, iy, iz, isv, izt, izb, iheight, i, k
     real    :: emis_b,emis_a, emis_top, emis_bot, emis_in_between
@@ -755,13 +765,11 @@ contains
                 elseif ( trim(tracer_prop(l)%unit) == 'ppm' ) then
                     factor = 1.e6
                 else
-                    print *, trim(tracer_prop(l)%unit)
-                    STOP 'factor not defined for this unit'
+                    call finish(routine, 'factor not defined for this unit', trim(tracer_prop(l)%unit))
                 endif
 
                 if (tracer_prop(l)%molar_mass < 0. ) then
-                    print *, trim(tracer_prop(l)%tracname)
-                    STOP 'molar mass not defined for this tracer'
+                    call finish(routine, 'molar mass not defined for this tracer', trim(tracer_prop(l)%tracname))
                 endif
 
                 sf = merge(scalefactor(iem), 1.0, l_scale) !Analog of if-else statement
