@@ -910,7 +910,7 @@ contains
           end if
           if(abs((Lob - Lold)/Lob) < 1e-4) exit
           if(iter > 1000) then
-            call finish(routine, 'Obukhov length calculation does not converge in IBM!')
+            print *, 'Obukhov length calculation does not converge in IBM!'
           end if
         end do
 
