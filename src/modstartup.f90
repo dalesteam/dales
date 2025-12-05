@@ -83,7 +83,6 @@ contains
                                   lsynturb,nmodes,tau,lambda,lambdas,lambdas_x,lambdas_y,lambdas_z,iturb, &
                                   rdt,rk3step,i1,j1,k1,ih,jh,lboundary,iinput,dzf
     use modforces,         only : lforce_user
-    use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
     use moddatetime,       only : initdatetime
     use modemission,       only : initemission
@@ -142,7 +141,7 @@ contains
         xlat,xlon,xyear,xday,xtime,ksp
     namelist/PHYSICS/ &
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
-        z0,ustin,wtsurf,wqsurf,ps,thls,lmoist,isurf,chi_half,&
+        lmoist,chi_half,&
         lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,ltimedep,ltimedepuv,ltimedepsv,ntimedep,&
         irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge,lfast_thermo,lconstexner,lbaseexner
@@ -248,13 +247,7 @@ contains
     call D_MPI_BCAST(xday       ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(xtime      ,1,0,commwrld,mpierr)
 
-    call D_MPI_BCAST(z0          ,1,0,commwrld,mpierr) ! PHYSICS
-    call D_MPI_BCAST(ustin       ,1,0,commwrld,mpierr)
     !call D_MPI_BCAST(lneutraldrag ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(wtsurf      ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(wqsurf      ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(ps          ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(thls        ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(chi_half    ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lmoist      ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lcoriol     ,1,0,commwrld,mpierr)
@@ -308,7 +301,6 @@ contains
     call D_MPI_BCAST(courant,1,0,commwrld,mpierr)
     call D_MPI_BCAST(peclet,1,0,commwrld,mpierr)
 
-    call D_MPI_BCAST(isurf   ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(ibas_prf,1,0,commwrld,mpierr)
     call D_MPI_BCAST(iadv_mom,1,0,commwrld,mpierr)
     call D_MPI_BCAST(iadv_tke,1,0,commwrld,mpierr)
