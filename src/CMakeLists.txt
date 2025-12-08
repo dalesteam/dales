@@ -251,6 +251,7 @@ ecbuild_add_executable( TARGET dales
                           ${NetCDF_Fortran_INCLUDE_DIR}
                           $<$<BOOL:${ENABLE_FFTW}>:${FFTW_INCLUDE_DIRS}>
                         LIBS
+                          MPI::MPI_Fortran
                           NetCDF::NetCDF_Fortran
                           NetCDF::NetCDF_C
 													fortran-support::fortran-support
@@ -279,6 +280,7 @@ ecbuild_add_library( TARGET libdales
                        ${NetCDF_Fortran_INCLUDE_DIR}
                        $<$<BOOL:${ENABLE_FFTW}>:${FFTW_INCLUDE_DIRS}>
                      PUBLIC_LIBS
+                       MPI::MPI_Fortran
                        NetCDF::NetCDF_Fortran
                        $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3>
                        $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3f>

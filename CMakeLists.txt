@@ -58,9 +58,7 @@ ecbuild_add_option( FEATURE RRTMG
 
 ecbuild_find_package( NetCDF REQUIRED COMPONENTS Fortran C )
 
-ecbuild_find_mpi( COMPONENTS Fortran REQUIRED )
-ecbuild_info( "MPI compiler: ${MPI_Fortran_COMPILER}")
-set ( CMAKE_Fortran_COMPILER ${MPI_Fortran_COMPILER} )
+ecbuild_find_package( MPI REQUIRED COMPONENTS Fortran )
 
 # Set precision
 
