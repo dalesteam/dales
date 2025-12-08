@@ -29,9 +29,11 @@
 module modboundary
 use modtimer
 use modprecision, only: field_r
+use modlogging, only: finish
 implicit none
 save
 private
+character(len=*), parameter :: modname = 'modboundary'
 public :: initboundary, boundary, exitboundary, grwdamp, ksp, tsc, cyclich
   integer :: ksp = -1                 !<    lowest level of sponge layer
   real(field_r),allocatable :: tsc(:)          !<   damping coefficients to be used in grwdamp.
@@ -48,8 +50,9 @@ contains
 !>
   subroutine initboundary
     use modglobal, only : k1,kmax,pi,zf,nsv, &
-                          ifnamopt, fname_options, checknamelisterror           !GT added
+                                ifnamopt, fname_options, checknamelisterror           !GT added
     use modmpi,    only : myid, comm3d, d_mpi_bcast                             !GT added
+    use fortran_support, only : nnml_output
     
     implicit none
 
@@ -64,7 +67,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,nml=NAMBOUNDSET,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMBOUNDSET')
-      write(6, NAMBOUNDSET)
+      write(nnml_output, NAMBOUNDSET)
       close(ifnamopt)
     endif 
 
@@ -203,6 +206,8 @@ contains
                         ,thl0av,qt0av,sv0av,u0av,v0av
   implicit none
 
+  character(len=*), parameter :: routine = modname//'/grwdamp'
+
   integer k,n
 
   call timer_tic('modboundary/grwdamp', 0)
@@ -253,7 +258,7 @@ contains
     vp(:,:,:) = vp(:,:,:) - unudge * ( sum((v0av(1:kmax) - vg(1:kmax)) * dzf(1:kmax)) / sum(dzf(1:kmax)) ) / rdt
     !$acc end kernels
   case default
-    stop "no gravity wave damping option selected"
+    call finish(routine, "no gravity wave damping option selected")
   end select
 
   ! Additional to gravity wave damping, set qt, thl and sv0(:) equal to slabaverage

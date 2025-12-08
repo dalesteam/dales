@@ -68,8 +68,10 @@ module modgenstat
     !-----------------------------------------------------------------|
   use modprecision
   use modtimer
+  use modlogging, only: finish
 
   implicit none
+  character(len=*), parameter :: modname = 'modgenstat'
   ! private
   PUBLIC :: initgenstat, genstat, exitgenstat
   save
@@ -194,8 +196,11 @@ contains
     use modsurfdata, only : isurf, ksoilmax
     use modlsm, only : kmax_soil
     use modtracers, only : tracer_prop
+    use fortran_support, only: nnml_output
 
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initgenstat'
 
     integer n, ierr
     character(40) :: name
@@ -211,7 +216,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMGENSTAT,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMGENSTAT')
-      write(6 ,NAMGENSTAT)
+      write(nnml_output ,NAMGENSTAT)
       close(ifnamopt)
     end if
 
@@ -228,7 +233,7 @@ contains
     dt_lim = min(dt_lim,tnext)
 
     if (abs(timeav/dtav-nsamples)>1e-4) then
-      stop 'timeav must be a integer multiple of dtav'
+      call finish(routine, 'timeav must be a integer multiple of dtav')
     end if
 
     allocate(umn(k1),vmn(k1),wmn(k1))
@@ -644,17 +649,17 @@ contains
 
     !$acc wait(1)
 
-    call slabsum(umav  ,1,k1,um  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(vmav  ,1,k1,vm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(wmav  ,1,k1,wm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(thlmav,1,k1,thlm,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(qtmav ,1,k1,qtm ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(taav  ,1,k1,tmp0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(umav  ,1,k1,um  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,on_gpu=.true.)
+    call slabsum(vmav  ,1,k1,vm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,on_gpu=.true.)
+    call slabsum(wmav  ,1,k1,wm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,on_gpu=.true.)
+    call slabsum(thlmav,1,k1,thlm,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,on_gpu=.true.)
+    call slabsum(qtmav ,1,k1,qtm ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,on_gpu=.true.)
+    call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,on_gpu=.true.)
+    call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,on_gpu=.true.)
+    call slabsum(taav  ,1,k1,tmp0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,on_gpu=.true.)
     if (nsv > 0) then
       do n = 1, nsv
-        call slabsum(svmav(:,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+        call slabsum(svmav(:,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
       enddo
     end if
 

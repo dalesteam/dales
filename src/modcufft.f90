@@ -11,6 +11,8 @@ module modcufft
 
   implicit none
 
+  character(len=*), parameter :: modname = 'modcufft'
+
 #if defined(_OPENACC)
 
   save
@@ -460,10 +462,10 @@ module modcufft
     subroutine check_exitcode(istat)
       implicit none
       integer, intent(in) :: istat
+      character(len=*), parameter :: routine = modname//'/check_exitcode'
       
       if ( istat /= 0 ) then
-        write(*,*) "cuFFT returned nonzero exitcode: ", istat
-        stop
+        call finish(routine, "cuFFT returned nonzero exitcode: ", istat)
       end if
 
     end subroutine check_exitcode

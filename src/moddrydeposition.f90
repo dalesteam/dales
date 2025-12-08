@@ -27,8 +27,11 @@ module moddrydeposition
   use modglobal, only : nsv, i1, j1, ldrydep
   use modlsm, only : llsm
   use modtracers, only: tracer_prop
+  use modlogging, only: finish
 
   implicit none
+
+  character(len=*), parameter :: modname = 'moddrydeposition'
 
   save
   public  :: initdrydep, drydep, exitdrydep
@@ -69,8 +72,9 @@ subroutine initdrydep
   ! init drydep fields
 
   use modglobal, only : i2, j2, nsv, ifnamopt, fname_options, &
-                        checknamelisterror
+                              checknamelisterror
   use modmpi,    only : myid, comm3d, d_mpi_bcast
+  use fortran_support, only : nnml_output
 
   implicit none
 
@@ -89,7 +93,7 @@ subroutine initdrydep
     open(ifnamopt,file=fname_options,status='old',iostat=ierr)
     read (ifnamopt,nml=NAMDEPOSITION,iostat=ierr)
     call checknamelisterror(ierr, ifnamopt, 'NAMDEPOSITION')
-    write(6, NAMDEPOSITION)
+    write(nnml_output, NAMDEPOSITION)
     close(ifnamopt)
   endif
 
@@ -365,6 +369,7 @@ end function findval
 !! @param[out] sai The surface area index for the tile
 subroutine calc_lai_sai(luclass, doy, latitude, SAI_a, SAI_b, lai, sai)
   implicit none
+  character(len=*), parameter :: routine = modname//'/calc_lai_sai'
   character(len=3), intent(in) :: luclass
   type(laitype) :: tab_data
   real, intent(in) :: doy, latitude, SAI_a, SAI_b
@@ -374,8 +379,7 @@ subroutine calc_lai_sai(luclass, doy, latitude, SAI_a, SAI_b, lai, sai)
 
   idx = get_depos_luindex(luclass)  ! If the index is not found, returns zero
   if (idx == 0) then
-    write (6, *) "moddrydeposition ERROR: Land use class not found in deposition model"
-    stop  ! ... so stop the calculations
+    call finish(routine,"moddrydeposition ERROR: Land use class not found in deposition model")   ! ... so stop the calculations
   end if
   tab_data = lai_par(idx)
 

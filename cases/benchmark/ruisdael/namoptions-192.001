@@ -2,7 +2,7 @@
 iexpnr  = 001
 lwarmstart  = .false.
 !lresettime = .true.
-startfile  = 'initd000h00mx000y000.001'
+startfile  =  'initd_latest_x000y000.001'
 runtime  = 300
 trestart  = 300
 dtmax = 10
@@ -11,7 +11,6 @@ peclet = 0.1
 irandom = 1
 randthl = 0.01
 randqt = 2.5e-5
-nsv = 2
 ! nprocx = 3
 ! nprocy = 8
 /
@@ -31,8 +30,6 @@ xtime  = 12
 /
 
 &PHYSICS
-ps = 1e5
-thls = 300       ! Surface thl
 lmoist = .true.
 lcoriol = .false.
 ltimedep = .true.
@@ -44,6 +41,8 @@ ltimedepuv = .true.
 
 &NAMSURFACE
 isurf = 1           ! 1 = LSM, 2 = Ts+q=qsat(Ts), 4 = thl+qt flux, calculate u*
+ps = 1e5
+thls = 300       ! Surface thl
 ! l_vg  = .true.      ! Van Genuchten parameterisation
 z0mav = 0.075       ! Fred; mean regional roughness heat
 z0hav = 0.003       ! Fred;
@@ -85,9 +84,7 @@ iadv_mom = 52
 iadv_tke = 52
 iadv_thl = 52
 iadv_qt  = 52
-iadv_sv  = 52,52,7
-
-lqlnr = .false.
+iadv_sv  = 7
 /
 
 &NAMNUDGE

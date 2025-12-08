@@ -18,6 +18,7 @@ module modaerosol
   use modbulkmicro_data, only: l_sb, qrmin, l_mur_cst, mur_cst
   use bulkmicro_sb,      only: calc_sed_qr_sb, calc_sed_nr_sb
   use bulkmicro_kk,      only: calc_sed_nr_kk, calc_sed_qr_kk
+  use fortran_support,   only: nnml_output
   use modstat_nc
 
   implicit none
@@ -84,6 +85,7 @@ contains
       open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
       read(ifnamopt, NAMAEROSOL, iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMAEROSOL')
+      write(nnml_output, NAMAEROSOL)
       close(ifnamopt)
     end if
 
@@ -147,11 +149,16 @@ contains
       select type(mode => modes(imod)%p)
         class is (aerosol_mode_t)
           call connect_modes(mode, modes(iINC)%p, mode%to_hydro)
-          print *, mode%name, " ", mode%to_hydro%cnct
+          !$acc enter data copyin(mode%to_hydro%cnct)
       end select
     end do
 
     allocate(sed_qr(2:i1,2:j1,k1), qlm(2:i1,2:j1,k1))
+
+    sed_qr(:,:,:) = 0
+    qlm(:,:,:) = 0
+
+    !$acc enter data copyin(sed_qr(2:i1,2:j1,1:k1), qlm(2:i1,2:j1,1:k1))
 
   end subroutine init_aerosol
 
@@ -164,11 +171,13 @@ contains
     integer :: &
       imod
 
-    call timer_tic(routine, 1)
+    call timer_tic(routine, 2)
 
     do imod = 1, maxmodes
       call modes(imod)%p%prepare(sv0)
     end do
+
+    !$acc wait
 
     call timer_toc(routine)
 
@@ -183,11 +192,13 @@ contains
     integer :: &
       imod
 
-    call timer_tic(routine, 1)
+    call timer_tic(routine, 2)
 
     do imod = 1, maxmodes
       call modes(imod)%p%finish(svp)
     end do
+
+    !$acc wait
 
     call timer_toc(routine)
 
@@ -227,7 +238,6 @@ contains
 
     real(field_r), intent(in) :: n, q(:), rho(:), sig_g
 
-    !$acc routine seq
 
     real(field_r) :: &
       m,     & ! Total aerosol mass.
@@ -303,19 +313,26 @@ contains
       tend_m,        & ! Real tendency of mass concentration.
       w0               ! Updraft velocity.
 
-    call timer_tic(routine, 1)
+    real(field_r) :: tmp(5) !< Temp array for mass concentrations, needed to prevent bug with OpenACC
+
+    call timer_tic(routine, 2)
 
     m_ais => modes_f(iAIS)
     m_acs => modes_f(iACS)
     m_cos => modes_f(iCOS)
     m_inc => modes_h(iINC)
-
+    
+    !$acc parallel loop collapse(3) default(present) &
+    !$acc private(dm, fn, n_act, w0, dncdt, fm, tend_n, tend_m, st, tmp)
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
           if (ql(i,j,k) > qcmin) then
             if (m_ais%nspecies > 0) then
-              dm = calc_median_diameter(m_ais%n(i,j,k), m_ais%q(i,j,k,:), &
+              do s = 1, m_ais%nspecies
+                tmp(s) = m_ais%q(i,j,k,s)
+              end do
+              dm = calc_median_diameter(m_ais%n(i,j,k), tmp, &
                                         m_ais%rho, m_ais%sig_g)
               if (dm > 0) then
               fn = 1 - 0.5_field_r * erfc(-log(2 * r_crit / &
@@ -429,7 +446,7 @@ contains
     real(field_r) :: &
       dqadt ! Tendency of in-rain aerosol
 
-    call timer_tic(routine, 1)
+    call timer_tic(routine, 2)
 
     m_inc => modes_h(iINC)
     m_inr => modes_h(iINR)
@@ -501,12 +518,14 @@ contains
       fn,                & ! Number fraction of aerosol resuspended in ACS mode.
       fm                   ! Mass fraction of aerosol resuspended in COS mode.
 
-    call timer_tic(routine, 1)
+    call timer_tic(routine, 2)
 
     m_acs => modes_f(iACS)
     m_cos => modes_f(iCOS)
     m_inr => modes_h(iINR)
 
+    !$acc parallel loop collapse(3) default(present) &
+    !$acc private(f_evp, eps, evapm, evapn, dn, dm, fn, fm)
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
@@ -596,12 +615,14 @@ contains
       fn,                & ! Number fraction of aerosol resuspended in ACS mode.
       fm                   ! Mass fraction of aerosol resuspended in COS mode.
 
-    call timer_tic(routine, 1)
+    call timer_tic(routine, 2)
 
     m_acs => modes_f(iACS)
     m_cos => modes_f(iCOS)
     m_inc => modes_h(iINC)
 
+    !$acc parallel loop collapse(3) default(present) &
+    !$acc private(f_evp, eps, evapm, evapn, dn, dm, fn, fm)
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
@@ -644,6 +665,7 @@ contains
     end do
 
     if (rk3step == 3) then
+      !$acc parallel loop collapse(3) default(present)
       do k = 1, k1
         do j = 2, j1
           do i = 2, i1
@@ -699,16 +721,20 @@ contains
       nr_spl(:,:,:),          & ! Rain number concentration at sub-timesteps.
       qa_spl(:,:,:,:)           ! Aerosol mass at sub-timesteps.
 
-    call timer_tic(routine, 1)
+    call timer_tic(routine, 2)
 
     m_inr => modes_h(iINR)
 
     allocate(qr_spl(2:i1,2:j1,1:k1), nr_spl(2:i1,2:j1,1:k1), &
              qa_spl(1:m_inr%nspecies,2:i1,2:j1,1:k1))
 
+    !$acc enter data create(qr_spl(2:i1,2:j1,1:k1), nr_spl(2:i1,2:j1,1:k1), &
+    !$acc                   qa_spl(1:m_inr%nspecies,2:i1,2:j1,1:k1))
+
     n_spl = ceiling(9.9 * delt / minval(dzf))
     dt_spl = delt / real(n_spl, kind=field_r)
 
+    !$acc parallel loop collapse(3) default(present)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
@@ -718,6 +744,7 @@ contains
       end do
     end do
 
+    !$acc parallel loop collapse(4) default(present)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
@@ -729,6 +756,7 @@ contains
     end do
 
     do ts = 1, n_spl
+      !$acc parallel loop collapse(3) default(present) private(sed_nr)
       do k = qrbase, qrroof
         do j = 2, j1 
           do i = 2, i1
@@ -746,14 +774,17 @@ contains
                               / (dzf(k) * rho(k))
               nr_spl(i,j,k) = nr_spl(i,j,k) - sed_nr * dt_spl / dzf(k)
               if (k > 1) then
+                !$acc atomic update
                 qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr(i,j,k) * dt_spl &
                                   / (dzf(k-1) * rho(k-1))
+                !$acc atomic update
                 nr_spl(i,j,k-1) = nr_spl(i,j,k-1) + sed_nr * dt_spl / dzf(k-1)
               end if
               do s = 1, m_inr%nspecies
                 qa_spl(s,i,j,k) = qa_spl(s,i,j,k) - sed_qr(i,j,k) / qr_spl(i,j,k) &
                                   * qa_spl(s,i,j,k) * dt_spl / (dzf(k) * rho(k))
                 if (k > 1) then
+                  !$acc atomic update
                   qa_spl(s,i,j,k-1) = qa_spl(s,i,j,k-1) + sed_qr(i,j,k) &
                                       / qr_spl(i,j,k) * qa_spl(s,i,j,k) &
                                       * dt_spl / (dzf(k-1) * rho(k-1))
@@ -765,6 +796,7 @@ contains
       end do
     end do
 
+    !$acc parallel loop collapse(4) default(present)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
@@ -775,6 +807,8 @@ contains
         end do
       end do
     end do
+
+    !$acc exit data delete(qr_spl, nr_spl, qa_spl)
 
     deallocate(qr_spl, nr_spl, qa_spl)
     

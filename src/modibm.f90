@@ -36,18 +36,22 @@ module modibm
                             thlwall, thlroof, qtroof, thlibm, qtibm, &
                             z0m_wall, z0h_wall
   use modtimer
+  use modlogging, only : finish, warning, message
+
+  
   implicit none
   save
   private
-
+  character(len=*), parameter :: modname = 'modibm'
+  
   public :: ixw_p, ixw_m, iyw_p, iyw_m, izw_p, iobst
-
+  
   !< Later extendable to put different wall types in fortran types
   integer :: Nxwalls_plus, Nywalls_plus, Nzwalls_plus, Nxwalls_min, Nywalls_min, Nzwalls_min, Nobst
   integer, allocatable :: ixw_p(:,:), ixw_m(:,:), iyw_p(:,:), iyw_m(:,:), izw_p(:,:)!, izw_m(:,:)
   integer, allocatable :: iobst(:,:)
   logical, allocatable :: fluid_mask(:,:,:) !< Logical which is .false. for internal building points
-
+  
   !< Additional parameters
   real(field_r) :: dx_half, dy_half, Cm_xwall, Cm_ywall, Cd_xwall, Cd_ywall, Cm_zwall, Cd_zwall, z_MO
 
@@ -66,12 +70,15 @@ contains
                                mpi_max, mpi_sum
     use modsurface,     only : lmostlocal
     use modsubgriddata, only : lanisotrop, lsmagorinsky
+    use fortran_support, only: nnml_output
 
     implicit none
 
     integer         :: i, j, k, ierr, no = 0
     integer         :: advarr(5)
     character(100)  :: readstring
+
+    character(len=*), parameter :: routine = modname//'/initibm'
 
     ! Temporary fields and profiles for the processing of the IBM input
     real(field_r),  allocatable :: bc_height(:,:) !< Height of immersed boundary at cell center i,j
@@ -88,38 +95,44 @@ contains
       open (ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMIBM,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMIBM')
-      write (6,NAMIBM)
+      write (nnml_output,NAMIBM)
       close (ifnamopt)
 
       ! Do some checks for conflicting settings and warn/stop further execution
       if ( lapply_ibm ) then
-        if (abs(cu) > 0) stop 'Domain translation not allowed with IBM, set cu to zero'
-        if (abs(cv) > 0) stop 'Domain translation not allowed with IBM, set cv to zero'
+        if (abs(cu) > 0) call finish(routine, 'Domain translation not allowed with IBM, set cu to zero')  
+        if (abs(cv) > 0) call finish(routine, 'Domain translation not allowed with IBM, set cv to zero')  
 
         if (ibas_prf .ne. 2) then
           ibas_prf = 2
-          write (6,*) 'ibas_pr is overwritten to 2 (Boussinesq approximation with constant density)'
-          write (6,*) 'height dependent density gives probles with correction of vertical advective'
-          write (6,*) 'tendencies at the top of obstacles'
+          call warning(routine, &
+              'ibas_pr is overwritten to 2 (Boussinesq approximation with constant density) ' // &
+              'height dependent density gives probles with correction of vertical advective '  // &
+              'tendencies at the top of obstacles'  &
+          )  
         end if
 
         !< check for use of 2nd order advection. Ideally, IBM should work with kappa advection for tracers, IMPLEMENT later.
         advarr = (/iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv/)
         if (any(advarr/=iadv_cd2)) then
-          write (6,*) 'Current IBM implementation only works with 2nd order advection'
-          write (6,*) 'Proper check for kappa advection of scalars to be implemented'
-          write (6,*) 'iostat error: ', ierr
-          stop 'ERROR: Problem in namoptions NAMIBM'
+          call finish(routine, &
+              'Current IBM implementation only works with 2nd order advection. '  // &
+              'Proper check for kappa advection of scalars to be implemented'&
+          )  
         end if
 
         if ( lanisotrop ) then
-          write (6,*) 'WARNING: you are using IBM with anisotropic grids in x,y-direction'
-          write (6,*) 'while possible, this may cause unexpected results (blending effects)'
+          call warning(routine, &
+              'WARNING: you are using IBM with anisotropic grids in x,y-direction '  // & 
+              'while possible, this may cause unexpected results (blending effects)' &
+          )  
         end if
 
         if ( .not.(lsmagorinsky) ) then
-          write (6,*) 'WARNING: subgrid TKE (e120) is not (yet) explicitly corrected for walls'
-          write (6,*) 'This includes production, destruction and dissipation terms in sgs-tke budget'
+          call warning(routine, &
+              'WARNING: subgrid TKE (e120) is not (yet) explicitly corrected for walls. '  // &
+              'This includes production, destruction and dissipation terms in sgs-tke budget' &
+          )  
         end if
 
         !! Check doesn't work currently, related to order in startup routine
@@ -178,7 +191,7 @@ contains
         call init_ibm_from_nc(bc_height)
       else
 
-        write (6,*) 'Reading inputfile ibm.inp.',cexpnr
+       call message(routine, 'Reading inputfile ibm.inp.', cexpnr) 
 
         open (ifinput,file='ibm.inp.'//cexpnr)
           do k=1,7
@@ -194,7 +207,7 @@ contains
 
         close(ifinput)
 
-        write(6,*) 'Succesfully read inputfile in modibm'
+        call message(routine,'Succesfully read inputfile in modibm') 
 
       end if
     end if 
@@ -219,9 +232,7 @@ contains
     !> Set ghost cells for fluid mask
     call excjs(fluid_mask  , 2,i1,2,j1,1,k1,ih,jh)
 
-    if( myid == 0 ) then
-      write(6,*) 'Start determination of wall positions'
-    end if
+    call message(routine, 'Start determination of wall positions')
 
     !> Identify sidewalls based on fluid_mask-field
     !!  u-positions (with index i) are to the left of grid center (with index i)
@@ -304,9 +315,8 @@ contains
 
     !> Should be same.
     if (no /= Nobst) then
-      write (6,*) 'Number of identified obstacle points during'
-      write (6,*) 'wall determination and prior stage do not match!'
-      stop 'ERROR: Problem in subroutine initibm'
+      call finish(routine, &
+          'ERROR: Number of identified obstacle points during wall determination and prior stage do not match!')  
     end if
 
     !> Copy temporary arrays with indices into final ones
@@ -360,6 +370,8 @@ contains
     use modglobal,   only : itot, jtot
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/init_ibm_from_nc'
+
     real(field_r),  intent(out) :: bc_height(:,:)
 
     character(32) :: input_file = 'ibm.inp_xxx.nc'
@@ -367,21 +379,19 @@ contains
 
     write(input_file(9:11), '(i3.3)') iexpnr
 
-    write(6,"(A18, A32)") "Reading IBM input: ", input_file
-    write(6, * ) "Expecting dimensions x,y and variable bc_height(:,:)"
+    call message(routine, "Reading IBM input: ", input_file) 
+    call message(routine, "Expecting dimensions x,y and variable bc_height(:,:)")
     call check( nf90_open(input_file, nf90_nowrite, ncid), input_file, __LINE__)
     ! check if dimensions of ibm.inp_xxx.nc agree with the DALES domain
     call check( nf90_inq_dimid(ncid, 'x', varid), input_file, __LINE__ )
     call check( nf90_inquire_dimension(ncid, varid, len=len_x), input_file, __LINE__ )
     if (len_x /= itot) then
-      write(6,"(A62, i3, A3, i3)") "STOPPED. x-dimension of ibm.inp differs from DALES domain: ", len_x, " /=", itot
-      stop
+      call finish(routine, "STOPPED. x-dimension of ibm.inp differs from DALES domain: ", len_x, " /=", itot)
     end if
     call check( nf90_inq_dimid(ncid, 'y', varid), input_file, __LINE__ )
     call check( nf90_inquire_dimension(ncid, varid, len=len_y), input_file, __LINE__ )
     if (len_y /= jtot) then
-      write(6,"(A62, i3, A3, i3)") "STOPPED. y-dimension of ibm.inp differs from DALES domain: ", len_y, " /=", jtot
-      stop
+      call finish(routine, "STOPPED. y-dimension of ibm.inp differs from DALES domain: ", len_y, " /=", jtot)
     end if
 
     ! get variable bc height from nc file
@@ -390,7 +400,7 @@ contains
                               count = (/itot, jtot/) ), input_file, __LINE__ )
     call check( nf90_close(ncid), input_file, __LINE__ )
 
-    write(6,*) 'Succesfully read netCDF inputfile in modibm'
+   call message(routine, 'Succesfully read netCDF inputfile in modibm')
 
   end subroutine init_ibm_from_nc
 
@@ -851,6 +861,7 @@ contains
 
   !> Calculates the Obukhov length iteratively (modified from modsurface.f90 implementation)
   function getobl_local(uspeed,thl,qt,thlroof,qtroof,z_MO,z0m_wall,z0h_wall) result (Lob)
+    character(len=*), parameter :: routine = modname//'/getobl_local'
     !$acc routine seq
     real(field_r), intent(in) :: uspeed, thl, qt, thlroof, qtroof, z_MO, z0m_wall, z0h_wall
 
@@ -899,7 +910,7 @@ contains
           end if
           if(abs((Lob - Lold)/Lob) < 1e-4) exit
           if(iter > 1000) then
-            stop 'Obukhov length calculation does not converge in IBM!'
+            print *, 'Obukhov length calculation does not converge in IBM!'
           end if
         end do
 

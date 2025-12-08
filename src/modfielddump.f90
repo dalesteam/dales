@@ -28,8 +28,10 @@
 module modfielddump
   use modprecision, only: field_r
   use modglobal, only : longint, nsv
+  use modlogging, only: finish
 
 implicit none
+character(len=*), parameter :: modname = 'modfielddump'
 private
 PUBLIC :: initfielddump, fielddump,exitfielddump
 save
@@ -78,7 +80,11 @@ contains
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modtracers, only : tracer_prop, get_tracer_index
     use modmicrodata, only : imicro, imicro_sice, imicro_sice2
+    use fortran_support, only: nnml_output
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initfielddump'
+
     integer :: ierr, n, iqr
     character(3) :: csvname
 
@@ -95,7 +101,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMFIELDDUMP,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMFIELDDUMP')
-      write(6 ,NAMFIELDDUMP)
+      write(nnml_output ,NAMFIELDDUMP)
       close(ifnamopt)
 
       if ((lcli .or. lclw) .and. .not. (imicro ==  imicro_sice .or. imicro == imicro_sice2)) then
@@ -149,7 +155,7 @@ contains
     dt_lim = min(dt_lim,tnext)
 
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'dtav should be a integer multiple of dtmax'
+      call finish(routine, 'dtav should be a integer multiple of dtmax')
     end if
 
     if (lnetcdf) then

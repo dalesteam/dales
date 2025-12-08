@@ -3,9 +3,9 @@ iexpnr     = 060
 nprocx     = 36
 nprocy     = 36 
 lwarmstart =  .false.
-startfile  =  'initd06h00m000.001'
-runtime    =  43200 
-trestart   = -50000
+startfile  =  'initd_latest_x000y000.001'
+runtime    =  43200
+trestart   =  43200
 dtmax      =  1
 ladaptive  = .true.
 courant    =  1.
@@ -31,6 +31,14 @@ xtime      =  10.00
 /
 
 &NAMSURFACE
+isurf      =  1
+z0         =  0.035
+ustin      =  0.1
+ps         =  100000.00
+thls       =  299.00
+wtsurf     =  0.1
+wqsurf     =  0.0
+
 tsoilav(1)   = 294.00
 tsoilav(2)   = 294.50
 tsoilav(3)   = 295.00
@@ -89,12 +97,6 @@ dtav        = 60.
 /
 
 &PHYSICS
-z0         =  0.035
-ustin      =  0.1
-ps         =  100000.00
-thls       =  299.00
-wtsurf     =  0.1
-wqsurf     =  0.0
 wsvsurf(1) =  1.e-02
 wsvsurf(2) =  0.0
 wsvsurf(3) =  0.0
@@ -118,7 +120,6 @@ wsvsurf(20) = 0.0
 wsvsurf(21) = 0.0
 
 lmoist     =  .true.
-isurf      =  1
 iradiation =  4
 
 lcoriol    =  .true.
@@ -152,7 +153,6 @@ dtav = 60.
 
 &DYNAMICS
 llsadv     =  .false.
-lqlnr      =  .false.
 cu         =  -7.
 cv         =  -1.
 

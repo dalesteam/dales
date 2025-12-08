@@ -8,10 +8,13 @@ MODULE shr_orb_mod
 
 !   use shr_kind_mod, only: SHR_KIND_R4, SHR_KIND_IN
    use modglobal, only: SHR_KIND_R4, SHR_KIND_IN
+   use modlogging, only: finish
 !bloss   use shr_sys_mod, only: shr_sys_abort
 !bloss   use shr_const_mod, only: SHR_CONST_PI
 
    IMPLICIT none
+
+   character(len=*), parameter :: modname = 'shr_orb_mod'
 
    !----------------------------------------------------------------------------
    ! PUBLIC: Interfaces and global data
@@ -81,6 +84,8 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
 ! Date:            Oct/97
 !
 !-------------------------------------------------------------------------------
+
+   character(len=*), parameter :: routine = modname//'/shr_orb_params'
 
    !----------------------------- Arguments ------------------------------------
    real   (SHR_KIND_R4),intent(inout) :: eccen     ! orbital eccentricity
@@ -323,7 +328,7 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
           write(6,F00) ' mvelp = 102.7'
         end if
         !call task_abort()
-        stop 'ERROR in shr_orb_params'
+        call finish(routine, 'ERROR in shr_orb_params')
 !bloss        call shr_sys_abort()
       else if ( log_print ) then
          write(6,F00) 'Use input orbital parameters: '
@@ -332,7 +337,7 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
          if ( log_print ) then
             write(6,F03) 'Input obliquity unreasonable: ', obliq
          end if
-         stop 'ERROR in shr_orb_params'
+         call finish(routine, 'ERROR in shr_orb_params')
 !         call task_abort()
 !bloss        call shr_sys_abort()
       end if
@@ -340,7 +345,7 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
          if ( log_print ) then
             write(6,F03) 'Input eccentricity unreasonable: ', eccen
          end if
-         stop 'ERROR in shr_orb_params'
+         call finish(routine, 'ERROR in shr_orb_params')
          !call task_abort()
 !bloss        call shr_sys_abort()
       end if
@@ -348,7 +353,7 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
          if ( log_print ) then
             write(6,F03) 'Input mvelp unreasonable: ' , mvelp
          end if
-         stop 'ERROR in shr_orb_params'
+         call finish(routine, 'ERROR in shr_orb_params')
          !call task_abort()
 !bloss        call shr_sys_abort()
       end if
@@ -368,7 +373,7 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
             write(6,F03) '# of years before 1950: ',yb4_1950AD
             write(6,F01) 'Year to simulate was  : ',iyear_AD
          end if
-         stop 'ERROR in shr_orb_params'
+         call finish(routine, 'ERROR in shr_orb_params')
          !call task_abort()
 !bloss        call shr_sys_abort()
       end if

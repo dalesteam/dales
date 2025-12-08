@@ -1,14 +1,13 @@
 &RUN
 iexpnr     =  001
 lwarmstart = .false.
-startfile  =  'initdlatestmx000y000.001'
+startfile  =  'initd_latest_x000y000.001'
 runtime = 43200
 trestart = 43200
 ladaptive  =  .true.
 irandom    =  44
 randthl    =  0.1
 randqt     =  2.5e-5
-nsv        =  0
 courant    = .5
 peclet     = .1
 loutdirs = .true.
@@ -30,22 +29,20 @@ xtime      =  0.0
 /
 
 &PHYSICS
-z0         =  0.00016 ! 1.6e-4
-ustin      =  0.32
-ps         =  101604.87
-thls       =  298.5
-!  thls       =  299.135 ! EURECA
-!  thls       =  298.5   ! RICO
-
 lmoist     =  .true.
-isurf      =  2       !Forced surface temperature; fluxes are calculated
 timerad    =  60
 iradiation =  4
 lcoriol    =  .true.
 lmomsubs   =  .false.
 /
 &NAMSURFACE
-thls       =  298.5   ! duplicate temperature !
+isurf      =  2       !Forced surface temperature; fluxes are calculated
+z0         =  0.00016 ! 1.6e-4
+ustin      =  0.32
+ps         =  101604.87
+thls       =  298.5
+!  thls       =  299.135 ! EURECA
+!  thls       =  298.5   ! RICO
 z0mav =  1.6e-4
 z0hav =  3.2e-5
 albedoav = 0.07  ! From RCEMIP. note albedoav is used if  lCnstAlbedo = .true. in NAMRADIATION
@@ -57,7 +54,6 @@ lCnstAlbedo = .true. ! use a albedoav as albedo instead of angle-dependent param
 
 &DYNAMICS
 llsadv     =  .false.
-lqlnr      =  .false. ! obsolete
 cu         =  0.      ! -5 in RICO
 cv         =  0.
 

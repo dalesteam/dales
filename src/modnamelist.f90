@@ -4,6 +4,8 @@ module modnamelist
   use modaerosol,      only: aerosol_read_namelist
   use modchecksim,     only: checksim_read_namelist
   use modmicrophysics, only: microphysics_read_namelist
+  use modpois,         only: poisson_solver_read_namelist
+  use modsurface,      only: surface_read_namelist
 
   implicit none
 
@@ -19,6 +21,8 @@ contains
     character(len=*), intent(in) :: nml_filename
 
     ! Core modules
+    call surface_read_namelist(nml_filename)
+    call poisson_solver_read_namelist(nml_filename)
     call checksim_read_namelist(nml_filename)
 
     ! Add-on modules

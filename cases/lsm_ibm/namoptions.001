@@ -28,8 +28,6 @@
 /
 
 &physics
-    z0 = 0.001
-    ps = 100974.68032932281
     lmoist = .true.
     lcoriol = .true.
     iradiation = 4
@@ -37,6 +35,8 @@
 /
 
 &namsurface
+    z0 = 0.001
+    ps = 100974.68032932281
     wtsurf = 0.0
     wqsurf = 0.0
     isurf = 11
@@ -79,7 +79,6 @@
 &namfielddump
     lfielddump = .true.
     dtav = 10
-    ldiracc = .false.
 /
 
 &namcape

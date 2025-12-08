@@ -8,8 +8,8 @@ irandom       =  43
 randthl       =  0.1
 randqt        =  2.5e-5
 nsv           =  1
-nprocx        = 24
-nprocy        = 24
+!nprocx        = 24
+!nprocy        = 24
 /
 
 &DOMAIN
@@ -27,22 +27,15 @@ xtime         =  6
 /
 
 &PHYSICS
-isurf         =  1
 iradiation    =  2
-ps         =  101300.00
-thls       =  286.5
 lcoriol    = .true.
 rad_shortw = .true.
 rad_longw  = .false.
 sw0         = 1120.
-wsvsurf(1) = 0.0e-4
-
 /
 
 &DYNAMICS
 ibas_prf   =  2
-lqlnr      =  .false.
-lqlnr      =  .true.
 cu         =  0.
 cv         =  0.
 
@@ -83,8 +76,6 @@ timeav      = 600
 &NAMCHEM
 lchem       = .false.
 tnor        = 25
-firstchem   = 1
-lastchem    = 8
 ldiuvar     = .true.
 lchmovie    = .false.
 lsegr       = .true.
@@ -102,6 +93,9 @@ dtav = 600
 /
 
 &NAMSURFACE
+isurf         =  1
+ps         =  101300.00
+thls       =  286.5
 tsoilav(1)   = 286.60
 tsoilav(2)   = 287.50
 tsoilav(3)   = 288.00

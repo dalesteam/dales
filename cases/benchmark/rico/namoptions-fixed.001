@@ -1,7 +1,7 @@
 &RUN
 iexpnr     =  001
 lwarmstart =  .false.
-startfile  =  'initd001h00mx000y000.001'
+startfile  =  'initd_latest_x000y000.001'
 runtime    =  100
 trestart   =  100
 ladaptive  =  .false.
@@ -28,20 +28,18 @@ xtime      =  0.0
 /
 
 &PHYSICS
-z0         =  1.6e-4
-ustin      =  0.32
-ps         =  101540.00
-thls       =  298.5
-
-
 lmoist     =  .true.
-isurf      =  2       !Forced surface temperature; fluxes are calculated
 irad       =  0
 timerad    =  2
 lcoriol    =  .true.
 lmomsubs   =  .false.
 /
 &NAMSURFACE
+isurf      =  2       !Forced surface temperature; fluxes are calculated
+z0         =  1.6e-4
+ustin      =  0.32
+ps         =  101540.00
+thls       =  298.5
 thls  =  298.5
 z0mav =  1.6e-4
 z0hav =  3.2e-5

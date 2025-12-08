@@ -11,10 +11,13 @@
 module modmsebudg
   use modglobal, only : longint, output_prefix
   use modprecision, only : longint, field_r
+  use modlogging, only: finish
 
 implicit none
 PUBLIC :: initmsebudg, msebudg1, msebudg2, exitmsebudg
 save
+
+character(len=*), parameter :: modname = 'modmsebudg'
 
 integer :: Nmse_2D = 4
 real(field_r), allocatable :: mse0(:,:,:)      !<   rcemip, moist static energy
@@ -38,7 +41,11 @@ contains
     use modmpi,   only :myid,comm3d,myidx,myidy,d_mpi_bcast
     use modglobal,only :i1,ih,j1,jh,k1,imax,jmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,dt_lim,btime,tres
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
+    use fortran_support, only: nnml_output
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initmsebudg'
+
     integer :: ierr
 
      namelist/NAMMSEBUDG/ &
@@ -53,7 +60,7 @@ contains
         print *, 'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMMSEBUDG'
       endif
-      write(6 ,NAMMSEBUDG)
+      write(nnml_output ,NAMMSEBUDG)
       close(ifnamopt)
     end if
     call D_MPI_BCAST(dtav      ,1, 0, comm3d,ierr)
@@ -66,7 +73,7 @@ contains
     dt_lim = min(dt_lim,tnext)
 
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'dtav should be an integer multiple of dtmax'
+      call finish(routine, 'dtav should be an integer multiple of dtmax')
     end if
 
     allocate(field_mse_2D(2-ih:i1+ih,2-jh:j1+jh,Nmse_2D ))
@@ -105,6 +112,8 @@ contains
     use advec_kappa,    only : hadvecc_kappa, vadvecc_kappa
     use modopenboundary,only : advecc_2nd_boundary_buffer,advecu_2nd_boundary_buffer,advecv_2nd_boundary_buffer,advecw_2nd_boundary_buffer
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/advect_scalar'
 
     real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the cell centered field
     real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
@@ -149,7 +158,7 @@ contains
         call hadvecc_hybrid_f(a_in,a_out)
         call vadvecc_hybrid_f(a_in,a_out)
       case default
-          stop "Unknown advection scheme "
+          call finish(routine, "Unknown advection scheme ")
     end select
   end subroutine advect_scalar
 

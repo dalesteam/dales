@@ -1,14 +1,13 @@
 &RUN
 iexpnr     =  001
 lwarmstart =  .false.
-startfile  =  'initd001h00mx000y000.001'
+startfile  =  'initd_latest_x000y000.001'
 runtime    =  36000
 trestart   =  3600 
 ladaptive  =  .true.
 irandom    =  43
 randthl    =  0.1
 randqt     =  2.5e-5
-nsv        =  0 
 courant    =  1.
 /
 
@@ -27,16 +26,7 @@ xtime      =  0.
 /
 
 &PHYSICS
-z0         =  0.15
-ustin      =  0.0
-ps         =  100000.00
-thls       =  282.
-wtsurf     =  -0.01
-wqsurf     =  0.0000001
-wsvsurf(1) =  0.
-wsvsurf(2) =  0.
 lmoist     =  .true.
-isurf      =  1
 iradiation =  1
 useMcICA   =  .true.
 lcoriol    =  .true.
@@ -44,10 +34,19 @@ lcoriol    =  .true.
 
 &NAMSUBGRID
 lmason     = .true.
+ldelta     = .true.
 cf         = 2.
 /
 
 &NAMSURFACE
+isurf      =  1
+z0         =  0.15
+ustin      =  0.0
+ps         =  100000.00
+thls       =  282.
+wtsurf     =  -0.01
+wqsurf     =  0.0000001
+
 tsoilav(1)   = 287.
 tsoilav(2)   = 288.
 tsoilav(3)   = 289.
@@ -85,7 +84,6 @@ Wlav         = 0.
 
 &DYNAMICS
 llsadv     =  .false.
-lqlnr      =  .false.
 cu         =  0.
 cv         =  0.
 
@@ -127,7 +125,6 @@ timeav      = 300
 &NAMFIELDDUMP
 lfielddump  = .false.
 dtav        = 60
-ldiracc     = .true.
 /
 &NAMSTATTEND
 dtav        = 60

@@ -35,8 +35,10 @@ module modsampling
 
 use modglobal, only : longint, field_r
 use modsampdata
+use modlogging, only: finish
 
 implicit none
+character(len=*), parameter :: modname = 'modsampling'
 private
 PUBLIC :: initsampling, sampling, exitsampling
 save
@@ -66,8 +68,11 @@ contains
                           btime,tres,cexpnr,ifoutput,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modtracers, only : get_tracer_index
+    use fortran_support, only: nnml_output
 !     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initsampling'
 
     integer :: ierr,iqr,inr
 
@@ -81,7 +86,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMSAMPLING,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMSAMPLING')
-      write(6 ,NAMSAMPLING)
+      write(nnml_output ,NAMSAMPLING)
       close(ifnamopt)
 
       ! we check the presence of qr and Nr here, so we can safely disable the modsamptend.f90 parts that require a nonzero iqr if
@@ -166,10 +171,10 @@ contains
     tnextwrite = itimeav +btime
 
     if (abs(timeav/dtav-nint(timeav/dtav))>1e-4) then
-      stop 'timeav must be a integer multiple of dtav'
+      call finish(routine, 'timeav must be a integer multiple of dtav')
     end if
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'dtav should be a integer multiple of dtmax'
+      call finish(routine, 'dtav should be a integer multiple of dtmax')
     end if
 
     allocate( wfavl     (k1,isamptot),thlfavl  (k1,isamptot),thvfavl   (k1,isamptot), &
@@ -384,7 +389,7 @@ contains
                           sv0,wp
     use modsubgriddata,only : ekh,ekm
     use modmpi,    only : slabsum,comm3d,mpierr,mpi_sum,D_MPI_ALLREDUCE
-    use modpois,   only : p
+    use modpois_data,   only : p
     use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice
     use modtracers,  only : get_tracer_index
     implicit none

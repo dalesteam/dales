@@ -21,6 +21,8 @@ contains
   use modglobal,    only : i1,j1,imax,jmax,kmax,ifnamopt,fname_options,checknamelisterror
   use modmpi,       only : myid,myidx,myidy,comm3d, mpierr, d_mpi_bcast
   use modtracers,   only: add_tracer
+  use fortran_support, only: nnml_output
+  use modlogging,      only : profile_output
   !use modnudgeboundary, only : lnudgeboundary
 
 
@@ -35,7 +37,7 @@ contains
     open(ifnamopt,file=fname_options,status='old',iostat=ierr)
     read (ifnamopt,NAMSPRAYING,iostat=ierr)
     call checknamelisterror(ierr, ifnamopt, 'NAMSPRAYING')
-    write(6 ,NAMSPRAYING)
+    write(nnml_output ,NAMSPRAYING)
     close(ifnamopt)
   endif
 
@@ -70,9 +72,9 @@ contains
   if (i_loc_spray >= 2 .and. i_loc_spray <= i1 .and. &
        j_loc_spray >= 2 .and. j_loc_spray <= j1 .and. &
        k_loc_spray >= 1 .and. k_loc_spray <= kmax) then
-     write(6,*) 'spraying point at myid = ',myid
-     write(6,*) 'global locations ',i_glob_spray,j_glob_spray,k_glob_spray
-     write(6,*) 'local locations ',i_loc_spray,j_loc_spray,k_loc_spray
+     write(profile_output,*) 'spraying point at myid = ',myid
+     write(profile_output,*) 'global locations ',i_glob_spray,j_glob_spray,k_glob_spray
+     write(profile_output,*) 'local locations ',i_loc_spray,j_loc_spray,k_loc_spray
   else  ! if not, there is no sprayer here
      i_loc_spray = -999
      j_loc_spray = -999
@@ -80,16 +82,16 @@ contains
   endif
 
   if (myid==0) then
-     write(6,*) 'Spraying data used: '
-     write(6,*) 'lwater_spraying     ',lwater_spraying
-     write(6,*) 'lsalt_spraying      ',lsalt_spraying
-     write(6,*) 'i_glob_spray        ',i_glob_spray
-     write(6,*) 'j_glob_spray        ',j_glob_spray
-     write(6,*) 'k_glob_spray        ',k_glob_spray
-     write(6,*) 'water_spray_rate    ',water_spray_rate
-     write(6,*) 'salt_spray_rate     ',salt_spray_rate
-     write(6,*) 'salt scalar number  ',isv_salt
-     write(6,*)
+     write(profile_output,*) 'Spraying data used: '
+     write(profile_output,*) 'lwater_spraying     ',lwater_spraying
+     write(profile_output,*) 'lsalt_spraying      ',lsalt_spraying
+     write(profile_output,*) 'i_glob_spray        ',i_glob_spray
+     write(profile_output,*) 'j_glob_spray        ',j_glob_spray
+     write(profile_output,*) 'k_glob_spray        ',k_glob_spray
+     write(profile_output,*) 'water_spray_rate    ',water_spray_rate
+     write(profile_output,*) 'salt_spray_rate     ',salt_spray_rate
+     write(profile_output,*) 'salt scalar number  ',isv_salt
+     write(profile_output,*)
   endif
 
   if (lsalt_spraying .and. lsalt_sponge) then

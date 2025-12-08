@@ -28,28 +28,61 @@
 !
 
 module modpois
+use modglobal,    only : ifnamopt, checknamelisterror
+use modmpi,       only : myid, commwrld, d_mpi_bcast
 use modprecision, only : pois_r
+use modpois_data, only: p, Fp, d, xyrt, pup, pvp, pwp, a, b, c, ps, pe, qs, &
+                          qe, maxiter, tolerance, n_pre, n_post, precond_id, &
+                          maxiter_precond, hypre_logging, psolver, solver_id
 use modtimer
 implicit none
+character(len=*), parameter :: modname = 'modpois'
 private
-public :: initpois,poisson,exitpois,p,Fp,xyrt,solmpj,ps,pe,qs,qe
-
-save
-
-  real(pois_r), pointer     :: p(:,:,:)    ! pressure fluctuations in real space
-  real(pois_r), pointer     :: Fp(:,:,:)   ! pressure fluctuations in fourier space
-  real(pois_r), allocatable :: d(:,:,:)    ! work array for tridiagonal solver
-  real(pois_r), allocatable :: xyrt(:,:)   ! constant factors in the poisson equation
-
-  integer :: ps,pe,qs,qe           ! start and end index of fourier space matrices
-
-  real(pois_r), allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:) ! Work arrays for rhs
-  real(pois_r), allocatable :: a(:), b(:), c(:) ! Work arrays for solver
+public :: initpois,poisson,exitpois
+public :: poisson_solver_read_namelist
 
 contains
 
+  subroutine poisson_solver_read_namelist(nml_filename)
+
+    use fortran_support, only: nnml_output
+
+    character(len=*), intent(in) :: nml_filename !< Name of namelist file.
+
+    integer :: ierr !< Error code.
+
+    namelist /solver/ solver_id, maxiter, tolerance, n_pre, n_post, &
+      precond_id, maxiter_precond, hypre_logging
+
+    ! Set a default solver based on how DALES is compiled.
+#if defined(DALES_GPU)
+    solver_id = 200
+#elif defined(USE_FFTW)
+    solver_id = 100
+#else
+    solver_id = 0
+#endif
+
+    if (myid == 0) then
+      open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
+      read(ifnamopt, solver, iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'solver')
+      write(nnml_output ,solver)
+      close(ifnamopt)
+    end if
+
+    call d_mpi_bcast(solver_id, 1, 0, commwrld, ierr)
+    call d_mpi_bcast(maxiter, 1, 0, commwrld, ierr)
+    call d_mpi_bcast(n_pre, 1, 0, commwrld, ierr)
+    call d_mpi_bcast(n_post, 1, 0, commwrld, ierr)
+    call d_mpi_bcast(tolerance, 1, 0, commwrld, ierr)
+    call d_mpi_bcast(precond_id, 1, 0, commwrld, ierr)
+    call d_mpi_bcast(maxiter_precond, 1, 0, commwrld, ierr)
+
+  end subroutine poisson_solver_read_namelist
+
   subroutine initpois
-    use modglobal, only : solver_id,i1,j1,ih,jh,k1,kmax,solver_id,maxiter,tolerance,precond_id,n_pre,n_post,psolver,maxiter_precond
+    use modglobal, only : i1,j1,ih,jh,k1,kmax
     use modfft2d, only : fft2dinit
     use modfftw, only : fftwinit
     use modhypre, only : inithypre_grid, inithypre_solver
@@ -57,9 +90,11 @@ contains
 
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/initpois'
+
 #ifdef DALES_GPU
     if (solver_id /= 200) then
-       STOP 'Running on GPU requires solver_id = 200 (cufft)'
+       call finish(routine, 'Running on GPU requires solver_id = 200 (cufft)')
     end if
 #endif
 
@@ -97,7 +132,6 @@ contains
   end subroutine initpois
 
   subroutine exitpois
-    use modglobal, only : solver_id,psolver
     use modfft2d, only : fft2dexit
     use modhypre, only : exithypre_grid, exithypre_solver
     use modfftw, only : fftwexit
@@ -124,7 +158,6 @@ contains
   end subroutine exitpois
 
   subroutine poisson
-    use modglobal, only : solver_id,psolver
     use modmpi, only : myid
     use modhypre, only : solve_hypre, set_zero_guess
     use modfftw, only : fftwf, fftwb

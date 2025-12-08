@@ -1,6 +1,6 @@
 &RUN
 lwarmstart =  .false.
-startfile  =  'inits004h00mx000y003.196'
+startfile  =  'initd_latest_x000y000.001'
 iexpnr     =  196
 runtime    =  52200. 
 trestart   =  3600
@@ -9,7 +9,6 @@ ladaptive  = .true.
 irandom    =  43
 randthl    =  0.1
 randqt     =  2.5e-5
-nsv        =  2
 courant    = .5
 peclet     = .2
 /
@@ -29,9 +28,6 @@ xtime      =  0.
 /
 
 &PHYSICS
-z0         =  6.6e-4
-ps         =  100900.
-thls       = 275.495697
 lmoist     =  .true.
 iradiation =  4
 timerad    =  60.
@@ -41,6 +37,9 @@ useMcICA   = .false.
 /
 
 &NAMSURFACE
+z0         =  6.6e-4
+ps         =  100900.
+thls       = 275.495697
 isurf      = 2
 z0mav      = 6.6e-4
 z0hav      = 3.7e-6
@@ -79,7 +78,7 @@ iadv_mom    =  2
 iadv_tke    =  52
 iadv_thl    =  52
 iadv_qt     =  52
-iadv_sv     =  52 52
+iadv_sv     =  52
 /
 &NAMCHECKSIM
 tcheck      = 0
@@ -120,8 +119,6 @@ lsync = .true.
 &NAMFIELDDUMP
  DTAV        =   1800.0
  LFIELDDUMP  = .true.
-! LDIRACC     = .false.
-! LBINARY     = .false.
  KLOW        =   1
  KHIGH       =   167
 /

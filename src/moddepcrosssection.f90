@@ -29,8 +29,10 @@ module moddepcrosssection
   use moddrydeposition, only : ldrydep
   use modglobal, only : longint, nsv
   use modtracers, only: tracer_prop
+  use modlogging, only: finish
 
   implicit none
+  character(len=*), parameter :: modname = 'moddepcrossection'
   private
   public :: initdepcrosssection, depcrosssection, exitdepcrosssection
   save
@@ -57,8 +59,11 @@ contains
     use modstat_nc, only : lnetcdf, open_nc, define_nc, ncinfo, &
         nctiminfo, writestat_dims_nc
     use moddrydeposition, only : ndeptracers
+    use fortran_support,  only : nnml_output
 
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initdepcrosssection'
 
     integer :: ierr, isv, idt
     character(80) :: varname, varlongname
@@ -70,7 +75,7 @@ contains
       open(ifnamopt, file=fname_options, status='old', iostat=ierr)
       read(ifnamopt, NAMDEPCROSSSECTION, iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMDEPCROSSSECTION')
-      write(6, NAMDEPCROSSSECTION)
+      write(nnml_output, NAMDEPCROSSSECTION)
       close(ifnamopt)
     end if
 
@@ -89,7 +94,7 @@ contains
     dt_lim = min(dt_lim, tnext)
 
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'depcrosssection: dtav should be a integer multiple of dtmax'
+      call finish(routine, 'depcrosssection: dtav should be a integer multiple of dtmax')
     end if
 
     if ( lnetcdf ) then

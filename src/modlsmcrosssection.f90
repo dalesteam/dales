@@ -31,8 +31,10 @@ module modlsmcrosssection
 
   use modglobal, only : longint
   use modsurfdata,only : ksoilmax
+  use modlogging, only: finish
 
 implicit none
+character(len=*), parameter :: modname = 'modlsmcrosssection'
 private
 PUBLIC :: initlsmcrosssection, lsmcrosssection,exitlsmcrosssection
 save
@@ -71,7 +73,10 @@ contains
     use modstat_nc,  only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modsurfdata, only : isurf
     use modlsm,      only : lags
+    use fortran_support, only: nnml_output
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initlsmcrossection'
 
     integer :: ierr
 
@@ -87,7 +92,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMLSMCROSSSECTION,iostat=ierr)
        call checknamelisterror(ierr, ifnamopt, 'NAMLSMCROSSSECTION')
-      write(6 ,NAMLSMCROSSSECTION)
+      write(nnml_output ,NAMLSMCROSSSECTION)
       close(ifnamopt)
     end if
 
@@ -107,10 +112,10 @@ contains
     dt_lim = min(dt_lim,tnext)
 
     if((crossheight>ksoilmax) .or. crossplane>j1) then
-      stop 'lsmcrosssection: lsmcrosssection out of range'
+      call finish(routine, 'lsmcrosssection: lsmcrosssection out of range')
     end if
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'lsmcrosssection: dtav should be a integer multiple of dtmax'
+      call finish(routine, 'lsmcrosssection: dtav should be a integer multiple of dtmax')
     end if
     if (lnetcdf) then
       if (myidy==0) then

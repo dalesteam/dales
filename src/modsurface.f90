@@ -63,27 +63,27 @@
 module modsurface
   use modtimer
   use modsurfdata
+  use modglobal,  only: ifnamopt, checknamelisterror
+  use modmpi,     only: d_mpi_bcast, commwrld, myid
+  use modlogging, only: finish
+  use fortran_support, only: nnml_output
   implicit none
+
+  character(len=*), parameter :: modname = 'moduser'
+
   !public  :: initsurface, surface, exitsurface
+  public :: surface_read_namelist
 
 save
 
 contains
-!> Reads the namelists and initialises the soil.
-  subroutine initsurface
-    use modglobal,  only : i1, j1, i2, j2, itot, jtot,imax,jmax, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror, handle_err
-    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg,irad_rte_rrtmgp
-    use modmpi,     only : myid,  myidx, myidy, comm3d, mpierr, D_MPI_BCAST
-    use modtracers, only : tracer_prop
-    use netcdf
 
-    implicit none
+  !> Reads the namelist for the surface module.
+  subroutine surface_read_namelist(nml_filename)
 
-    integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1, isv
-    integer   :: tempx,tempy
-    integer   :: VARID,STATUS,NCID,timeID
-    character(len = nf90_max_name) :: RecordDimName
-    character(len=1500) :: readbuffer
+    character(len=*), intent(in) :: nml_filename !< Filename of namelist.
+
+    integer :: istat !< MPI status code.
 
     namelist/NAMSURFACE/ & !< Soil related variables
       isurf, tsoilav, tsoildeepav, phiwav, rootfav, &
@@ -108,6 +108,93 @@ contains
       ! heterogeneous tskin
       ltskininp,  min_horv
 
+    if (myid == 0) then
+      open(ifnamopt, file=nml_filename, status='old', iostat=istat)
+      read(ifnamopt, NAMSURFACE, iostat=istat)
+      call checknamelisterror(istat, ifnamopt, 'NAMSURFACE')
+      write(nnml_output, NAMSURFACE)
+      close(ifnamopt)
+    end if
+
+    call D_MPI_BCAST(isurf        , 1       ,  0, commwrld, istat)
+    call D_MPI_BCAST(tsoilav      , ksoilmax, 0, commwrld, istat)
+    call D_MPI_BCAST(tsoildeepav  , 1       , 0, commwrld, istat)
+    call D_MPI_BCAST(phiwav       , ksoilmax, 0, commwrld, istat)
+    call D_MPI_BCAST(rootfav      , ksoilmax, 0, commwrld, istat)
+
+    call D_MPI_BCAST(lmostlocal   , 1,  0, commwrld, istat)
+    call D_MPI_BCAST(lsmoothflux  , 1,  0, commwrld, istat)
+    call D_MPI_BCAST(lneutral     , 1,  0, commwrld, istat)
+    call D_MPI_BCAST(z0mav        , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(z0hav        , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(rsisurf2     , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(Cskinav      , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(lambdaskinav , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(albedoav     , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(Qnetav       , 1, 0, commwrld, istat)
+
+    call D_MPI_BCAST(rsminav      , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(rssoilminav  , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(cvegav       , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(Wlav         , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(LAIav        , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(gDav         , 1, 0, commwrld, istat)
+
+    call D_MPI_BCAST(z0         ,1,0,commwrld,istat)
+    call D_MPI_BCAST(ustin      ,1,0,commwrld,istat)
+    call D_MPI_BCAST(wtsurf     ,1,0,commwrld,istat)
+    call D_MPI_BCAST(wqsurf     ,1,0,commwrld,istat)
+    call D_MPI_BCAST(ps         ,1,0,commwrld,istat)
+    call D_MPI_BCAST(thls       ,1,0,commwrld,istat)
+
+    call D_MPI_BCAST(lhetero                    ,            1,  0, commwrld, istat)
+    call D_MPI_BCAST(loldtable                  ,            1,  0, commwrld, istat)
+    call D_MPI_BCAST(lrsAgs                     ,            1,  0, commwrld, istat)
+    call D_MPI_BCAST(lCO2Ags                    ,            1,  0, commwrld, istat)
+    call D_MPI_BCAST(xpatches                   ,            1,  0, commwrld, istat)
+    call D_MPI_BCAST(ypatches                   ,            1,  0, commwrld, istat)
+    call D_MPI_BCAST(planttype                  ,            1,  0, commwrld, istat)
+    call D_MPI_BCAST(lrelaxgc                   ,            1,  0, commwrld, istat)
+    call D_MPI_BCAST(lrelaxci                   ,            1,  0, commwrld, istat)
+    call D_MPI_BCAST(kgc                        ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(kci                        ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(phi                        ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(phifc                      ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(phiwp                      ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(R10                        ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(lsplitleaf                 ,            1,  0, commwrld, istat)
+
+    call D_MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch,  0, commwrld, istat)
+
+    call D_MPI_BCAST(i_expemis                  ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(expemis0                   ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(expemis1                   ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(expemis2                   ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(ltskininp                  ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(min_horv                   ,            1, 0, commwrld, istat)
+
+  end subroutine surface_read_namelist
+
+  !> Initializes the surface.
+  subroutine initsurface
+    use modglobal,  only : i1, j1, i2, j2, itot, jtot,imax,jmax, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror, handle_err
+    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg,irad_rte_rrtmgp
+    use modmpi,     only : myid,  myidx, myidy, comm3d, mpierr, D_MPI_BCAST
+    use modtracers, only : tracer_prop
+    use fortran_support, only: nnml_output
+    use netcdf
+
+    implicit none
+
+    character(len=*), parameter :: routine = modname//'/initsurface'
+
+    integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1, isv
+    integer   :: tempx,tempy
+    integer   :: VARID,STATUS,NCID,timeID
+    character(len = nf90_max_name) :: RecordDimName
+    character(len=1500) :: readbuffer
+
+
     call timer_tic('modsurface/initsurface', 0)
 
     ! 1    -   Initialize soil
@@ -116,70 +203,6 @@ contains
 
     ! 1.0  -   Read LSM-specific namelist
 
-    if(myid==0)then
-      open(ifnamopt,file=fname_options,status='old',iostat=ierr)
-      read (ifnamopt,NAMSURFACE,iostat=ierr)
-      call checknamelisterror(ierr, ifnamopt, 'NAMSURFACE')
-      write(6 ,NAMSURFACE)
-      close(ifnamopt)
-    end if
-
-    call D_MPI_BCAST(isurf        , 1       ,  0, comm3d, mpierr)
-    call D_MPI_BCAST(tsoilav      , ksoilmax, 0, comm3d, mpierr)
-    call D_MPI_BCAST(tsoildeepav  , 1       , 0, comm3d, mpierr)
-    call D_MPI_BCAST(phiwav       , ksoilmax, 0, comm3d, mpierr)
-    call D_MPI_BCAST(rootfav      , ksoilmax, 0, comm3d, mpierr)
-
-    call D_MPI_BCAST(lmostlocal   , 1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(lsmoothflux  , 1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(lneutral     , 1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(z0mav        , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(z0hav        , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(rsisurf2     , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(Cskinav      , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(lambdaskinav , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(albedoav     , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(Qnetav       , 1, 0, comm3d, mpierr)
-
-    call D_MPI_BCAST(rsminav      , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(rssoilminav  , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(cvegav       , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(Wlav         , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(LAIav        , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(gDav         , 1, 0, comm3d, mpierr)
-
-    call D_MPI_BCAST(z0         ,1,0,comm3d,mpierr)
-    call D_MPI_BCAST(ustin      ,1,0,comm3d,mpierr)
-    call D_MPI_BCAST(wtsurf     ,1,0,comm3d,mpierr)
-    call D_MPI_BCAST(wqsurf     ,1,0,comm3d,mpierr)
-    call D_MPI_BCAST(ps         ,1,0,comm3d,mpierr)
-    call D_MPI_BCAST(thls       ,1,0,comm3d,mpierr)
-
-    call D_MPI_BCAST(lhetero                    ,            1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(loldtable                  ,            1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(lrsAgs                     ,            1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(lCO2Ags                    ,            1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(xpatches                   ,            1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(ypatches                   ,            1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(planttype                  ,            1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(lrelaxgc                   ,            1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(lrelaxci                   ,            1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(kgc                        ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(kci                        ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(phi                        ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(phifc                      ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(phiwp                      ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(R10                        ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(lsplitleaf                 ,            1,  0, comm3d, mpierr)
-
-    call D_MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch,  0, comm3d, mpierr)
-
-    call D_MPI_BCAST(i_expemis                  ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(expemis0                   ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(expemis1                   ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(expemis2                   ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(ltskininp                  ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(min_horv                   ,            1, 0, comm3d, mpierr)
 
     !$acc update device (xpatches, ypatches)
 
@@ -191,8 +214,8 @@ contains
     if(lsplitleaf .and. (.not. (rad_shortw .and. ((iradiation.eq.irad_par).or.(iradiation .eq. irad_user) &
                                                                           .or.(iradiation .eq. irad_rrtmg) &
                                                                           .or.(iradiation .eq. irad_rte_rrtmgp))))) then
-      if(myid==0) stop "WARNING::: You set lsplitleaf to .true., but that needs direct and diffuse calculations. Make sure you enable rad_shortw"
-      if(myid==0) stop "WARNING::: Since there is no direct and diffuse radiation calculated in the atmopshere, we set lsplitleaf to .false."
+      if(myid==0) call finish(routine, "WARNING::: You set lsplitleaf to .true., but that needs direct and diffuse calculations. Make sure you enable rad_shortw")
+      if(myid==0) call finish(routine, "WARNING::: Since there is no direct and diffuse radiation calculated in the atmopshere, we set lsplitleaf to .false.")
       lsplitleaf = .false.
     endif
 
@@ -242,15 +265,15 @@ contains
     if(lhetero) then
 
       if(xpatches .gt. mpatch) then
-        stop "NAMSURFACE: more xpatches defined than possible (change mpatch in modsurfdata to a higher value)"
+        call finish(routine, "NAMSURFACE: more xpatches defined than possible (change mpatch in modsurfdata to a higher value)")
       endif
       if(ypatches .gt. mpatch) then
-        stop "NAMSURFACE: more ypatches defined than possible (change mpatch in modsurfdata to a higher value)"
+        call finish(routine, "NAMSURFACE: more ypatches defined than possible (change mpatch in modsurfdata to a higher value)")
       endif
       if (lsmoothflux .eqv. .true.) write(6,*) 'WARNING: You selected to use uniform heat fluxes (lsmoothflux) and ',&
       'heterogeneous surface conditions (lhetero) at the same time'
-      if (mod(itot,xpatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the x-direction"
-      if (mod(jtot,ypatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the y-direction"
+      if (mod(itot,xpatches) .ne. 0) call finish(routine, "NAMSURFACE: Not an integer amount of grid points per patch in the x-direction")
+      if (mod(jtot,ypatches) .ne. 0) call finish(routine, "NAMSURFACE: Not an integer amount of grid points per patch in the y-direction")
 
       allocate(horvpatch(xpatches,ypatches))
       allocate(z0mav_patch(xpatches,ypatches))
@@ -326,20 +349,20 @@ contains
                 ps_land(i), ustin_land(i), wt_land(i), wq_land(i), wsv_land(1:nsv,i)
 
               if (ustin_land(i) .lt. 0) then
-                if (myid == 0) stop "NAMSURFACE: A ustin value in the surface input file is negative"
+                if (myid == 0) call finish(routine, "NAMSURFACE: A ustin value in the surface input file is negative")
               endif
               if(isurf .ne. 3) then
                 if(z0mav_land(i) .lt. 0) then
-                  if (myid == 0) stop "NAMSURFACE: a z0mav value is not set or negative in the surface input file"
+                  if (myid == 0) call finish(routine, "NAMSURFACE: a z0mav value is not set or negative in the surface input file")
                 end if
                 if(z0hav_land(i) .lt. 0) then
-                  if (myid == 0) stop "NAMSURFACE: a z0hav value is not set or negative in the surface input file"
+                  if (myid == 0) call finish(routine, "NAMSURFACE: a z0hav value is not set or negative in the surface input file")
                 end if
               end if
 
               if (landtype(i) .eq. 0) landtype_0 = i
               do j = 1, (i-1)
-                if (landtype(i) .eq. landtype(j)) stop "NAMSURFACE: Two land types have the same type number"
+                if (landtype(i) .eq. landtype(j)) call finish(routine, "NAMSURFACE: Two land types have the same type number")
               enddo
 
             endif
@@ -366,21 +389,21 @@ contains
                     gD_land(i), wsv_land(1:nsv,i)
 
                   if(z0mav_land(i) .lt. 0) then
-                    if (myid == 0) stop "NAMSURFACE: a z0mav value is not set or negative in the surface input file"
+                    if (myid == 0) call finish(routine, "NAMSURFACE: a z0mav value is not set or negative in the surface input file")
                   end if
                   if(z0hav_land(i) .lt. 0) then
-                    if (myid == 0) stop "NAMSURFACE: a z0hav value is not set or negative in the surface input file"
+                    if (myid == 0) call finish(routine, "NAMSURFACE: a z0hav value is not set or negative in the surface input file")
                   end if
                   if (albedo_land(i) .lt. 0) then
-                    if (myid == 0) stop "NAMSURFACE: An albedo value in the surface input file is negative"
+                    if (myid == 0) call finish(routine, "NAMSURFACE: An albedo value in the surface input file is negative")
                   endif
                   if (albedo_land(i) .gt. 1) then
-                    if (myid == 0) stop "NAMSURFACE: An albedo value in the surface input file is greater than 1"
+                    if (myid == 0) call finish(routine, "NAMSURFACE: An albedo value in the surface input file is greater than 1")
                   endif
 
                   if (landtype(i) .eq. 0) landtype_0 = i
                   do j = 1, (i-1)
-                    if (landtype(i) .eq. landtype(j)) stop "NAMSURFACE: Two land types have the same type number"
+                    if (landtype(i) .eq. landtype(j)) call finish(routine, "NAMSURFACE: Two land types have the same type number")
                   enddo
 
                 endif
@@ -407,26 +430,26 @@ contains
                     ps_land(i), albedo_land(i), rsisurf2_land(i), ustin_land(i), wt_land(i), wq_land(i), wsv_land(1:nsv,i)
 
                   if (ustin_land(i) .lt. 0) then
-                    if (myid == 0) stop "NAMSURFACE: A ustin value in the surface input file is negative"
+                    if (myid == 0) call finish(routine, "NAMSURFACE: A ustin value in the surface input file is negative")
                   endif
                   if (albedo_land(i) .lt. 0) then
-                    if (myid == 0) stop "NAMSURFACE: An albedo value in the surface input file is negative"
+                    if (myid == 0) call finish(routine, "NAMSURFACE: An albedo value in the surface input file is negative")
                   endif
                   if (albedo_land(i) .gt. 1) then
-                    if (myid == 0) stop "NAMSURFACE: An albedo value in the surface input file is greater than 1"
+                    if (myid == 0) call finish(routine, "NAMSURFACE: An albedo value in the surface input file is greater than 1")
                   endif
                   if(isurf .ne. 3) then
                     if(z0mav_land(i) .lt. 0) then
-                      if (myid == 0) stop "NAMSURFACE: a z0mav value is not set or negative in the surface input file"
+                      if (myid == 0) call finish(routine, "NAMSURFACE: a z0mav value is not set or negative in the surface input file")
                     end if
                     if(z0hav_land(i) .lt. 0) then
-                      if (myid == 0) stop "NAMSURFACE: a z0hav value is not set or negative in the surface input file"
+                      if (myid == 0) call finish(routine, "NAMSURFACE: a z0hav value is not set or negative in the surface input file")
                     end if
                   end if
 
                   if (landtype(i) .eq. 0) landtype_0 = i
                   do j = 1, (i-1)
-                    if (landtype(i) .eq. landtype(j)) stop "NAMSURFACE: Two land types have the same type number"
+                    if (landtype(i) .eq. landtype(j)) call finish(routine, "NAMSURFACE: Two land types have the same type number")
                   enddo
 
                 endif
@@ -438,7 +461,7 @@ contains
 
       if (myid == 0) then
         if (landtype_0 .eq. -1) then
-          stop "NAMSURFACE: no standard land type (0) is defined"
+          call finish(routine, "NAMSURFACE: no standard land type (0) is defined")
         else
           print "(a,i2,a,i2)","There are ",defined_landtypes,&
           " land types defined in the surface input file. The standard land type is defined by line ",landtype_0
@@ -575,10 +598,10 @@ contains
 
       if(isurf .ne. 3) then
         if(z0mav == -1) then
-          stop "NAMSURFACE: z0mav is not set"
+          call finish(routine, "NAMSURFACE: z0mav is not set")
         end if
         if(z0hav == -1) then
-          stop "NAMSURFACE: z0hav is not set"
+          call finish(routine, "NAMSURFACE: z0hav is not set")
         end if
       end if
 
@@ -587,47 +610,47 @@ contains
 
     if(isurf == 1) then
       if(tsoilav(1) == -1 .or. tsoilav(2) == -1 .or. tsoilav(3) == -1 .or. tsoilav(4) == -1) then
-        stop "NAMSURFACE: tsoil is not set"
+        call finish(routine, "NAMSURFACE: tsoil is not set")
       end if
       if(tsoildeepav == -1) then
-        stop "NAMSURFACE: tsoildeep is not set"
+        call finish(routine, "NAMSURFACE: tsoildeep is not set")
       end if
       if(phiwav(1) == -1 .or. phiwav(2) == -1 .or. phiwav(3) == -1 .or. phiwav(4) == -1) then
-        stop "NAMSURFACE: phiw is not set"
+        call finish(routine, "NAMSURFACE: phiw is not set")
       end if
       if(rootfav(1) == -1 .or. rootfav(2) == -1 .or. rootfav(3) == -1 .or. rootfav(4) == -1) then
-        stop "NAMSURFACE: rootf is not set"
+        call finish(routine, "NAMSURFACE: rootf is not set")
       end if
       if(Cskinav == -1) then
-        stop "NAMSURFACE: Cskinav is not set"
+        call finish(routine, "NAMSURFACE: Cskinav is not set")
       end if
       if(lambdaskinav == -1) then
-        stop "NAMSURFACE: lambdaskinav is not set"
+        call finish(routine, "NAMSURFACE: lambdaskinav is not set")
       end if
       if(albedoav == -1) then
-        stop "NAMSURFACE: albedoav is not set"
+        call finish(routine, "NAMSURFACE: albedoav is not set")
       end if
       if(Qnetav == -1) then
-        stop "NAMSURFACE: Qnetav is not set"
+        call finish(routine, "NAMSURFACE: Qnetav is not set")
       end if
       if(cvegav == -1) then
-        stop "NAMSURFACE: cvegav is not set"
+        call finish(routine, "NAMSURFACE: cvegav is not set")
       end if
       if(rsminav == -1) then
-        stop "NAMSURFACE: rsminav is not set"
+        call finish(routine, "NAMSURFACE: rsminav is not set")
       end if
       if(rssoilminav == -1) then
         print *,"WARNING: RSSOILMINAV is undefined... RSMINAV will be used as a proxy"
         rssoilminav = rsminav
       end if
       if(LAIav == -1) then
-        stop "NAMSURFACE: LAIav is not set"
+        call finish(routine, "NAMSURFACE: LAIav is not set")
       end if
       if(gDav == -1) then
-        stop "NAMSURFACE: gDav is not set"
+        call finish(routine, "NAMSURFACE: gDav is not set")
       end if
       if(Wlav == -1) then
-        stop "NAMSURFACE: Wlav is not set"
+        call finish(routine, "NAMSURFACE: Wlav is not set")
       end if
     end if
 
@@ -658,11 +681,11 @@ contains
     allocate(Cs(i2,j2))
 
     if(rad_shortw .and. albedoav == -1) then
-      stop "NAMSURFACE: albedoav is not set"
+      call finish(routine, "NAMSURFACE: albedoav is not set")
     end if
     if(iradiation == 1) then
       if(albedoav == -1) then
-        stop "NAMSURFACE: albedoav is not set"
+        call finish(routine, "NAMSURFACE: albedoav is not set")
       end if
       allocate(swdavn(i2,j2,nradtime))
       allocate(swuavn(i2,j2,nradtime))
@@ -771,6 +794,8 @@ contains
     use moduser,    only : surf_user
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/surface'
+
     call timer_tic('modsurface/surface', 0)
     select case (isurf)
       case (1) ! Interactive land surface model
@@ -814,7 +839,7 @@ contains
         call timer_toc('modsurface/surface')
         return
       case default
-        stop "Invalid option selected for isurf"
+        call finish(routine, "Invalid option selected for isurf")
     end select
 
     call timer_toc('modsurface/surface')
@@ -1330,6 +1355,8 @@ contains
                           D_MPI_BCAST
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/getobl'
+
     integer             :: i,j,iter,patchx,patchy
     real                :: thv, thvsl, horv2, oblavl, thvpatch(xpatches,ypatches), horvpatch(xpatches,ypatches)
     real                :: L, Lend, Lstart, Lold
@@ -1407,7 +1434,7 @@ contains
                    if(Rib < 0) L = -0.01
                 end if
                 if(abs((L - Lold)/L) < 1e-4) exit
-                if(iter > 1000) stop 'Obukhov length calculation does not converge!'
+                if(iter > 1000) print *, 'Obukhov length calculation does not converge!'
              end do
 
              if (abs(L)>1e6) L = sign(1.0e6,L)
@@ -1548,7 +1575,7 @@ contains
              if(Rib < 0) L = -0.01
           end if
           if(abs((L - Lold)/L) < 1e-4) exit
-          if(iter > 1000) stop 'Obukhov length calculation does not converge!'
+          if(iter > 1000)  print *, 'Obukhov length calculation does not converge!'
        end do
 
        if (abs(L)>1e6) L = sign(1.0e6,L)

@@ -1,7 +1,7 @@
 &RUN
 iexpnr     =  001
 lwarmstart =  .false.
-startfile  =  'initd001h00mx000y000.001'
+startfile  =  'initd_latest_x000y000.001'
 runtime    =  21600
 trestart   =  10800
 ladaptive  = .true.
@@ -28,7 +28,6 @@ xtime      =  15.
 &PHYSICS
 lmoist     =  .true.
 iradiation =  10
-isurf      =  3
 
 timerad    =  0
 dlwtop     = 70
@@ -42,6 +41,7 @@ rad_smoke  = .false.
 lcoriol    =  .true.
 /
 &NAMSURFACE
+isurf      =  3
 z0mav      =  2e-4
 z0hav      =  2e-4
 ustin      =  0.25
@@ -52,7 +52,6 @@ wqsurf     =  3.05e-5
 /
 &DYNAMICS
 llsadv     =  .false.
-lqlnr      =  .false.
 cu         =  5.
 cv         =  -5.5
 
@@ -101,7 +100,6 @@ timeav     = 1800
 &NAMFIELDDUMP
 lfielddump = .false.
 dtav       = 60
-ldiracc    = .true.
 /
 &NAMSTATTEND
 dtav       = 60

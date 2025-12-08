@@ -32,9 +32,11 @@ module modbulkmicrostat
   use modprecision, only : longint, field_r
   use modtimer
   use modsampdata, only : lprocblock
+  use modlogging, only: finish
 
 implicit none
 private
+character(len=*), parameter :: modname = 'modbulkmicrostat'
 PUBLIC  :: initbulkmicrostat, bulkmicrostat, exitbulkmicrostat, bulkmicrotend
 save
 !NetCDF variables
@@ -90,10 +92,12 @@ subroutine initbulkmicrostat
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
     use modmicrodata,only: imicro, imicro_bulk, imicro_sice, imicro_bulk3 !#sb3
     use modbulkmicrostat3,only:initbulkmicrostat3  ! #sb3
+    use fortran_support, only: nnml_output
     implicit none
     integer      :: ierr
         character(80) :: dimst
         logical       :: proc = .true.
+    character(len=*), parameter :: routine = modname//'/initbulkmicrostat'
 
     namelist/NAMBULKMICROSTAT/ &
     lmicrostat, dtav, timeav
@@ -115,14 +119,13 @@ subroutine initbulkmicrostat
       open (ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMBULKMICROSTAT,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMBULKMICROSTAT')
-      write(6,NAMBULKMICROSTAT)
+      write(nnml_output,NAMBULKMICROSTAT)
       close(ifnamopt)
     end if
 
     if (imicro == imicro_bulk .and. lmicrostat) then
-      call print_info_stderr('modbulkmicrostat', 'lmicrostat is deprecated &
+      call finish(routine, 'lmicrostat is deprecated &
         &for bulk microphysics, please enable lstat in NAMMICROPHYSCIS')
-      error stop
     end if
 
     call D_MPI_BCAST(lmicrostat,1,0,comm3d,mpierr)
@@ -137,10 +140,10 @@ subroutine initbulkmicrostat
 
     if (.not. lmicrostat) return
     if (abs(timeav/dtav - nsamples) > 1e-4) then
-      stop 'timeav must be an integer multiple of dtav (NAMBULKMICROSTAT)'
+      call finish(routine, 'timeav must be an integer multiple of dtav (NAMBULKMICROSTAT)')
     end if
     if (.not. ladaptive .and. abs(dtav/dtmax - nint(dtav/dtmax)) > 1e-4) then
-      stop 'dtav must be an integer multiple of dtmax (NAMBULKMICROSTAT)'
+      call finish(routine, 'dtav must be an integer multiple of dtmax (NAMBULKMICROSTAT)')
     end if
 
     allocate(qrpav   (k1, nrfields), &

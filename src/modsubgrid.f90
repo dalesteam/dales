@@ -32,16 +32,21 @@ module modsubgrid
 use modsubgriddata
 use modprecision, only: field_r
 use modtimer
+use modlogging, only: finish
 implicit none
 save
+  character(len=*), parameter :: modname = 'modsubgrid'
   public :: subgrid, initsubgrid, exitsubgrid, subgridnamelist
 
 contains
   subroutine initsubgrid
     use modglobal,  only : ih,i1,jh,j1,k1,deltai,dx,dy,dzf,pi
     use modmpi,     only : myid
+    use modlogging, only : profile_output
 
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initsubgrid'
 
     real :: ceps
 
@@ -82,7 +87,7 @@ contains
     if(lanisotrop) then
       ! Anisotropic diffusion scheme  https://doi.org/10.1029/2022MS003095
       ! length scale in TKE equation is delta z (private communication with Marat)
-      if ((dx.ne.dy) .and. myid == 0) stop "The anisotropic diffusion assumes dx=dy."
+      if ((dx.ne.dy) .and. myid == 0) call finish(routine, "The anisotropic diffusion assumes dx=dy.")
       deltai    = 1./dzf       !overrules deltai (k) = 1/delta(k) as defined in initglobal
       anis_fac = (dx/dzf)**2  !assumes dx=dy. is used to enhance horizontal diffusion
     else
@@ -90,16 +95,16 @@ contains
     endif
 
     if (myid==0) then
-      write (6,*) 'cf    = ',cf
-      write (6,*) 'cm    = ',cm
-      write (6,*) 'ch    = ',ch
-      write (6,*) 'ch1   = ',ch1
-      write (6,*) 'ch2   = ',ch2
-      write (6,*) 'ceps  = ',ceps
-      write (6,*) 'ceps1 = ',ce1
-      write (6,*) 'ceps2 = ',ce2
-      write (6,*) 'cs    = ',cs
-      write (6,*) 'Rigc  = ',Rigc
+      write (profile_output,*) 'cf    = ',cf
+      write (profile_output,*) 'cm    = ',cm
+      write (profile_output,*) 'ch    = ',ch
+      write (profile_output,*) 'ch1   = ',ch1
+      write (profile_output,*) 'ch2   = ',ch2
+      write (profile_output,*) 'ceps  = ',ceps
+      write (profile_output,*) 'ceps1 = ',ce1
+      write (profile_output,*) 'ceps2 = ',ce2
+      write (profile_output,*) 'cs    = ',cs
+      write (profile_output,*) 'Rigc  = ',Rigc
     endif
 
     !$acc enter data copyin(ekm, ekh, zlt, csz, anis_fac, &
@@ -111,8 +116,11 @@ contains
   subroutine subgridnamelist
     use modglobal, only : ifnamopt,fname_options,checknamelisterror
     use modmpi,    only : myid, comm3d, mpierr, D_MPI_BCAST
+    use fortran_support, only: nnml_output
 
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/subgridnamelist'
 
     integer :: ierr
 
@@ -123,15 +131,15 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMSUBGRID,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMSUBGRID')
-      write(6 ,NAMSUBGRID)
+      write(nnml_output ,NAMSUBGRID)
       close(ifnamopt)
 
       if (.not. lsmagorinsky) then
-        if (lmason .and. .not. ldelta) stop "subgrid: lmason = .true. requires ldelta = .true."
-        if (lmason .and. lanisotrop)   stop "subgrid: lmason is not compatible with lanisotrop."
-        if (lD80R  .and. lmason)       stop "subgrid: lD80R is not compatible with lmason."
-        if (lD80R  .and. ldelta)       stop "subgrid: lD80R is not compatible with ldelta."
-        if (lD80R  .and. lanisotrop)   stop "subgrid: lD80R is not compatible with lanisotrop."
+        if (lmason .and. .not. ldelta) call finish(routine, "lmason = .true. requires ldelta = .true.")
+        if (lmason .and. lanisotrop)   call finish(routine, "lmason is not compatible with lanisotrop.")
+        if (lD80R  .and. lmason)       call finish(routine, "lD80R is not compatible with lmason.")
+        if (lD80R  .and. ldelta)       call finish(routine, "lD80R is not compatible with ldelta.")
+        if (lD80R  .and. lanisotrop)   call finish(routine, "lD80R is not compatible with lanisotrop.")
       end if
     end if
 

@@ -22,6 +22,7 @@
 module modnetcdf
 
   use netcdf
+  use modlogging, only: finish
 
   implicit none
 
@@ -43,11 +44,7 @@ contains
     character(*), intent(in) :: file
 
     if (status /= nf90_noerr) then
-      if (myid == 0) then
-        write(*,*) "NetCDF error in: ", file, " on line: ", line
-        write(*,*) trim(nf90_strerror(status))
-      end if
-      stop
+      call finish(file, "NetCDF error in: ", file, " on line: ", line, " error: ", trim(nf90_strerror(status)))
     end if
 
   end subroutine check

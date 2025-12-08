@@ -7,7 +7,9 @@
 module modvarbudget
 
   use modprecision, only : longint, field_r
+  use modlogging, only: finish
   implicit none
+  character(len=*), parameter :: modname = 'modvarbudget'
   PRIVATE
   PUBLIC :: initvarbudget, varbudget, exitvarbudget
   save
@@ -51,7 +53,10 @@ contains
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
     use modmicrodata, only : qtpmcr, imicro, imicro_bulk, imicro_sice, imicro_sice2
+    use fortran_support, only: nnml_output
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initvarbudget'
 
     integer ierr
     namelist/NAMVARBUDGET/ &
@@ -63,7 +68,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMVARBUDGET,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMVARBUDGET')
-      write(6 ,NAMVARBUDGET)
+      write(nnml_output ,NAMVARBUDGET)
       close(ifnamopt)
     end if
 
@@ -80,10 +85,10 @@ contains
     dt_lim = min(dt_lim,tnext)
 
     if (abs(timeav/dtav-nsamples)>1e-4) then
-      stop 'timeav must be a integer multiple of dtav'
+      call finish(routine, 'timeav must be a integer multiple of dtav')
     end if
     if (.not. ladaptive .and.abs( dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'dtav should be a integer multiple of dtmax'
+      call finish(routine, 'dtav should be a integer multiple of dtmax')
     end if
 
     allocate(thl2fav   (k1))
@@ -269,6 +274,8 @@ contains
 
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/varproduction'
+
     integer i,j,k,istart,iend,jstart,jend,ibuffer,jbuffer       !counter variables
 
 !    ----------- input variables
@@ -449,7 +456,7 @@ contains
         call hadvecc_hybrid_f(varxfmn,term)
         call vadvecc_hybrid_f(varxfmn,term)
       case default
-          stop "Unknown advection scheme "
+          call finish(routine, "Unknown advection scheme ")
     end select
 
     ! Reset fields
@@ -509,7 +516,7 @@ contains
         call hadvecc_hybrid_f(varxfdev,term)
         call vadvecc_hybrid_f(varxfdev,term)
       case default
-          stop "Unknown advection scheme "
+          call finish(routine, "Unknown advection scheme ")
     end select
 
     ! FIXME modstress applies cyclic BCs here

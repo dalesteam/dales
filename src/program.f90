@@ -6,7 +6,7 @@
 !! Dutch Atmospheric Large Eddy Simulation
 !! \section DALES Dutch Atmospheric Large Eddy Simulation
 !!
-!! @version 4.4.2
+!! @version 5.0.0-beta
 !!
 !! @author
 !! Steef Boing
@@ -115,6 +115,7 @@ program DALES
   use modradiation,      only : radiation
   use modpois,           only : poisson
   use tstep,             only : tstep_update,  tstep_integrate
+  use modlogging,        only : initlogging, exitlogging
   !use modedgecold,       only : coldedge
 
 !----------------------------------------------------------------
@@ -191,6 +192,7 @@ program DALES
 !----------------------------------------------------------------
   ! call initmpi initmpi depends on options in the namelist, call moved to startup
   call initmpicomm
+  call initlogging
   call startup
 
 !---------------------------------------------------------
@@ -235,7 +237,6 @@ program DALES
 #if defined(_OPENACC)
   call update_gpu
 #endif
-
 
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
@@ -434,6 +435,7 @@ program DALES
   call exitnudgeboundary  !cstep
   call exitmodules
   call exit_profiles
+  call exitlogging
 
 
 end program DALES

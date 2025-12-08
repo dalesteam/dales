@@ -88,6 +88,7 @@ contains
     use modmpi,   only : myid,my_real,mpierr,comm3d,mpi_integer,mpi_logical,nprocs
     use modglobal,only : ifnamopt,fname_options,ifinput,dtmax,cexpnr,&
                          dx,dy,dzf,zh,kmax,k1,iexpnr,timee,ysize,dt_lim,btime,rtimee,tres
+    use fortran_support, only: nnml_output
 
     implicit none
 
@@ -119,7 +120,7 @@ contains
           print *, 'iostat error: ', ierr
           stop 'ERROR: Problem in namoptions NAMPARTICLES'
         endif
-        write(6 ,NAMPARTICLES)
+        write(nnml_output ,NAMPARTICLES)
         close(ifnamopt)
       end if
 
