@@ -115,9 +115,6 @@ contains
     use modnamelist,       only : read_namelists
     use modspraying,       only : initspraying
     use fortran_support,   only: nnml_output
-#if defined(_OPENACC)
-    use modgpu,             only : initgpu
-#endif
 
     implicit none
 
@@ -210,10 +207,6 @@ contains
     ! Initialize MPI
     call initmpi
 
-    ! Initialize OpenACC
-#if defined(_OPENACC)
-    call initgpu(commwrld)
-#endif
     !$acc update device (myidx,myidy)
 
     ! Ignore user-provided nsv, we take care of it ourselves

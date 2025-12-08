@@ -250,17 +250,17 @@ ecbuild_add_executable( TARGET dales
                         INCLUDES
                           ${NetCDF_Fortran_INCLUDE_DIR}
                           $<$<BOOL:${ENABLE_FFTW}>:${FFTW_INCLUDE_DIRS}>
-						  ${EXTERNAL_INSTALL_DIR}/include
                         LIBS
+                          MPI::MPI_Fortran
                           NetCDF::NetCDF_Fortran
                           NetCDF::NetCDF_C
+													fortran-support::fortran-support
                           $<$<BOOL:${ENABLE_ACC}>:OpenACC::OpenACC_Fortran>
                           $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3>
                           $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3f>
                           $<$<BOOL:${ENABLE_HYPRE}>:${HYPRE_LIB}>
                           $<$<BOOL:${ENABLE_ACC}>:CUDA::cufft>
                           $<$<BOOL:${ENABLE_NVTX}>:CUDA::nvToolsExt>
-						  LibFortranSupport::libfortran-support
 )
 # Temporary
 if( ENABLE_ACC )
@@ -280,6 +280,7 @@ ecbuild_add_library( TARGET libdales
                        ${NetCDF_Fortran_INCLUDE_DIR}
                        $<$<BOOL:${ENABLE_FFTW}>:${FFTW_INCLUDE_DIRS}>
                      PUBLIC_LIBS
+                       MPI::MPI_Fortran
                        NetCDF::NetCDF_Fortran
                        $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3>
                        $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3f>
