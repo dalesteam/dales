@@ -28,7 +28,6 @@ xtime      =  15.
 &PHYSICS
 lmoist     =  .true.
 iradiation =  10
-isurf      =  3
 
 timerad    =  0
 dlwtop     = 70
@@ -42,6 +41,7 @@ rad_smoke  = .false.
 lcoriol    =  .true.
 /
 &NAMSURFACE
+isurf      =  3
 z0mav      =  2e-4
 z0hav      =  2e-4
 ustin      =  0.25

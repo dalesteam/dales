@@ -26,13 +26,13 @@ xtime      =  0.
 /
 
 &PHYSICS
-ps         =  97000.00
-thls       =  300.00
 lmoist     =  .true.
 lcoriol    =  .true.
 ltimedep   =  .true.
 /
 &NAMSURFACE
+ps         =  97000.00
+thls       =  300.00
 wtsurf     =  0.0001
 wqsurf     =  0.0001
 isurf      = 4

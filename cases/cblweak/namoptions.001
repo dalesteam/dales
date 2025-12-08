@@ -25,17 +25,20 @@ xtime      =  0.
 /
 
 &PHYSICS
+lmoist     =  .false.
+iradiation =  0
+timerad    =  3600
+lcoriol    =  .false.
+/
+
+&NAMSURFACE
+isurf      =  3
 z0         =  0.16
 ustin      =  0.0
 ps         =  101300.00
 thls       =  300.0
 wtsurf     =  0.06
 wqsurf     =  0.0
-lmoist     =  .false.
-isurf      =  3
-iradiation =  0
-timerad    =  3600
-lcoriol    =  .false.
 /
 
 &DYNAMICS

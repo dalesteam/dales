@@ -26,20 +26,21 @@ xtime      =  0.0
 /
 
 &PHYSICS
-z0         =  1.6e-4
-ustin      =  0.32
-ps         =  101540.00
-thls       =  298.5
 
 
 lmoist     =  .true.
-isurf      =  10
 irad       =  0
 timerad    =  2
 lcoriol    =  .true.
 lmomsubs   =  .false.
 /
 &NAMSURFACE
+isurf      =  10
+z0         =  1.6e-4
+ustin      =  0.32
+ps         =  101540.00
+thls       =  298.5
+
 thls  =  298.5
 z0mav =  1.6e-4
 z0hav =  3.2e-5

@@ -63,34 +63,27 @@
 module modsurface
   use modtimer
   use modsurfdata
+  use modglobal,  only: ifnamopt, checknamelisterror
+  use modmpi,     only: d_mpi_bcast, commwrld, myid
   use modlogging, only: finish
+  use fortran_support, only: nnml_output
   implicit none
 
   character(len=*), parameter :: modname = 'moduser'
 
   !public  :: initsurface, surface, exitsurface
+  public :: surface_read_namelist
 
 save
 
 contains
-!> Reads the namelists and initialises the soil.
-  subroutine initsurface
-    use modglobal,  only : i1, j1, i2, j2, itot, jtot,imax,jmax, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror, handle_err
-    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg,irad_rte_rrtmgp
-    use modmpi,     only : myid,  myidx, myidy, comm3d, mpierr, D_MPI_BCAST
-    use modtracers, only : tracer_prop
-    use fortran_support, only: nnml_output
-    use netcdf
 
-    implicit none
+  !> Reads the namelist for the surface module.
+  subroutine surface_read_namelist(nml_filename)
 
-    character(len=*), parameter :: routine = modname//'/initsurface'
+    character(len=*), intent(in) :: nml_filename !< Filename of namelist.
 
-    integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1, isv
-    integer   :: tempx,tempy
-    integer   :: VARID,STATUS,NCID,timeID
-    character(len = nf90_max_name) :: RecordDimName
-    character(len=1500) :: readbuffer
+    integer :: istat !< MPI status code.
 
     namelist/NAMSURFACE/ & !< Soil related variables
       isurf, tsoilav, tsoildeepav, phiwav, rootfav, &
@@ -115,6 +108,93 @@ contains
       ! heterogeneous tskin
       ltskininp,  min_horv
 
+    if (myid == 0) then
+      open(ifnamopt, file=nml_filename, status='old', iostat=istat)
+      read(ifnamopt, NAMSURFACE, iostat=istat)
+      call checknamelisterror(istat, ifnamopt, 'NAMSURFACE')
+      write(nnml_output, NAMSURFACE)
+      close(ifnamopt)
+    end if
+
+    call D_MPI_BCAST(isurf        , 1       ,  0, commwrld, istat)
+    call D_MPI_BCAST(tsoilav      , ksoilmax, 0, commwrld, istat)
+    call D_MPI_BCAST(tsoildeepav  , 1       , 0, commwrld, istat)
+    call D_MPI_BCAST(phiwav       , ksoilmax, 0, commwrld, istat)
+    call D_MPI_BCAST(rootfav      , ksoilmax, 0, commwrld, istat)
+
+    call D_MPI_BCAST(lmostlocal   , 1,  0, commwrld, istat)
+    call D_MPI_BCAST(lsmoothflux  , 1,  0, commwrld, istat)
+    call D_MPI_BCAST(lneutral     , 1,  0, commwrld, istat)
+    call D_MPI_BCAST(z0mav        , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(z0hav        , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(rsisurf2     , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(Cskinav      , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(lambdaskinav , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(albedoav     , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(Qnetav       , 1, 0, commwrld, istat)
+
+    call D_MPI_BCAST(rsminav      , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(rssoilminav  , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(cvegav       , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(Wlav         , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(LAIav        , 1, 0, commwrld, istat)
+    call D_MPI_BCAST(gDav         , 1, 0, commwrld, istat)
+
+    call D_MPI_BCAST(z0         ,1,0,commwrld,istat)
+    call D_MPI_BCAST(ustin      ,1,0,commwrld,istat)
+    call D_MPI_BCAST(wtsurf     ,1,0,commwrld,istat)
+    call D_MPI_BCAST(wqsurf     ,1,0,commwrld,istat)
+    call D_MPI_BCAST(ps         ,1,0,commwrld,istat)
+    call D_MPI_BCAST(thls       ,1,0,commwrld,istat)
+
+    call D_MPI_BCAST(lhetero                    ,            1,  0, commwrld, istat)
+    call D_MPI_BCAST(loldtable                  ,            1,  0, commwrld, istat)
+    call D_MPI_BCAST(lrsAgs                     ,            1,  0, commwrld, istat)
+    call D_MPI_BCAST(lCO2Ags                    ,            1,  0, commwrld, istat)
+    call D_MPI_BCAST(xpatches                   ,            1,  0, commwrld, istat)
+    call D_MPI_BCAST(ypatches                   ,            1,  0, commwrld, istat)
+    call D_MPI_BCAST(planttype                  ,            1,  0, commwrld, istat)
+    call D_MPI_BCAST(lrelaxgc                   ,            1,  0, commwrld, istat)
+    call D_MPI_BCAST(lrelaxci                   ,            1,  0, commwrld, istat)
+    call D_MPI_BCAST(kgc                        ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(kci                        ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(phi                        ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(phifc                      ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(phiwp                      ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(R10                        ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(lsplitleaf                 ,            1,  0, commwrld, istat)
+
+    call D_MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch,  0, commwrld, istat)
+
+    call D_MPI_BCAST(i_expemis                  ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(expemis0                   ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(expemis1                   ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(expemis2                   ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(ltskininp                  ,            1, 0, commwrld, istat)
+    call D_MPI_BCAST(min_horv                   ,            1, 0, commwrld, istat)
+
+  end subroutine surface_read_namelist
+
+  !> Initializes the surface.
+  subroutine initsurface
+    use modglobal,  only : i1, j1, i2, j2, itot, jtot,imax,jmax, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror, handle_err
+    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg,irad_rte_rrtmgp
+    use modmpi,     only : myid,  myidx, myidy, comm3d, mpierr, D_MPI_BCAST
+    use modtracers, only : tracer_prop
+    use fortran_support, only: nnml_output
+    use netcdf
+
+    implicit none
+
+    character(len=*), parameter :: routine = modname//'/initsurface'
+
+    integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1, isv
+    integer   :: tempx,tempy
+    integer   :: VARID,STATUS,NCID,timeID
+    character(len = nf90_max_name) :: RecordDimName
+    character(len=1500) :: readbuffer
+
+
     call timer_tic('modsurface/initsurface', 0)
 
     ! 1    -   Initialize soil
@@ -123,70 +203,6 @@ contains
 
     ! 1.0  -   Read LSM-specific namelist
 
-    if(myid==0)then
-      open(ifnamopt,file=fname_options,status='old',iostat=ierr)
-      read (ifnamopt,NAMSURFACE,iostat=ierr)
-      call checknamelisterror(ierr, ifnamopt, 'NAMSURFACE')
-      write(nnml_output ,NAMSURFACE)
-      close(ifnamopt)
-    end if
-
-    call D_MPI_BCAST(isurf        , 1       ,  0, comm3d, mpierr)
-    call D_MPI_BCAST(tsoilav      , ksoilmax, 0, comm3d, mpierr)
-    call D_MPI_BCAST(tsoildeepav  , 1       , 0, comm3d, mpierr)
-    call D_MPI_BCAST(phiwav       , ksoilmax, 0, comm3d, mpierr)
-    call D_MPI_BCAST(rootfav      , ksoilmax, 0, comm3d, mpierr)
-
-    call D_MPI_BCAST(lmostlocal   , 1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(lsmoothflux  , 1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(lneutral     , 1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(z0mav        , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(z0hav        , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(rsisurf2     , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(Cskinav      , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(lambdaskinav , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(albedoav     , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(Qnetav       , 1, 0, comm3d, mpierr)
-
-    call D_MPI_BCAST(rsminav      , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(rssoilminav  , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(cvegav       , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(Wlav         , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(LAIav        , 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(gDav         , 1, 0, comm3d, mpierr)
-
-    call D_MPI_BCAST(z0         ,1,0,comm3d,mpierr)
-    call D_MPI_BCAST(ustin      ,1,0,comm3d,mpierr)
-    call D_MPI_BCAST(wtsurf     ,1,0,comm3d,mpierr)
-    call D_MPI_BCAST(wqsurf     ,1,0,comm3d,mpierr)
-    call D_MPI_BCAST(ps         ,1,0,comm3d,mpierr)
-    call D_MPI_BCAST(thls       ,1,0,comm3d,mpierr)
-
-    call D_MPI_BCAST(lhetero                    ,            1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(loldtable                  ,            1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(lrsAgs                     ,            1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(lCO2Ags                    ,            1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(xpatches                   ,            1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(ypatches                   ,            1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(planttype                  ,            1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(lrelaxgc                   ,            1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(lrelaxci                   ,            1,  0, comm3d, mpierr)
-    call D_MPI_BCAST(kgc                        ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(kci                        ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(phi                        ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(phifc                      ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(phiwp                      ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(R10                        ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(lsplitleaf                 ,            1,  0, comm3d, mpierr)
-
-    call D_MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch,  0, comm3d, mpierr)
-
-    call D_MPI_BCAST(i_expemis                  ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(expemis0                   ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(expemis1                   ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(expemis2                   ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(ltskininp                  ,            1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(min_horv                   ,            1, 0, comm3d, mpierr)
 
     !$acc update device (xpatches, ypatches)
 

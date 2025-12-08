@@ -25,14 +25,7 @@ xtime      =  4.
 /
 
 &PHYSICS
-z0         =  0.1
-ustin      =  0.0
-ps         =  100000.00
-thls       =  290.
-wtsurf     =  0.
-wqsurf     =  0.
 lmoist     =  .false.
-isurf      =  4
 iradiation =  0
 useMcICA   =  .true.
 lcoriol    =  .true.
@@ -52,6 +45,14 @@ ldelta       = .true.
 /
 
 &NAMSURFACE
+isurf      =  4
+z0         =  0.1
+ustin      =  0.0
+ps         =  100000.00
+thls       =  290.
+wtsurf     =  0.
+wqsurf     =  0.
+
 tsoilav(1)   = 290.
 tsoilav(2)   = 287.
 tsoilav(3)   = 285.
