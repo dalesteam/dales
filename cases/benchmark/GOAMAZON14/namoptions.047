@@ -3,7 +3,7 @@ iexpnr     = 047
 nprocx     = 4
 nprocy     = 6 
 lwarmstart =  .false.
-startfile  =  'initd06h00m000.001'
+startfile  =  'initd_latest_x000y000.001'
 runtime    =  300
 trestart   =  50000
 dtmax      =  1
@@ -152,7 +152,6 @@ dtav = 60.
 
 &DYNAMICS
 llsadv     =  .false.
-lqlnr      =  .false.
 cu         =  -7.
 cv         =  -1.
 
@@ -160,7 +159,7 @@ iadv_mom    =  52
 iadv_tke    =  52
 iadv_thl    =  52
 iadv_qt     =  52
-iadv_sv     =  100*7
+iadv_sv     =  7
 /
 &NAMRADIATION
 lCnstAlbedo = .true.
@@ -190,7 +189,6 @@ dtav        = 60
 &NAMFIELDDUMP
 lfielddump  = .false.
 dtav        = 60
-ldiracc     = .true.
 /
 &NAMSTATTEND
 dtav        = 60

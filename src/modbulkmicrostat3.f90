@@ -33,9 +33,11 @@
 !
 module modbulkmicrostat3
   use modglobal, only : longint
+  use modlogging, only: finish
 
 implicit none
 private
+character(len=*), parameter :: modname = 'modbulkmicrostat3'
 PUBLIC  :: initbulkmicrostat3, bulkmicrostat3, exitbulkmicrostat3
 save
 !NetCDF variables
@@ -61,6 +63,7 @@ contains
 !> Initialization routine, reads namelists and inits variables
 subroutine initbulkmicrostat3
     use modmpi,    only  : myid, comm3d, mpierr, D_MPI_BCAST
+    use fortran_support, only: nnml_output
     use modglobal, only  : ifnamopt, fname_options, cexpnr, &
          dtav_glob, timeav_glob, ladaptive, dtmax,btime,tres,checknamelisterror,kmax
     use modstat_nc, only : lnetcdf,open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
@@ -70,6 +73,7 @@ subroutine initbulkmicrostat3
     implicit none
     integer      :: ierr
     integer      :: cnt
+    character(len=*), parameter :: routine = modname//'/initbulkmicrostat3'
 
     namelist/NAMBULKMICROSTAT/ &
     lmicrostat, dtav, timeav
@@ -80,7 +84,7 @@ subroutine initbulkmicrostat3
       open (ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMBULKMICROSTAT,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMBULKMICROSTAT')
-      write(6,NAMBULKMICROSTAT)
+      write(nnml_output,NAMBULKMICROSTAT)
       close(ifnamopt)
     end if
 
@@ -96,10 +100,10 @@ subroutine initbulkmicrostat3
 
     if (.not. lmicrostat) return
     if (abs(timeav/dtav - nsamples) > 1e-4) then
-      stop 'timeav must be an integer multiple of dtav (NAMBULKMICROSTAT)'
+      call finish(routine, 'timeav must be an integer multiple of dtav (NAMBULKMICROSTAT)')
     end if
     if (.not. ladaptive .and. abs(dtav/dtmax - nint(dtav/dtmax)) > 1e-4) then
-      stop 'dtav must be an integer multiple of dtmax (NAMBULKMICROSTAT)'
+      call finish(routine, 'dtav must be an integer multiple of dtmax (NAMBULKMICROSTAT)')
     end if
 
     ! TODO: text output
@@ -196,7 +200,7 @@ subroutine initbulkmicrostat3
 
           ! -- finish
           if (cnt /= nmvar) then
-            stop 'microstat3: wrong number of mphys output variables'
+            call finish(routine, 'wrong number of mphys output variables')
           endif
 
           ! adding dimensions
@@ -312,7 +316,7 @@ subroutine initbulkmicrostat3
 
           ! -- finish
           if (cnt /= ntvar) then
-            stop 'microstat3: wrong number of output tendencies'
+            call finish(routine,  'wrong number of output tendencies')
           endif
 
           ! adding dimensions
@@ -381,6 +385,7 @@ subroutine initbulkmicrostat3
     use modmicrodata3
 
     implicit none
+    character(len=*), parameter :: routine = modname//'/writebulkmicrostat3'
     integer  :: nsecs, nhrs, nminut
     integer  :: cnt
 
@@ -496,7 +501,7 @@ subroutine initbulkmicrostat3
           cnt = cnt + 11
 
           if (cnt /= nmvar) then
-            stop 'writemicrostat3: wrong number of output variables'
+            call finish(routine, 'wrong number of output variables')
           endif
         endif
 
@@ -599,7 +604,7 @@ subroutine initbulkmicrostat3
           cnt = cnt + 93
 
           if (cnt /= ntvar) then
-            stop 'writemicrostat3: wrong number of tendencies'
+            call finish(routine, 'wrong number of tendencies')
           endif
         endif
       end if

@@ -31,8 +31,10 @@ module modradstat
 
   use modglobal, only : longint
   use modprecision, only: field_r
+  use modlogging, only: finish
 
 implicit none
+character(len=*), parameter :: modname = 'modradstat'
 !private
 PUBLIC :: initradstat, radstat, exitradstat
 save
@@ -90,9 +92,12 @@ contains
     use modglobal, only : dtmax, k1, ifnamopt,fname_options, ifoutput,&
                           cexpnr,dtav_glob,timeav_glob,ladaptive,dt_lim,btime,tres,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf,define_nc,ncinfo
+    use fortran_support, only: nnml_output
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
 
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initradstat'
 
     integer ierr
     namelist/NAMRADSTAT/ &
@@ -104,7 +109,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMRADSTAT,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMRADSTAT')
-      write(6 ,NAMRADSTAT)
+      write(nnml_output ,NAMRADSTAT)
       close(ifnamopt)
     end if
 
@@ -124,10 +129,10 @@ contains
     dt_lim = min(dt_lim,tnext)
 
     if (abs(timeav/dtav-nsamples)>1e-4) then
-      stop 'timeav must be a integer multiple of dtav'
+      call finish(routine, 'timeav must be a integer multiple of dtav')
     end if
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'dtav should be a integer multiple of dtmax'
+      call finish(routine, 'dtav should be a integer multiple of dtmax')
     end if
 
     allocate(lwuav(k1))

@@ -14,13 +14,13 @@ jobs:
         toolchain:
           - {compiler: gcc, version: 13}
           - {compiler: intel, version: '2025.0'}
-          - {compiler: nvidia-hpc, version: '25.1'}
+          - {compiler: nvidia-hpc, version: '25.7'}
         target: ["CPU"]
         prec: ["DP"]
         hypre: ["OFF"]
         include:
           # GPU build
-          - toolchain: {compiler: nvidia-hpc, version: '25.1'}
+          - toolchain: {compiler: nvidia-hpc, version: '25.7'}
             target: "GPU"
             prec: "DP"
             hypre: "OFF"
@@ -40,6 +40,17 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: 'true'
+
+      - name: "Free up disk space"
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
 
       - name: "Install OpenMPI"
         if: matrix.toolchain.compiler == 'gcc'
@@ -108,7 +119,7 @@ jobs:
           cd build
 
           if ${{ matrix.target == 'GPU' }}; then
-            export CUDAToolkit_ROOT=/opt/nvidia/hpc_sdk/Linux_x86_64/25.1/cuda/12.6
+            export CUDAToolkit_ROOT=/opt/nvidia/hpc_sdk/Linux_x86_64/25.7/cuda/12.9
           fi
 
           FC=${{ env.MPI_COMPILER }} cmake -DCMAKE_BUILD_TYPE=DEBUG \

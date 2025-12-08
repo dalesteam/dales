@@ -9,6 +9,8 @@ module modstat_profiles
   use modstat_nc
   use modprecision,   only: field_r, longint
   use modslabaverage, only: slabavg
+  use modlogging, only: finish
+  use fortran_support, only: nnml_output
 
   implicit none
 
@@ -89,7 +91,7 @@ contains
     character(len=*), intent(in) :: unit
     character(len=*), intent(in) :: dim
 
-    character(len=*), parameter :: routine = modname//':add_profile'
+    character(len=*), parameter :: routine = modname//'/add_profile'
 
     character(len=80), allocatable :: tmp_ncname(:,:)
     integer :: idx
@@ -100,8 +102,7 @@ contains
     else
       ! Check if given name already exists. For the long name, we don't care.
       if (find_index(name) /= 0) then
-        call print_info_stderr(routine, 'profile '//trim(name)//' already exists')
-        error stop
+        call finish(routine, 'profile '//trim(name)//' already exists')
       else
         ! If already allocated, grow in size by 1
         allocate(tmp_ncname(size(ncname, dim=1) + 1, 4))
@@ -131,6 +132,7 @@ contains
       open(ifnamopt, file=fname_options, status='old', iostat=ierr)
       read(ifnamopt, NAMOUT1D, iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMOUT1D')
+      write(nnml_output, NAMOUT1D)
       close(ifnamopt)
     end if
 
@@ -229,7 +231,7 @@ contains
     character(len=*), intent(in) :: name
     real(field_r),    intent(in) :: field(:,:,:)
 
-    character(len=*), parameter :: routine = modname//':sample_profile'
+    character(len=*), parameter :: routine = modname//'/sample_profile'
 
     integer :: k, idx
     integer :: nh
@@ -241,8 +243,7 @@ contains
       idx = find_index(name)
 
       if (idx == 0) then
-        call print_info_stderr(routine, 'profile '//trim(name)//' not found')
-        error stop
+        call finish(routine, 'profile '//trim(name)//' not found')
       end if
 
       ! A bit hacky maybe: figure out if the given field has ghost cells
@@ -265,7 +266,7 @@ contains
     real(field_r),    intent(in) :: field(:,:,:)
     logical,          intent(in) :: mask(:,:,:)
 
-    character(len=*), parameter :: routine = modname//':sample_profile_masked'
+    character(len=*), parameter :: routine = modname//'/sample_profile_masked'
 
     integer :: k, idx
     integer :: nh
@@ -276,8 +277,7 @@ contains
       idx = find_index(name)
 
       if (idx == 0) then
-        call print_info_stderr(routine, 'profile '//trim(name)//' not found')
-        error stop
+        call finish(routine, 'profile '//trim(name)//' not found')
       end if
 
       ! A bit hacky maybe: figure out if the given field has ghost cells

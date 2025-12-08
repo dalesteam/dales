@@ -32,7 +32,10 @@ use modglobal, only : itot, jtot, imax, jmax, i1, j1, ih, jh, kmax, ijtot &
 use modmpi, only : commcol, commrow, mpierr, nprocx, D_MPI_ALLTOALL, nprocy &
                  , myidx, myidy
 use modtranspose, only: t_transposer
+use modlogging, only: finish
 implicit none
+
+character(len=*), parameter :: modname = 'modfftw'
 
 #ifdef USE_FFTW
 
@@ -96,6 +99,8 @@ contains
 
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/fftwinit'
+
     real(pois_r), pointer              :: p(:,:,:)
     real(pois_r), pointer              :: Fp(:,:,:)
     real(pois_r), allocatable          :: d(:,:,:)
@@ -154,8 +159,7 @@ contains
     ptr = fftwf_alloc_real(sz)
 #endif
     if( .not. c_associated(ptr) ) then
-       write (*,*) "modfftw: ptr is not associated,  fftw(f)_alloc_real(", sz, ") failed."
-       stop "fftw(f)_alloc_real failed"
+       call finish(routine, "ptr is not associated,  fftw(f)_alloc_real(", sz, ") failed.")
     end if
     ! convert it to a fortran pointer, or 1D array
     call c_f_pointer(ptr, fptr, (/sz/))
@@ -267,7 +271,7 @@ contains
     if ((.not. c_associated(planx)) .or. (.not. c_associated(plany)) &
         .or. (.not. c_associated(planxi)) .or. (.not. c_associated(planyi))) then
 
-       STOP "FFTW plan creation failed (method 1)."
+       call finish(routine, "FFTW plan creation failed (method 1).")
     end if
 
     allocate(xyrt(iony,jonx))
@@ -330,7 +334,7 @@ contains
     )
 
     if ((.not. c_associated(planxy)) .or. (.not. c_associated(planxyi))) then
-       STOP "FFTW plan creation failed (method 2)."
+       call finish(routine, "FFTW plan creation failed (method 2).")
     end if
 
     allocate(xyrt(2-ih:i1+ih,2-jh:j1+jh))
@@ -343,7 +347,7 @@ contains
     qe = j1
 
     else
-      stop 'Illegal method in fftwinit.'
+      call finish(routine, 'Illegal method in fftwinit.')
     endif
 
     call fftwinit_factors(xyrt)
@@ -352,6 +356,8 @@ contains
 
  subroutine fftwexit(p,Fp,d,xyrt)
    implicit none
+   character(len=*), parameter :: routine = modname//'/fftwexit'
+
    real(pois_r), pointer :: p(:,:,:)
    real(pois_r), pointer :: Fp(:,:,:)
    real(pois_r), allocatable :: d(:,:,:)
@@ -366,7 +372,7 @@ contains
      call fftw_destroy_plan(planxy)
      call fftw_destroy_plan(planxyi)
    else
-     stop 'Illegal method in fftwexit.'
+     call finish(routine, 'Illegal method in fftwexit.')
    endif
 
    ! ptr, planx, planxi, plany, planyi are C pointers,
@@ -382,6 +388,8 @@ contains
 
   subroutine fftwf(p, Fp)
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/fftwf'
 
     real(pois_r), pointer :: p(:,:,:)
     real(pois_r), pointer :: Fp(:,:,:)
@@ -403,7 +411,7 @@ contains
     else if (method == 2) then
       call fftw_execute_r2r_if(planxy, p_nohalo, p_nohalo)
     else
-      stop 'Illegal method in fftwsolver.'
+      call finish(routine, 'Illegal method in fftwsolver.')
     endif
 
     !Fp(:,:,:) = Fp(:,:,:) / sqrt(ijtot)  ! moving normalization to fftwb
@@ -411,6 +419,7 @@ contains
 
   subroutine fftwb(p, Fp)
     implicit none
+    character(len=*), parameter :: routine = modname//'/fftwb'
 
     real(pois_r), pointer :: p(:,:,:)
     real(pois_r), pointer :: Fp(:,:,:)
@@ -430,7 +439,7 @@ contains
     else if (method == 2) then
       call fftw_execute_r2r_if(planxyi, p_nohalo, p_nohalo)
     else
-      stop 'Illegal method in fftwsolver.'
+      call finish(routine, 'Illegal method in fftwsolver.')
    endif
 
    norm = 1.0/ijtot
@@ -445,6 +454,8 @@ contains
     use modmpi, only    : myidx, myidy
 
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/fftwinit_factors'
 
     real(pois_r), allocatable :: xyrt(:,:)
 
@@ -517,7 +528,7 @@ contains
       enddo
       enddo
     else
-      stop 'Illegal method in fftwinit_factors.'
+      call finish(routine, 'Illegal method in fftwinit_factors.')
     endif
   end subroutine fftwinit_factors
 

@@ -54,6 +54,7 @@ set( dales_srcs
 	modhypre.f90
 	modibm.f90
 	modibmdata.f90
+	modlogging.f90
 	modlsm.f90
 	modlsmcrosssection.f90
 	modlsmdata.f90
@@ -71,6 +72,7 @@ set( dales_srcs
 	modnudgeboundary.f90
 	modnvtx.f90
 	modopenboundary.f90
+	modpois_data.f90
 	modpois.f90
 	modprecision.f90
 	modquadrant.f90
@@ -249,8 +251,10 @@ ecbuild_add_executable( TARGET dales
                           ${NetCDF_Fortran_INCLUDE_DIR}
                           $<$<BOOL:${ENABLE_FFTW}>:${FFTW_INCLUDE_DIRS}>
                         LIBS
+                          MPI::MPI_Fortran
                           NetCDF::NetCDF_Fortran
                           NetCDF::NetCDF_C
+													fortran-support::fortran-support
                           $<$<BOOL:${ENABLE_ACC}>:OpenACC::OpenACC_Fortran>
                           $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3>
                           $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3f>
@@ -276,6 +280,7 @@ ecbuild_add_library( TARGET libdales
                        ${NetCDF_Fortran_INCLUDE_DIR}
                        $<$<BOOL:${ENABLE_FFTW}>:${FFTW_INCLUDE_DIRS}>
                      PUBLIC_LIBS
+                       MPI::MPI_Fortran
                        NetCDF::NetCDF_Fortran
                        $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3>
                        $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3f>

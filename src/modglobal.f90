@@ -25,8 +25,11 @@ module modglobal
 use iso_c_binding
 use modprecision
 use netcdf
+use modlogging, only: finish
 implicit none
 save
+
+      character(len=*), parameter :: modname = 'modglobal'
 
       ! Simulation dimensions (parconst.f90)
       integer :: itot = 64
@@ -151,32 +154,6 @@ save
       logical :: lconstexner = .false.  !<  switch to use the initial pressure profile in the exner function
       logical :: lbaseexner = .false.   !<  switch to use the base pressure profile in the exner function
 
-      ! Poisson solver: modpois / modhypre
-      ! set default solver, can be overridden in namoptions
-#if defined(DALES_GPU)
-      integer :: solver_id = 200 ! cufft (default if OpenACC is used)
-#elif defined(USE_FFTW)
-      integer :: solver_id = 100 ! FFTW  (default if FFTW library compiled in and not on GPU)
-#else
-      integer :: solver_id = 0   ! Built-in FFT
-#endif
-                                     ! solver_id:                           0    1   2     3       4      100    200
-                                     !                                     FFT  SMG PFMG BiCGSTAB GMRES  FFTW  cufft
-      integer :: maxiter = 10000     ! Number of iterations                 .    X   X     X       X
-      real(real64):: tolerance = 1E-8! Convergence threshold                .    X   X     X       X
-      integer :: n_pre = 1           ! Number of pre and post relaxations   .    X   X     X       X
-      integer :: n_post =1           ! Number of pre and post relaxations   .    X   X     X       X
-      integer :: precond_id = 1      ! Preconditioner ID                    .    .  12   0189     0189
-      integer :: maxiter_precond = 1 ! Number of iterations for precondition per iteration
-      integer :: hypre_logging = 1   ! HYPRE logging and print level - set higher value for more messages
-      type solver_type
-         !integer*8 solver,precond
-        type(c_ptr) solver, precond
-        integer   solver_id, precond_id, maxiter, n_post, n_pre, maxiter_precond
-        real      tolerance
-      end type
-      type(solver_type) :: psolver
-
       ! Global variables (modvar.f90)
       integer :: xyear  = 0     !<     * year, only for time units in netcdf
       real :: xday      = 1.    !<     * day number
@@ -267,7 +244,7 @@ save
       logical :: lmomsubs = .false.  !<  switch to apply subsidence on the momentum or not
       logical :: ldrydep = .false.         !< On/Off switch dry deposition
 
-      character(80) :: author='', version='DALES 4.4.2'
+      character(80) :: author='', version='DALES 5.0.0'
 
       ! We are running with a debugger
       logical :: ldebug = .false.
@@ -279,7 +256,10 @@ contains
   subroutine initglobal
     use modmpi, only : nprocx, nprocy, myid,comm3d, mpierr, D_MPI_BCAST
     use modnetcdf, only: check
+    use modlogging, only : profile_output, warning
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initglobal'
 
     integer :: advarr(4)
     real phi, colat, silat, omega, omega_gs
@@ -388,8 +368,7 @@ contains
       if(myid==0)then
         open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
         if (ierr /= 0) then
-           write(6,*) 'Cannot open the file ', 'prof.inp.'//cexpnr
-           STOP
+           call finish(routine, 'Cannot open the file prof.inp.'//cexpnr)
         end if
         read(ifinput,'(a72)') chmess
         read(ifinput,'(a72)') chmess
@@ -448,8 +427,7 @@ contains
 
     if(myid==0)then
       if (.not.leq) then
-        write(6,*) &
-            'WARNING, You are working with a non-equidistant grid!!!!'
+        call warning(routine,'WARNING, You are working with a non-equidistant grid!!!!')
       end if
     end if ! end if myid==0
 
@@ -469,14 +447,14 @@ contains
     dzi5    = 0.5*dzi
 
     if(myid==0)then
-      write (6,*) 'lev    dz     zf      zh       dzh    delta'
+      write (profile_output,*) 'lev    dz     zf      zh       dzh    delta'
       do k=k1,1,-1
-        write(6,'(i4,5f10.2)') k,dzf(k),zf(k),zh(k),dzh(k),delta(k)
+        write(profile_output,'(i4,5f10.2)') k,dzf(k),zf(k),zh(k),dzh(k),delta(k)
       end do
 
       do k=1,k1
         if (dzf(k) <= 0 .or. dzh(k) <= 0) then
-          stop "Zero or negative level spacing found in dzf or dzh."
+          call finish(routine, "Zero or negative level spacing found in dzf or dzh.")
         end if
       end do
     end if

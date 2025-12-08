@@ -1,14 +1,13 @@
 &RUN
 iexpnr     =  001
 lwarmstart =  .false.
-startfile  =  'initd001h00mx000y000.001'
+startfile  =  'initd_latest_x000y000.001'
 runtime    =  7200
-trestart   =  3600 
+trestart   =  7200 
 ladaptive  =  .true.
 irandom    =  43
 randthl    =  0.1
 randqt     =  2.5e-5
-nsv        =  2
 /
 
 &DOMAIN
@@ -31,8 +30,6 @@ ps         =  100000.00
 thls       =  296.
 wtsurf     =  0.1
 wqsurf     =  0.0001
-wsvsurf(1) =  0.1
-wsvsurf(2) =  1.
 lmoist     =  .true.
 isurf      =  1
 iradiation =  1
@@ -78,7 +75,6 @@ Wlav         = 0.0
 
 &DYNAMICS
 llsadv     =  .false.
-lqlnr      =  .false.
 cu         =  0.
 cv         =  0.
 
@@ -86,7 +82,7 @@ iadv_mom    =  62
 iadv_tke    =  62
 iadv_thl    =  52
 iadv_qt     =  52
-iadv_sv     =  100*52
+iadv_sv     =  52
 /
 
 &NAMSUBGRID
@@ -127,7 +123,6 @@ timeav      = 1800
 &NAMFIELDDUMP
 lfielddump  = .false.
 dtav        = 60
-ldiracc     = .true.
 /
 
 &NAMSTATTEND

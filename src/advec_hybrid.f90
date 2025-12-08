@@ -27,6 +27,8 @@
 module advec_hybrid
 use modprecision, only: field_r
 implicit none
+
+character(len=*), parameter :: modname = 'advec_hybrid'
 contains
 
 subroutine hadvecc_hybrid(pin,pout)
@@ -230,7 +232,9 @@ end function ip_hybrid
 function smoothness(pin,dir)
   use modglobal, only : kmax,ih,i1,jh,j1,k1
   use modfields, only : u0,v0,w0
+  use modlogging, only: finish
   implicit none
+  character(len=*), parameter :: routine = modname//'/smoothness'
   real(field_r),intent(in),dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: pin
   integer,intent(in) :: dir
   real,dimension(2:i1+1,2:j1+1,k1) :: smoothness
@@ -310,7 +314,7 @@ function smoothness(pin,dir)
       end do
     end do
   case default
-    stop 'ERROR: incorrect direction selected'
+    call finish(routine, 'ERROR: incorrect direction selected') 
   end select
 end function smoothness
 

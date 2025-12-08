@@ -120,7 +120,7 @@ contains
     use modglobal,only : ifnamopt,ifoutput,fname_options,ifinput,cexpnr,&
                          i1,j1,ih,jh,k1,iexpnr,cu,lmoist,timeav_glob, dtav_glob, dt_lim,btime,tres
     use modstartup,only : irandom,randthl,krand,randomnize
-
+    use fortran_support, only: nnml_output
     implicit none
 
 
@@ -139,7 +139,7 @@ contains
           print *, 'iostat error: ', ierr
           stop 'ERROR: Problem in namoptions NAMTILT'
         endif
-        write(6 ,NAMTILT)
+        write(nnml_output ,NAMTILT)
       close(ifnamopt)
     end if
 

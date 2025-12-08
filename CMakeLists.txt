@@ -1,5 +1,4 @@
 cmake_minimum_required( VERSION 3.17 FATAL_ERROR )
-
 list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/external/ecbuild/cmake" )
 find_package( ecbuild REQUIRED )
 
@@ -59,9 +58,7 @@ ecbuild_add_option( FEATURE RRTMG
 
 ecbuild_find_package( NetCDF REQUIRED COMPONENTS Fortran C )
 
-ecbuild_find_mpi( COMPONENTS Fortran REQUIRED )
-ecbuild_info( "MPI compiler: ${MPI_Fortran_COMPILER}")
-set ( CMAKE_Fortran_COMPILER ${MPI_Fortran_COMPILER} )
+ecbuild_find_package( MPI REQUIRED COMPONENTS Fortran )
 
 # Set precision
 
@@ -109,7 +106,6 @@ if( ENABLE_RRTMG )
 endif()
 
 # GPU stuff
-
 include( dales_find_cuda )
 
 if( ENABLE_ACC )
@@ -131,6 +127,11 @@ endif()
 if( ENABLE_ACC OR ENABLE_NVTX )
   dales_find_cuda()
 endif()
+
+# Find the fortran-support library (included). This library can be compiled with
+# OpenACC support, so it's probably best to place it after 
+include ( dales_add_fortran_support )
+ecbuild_find_package( fortran-support REQUIRED QUIET )
 
 include( dales_compile_options )
 add_subdirectory( src )

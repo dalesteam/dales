@@ -18,6 +18,7 @@ module modaerosol
   use modbulkmicro_data, only: l_sb, qrmin
   use bulkmicro_sb,      only: calc_sed_qr_sb, calc_sed_nr_sb
   use bulkmicro_kk,      only: calc_sed_nr_kk, calc_sed_qr_kk
+  use fortran_support,   only: nnml_output
   use modstat_nc
 
   implicit none
@@ -83,6 +84,7 @@ contains
       open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
       read(ifnamopt, NAMAEROSOL, iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMAEROSOL')
+      write(nnml_output, NAMAEROSOL)
       close(ifnamopt)
     end if
 

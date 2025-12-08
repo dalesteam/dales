@@ -20,6 +20,7 @@
 module modnudge
   use modprecision, only: field_r
   use modtimer,     only: timer_tic, timer_toc
+  use modlogging, only: finish
 
   implicit none
 
@@ -74,11 +75,12 @@ contains
   subroutine initnudge
     use modmpi,     only: myid, mpierr, comm3d, D_MPI_BCAST
     use modglobal,  only: ifnamopt, fname_options, runtime, cexpnr, ifinput, &
-                          k1, kmax, checknamelisterror, iinput, input_netcdf, nsv
+                               k1, kmax, checknamelisterror, iinput, input_netcdf, nsv
     use modtracers, only: tracer_prop
+    use fortran_support, only: nnml_output
     use modstat_nc
 
-    character(*), parameter :: routine = modname//"::initnudge"
+    character(*), parameter :: routine = modname//"/initnudge"
 
     integer      :: ierr, k, n, t
     integer      :: ncid, varid, dimid
@@ -92,7 +94,7 @@ contains
       open(ifnamopt, file=fname_options, status='old', iostat=ierr)
       read(ifnamopt, NAMNUDGE, iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMNUDGE')
-      write(6, NAMNUDGE)
+      write(nnml_output, NAMNUDGE)
       close(ifnamopt)
     end if
 
@@ -230,9 +232,7 @@ contains
         do while (timenudge(t) < runtime)
           t = t + 1
           if (t > ntnudge) then
-            write(*, *) "Too many time points in file ", 'nudge.inp.'//cexpnr, &
-            &", the limit is ntnudge = ", ntnudge
-            stop
+            call finish(routine,  "Too many time points in file ", 'nudge.inp.'//cexpnr, ", the limit is ntnudge = ", ntnudge)
           end if
 
           chmess1 = "#"
@@ -241,7 +241,7 @@ contains
           do while (.not. (chmess1 == "#" .and. ierr == 0))
             read(ifinput, *, iostat=ierr) chmess1, timenudge(t)
             if (ierr < 0) then
-              stop 'STOP: No time dependend nudging data for end of run'
+              call finish(routine, 'STOP: No time dependend nudging data for end of run')
             end if
 
           end do

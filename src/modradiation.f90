@@ -29,7 +29,10 @@
 module modradiation
 use modraddata
 use modtimer
+use modlogging, only: finish
 implicit none
+
+character(len=*), parameter :: modname = 'modradiation'
 
 contains
 
@@ -37,7 +40,10 @@ contains
   subroutine initradiation
     use modglobal,    only : i1,ih,j1,jh,k1,nsv,ih,jh,tres,ifnamopt,fname_options,checknamelisterror
     use modmpi,       only : myid,comm3d,D_MPI_BCAST
+    use fortran_support, only: nnml_output
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initradiation'
 
     integer :: ierr
 
@@ -58,19 +64,19 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMDE,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMDE')
-      write(6 ,NAMDE)
+      write(nnml_output ,NAMDE)
 
       rewind(ifnamopt)
 
       read (ifnamopt,NAMRADIATION,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMRADIATION')
-      write(6 ,NAMRADIATION)
+      write(nnml_output ,NAMRADIATION)
 
       rewind(ifnamopt)
 
       read (ifnamopt,NAMRTERRTMGP,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMRTERRTMGP')
-      write(6 ,NAMRTERRTMGP)
+      write(nnml_output ,NAMRTERRTMGP)
 
       close(ifnamopt)
     end if
@@ -186,7 +192,7 @@ contains
 
 #if defined(_OPENACC)
     if(iradiation/=irad_none .and. iradiation/=irad_rte_rrtmgp) then
-      stop "Please select the RTE-RRTMGP radiation scheme when running on GPU."
+      call finish(routine, "Please select the RTE-RRTMGP radiation scheme when running on GPU.")
     endif
 #endif
 
@@ -203,9 +209,9 @@ contains
 
       if (rad_smoke.and.isvsmoke>nsv) then
         if (rad_shortw) then
-           stop 'you want to compute solar radiative transfer through a smoke cloud'
+           call finish(routine, 'you want to compute solar radiative transfer through a smoke cloud')
         endif
-        stop 'Smoke radiation with wrong (non-existent?) scalar field'
+        call finish(routine, 'Smoke radiation with wrong (non-existent?) scalar field')
       endif
     end if
 

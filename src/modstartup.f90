@@ -36,6 +36,7 @@ use modtimer
 use modstat_nc
 use modchecksim, only: check_array
 use modstringutils, only: number2string
+use modlogging, only: warning, finish, message
 
 implicit none
 ! private
@@ -76,11 +77,11 @@ contains
                                   ifnamopt,fname_options,llsadv,lconstexner,lbaseexner, &
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,&
                                   lnoclouds,lfast_thermo,lrigidlid,unudge,ntimedep,&
-                                  solver_id, maxiter, maxiter_precond, tolerance, n_pre, n_post, precond_id, checknamelisterror, &
+                                  checknamelisterror, &
                                   loutdirs, output_prefix, &
                                   lopenbc,linithetero,lperiodic,dxint,dyint,dzint,dxturb,dyturb,taum,tauh,pbc,&
                                   lsynturb,nmodes,tau,lambda,lambdas,lambdas_x,lambdas_y,lambdas_z,iturb, &
-                                  hypre_logging,rdt,rk3step,i1,j1,k1,ih,jh,lboundary,iinput,dzf
+                                  rdt,rk3step,i1,j1,k1,ih,jh,lboundary,iinput,dzf
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -114,11 +115,12 @@ contains
     use modchecksim,       only : chkdiv
     use modnamelist,       only : read_namelists
     use modspraying,       only : initspraying
-#if defined(_OPENACC)
-    use modgpu,             only : initgpu
-#endif
+    use fortran_support,   only: nnml_output
 
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/startup'
+
     integer :: ierr
     logical,dimension(2) :: lper = .false.
     character(256), optional, intent(in) :: path
@@ -143,8 +145,6 @@ contains
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge,lfast_thermo,lconstexner,lbaseexner
     namelist/DYNAMICS/ &
         llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
-    namelist/SOLVER/ &
-        solver_id, maxiter, tolerance, n_pre, n_post, precond_id, maxiter_precond, hypre_logging
     namelist/OPENBC/ &
         lopenbc,linithetero,lper,lbuoytop,dxint,dyint,dzint,dxturb,dyturb,taum,tauh,pbc,lsynturb,iturb,tau,lambda,nmodes,lambdas,lambdas_x,lambdas_y,lambdas_z,lbuoytop
 
@@ -167,31 +167,27 @@ contains
 
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       if (ierr /= 0) then
-        stop 'ERROR:Namoptions does not exist'
+        call finish(routine, 'ERROR:Namoptions does not exist')
       end if
       read (ifnamopt,RUN,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'RUN')
-      write(6 ,RUN)
+      write(nnml_output ,RUN)
       rewind(ifnamopt)
       read (ifnamopt,DOMAIN,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'DOMAIN')
-      write(6 ,DOMAIN)
+      write(nnml_output ,DOMAIN)
       rewind(ifnamopt)
       read (ifnamopt,PHYSICS,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'PHYSICS')
-      write(6 ,PHYSICS)
+      write(nnml_output ,PHYSICS)
       rewind(ifnamopt)
       read (ifnamopt,DYNAMICS,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'DYNAMICS')
-      write(6 ,DYNAMICS)
-      rewind(ifnamopt)
-      read (ifnamopt,SOLVER,iostat=ierr)
-      call checknamelisterror(ierr, ifnamopt, 'SOLVER')
-      write(6 ,SOLVER)
+      write(nnml_output ,DYNAMICS)
       rewind(ifnamopt)
       read (ifnamopt,OPENBC,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'OPENBC')
-      write(6 ,OPENBC)
+      write(nnml_output ,OPENBC)
       close(ifnamopt)
       if(lopenbc) then
         ! Check if grid needs to be periodic
@@ -212,10 +208,6 @@ contains
     ! Initialize MPI
     call initmpi
 
-    ! Initialize OpenACC
-#if defined(_OPENACC)
-    call initgpu(commwrld)
-#endif
     !$acc update device (myidx,myidy)
 
     ! Ignore user-provided nsv, we take care of it ourselves
@@ -318,14 +310,6 @@ contains
     call D_MPI_BCAST(iadv_sv ,1,0,commwrld,mpierr)
 
     call D_MPI_BCAST(lnoclouds  ,1,0,commwrld,mpierr)
-
-    call D_MPI_BCAST(solver_id,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(maxiter,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(n_pre,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(n_post,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(tolerance,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(precond_id,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(maxiter_precond,1,0,commwrld,mpierr)
 
     ! Broadcast openboundaries Variables
     call D_MPI_BCAST(lopenbc,    1, 0,commwrld,mpierr)
@@ -444,66 +428,52 @@ contains
     use modmpi,      only: myid, nprocx, nprocy, mpierr, MPI_FINALIZE
     use modtimedep,  only: ltimedep
 
+    character(len=*), parameter :: routine = modname//'/checkinitvalues'
+
     ! Check MPI configuration
     if (mod(jtot, nprocy) /= 0) then
-      if (myid == 0)then
-        write(6,'(A13,I4,A30,I4,A40)') 'ERROR: jtot (', jtot, ') is not &
-          &divisible by nprocy (', nprocy, '). Please change your MPI &
-          &configuration.'
-      end if
-      call MPI_FINALIZE(mpierr)
-      stop
+      call finish(routine, 'ERROR: jtot (', jtot, ') is not &
+        &divisible by nprocy (', nprocy, '). Please change your MPI &
+        &configuration.')
     else
       if(myid == 0) then
-        write(6,*) 'jmax = jtot / nprocy = ', jmax
+        call message(routine, 'jmax = jtot / nprocy = ', jmax)
       end if
     end if
 
     if (mod(itot, nprocx) /= 0) then
-      if (myid == 0) then
-        write(6,'(A13,I4,A30,I4,A40)') 'ERROR: jtot (', itot, ') is not &
+        call finish(routine, 'ERROR: jtot (', itot, ') is not &
           &divisible by nprocy (', nprocx, '). Please change your MPI &
-          &configuration.'
-      end if
-      call MPI_FINALIZE(mpierr)
-      stop
+          &configuration.')
     else
       if (myid == 0) then
-        write(6,*)'imax = itot / nprocx = ', imax
+        call message(routine, 'imax = itot / nprocx = ', imax)
       end if
     end if
 
     ! Check if we have overlapping ghost cells
     if (ih > imax) then
-      if (myid == 0) then
-        write(6,'(A13,I4,A54,I4,A40)') 'ERROR: imax (', imax, ') is smaller &
-         &than the required number of ghost cells (', ih, '). Please change &
-         &your MPI configuration.'
-      end if
-      call MPI_FINALIZE(mpierr)
-      stop
+      call finish(routine, 'ERROR: imax (', imax, ') is smaller &
+        &than the required number of ghost cells (', ih, '). Please change &
+        &your MPI configuration.')
     end if
 
     if (jh > jmax) then
-      if (myid == 0) then
-        write(6,'(A13,I4,A54,I4,A40)') 'ERROR: jmax (', jmax, ') is smaller &
-         &than the required number of ghost cells (', jh, '). Please change &
-         &your MPI configuration.'
-      end if
-      call MPI_FINALIZE(mpierr)
-      stop
+      call finish(routine, 'ERROR: jmax (', jmax, ') is smaller &
+        &than the required number of ghost cells (', jh, '). Please change &
+        &your MPI configuration.')
     end if
 
     ! Check namoptions
-    if (runtime < 0) stop 'runtime out of range/not set'
-    if (dtmax < 0) stop 'dtmax out of range/not set'
-    if (ps < eps1) stop 'psout of range/not set'
-    if (thls < eps1) stop 'thls out of range/not set'
-    if (xsize < 0) stop 'xsize out of range/not set'
-    if (ysize < 0) stop 'ysize out of range/not set'
+    if (runtime < 0) call finish(routine, 'runtime out of range/not set')
+    if (dtmax < 0) call finish(routine, 'dtmax out of range/not set')
+    if (ps < eps1) call finish(routine, 'psout of range/not set')
+    if (thls < eps1) call finish(routine, 'thls out of range/not set')
+    if (xsize < 0) call finish(routine, 'xsize out of range/not set')
+    if (ysize < 0) call finish(routine, 'ysize out of range/not set')
 
     if (lwarmstart) then
-      if (startfile == '') stop 'no restartfile set'
+      if (startfile == '') call finish(routine, 'no restartfile set')
     end if
 
     ! Surface
@@ -512,15 +482,15 @@ contains
         case (1)
         case (2,10)
         case (3:4)
-          if (wtsurf < -1E10) stop 'wtsurf not set'
-          if (wqsurf < -1E10) stop 'wqsurf not set'
+          if (wtsurf < -1E10) call finish(routine, 'wtsurf not set')
+          if (wqsurf < -1E10) call finish(routine, 'wqsurf not set')
         case (11)
         case default
-          stop 'isurf out of range/not set'
+          call finish(routine, 'isurf out of range/not set')
       end select
 
       if (isurf == 3) then
-        if (ustin < 0) stop 'ustin out of range/not set'
+        if (ustin < 0) call finish(routine, 'ustin out of range/not set')
       end if
     end if
 
@@ -532,7 +502,7 @@ contains
     end if
 
     if (lcoriol .and. lpressgrad) then
-      if (myid==0) stop "Coriolis force (lcoriol) and channel-like pressure gradient (lpressgrad) are mutually exclusive. To use Coriolis force with NO pressure gradient, set geowinds to zero."
+      if (myid==0) call finish(routine, "Coriolis force (lcoriol) and channel-like pressure gradient (lpressgrad) are mutually exclusive. To use Coriolis force with NO pressure gradient, set geowinds to zero.")
    end if
   end subroutine checkinitvalues
 
@@ -570,12 +540,13 @@ contains
     use go,                only : goSplitString_s
     use utils,             only : to_lower
     use modslabaverage,    only : slabavg
+    use modlogging,        only : profile_output
 
 #if defined(_OPENACC)
     use modgpu, only: update_gpu, update_host, host_is_updated, update_gpu_surface
 #endif
 
-    character(len=*), parameter :: routine = modname//"::readinitfiles"
+    character(len=*), parameter :: routine = modname//"/readinitfiles"
 
     integer i,j,k,n,ierr
     integer isv, isv_u
@@ -637,8 +608,7 @@ contains
         else
           open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
           if (ierr /= 0) then
-             write(6,*) 'Cannot open the file ', 'prof.inp.'//cexpnr
-             STOP
+             call finish(routine, 'Cannot open the file ', 'prof.inp.'//cexpnr)
           end if
           read (ifinput,'(a512)') chmess
           write(*,     '(a512)') chmess
@@ -657,9 +627,9 @@ contains
           close(ifinput)
         end if   !ltestbed
 
-        write(*,*) 'height    thl      qt         u      v     e12'
+        write(profile_output,*) 'height    thl      qt         u      v     e12'
         do k = kmax, 1, -1
-          write (*,'(f7.1,f8.1,e12.4,3f7.1)') &
+          write (profile_output,'(f7.1,f8.1,e12.4,3f7.1)') &
                 zf     (k), &
                 thlprof(k), &
                 qtprof (k), &
@@ -688,8 +658,7 @@ contains
         if (nsv_user>0 .and. iinput == input_ascii) then
           open (ifinput,file='scalar.inp.'//cexpnr,status='old',iostat=ierr)
           if (ierr /= 0) then
-             write(6,*) 'Cannot open the file ', 'scalar.inp.'//cexpnr
-             STOP
+             call finish(routine,'Cannot open the file ', 'scalar.inp.'//cexpnr)
           end if
 
           ! reading header (2 lines)
@@ -716,7 +685,7 @@ contains
             end do
 
             if (.not. found) then
-              call print_info_stderr(routine, "no initial profile found for &
+              call warning(routine, "no initial profile found for &
                 & "//tracer_prop(isv)%tracname)
             end if
           end do
@@ -727,19 +696,19 @@ contains
 
       if (myid == 0) then
         ! Print tracer profiles to stderr
-        write(0, '(a9)', advance='no') 'height   '
+        write(profile_output, '(a9)', advance='no') 'height   '
         do isv = 1, nsv
-          write(0, '(a12)', advance='no') tracer_prop(isv)%tracname
+          write(profile_output, '(a12)', advance='no') tracer_prop(isv)%tracname
         end do
 
-        write(0, *)
+        write(profile_output, *)
 
         do k = kmax, 1, -1
-          write(0,'(f7.1,2x)', advance='no') height(k)
+          write(profile_output,'(f7.1,2x)', advance='no') height(k)
           do isv = 1, nsv
-            write(0, '(e10.4,2x)', advance='no') svprof(k,isv)
+            write(profile_output, '(e10.4,2x)', advance='no') svprof(k,isv)
           end do
-          write(0, *)
+          write(profile_output, *)
         end do
       end if
 
@@ -1083,8 +1052,7 @@ contains
         else
           open (ifinput,file='lscale.inp.'//cexpnr, status='old',iostat=ierr)
           if (ierr /= 0) then
-             write(6,*) 'Cannot open the file ', 'lscale.inp.'//cexpnr
-             STOP
+             call finish(routine,'Cannot open the file ', 'lscale.inp.'//cexpnr)
           end if
           read (ifinput,'(a80)') chmess
           read (ifinput,'(a80)') chmess
@@ -1121,10 +1089,10 @@ contains
       end if
 
       if (lcoriol) then
-        write(6,*) ' height u_geo   v_geo    subs     ' &
+        write(profile_output,*) ' height u_geo   v_geo    subs     ' &
                   ,'   dqtdx      dqtdy        dqtdtls     thl_rad '
         do k=kmax,1,-1
-          write (6,'(3f7.1,5e12.4)') &
+          write (profile_output,'(3f7.1,5e12.4)') &
                 zf     (k), &
                 ug     (k), &
                 vg     (k), &
@@ -1135,10 +1103,10 @@ contains
                 thlpcar(k)
         end do
       else
-        write(6,*) ' height u_geo   v_geo    subs     ' &
+        write(profile_output,*) ' height u_geo   v_geo    subs     ' &
         ,'   dqtdx      dqtdy        dqtdtls     thl_rad '
         do k=kmax,1,-1
-          write (6,'(3f7.1,5e12.4)') &
+          write (profile_output,'(3f7.1,5e12.4)') &
                 zf     (k), &
                 dpdxl  (k), &
                 dpdyl  (k), &
@@ -1189,7 +1157,7 @@ contains
     !******include rho if rho = rho(z) /= 1.0 ***********
 
     if (llsadv) then
-      if (myid==0) stop 'llsadv should not be used anymore. Large scale gradients were calculated in a non physical way (and lmomsubs had to be set to true to retain conservation of mass)'
+      if (myid==0) call finish(routine, 'llsadv should not be used anymore. Large scale gradients were calculated in a non physical way (and lmomsubs had to be set to true to retain conservation of mass)')
     end if
     dudxls   = 0.0
     dudyls   = 0.0
@@ -1669,7 +1637,10 @@ contains
                                   lbaseexner
     use modsurfdata,       only : thls,ps,qts
     use modmpi,            only : myid,comm3d,mpierr,D_MPI_BCAST
+    use modlogging,        only : profile_output
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/baseprofs'
 
     real :: thvb,prsb ! for calculating moist adiabat
     integer :: j,k
@@ -1691,7 +1662,7 @@ contains
         print *, 'WARNING: warm start requires input files for density. ibas_prf defaulted to 5'
       endif
       if(ibas_prf <= 3 .and. thls < 0) then
-         STOP 'thls has not been initialized but is needed for setting up the base profiles.'
+         call finish(routine, 'thls has not been initialized but is needed for setting up the base profiles.')
       end if
 
       if(ibas_prf==1) then !thv constant and hydrostatic balance
@@ -1861,16 +1832,16 @@ contains
       end do
 
       ! write profiles and derivatives to standard output
-      write (6,*) ' height   rhobf       rhobh'
+      write (profile_output,*) ' height   rhobf       rhobh'
       do k=k1,1,-1
-          write (6,'(1f7.1,2E25.17)') &
+          write (profile_output,'(1f7.1,2E25.17)') &
                 height (k), &
                 rhobf (k), &
                 rhobh (k)
       end do
-      write (6,*) ' height   drhobdzf    drhobdzh'
+      write (profile_output,*) ' height   drhobdzf    drhobdzh'
       do k=k1,1,-1
-          write (6,'(1f7.1,2E25.17)') &
+          write (profile_output,'(1f7.1,2E25.17)') &
                 height (k), &
                 drhobdzf (k), &
                 drhobdzh (k)

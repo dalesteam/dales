@@ -1,14 +1,13 @@
 &RUN
 iexpnr     =  001
 lwarmstart = .false.
-startfile  =  'initdlatestmx000y000.001'
+startfile  =  'initd_latest_x000y000.001'
 runtime = 43200
 trestart = 43200
 ladaptive  =  .true.
 irandom    =  44
 randthl    =  0.1
 randqt     =  2.5e-5
-nsv        =  0
 courant    = .5
 peclet     = .1
 loutdirs = .true.
@@ -57,7 +56,6 @@ lCnstAlbedo = .true. ! use a albedoav as albedo instead of angle-dependent param
 
 &DYNAMICS
 llsadv     =  .false.
-lqlnr      =  .false. ! obsolete
 cu         =  0.      ! -5 in RICO
 cv         =  0.
 

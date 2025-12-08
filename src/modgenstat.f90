@@ -68,8 +68,10 @@ module modgenstat
     !-----------------------------------------------------------------|
   use modprecision
   use modtimer
+  use modlogging, only: finish
 
   implicit none
+  character(len=*), parameter :: modname = 'modgenstat'
   ! private
   PUBLIC :: initgenstat, genstat, exitgenstat
   save
@@ -194,8 +196,11 @@ contains
     use modsurfdata, only : isurf, ksoilmax
     use modlsm, only : kmax_soil
     use modtracers, only : tracer_prop
+    use fortran_support, only: nnml_output
 
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/initgenstat'
 
     integer n, ierr
     character(40) :: name
@@ -211,7 +216,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMGENSTAT,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMGENSTAT')
-      write(6 ,NAMGENSTAT)
+      write(nnml_output ,NAMGENSTAT)
       close(ifnamopt)
     end if
 
@@ -228,7 +233,7 @@ contains
     dt_lim = min(dt_lim,tnext)
 
     if (abs(timeav/dtav-nsamples)>1e-4) then
-      stop 'timeav must be a integer multiple of dtav'
+      call finish(routine, 'timeav must be a integer multiple of dtav')
     end if
 
     allocate(umn(k1),vmn(k1),wmn(k1))

@@ -29,8 +29,10 @@ use modsynturb, only : synturb,initsynturb,exitsynturb
 use netcdf
 use modprecision, only : field_r
 use modmpi, only : openboundary_excjs
+use modlogging, only: finish
 
 implicit none
+character(len=*), parameter :: modname = 'modopenboundary'
 integer :: nxpatch, nypatch, nzpatch, nxturb, nyturb, nzturb
 real, dimension(:,:), allocatable :: uturbtemp,vturbtemp,wturbtemp
 real, dimension(:), allocatable :: rhointi
@@ -43,22 +45,24 @@ contains
   subroutine initopenboundary
     ! Initialisation routine for openboundaries
     use modmpi, only : myidx, myidy, nprocx, nprocy, myid
-    use modglobal, only : imax,jmax,kmax,i1,j1,k1,dx,dy,itot,jtot,solver_id,nsv,cu,cv,dzf
+    use modglobal, only : imax,jmax,kmax,i1,j1,k1,dx,dy,itot,jtot,nsv,cu,cv,dzf
+    use modpois_data, only: solver_id
     use modboundary, only: dsv
     use modfields, only: rhobf
     implicit none
+    character(len=*), parameter :: routine = modname//'/initopenboundary'
     integer :: i
 
     if(.not.lopenbc) return
     ! Check for conflicting options
-    if(solver_id == 0) stop 'Openboundaries only possible with HYPRE or FFTW pressure solver, change solver_id'
+    if(solver_id == 0) call finish(routine, 'Openboundaries only possible with HYPRE or FFTW pressure solver, change solver_id')
     !if(iadv_mom /=2) stop 'Only second order advection scheme supported with openboundaries, change iadv_mom to 2'
     !if(iadv_thl /=2) stop 'Only second order advection scheme supported with openboundaries, change iadv_thl to 2'
     !if(iadv_qt  /=2) stop 'Only second order advection scheme supported with openboundaries, change iadv_qt to 2'
     !if(iadv_tke /=2) stop 'Only second order advection scheme supported with openboundaries, change iadv_tke to 2'
     !if(any(iadv_sv(1:nsv)/=2)) stop 'Only second order advection scheme supported with openboundaries, change iadv_sv to 2'
-    if(cu/=0.) stop 'Translation velocity not allowed in combination with open boundaries, set cu to 0'
-    if(cv/=0.) stop 'Translation velocity not allowed in combination with open boundaries, set cv to 0'
+    if(cu/=0.) call finish(routine, 'Translation velocity not allowed in combination with open boundaries, set cu to 0')
+    if(cv/=0.) call finish(routine, 'Translation velocity not allowed in combination with open boundaries, set cv to 0')
     ! Set buoyancy term at top boundary on or off (off default)
     if(lbuoytop) ibuoy = 1.
     ! Check if boundary is present on process
@@ -105,8 +109,8 @@ contains
     nxturb = int(dx/dxturb*real(itot));
     nyturb = int(dy/dyturb*real(jtot));
     nzturb = kmax ! For now vertical resolution turbulence input must equal dz
-    if(mod(dxint,dx)/=0 .or. mod(dyint,dy)/=0) stop 'dxint and dyint should be multiples of dx and dy respectively.'
-    if(mod(dxturb,dx)/=0 .or. mod(dyturb,dy)/=0) stop 'dxturb and dyturb should be multiples of dx and dy respectively.'
+    if(mod(dxint,dx)/=0 .or. mod(dyint,dy)/=0) call finish(routine, 'dxint and dyint should be multiples of dx and dy respectively.')
+    if(mod(dxturb,dx)/=0 .or. mod(dyturb,dy)/=0) call finish(routine,  'dxturb and dyturb should be multiples of dx and dy respectively.')
     boundary(1)%nx1patch = nypatch; boundary(1)%nx2patch = nzpatch
     boundary(2)%nx1patch = nypatch; boundary(2)%nx2patch = nzpatch
     boundary(3)%nx1patch = nxpatch; boundary(3)%nx2patch = nzpatch

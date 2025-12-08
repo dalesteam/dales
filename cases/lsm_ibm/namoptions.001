@@ -79,7 +79,6 @@
 &namfielddump
     lfielddump = .true.
     dtav = 10
-    ldiracc = .false.
 /
 
 &namcape

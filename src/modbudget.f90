@@ -28,9 +28,11 @@
 module modbudget
   use modprecision, only: field_r
   use modglobal, only : longint
+  use modlogging, only: finish
 
   implicit none
   PRIVATE
+  character(len=*), parameter :: modname = 'modbudget'
   PUBLIC :: initbudget,budgetstat,exitbudget
   save
 !NetCDF variables
@@ -80,10 +82,12 @@ contains
     use modglobal, only : dtmax,k1,ifnamopt,fname_options, ifoutput,cexpnr,dtav_glob,timeav_glob,&
     ladaptive,dt_lim,btime,tres,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,writestat_dims_nc
+    use fortran_support, only: nnml_output
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
 
 
     implicit none
+    character(len=*), parameter :: routine = modname//'/initbudget'
 
     integer ierr
     namelist/NAMBUDGET/ &
@@ -95,7 +99,7 @@ contains
        open(ifnamopt,file=fname_options,status='old',iostat=ierr)
        read (ifnamopt,NAMBUDGET,iostat=ierr)
        call checknamelisterror(ierr, ifnamopt, 'NAMBUDGET')
-       write(6 ,NAMBUDGET)
+       write(nnml_output ,NAMBUDGET)
        close(ifnamopt)
     end if
 
@@ -112,10 +116,10 @@ contains
     dt_lim = min(dt_lim,tnext)
 
     if (abs(timeav/dtav-nsamples)>1e-4) then
-      stop 'timeav must be a integer multiple of dtav'
+      call finish(routine,  'timeav must be a integer multiple of dtav')
     end if
     if (.not. ladaptive .and.abs( dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'dtav should be a integer multiple of dtmax'
+      call finish(routine,  'dtav should be a integer multiple of dtmax')
     end if
 
     !time averaged fields, resolved TKE
@@ -220,7 +224,7 @@ contains
                           dxi,dyi,dx2i,dy2i
     use modsurfdata,only : ustar
     use modsubgriddata, only : ekm,anis_fac
-    use modpois,    only : p
+    use modpois_data,    only : p
     use modfields,  only : u0,v0,w0,thv0h,u0av,v0av,rhobf,rhobh,thvh
 !cstep    use modtilt,    only : adjustbudget,ltilted
     use modmpi,     only : comm3d,mpi_sum,mpierr, D_MPI_ALLREDUCE

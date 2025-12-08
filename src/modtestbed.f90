@@ -61,6 +61,7 @@ contains
                         grav,rd,cp,pref0,rlv,zf,checknamelisterror
     use modsurfdata,only : ksoilmax
     use modforces, only : lforce_user
+    use fortran_support, only: nnml_output
 
     implicit none
 
@@ -90,7 +91,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMTESTBED,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMTESTBED')
-      write(6 ,NAMTESTBED)
+      write(nnml_output ,NAMTESTBED)
       close(ifnamopt)
 
     end if

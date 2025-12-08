@@ -27,9 +27,11 @@
 module modcape
   use modprecision, only : field_r
   use modglobal, only : longint,kmax
+  use modlogging, only: finish
 
 implicit none
 private
+character(len=*), parameter :: modname = 'modcape'
 PUBLIC :: initcape,docape,exitcape
 save
 !NetCDF variables
@@ -51,8 +53,9 @@ contains
     use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,dt_lim,cexpnr,tres,btime,checknamelisterror,&
                         output_prefix
     use modstat_nc,only : lnetcdf,open_nc, define_nc, redefine_nc,ncinfo,nctiminfo,writestat_dims_nc
+    use fortran_support, only: nnml_output
    implicit none
-
+    character(len=*), parameter :: routine = modname//'/initcape'
     integer :: ierr
 
     namelist/NAMCAPE/ &
@@ -63,7 +66,7 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCAPE,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMCAPE')
-      write(6 ,NAMCAPE)
+      write(nnml_output ,NAMCAPE)
       close(ifnamopt)
     end if
 
@@ -76,31 +79,31 @@ contains
     dt_lim = min(dt_lim,tnext)
 
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'cape: dtav should be a integer multiple of dtmax'
+      call finish(routine, 'dtav should be a integer multiple of dtmax')
     end if
     if (lnetcdf) then
     fname(6:13) = cmyid
     fname(15:17) = cexpnr
     call nctiminfo(tncname(1,:))
-    call ncinfo(ncname( 1,:),'dcape','xy crosssections of actual dcape','J/m^2','tt0t')
-    call ncinfo(ncname( 2,:),'dscape','xy crosssections of actual dscape','J/m^2','tt0t')
-    call ncinfo(ncname( 3,:),'dcin','xy crosssections of actual CIN between zcb and 1.2 zcb','J/m^2','tt0t')
-    call ncinfo(ncname( 4,:),'dscin','xy crosssections of actual CIN up to zcb','J/m^2','tt0t')
-    call ncinfo(ncname( 5,:),'dcintot','xy crosssections of total CIN up to dcape level','J/m^2','tt0t')
-    call ncinfo(ncname( 6,:),'capemax','xy crosssections of CAPEmax','J/m^2','tt0t')
-    call ncinfo(ncname( 7,:),'cinmax','xy crosssections of CIN as in CAPEmax','J/m^2','tt0t')
-    call ncinfo(ncname( 8,:),'hw2cb','xy crosssections of 1/2 W^2 at the top of the subcloud layer','m^2/s^2','tt0t')
-    call ncinfo(ncname( 9,:),'hw2max','xy crosssections of highest 1/2 W^2','m^2/s^2','tt0t')
-    call ncinfo(ncname( 10,:),'qtcb','xy crosssections of qt at cloudbase','kg/kg','tt0t')
-    call ncinfo(ncname( 11,:),'thlcb','xy crosssections of thl at cloudbase','K','tt0t')
-    call ncinfo(ncname( 12,:),'wcb','xy crosssections of w at cloudbase','m/s','tt0t')
-    call ncinfo(ncname( 13,:),'buoycb','xy crosssections buoyancy at cloudbase','K','tt0t')
-    call ncinfo(ncname( 14,:),'buoymax','xy crosssections maximum buoyancy','K','tt0t')
-    call ncinfo(ncname( 15,:),'qlcb','xy crosssections ql at cloudbase','kg/kg','tt0t')
-    call ncinfo(ncname( 16,:),'lwp','xy crosssections liquid water path','kg/m^2','tt0t')
-    call ncinfo(ncname( 17,:),'rwp','xy crosssections rain water path','kg/m^2','tt0t')
+    call ncinfo(ncname( 1,:),'dcape','actual dcape','J/m^2','tt0t')
+    call ncinfo(ncname( 2,:),'dscape','actual dscape','J/m^2','tt0t')
+    call ncinfo(ncname( 3,:),'dcin','actual CIN between zcb and 1.2 zcb','J/m^2','tt0t')
+    call ncinfo(ncname( 4,:),'dscin','actual CIN up to zcb','J/m^2','tt0t')
+    call ncinfo(ncname( 5,:),'dcintot','total CIN up to dcape level','J/m^2','tt0t')
+    call ncinfo(ncname( 6,:),'capemax','CAPEmax','J/m^2','tt0t')
+    call ncinfo(ncname( 7,:),'cinmax','CIN as in CAPEmax','J/m^2','tt0t')
+    call ncinfo(ncname( 8,:),'hw2cb','1/2 W^2 at the top of the subcloud layer','m^2/s^2','tt0t')
+    call ncinfo(ncname( 9,:),'hw2max','highest 1/2 W^2','m^2/s^2','tt0t')
+    call ncinfo(ncname( 10,:),'qtcb','qt at cloudbase','kg/kg','tt0t')
+    call ncinfo(ncname( 11,:),'thlcb','thl at cloudbase','K','tt0t')
+    call ncinfo(ncname( 12,:),'wcb','w at cloudbase','m/s','tt0t')
+    call ncinfo(ncname( 13,:),'buoycb','buoyancy at cloudbase','K','tt0t')
+    call ncinfo(ncname( 14,:),'buoymax','maximum buoyancy','K','tt0t')
+    call ncinfo(ncname( 15,:),'qlcb','ql at cloudbase','kg/kg','tt0t')
+    call ncinfo(ncname( 16,:),'lwp','liquid water path','kg/m^2','tt0t')
+    call ncinfo(ncname( 17,:),'rwp','rain water path','kg/m^2','tt0t')
     call ncinfo(ncname( 18,:),'twp','total water path','kg/m^2','tt0t')
-    call ncinfo(ncname( 19,:),'cldtop','xy crosssections cloud top height','m','tt0t')
+    call ncinfo(ncname( 19,:),'cldtop','cloud top height','m','tt0t')
     call ncinfo(ncname( 20,:),'surfprec','surface precipitation','kg/m^2/s','tt0t')
     call ncinfo(ncname( 21,:),'hmix','mixed layer height','m','tt0t')
     call ncinfo(ncname( 22,:),'hinvsrf','height of surface inversion','m','tt0t')
