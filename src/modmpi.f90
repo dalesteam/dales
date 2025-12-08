@@ -40,6 +40,7 @@ use ieee_exceptions
 use openacc
 #endif
 implicit none
+  character(len=*), parameter, private :: modname = 'modmpi'
 
   public :: print_info_stderr
 
@@ -265,6 +266,9 @@ contains
 
   subroutine initmpi
     implicit none
+
+    character(len=*), parameter :: routine = modname//'initmpi'
+
     integer dims(2)
     logical periods(2)
 
@@ -343,6 +347,34 @@ contains
     write(cmyid,'(a,i3.3,a,i3.3)') 'x', myidx, 'y', myidy
     write(cmyidx,'(i3.3)') myidx
     write(cmyidy,'(i3.3)') myidy
+
+#ifdef _OPENACC
+    ! Initialize MPI+OpenACC setup
+    block
+      type(MPI_Comm)           :: commlocal     !< MPI shared memory communicator
+      integer(acc_device_kind) :: device_type   !< ACC device type
+      integer                  :: num_devices   !< Number of devices of a type
+      integer                  :: my_device_num !< ID of device to bind
+      character(len=64)        :: msg
+
+      ! Make a shared memory communicator that contains all ranks local to a
+      ! node
+      call MPI_Comm_split_type(commwrld, MPI_COMM_TYPE_SHARED, 0, &
+                               MPI_INFO_NULL, commlocal, mpierr)
+      call checkmpierror(mpierr, 'MPI_Comm_split_type')
+
+      call MPI_Comm_rank(commlocal, my_device_num, mpierr)
+      call checkmpierror(mpierr, 'MPI_Comm_rank')
+
+      device_type = acc_get_device_type()
+      num_devices = acc_get_num_devices(device_type)
+
+      my_device_num = mod(my_device_num, num_devices)
+
+      call acc_set_device_num(my_device_num, device_type)
+      call acc_init(device_type)
+    end block
+#endif
     
   end subroutine initmpi
 
