@@ -9,7 +9,8 @@ ecbuild_info( "Fetching fortran-support" )
 
 FetchContent_Declare(
     fortran-support
-    GIT_REPOSITORY https://gitlab.dkrz.de/icon-libraries/libfortran-support.git
-    GIT_TAG 2.2.0
-    OVERRIDE_FIND_PACKAGE
+    GIT_REPOSITORY "https://gitlab.dkrz.de/icon-libraries/libfortran-support.git"
+    GIT_TAG d0d20147dfe96b41b2b8d2a9892e19aaeb3d6bbf # git tag 2.2.0
 )
+
+FetchContent_MakeAvailable(fortran-support)
