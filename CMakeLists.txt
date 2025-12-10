@@ -131,7 +131,6 @@ endif()
 # Find the fortran-support library (included). This library can be compiled with
 # OpenACC support, so it's probably best to place it after 
 include ( dales_add_fortran_support )
-ecbuild_find_package( fortran-support REQUIRED QUIET )
 
 include( dales_compile_options )
 add_subdirectory( src )
