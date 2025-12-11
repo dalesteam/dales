@@ -138,15 +138,9 @@ subroutine lsm
     !$acc wait(1)
 
     ! testing
-    !$acc update host(thlflux,qtflux,dthldz,dqtdz,dudz,dvdz)
-
-    ! keep
-    !$acc update host(qskin)
 
     do ilu=1, nlu
        !$acc update host(tile(ilu)%db,tile(ilu)%obuk,tile(ilu)%ustar,tile(ilu)%ra)
-    enddo
-    do ilu=1,nlu
        !$acc update host(tile(ilu)%tskin,tile(ilu)%H,tile(ilu)%LE,tile(ilu)%G,tile(ilu)%wthl,tile(ilu)%wqt,tile(ilu)%thlskin,tile(ilu)%qtskin)
     enddo
 
