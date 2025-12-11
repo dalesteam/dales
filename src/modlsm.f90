@@ -136,14 +136,6 @@ subroutine lsm
     call timer_toc('lsm_integrate_theta_soil')
 
     !$acc wait(1)
-
-    ! testing
-
-    do ilu=1, nlu
-       !$acc update host(tile(ilu)%db,tile(ilu)%obuk,tile(ilu)%ustar,tile(ilu)%ra)
-       !$acc update host(tile(ilu)%tskin,tile(ilu)%H,tile(ilu)%LE,tile(ilu)%G,tile(ilu)%wthl,tile(ilu)%wqt,tile(ilu)%thlskin,tile(ilu)%qtskin)
-    enddo
-
     call timer_toc('lsm')
 end subroutine lsm
 
