@@ -1,0 +1,196 @@
+&run
+    iexpnr = 1
+    lwarmstart = .false.
+    startfile = 'initd_latest_x000y000.001'
+    runtime = 43200
+    trestart = 0
+    dtmax = 5.0
+    ladaptive = .true.
+    irandom = 43
+    krand = 5
+    randthl = 0.1
+    randqt = 2.5e-05
+    courant = 0.5
+    peclet = 0.1
+    loutdirs = .true.
+!    nprocx = 6
+!    nprocy = 8
+/
+
+&domain
+    itot = 64
+    jtot = 64
+    kmax = 200
+    ksp = 175
+    xsize = 6400.0
+    ysize = 6400.0
+    xlat = 10.0
+    xlon = 334
+    xyear = 2024
+    xday = 214
+    xtime = 0.0
+/
+
+&physics
+    igrw_damp = 2
+    lfast_thermo = .true.
+    iradiation = 4
+    timerad = 60
+    lcoriol = .true.
+    ltimedep = .false.
+/
+
+&namradiation
+    lcnstalbedo = .true.
+    usero3 = .true.
+    co2_fraction = 0.00041434
+    ch4_fraction = 1.879e-06
+    n2o_fraction = 3.328e-07
+/
+
+&namsurface
+    isurf = 2
+    ustin = 0.32
+    ps = 101300.0
+    thls = 300.25
+    z0mav = 0.0002
+    z0hav = 0.0002
+    albedoav = 0.07
+    lmostlocal = .true.
+/
+
+&dynamics
+    cu = 0
+    cv = 0
+    iadv_mom = 62
+    iadv_tke = 52
+    iadv_thl = 52
+    iadv_qt = 52
+    iadv_sv = 7
+/
+
+&nammicrophysics
+    imicro = 5
+    l_sb = .true.
+    l_sedc = .true.
+    l_rain = .true.
+    l_mur_cst = .false.
+    mur_cst = 0
+    nc_0 = 100000000.0
+    sig_g = 1.2
+    courantp = 0.7
+/
+
+&namnudge
+    lnudge = .true.
+    ltthlnudge = .true.
+/
+
+&namchecksim
+    tcheck = 0
+/
+
+&namsampling
+    dtav = 60
+    timeav = 1800
+    lsamptend = .true.
+    lsamptendu = .false.
+    lsamptendv = .false.
+    lsamptendw = .false.
+    lsamptendthl = .true.
+    lsamptendqt = .true.
+    lsamptendqr = .false.
+    lsamptendnr = .false.
+    ltendleib = .false.
+    lprocblock = .true.
+    ltenddec = .true.
+/
+
+&nambulkmicrostat
+    lmicrostat = .true.
+    timeav = 600
+    dtav = 60.0
+/
+
+&namtimestat
+    ltimestat = .true.
+    dtav = 60.0
+/
+
+&namcrosssection
+    lcross = .true.
+    lxz = .false.
+    lyz = .false.
+    dtav = 600
+    crossheight = 1
+/
+
+&namcape
+    lcape = .true.
+    dtav = 300
+/
+
+&namgenstat
+    lstat = .true.
+    dtav = 60
+    timeav = 600
+/
+
+&namstattend
+    dtav = 30
+    ltend = .false.
+/
+
+&namradstat
+    lstat = .true.
+    dtav = 60
+    timeav = 600
+    lradclearair = .true.
+/
+
+&namradfield
+    lradfield = .true.
+    dtav = 3600
+    timeav = 3600
+/
+
+&nambudget
+    lbudget = .false.
+    dtav = 60
+    timeav = 600.0
+/
+
+&namnetcdfstats
+    lnetcdf = .true.
+!    lclassic = .true. ! saves memory on Fugaku
+    lsync = .false.     
+/
+
+&solver
+    solver_id = 100
+/
+
+&namfielddump
+    lfielddump = .false.
+    dtav = 21600
+/
+
+&timer
+    ltimer = .true.
+    ltimer_print = .true.
+    ltimer_write = .true.
+/
+
+! this is run_0 from deep-botany (v4)
+&deepbotany
+    nc = 100000000.0
+    cnstzenith = .false.
+    dthllt = 0.0
+    lat = 10.0
+    qadv0 = 0.0
+    rhft = 0.575
+    thls = 300.25
+    u0 = 2.5
+    ujet = 5.0
+    index = 0
+/
