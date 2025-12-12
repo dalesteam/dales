@@ -19,6 +19,7 @@ set( dales_srcs
 	modaerosol.f90
 	modaerosol_common.f90
 	modaerosol_mode_t.f90
+	modaerosol_scavenging.f90
 	modboundary.f90
 	modbudget.f90
 	modbulkmicro.f90
