@@ -2,26 +2,26 @@ module modaerosol
 
   use, intrinsic :: iso_fortran_env
 
-  use modaerosol_mode_t, only: aerosol_mode_t, hydrometeor_mode_t, mode_t, &
-                               mode_container_t, connect_modes
-  use modaerosol_common, only: maxspecies, maxmodes, iNUS, iAIS, iACS, iCOS, &
-                               iAII, iACI, iCOI, iINC, iINR, iSO4, iSS, iPOM, &
-                               iBC, iDU
-  use modglobal,         only: ifnamopt, fname_options, checknamelisterror, &
-                               cexpnr, i1, j1, k1, ih, jh, pi, nsv, rhow, kmax, &
-                               rk3step, rd, pirhow
-  use modfields,         only: sv0, svp
-  use modmicrodata,      only: qcmin, delt
-  use modmpi,            only: myid, D_MPI_BCAST, commwrld, mpierr
-  use modprecision,      only: field_r
-  use modtimer,          only: timer_tic, timer_toc
-  use modbulkmicro_data, only: l_sb, qrmin, l_mur_cst, mur_cst
-  use bulkmicro_sb,      only: calc_sed_qr_sb, calc_sed_nr_sb
-  use bulkmicro_kk,      only: calc_sed_nr_kk, calc_sed_qr_kk
-  use fortran_support,   only: nnml_output
+  use modaerosol_mode_t,     only: aerosol_mode_t, hydrometeor_mode_t, mode_t, &
+                                   mode_container_t, connect_modes
   use modaerosol_common,     only: maxspecies, maxmodes, iNUS, iAIS, iACS, &
                                    iCOS, iAII, iACI, iCOI, iINC, iINR, iSO4, &
                                    iSS, iPOM, iBC, iDU, calc_median_diameter
+  use modaerosol_scavenging, only: init_scavenging, &
+                                   aerosol_scavenging_rain_lut, &
+                                   aerosol_scavenging_cloud_lut
+  use modglobal,             only: ifnamopt, fname_options, &
+                                   checknamelisterror, cexpnr, i1, j1, k1, ih, &
+                                   jh, pi, nsv, rhow, kmax, rk3step, rd, pirhow
+  use modfields,             only: sv0, svp
+  use modmicrodata,          only: qcmin, delt
+  use modmpi,                only: myid, D_MPI_BCAST, commwrld, mpierr
+  use modprecision,          only: field_r
+  use modtimer,              only: timer_tic, timer_toc
+  use modbulkmicro_data,     only: l_sb, qrmin, l_mur_cst, mur_cst
+  use bulkmicro_sb,          only: calc_sed_qr_sb, calc_sed_nr_sb
+  use bulkmicro_kk,          only: calc_sed_nr_kk, calc_sed_qr_kk
+  use fortran_support,       only: nnml_output
   use modstat_nc
 
   implicit none
@@ -41,6 +41,7 @@ module modaerosol
   public :: aerosol_resuspend_cloud
   public :: aerosol_sedimentation_rain
   public :: aerosol_scavenging_rain
+  public :: aerosol_scavenging_cloud
 
   interface erfcinv
     module procedure :: erfcinv_real32
@@ -163,6 +164,8 @@ contains
 
     !$acc enter data copyin(sed_qr(2:i1,2:j1,1:k1), qlm(2:i1,2:j1,1:k1))
 
+    call init_scavenging()
+
   end subroutine init_aerosol
 
   !> Prepares aerosol fields for microphysics calculations.
@@ -206,7 +209,6 @@ contains
     call timer_toc(routine)
 
   end subroutine aerosol_finish
-
 
   !> Aerosol activation based on updraft velocity.
   !!
@@ -758,114 +760,38 @@ contains
     call timer_toc(routine)
 
   end subroutine aerosol_sedimentation_rain
+  
+  !> Compute scavenging of aerosols by rain drops.
+  subroutine aerosol_scavenging_rain(qr, nr, rho, delt)
 
-  include 'microphysics.inc'
+    real(field_r), intent(in) :: qr(2:,2:,:) !< Rain water content [kg kg-1].
+    real(field_r), intent(in) :: nr(2:,2:,:) !< Rain number concentration [m-3].
+    real(field_r), intent(in) :: rho(:)      !< Air density [kg m-3].
+    real(field_r), intent(in) :: delt        !< Time step size [s].
 
-  subroutine aerosol_scavenging_rain(nr, qr, thl, rho, exn, p, delt)
-
-    real(field_r), intent(in) :: &
-      nr(2:,2:,:),               &
-      qr(2:,2:,:),               &
-      thl(2-ih:,2-jh:,:),        &
-      rho(:),                    &
-      exn(:),                    &
-      p(:),                      &
-      delt
-
-    real(field_r), parameter :: &
-      mu_a = 1.409E-5,          & ! Viscosity of air.
-      mu_w = 1.8E-3,            & ! Viscosity of water.
-      kb = 1.38065E-23            ! Boltzmann constant.
-
-    integer :: &
-      i, j, k, s, imod, ts
-
-    class(aerosol_mode_t), pointer :: &
-      mode
-
-    class(hydrometeor_mode_t), pointer :: &
-      m_inr
-
-    real(field_r) :: &
-      re,            & ! Reynolds number.
-      xr,            & ! Mean mass of rain drops.
-      dvr,           & ! Mean rain drop diameter.
-      dm,            & ! Median diameter of aerosol particle.
-      dn,            & ! Decay rate.
-      cnacc,         &
-      v,             & ! Terminal velocity of rain drops.
-      T,             & ! Temperature.
-      E,             & ! Collision efficiency.
-      lbd,           & ! Mean free path of air.
-      gamma,         & ! Scavenging coefficient.
-      csc,           & ! Cunningham slip correction factor.
-      sc,            & ! Aerosol Schmidt number.
-      db,            & ! Brownian diffusion coefficient.
-      tau,           & ! Particle relaxation factor.
-      st,            & ! Stokes number.
-      phi,           & ! Particle diameter ratio.
-      rho_p,         & ! Particle density.
-      mav,           &
-      mtot,          &
-      s_st             ! Critical Stokes number.
-
-    m_inr => modes_h(iINR)
+    integer :: imod
 
     do imod = 1, size(modes_f)
-      mode => modes_f(imod) 
-      if (mode%nspecies > 0) then
-        do k = 1, kmax
-          do j = 2, j1
-            do i = 2, i1
-              if (sed_qr(i,j,k) > 0.0_field_r) then
-                xr = calc_xr(rho(k), qr(i,j,k), nr(i,j,k), 2.6E-10, 5.0E-6) 
-                dvr = calc_dvr(xr)
-                T = thl(i,j,k) * exn(k)
-                dm = calc_median_diameter(mode%n(i,j,k), mode%q(i,j,k,:), &
-                                          mode%rho, mode%sig_g)
-                v = 9.65 - 9.8 * exp(-600 * dvr)
-                rho_p = calc_mean_rho(mode%q(i,j,k,:), mode%rho)
-
-                lbd = 2 * mu_a / (p(k) * sqrt(8 / (pi * rd * T)))
-                csc = 1 + 2 * lbd / dvr * (1.257 + 0.4 * exp(-0.55 * dvr / lbd))
-
-                re = 0.5 * rho(k) * dvr * v / mu_a
-                db = kb * T * csc / (2 * pi * mu_a * dm)
-                sc = mu_a / (rho(k) * db)
-                tau = (rho_p - rho(k)) * dm**2 * csc / (18 * mu_a)
-                st = 2 * tau * v / dvr
-                phi = dm / dvr
-
-                s_st = (1.2 + (log(1 + re) / 12)) / (1 + log(1 + re))
-
-                E = 4 / (re * sc) * (1 + 0.4 * sqrt(re) * sc**(1.0_field_r / 3) + &
-                                     0.16 * sqrt(re) * sqrt(sc)) &
-                    + 4 * phi * (mu_a / mu_w + (1 + 2 * sqrt(re)) * phi) &
-                    + (max(st - s_st, 0.0_field_r) &
-                       / (st - s_st + 2.0_field_r / 3))**(1.5) * sqrt(rho_p / rhow)
-              
-                ! Tost et al. 2016
-                E = max(min(E, 1.0_field_r), 0.0_field_r)
-                gamma = 1.5 * E / (0.5 * dvr * 1E3) * (sed_qr(i,j,k) * rho(k))
-                cnacc = 1 - exp(-delt*gamma)
-
-                do s = 1, mode%nspecies
-                  ts = mode%to_hydro%cnct(s,2)
-                  mode%qp(i,j,k,s) = mode%qp(i,j,k,s) &
-                                     - mode%q(i,j,k,s) * cnacc / delt
-                  m_inr%qp(i,j,k,ts) = m_inr%qp(i,j,k,ts) &
-                                     + mode%q(i,j,k,s) * cnacc / delt
-                end do
-
-                ! This is not right:
-                mode%np(i,j,k) = mode%np(i,j,k) - cnacc * mode%n(i,j,k) / delt
-              end if
-            end do
-          end do
-        end do
-      end if
+      call aerosol_scavenging_rain_lut(qr, nr, rho, delt, modes_f(imod), &
+                                       modes_h(iINR))
     end do
 
   end subroutine aerosol_scavenging_rain
+
+  !> Compute scavenging of aerosols by cloud droplets.
+  subroutine aerosol_scavenging_cloud(ql, nc, rho, delt)
+
+    real(field_r), intent(in) :: ql(2-ih:,2-jh:,:) !< Cloud water content [kg kg-1].
+    real(field_r), intent(in) :: nc(2:,2:,:)       !< Cloud droplet number concentration [m-3].
+    real(field_r), intent(in) :: rho(:)            !< Air density [kg m-3].
+    real(field_r), intent(in) :: delt              !< Time step size [s].
+
+    integer :: imod
+
+    do imod = 1, size(modes_f)
+      call aerosol_scavenging_cloud_lut(ql, nc, rho, delt, modes_f(imod), modes_h(iINC))
+    end do
+
+  end subroutine aerosol_scavenging_cloud
 
 end module modaerosol
