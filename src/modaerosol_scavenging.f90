@@ -17,8 +17,8 @@ module modaerosol_scavenging
   private
 
   public :: init_scavenging
-  public :: aerosol_scavenging_rain
-  public :: aerosol_scavenging_cloud
+  public :: aerosol_scavenging_rain_lut
+  public :: aerosol_scavenging_cloud_lut
 
   real(field_r), allocatable :: log_rp_inc(:) !< Log of aerosol particle radii, for in-cloud LUT.
   real(field_r), allocatable :: log_rp_blc(:) !< Log of aerosol particle radii, for below-cloud LUT.
@@ -111,7 +111,7 @@ contains
   !!    4656 of Croft et al.
   !! 2) In DALES a gridbox is either cover by cloud or not. So cloud fraction
   !!    is not used, i.e. equals 1 if  method is applied.
-  subroutine aerosol_scavenging_rain(qr, nr, rho, delt, f_mode, r_mode)
+  subroutine aerosol_scavenging_rain_lut(qr, nr, rho, delt, f_mode, r_mode)
 
     real(field_r), intent(in) :: qr(2:,2:,:) !< Rain water content [kg kg-1].
     real(field_r), intent(in) :: nr(2:,2:,:) !< Rain number concentration [m-3].
@@ -159,7 +159,7 @@ contains
       end do
     end do
 
-  end subroutine aerosol_scavenging_rain
+  end subroutine aerosol_scavenging_rain_lut
 
   !> Compute washout of aerosols by cloud droplets (in-cloud scavenging).
   !!
@@ -174,7 +174,7 @@ contains
   !! "Coefficients are given as a function of mode radius and can be used
   !! directly by multiplying by the CDNC"
   !! So we multiply by the CDNC in units of cm^-1, i.e. Nc(i,j,k)*1e-6
-  subroutine aerosol_scavenging_cloud(qc, nc, rho, delt, f_mode, c_mode)
+  subroutine aerosol_scavenging_cloud_lut(qc, nc, rho, delt, f_mode, c_mode)
 
     real(field_r), intent(in) :: qc(2-ih:,2-jh:,:) !< Cloud water content [kg kg-1].
     real(field_r), intent(in) :: nc(2:,2:,:)       !< Cloud number concentration [m-3].
@@ -229,7 +229,7 @@ contains
       end do
     end do
 
-  end subroutine aerosol_scavenging_cloud
+  end subroutine aerosol_scavenging_cloud_lut
 
   !> Find the index of a value in a given array, where arr(i) < val < array(i+1)
   pure function binary_search(array, value) result(idx)
