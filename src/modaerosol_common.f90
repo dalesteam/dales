@@ -2,6 +2,7 @@
 module modaerosol_common
 
   use modprecision, only: field_r
+  use modglobal,    only: pi
 
   implicit none
 
@@ -56,5 +57,42 @@ module modaerosol_common
     iPOM = 3, & ! Primary organic matter.
     iBC = 4,  & ! Black carbon.
     iDU = 5     ! Dust.
+
+contains
+
+  !> Compute the median diameter of a log-normally distributed mode.
+!NVF$ INLINE
+  pure function calc_median_diameter(n, q, rho, sig_g) result(dm)
+
+    real(field_r), intent(in) :: n      !< Aerosol number concentration [m-3].
+    real(field_r), intent(in) :: q(:)   !< Aerosol mass concentrations [kg kg-1].
+    real(field_r), intent(in) :: rho(:) !< Aerosol densities [kg m-3].
+    real(field_r), intent(in) :: sig_g  !< Geometric standard deviation.
+
+    real(field_r) :: m     !< Total aerosol mass concentration [kg kg-1].
+    real(field_r) :: rho_m !< Mean aerosol density [kg m-3].
+    real(field_r) :: dm    !< Median diameter [m].
+
+    integer :: s !< Loop index
+
+    m = 0
+    rho_m = 0
+
+    do s = 1, size(q)
+      if (rho(s) > 0.0_field_r) then
+        m = m + q(s)
+        rho_m = rho_m + q(s) / rho(s)
+      end if
+    end do
+
+    m = max(0.0_field_r, m)
+    rho_m = max(0.0_field_r, m / (rho_m + 1E-16))
+
+    dm = ((6 * m) / (pi * n * rho_m + 1E-16))**(1.0_field_r / 3) &
+         * exp(- 0.5_field_r * 3 * log(sig_g) * log(sig_g))
+
+    dm = max(0.0_field_r, dm)
+
+  end function calc_median_diameter
 
 end module modaerosol_common

@@ -19,6 +19,9 @@ module modaerosol
   use bulkmicro_sb,      only: calc_sed_qr_sb, calc_sed_nr_sb
   use bulkmicro_kk,      only: calc_sed_nr_kk, calc_sed_qr_kk
   use fortran_support,   only: nnml_output
+  use modaerosol_common,     only: maxspecies, maxmodes, iNUS, iAIS, iACS, &
+                                   iCOS, iAII, iACI, iCOI, iINC, iINR, iSO4, &
+                                   iSS, iPOM, iBC, iDU, calc_median_diameter
   use modstat_nc
 
   implicit none
@@ -204,66 +207,6 @@ contains
 
   end subroutine aerosol_finish
 
-  pure function calc_mean_rho(q, rho) result(rho_m)
-    
-    real(field_r), intent(in) :: q(:), rho(:)
-
-    real(field_r) :: &
-      m,             &
-      rho_m
-
-    integer :: &
-      s
-
-    m = 0
-    rho_m = 0
-
-    do s = 1, size(q)
-      m = m + q(s)
-      rho_m = rho_m + q(s) / rho(s)
-    end do
-
-    m = max(0.0_field_r, m)
-    rho_m = max(0.0_field_r, m / (rho_m + 1E-16))
-
-  end function calc_mean_rho
-
-  !> Compute the median diameter of a log-normal distribution.
-  !!
-  !! @param[in] n Number concentration.
-  !! @param[in] q Mass concentration (dim=nspecies).
-  !! @param[in] rho Aerosol densities (dim=nspecies).
-  !! @param[in] sig_g Geometric standard deviation of the distribution.
-  pure function calc_median_diameter(n, q, rho, sig_g) result(dm)
-
-    real(field_r), intent(in) :: n, q(:), rho(:), sig_g
-
-
-    real(field_r) :: &
-      m,     & ! Total aerosol mass.
-      rho_m, & ! Mean density.
-      dm       ! Median diameter.
-
-    integer :: &
-      s ! Loop index
-
-    m = 0
-    rho_m = 0
-
-    do s = 1, size(q)
-      m = m + q(s)
-      rho_m = rho_m + q(s) / rho(s)
-    end do
-
-    m = max(0.0_field_r, m)
-    rho_m = max(0.0_field_r, m / (rho_m + 1E-16))
-
-    dm = ((6 * m) / (pi * n * rho_m + 1E-16))**(1.0_field_r / 3) &
-         * exp(- 0.5_field_r * 3 * log(sig_g) * log(sig_g))
-
-    dm = max(0.0_field_r, dm)
-
-  end function calc_median_diameter
 
   !> Aerosol activation based on updraft velocity.
   !!
