@@ -75,6 +75,8 @@ contains
 
     integer :: s !< Loop index
 
+    !$acc routine seq
+
     m = 0
     rho_m = 0
 
