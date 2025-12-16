@@ -45,13 +45,13 @@ contains
 
     call nchandle_error(nf90_open("scavenging_lut.nc", NF90_NOWRITE, ncid))
 
-    call nchandle_error(nf90_inq_dimid(ncid, "rp_blc", dimid))
+    call nchandle_error(nf90_inq_dimid(ncid, "log_rp_blc", dimid))
     call nchandle_error(nf90_inquire_dimension(ncid, dimid, len=dims_blc(2)))
 
     call nchandle_error(nf90_inq_dimid(ncid, "log_rr", dimid))
     call nchandle_error(nf90_inquire_dimension(ncid, dimid, len=dims_blc(1)))
 
-    call nchandle_error(nf90_inq_dimid(ncid, "rp_inc", dimid))
+    call nchandle_error(nf90_inq_dimid(ncid, "log_rp_inc", dimid))
     call nchandle_error(nf90_inquire_dimension(ncid, dimid, len=dims_inc(2)))
 
     call nchandle_error(nf90_inq_dimid(ncid, "log_rc", dimid))
@@ -66,13 +66,13 @@ contains
              gamma_blc_m(dims_blc(1),dims_blc(2)), &
              gamma_blc_n(dims_blc(1),dims_blc(2)))
 
-    call nchandle_error(nf90_inq_varid(ncid, "rp_blc", varid))
+    call nchandle_error(nf90_inq_varid(ncid, "log_rp_blc", varid))
     call nchandle_error(nf90_get_var(ncid, varid, log_rp_blc))
 
     call nchandle_error(nf90_inq_varid(ncid, "log_rr", varid))
     call nchandle_error(nf90_get_var(ncid, varid, log_rr))
 
-    call nchandle_error(nf90_inq_varid(ncid, "rp_inc", varid))
+    call nchandle_error(nf90_inq_varid(ncid, "log_rp_inc", varid))
     call nchandle_error(nf90_get_var(ncid, varid, log_rp_inc))
 
     call nchandle_error(nf90_inq_varid(ncid, "log_rc", varid))
