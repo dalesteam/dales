@@ -517,6 +517,7 @@ contains
     real(kind_rb), allocatable :: nc_slice(:,:)
 
     allocate(nc_slice(ncol,nlay+1))
+    !$acc enter data create(nc_slice)
 
     exners = (ps/pref0)**(rd/cp)
     !reff_factor = 1e6*(3. /(4.*pi*Nc_0*rho_liq) )**(1./3.) * exp(log(sig_g)**2 )
@@ -570,6 +571,28 @@ contains
 
     inc = get_tracer_index('nc')
 
+    if (inc > 0) then
+       !$acc parallel loop collapse(3) default(present) private(icol)
+       do k=1,kmax
+          do j=jstart, jend
+             do i=2,i1
+                icol=i-1+(j-jstart)*imax
+                nc_slice(icol,k) = sv0(i,j,k,iNc)
+             end do
+          end do
+       end do
+    else
+       !$acc parallel loop collapse(3) default(present) private(icol)
+       do k=1,kmax
+          do j=jstart, jend
+             do i=2,i1
+                icol=i-1+(j-jstart)*imax
+                nc_slice(icol,k) = Nc_0
+             end do
+          end do
+       end do
+    endif
+
     !$acc parallel loop collapse(3) default(present) private(icol,ilratio,layerMass,qcl,qci,B_function)
     do k=1,kmax
       do j=jstart, jend
@@ -583,12 +606,6 @@ contains
 
           LWP_slice(icol,k) = qcl * layerMass*1e3 !g/m2
           IWP_slice(icol,k) = qci * layerMass*1e3 !g/m2
-
-          if (inc > 0) then
-            nc_slice(icol,k) = sv0(i,j,k,iNc)
-          else
-            nc_slice(icol,k) = Nc_0
-          end if
 
           if (LWP_slice(icol,k).gt.0.) then
             liquidRe(icol, k) = 1.e6*( 3.*( 1.e-3*LWP_slice(icol,k)/layerMass ) &
@@ -619,6 +636,7 @@ contains
       enddo
     enddo
 
+    !$acc exit data delete(nc_slice)
     deallocate(nc_slice)
 
   end subroutine setupColumnProfiles

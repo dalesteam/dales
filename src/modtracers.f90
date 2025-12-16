@@ -78,6 +78,7 @@ contains
 
     character(len=128) :: file_profs
     logical            :: file_exists
+    integer :: l
 
     ! First, make sure that the tracer input file exists before calling
     ! tracer_props_from_xxx
@@ -96,7 +97,13 @@ contains
         call tracer_props_from_netcdf(file_profs)
       end if
     else
+#ifndef _OPENACC
+      ! BUG: broken with nvhpc 25.11
       call warning(routine, trim(file_profs)//' not found')
+#else
+      l = len(trim(file_profs))
+      call warning(routine, file_profs//' not found')
+#endif
       nsv_user = 0
     end if
 
