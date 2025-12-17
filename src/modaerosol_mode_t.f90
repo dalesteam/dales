@@ -158,14 +158,14 @@ contains
     ! Allocate memory, to be replaced by pointers to sv0 array?
     allocate(this%n(2:i1,2:j1,1:k1), &
              this%np(2:i1,2:j1,1:k1), &
-             this%q(2:i1,2:j1,1:k1,this%nspecies), &
-             this%qp(2:i1,2:j1,1:k1,this%nspecies))
+             this%q(1:this%nspecies,2:i1,2:j1,1:k1), &
+             this%qp(1:this%nspecies,2:i1,2:j1,1:k1))
 
     !$acc enter data copyin(this)
     !$acc enter data create(this%n(2:i1,2:j1,1:k1), &
     !$acc                   this%np(2:i1,2:j1,1:k1), &
-    !$acc                   this%q(2:i1,2:j1,1:k1,1:this%nspecies), &
-    !$acc                   this%qp(2:i1,2:j1,1:k1,1:this%nspecies))
+    !$acc                   this%q(1:this%nspecies,2:i1,2:j1,1:k1), &
+    !$acc                   this%qp(1:this%nspecies,2:i1,2:j1,1:k1))
 
   end subroutine aerosol_mode_init
 
@@ -202,8 +202,8 @@ contains
       do k = 1, kmax 
         do j = 2, j1
           do i = 2, i1
-            this%q(i,j,k,s) = max(sv(i,j,k,this%itrac_q(s)), 0.0_field_r)
-            this%qp(i,j,k,s) = 0
+            this%q(s,i,j,k) = max(sv(i,j,k,this%itrac_q(s)), 0.0_field_r)
+            this%qp(s,i,j,k) = 0
           end do
         end do
       end do
@@ -246,7 +246,7 @@ contains
         do j = 2, j1
           do i = 2, i1
             svp(i,j,k,this%itrac_q(s)) = svp(i,j,k,this%itrac_q(s)) &
-                                         + this%qp(i,j,k,s)
+                                         + this%qp(s,i,j,k)
           end do
         end do
       end do
@@ -295,14 +295,14 @@ contains
     end do
 
     ! Allocate memory, to be replaced by pointers to sv0 array
-    allocate(this%q(2:i1,2:j1,1:k1,this%nspecies), &
-             this%qp(2:i1,2:j1,1:k1,this%nspecies))
+    allocate(this%q(1:this%nspecies,2:i1,2:j1,1:k1), &
+             this%qp(1:this%nspecies,2:i1,2:j1,1:k1))
 
     this%q(:,:,:,:) = 0
     this%qp(:,:,:,:) = 0
 
-    !$acc enter data copyin(this, this%q(2:i1,2:j1,1:k1,1:this%nspecies), &
-    !$acc                   this%qp(2:i1,2:j1,1:k1,1:this%nspecies))
+    !$acc enter data copyin(this, this%q(1:this%nspecies,2:i1,2:j1,1:k1), &
+    !$acc                   this%qp(1:this%nspecies,2:i1,2:j1,1:k1))
 
   end subroutine hydrometeor_mode_init
 
@@ -330,8 +330,8 @@ contains
       do k = 1, kmax 
         do j = 2, j1
           do i = 2, i1
-            this%q(i,j,k,s) = max(sv(i,j,k,this%itrac_q(s)), 0.0_field_r)
-            this%qp(i,j,k,s) = 0
+            this%q(s,i,j,k) = max(sv(i,j,k,this%itrac_q(s)), 0.0_field_r)
+            this%qp(s,i,j,k) = 0
           end do
         end do
       end do
@@ -365,7 +365,7 @@ contains
         do j = 2, j1
           do i = 2, i1
             svp(i,j,k,this%itrac_q(s)) = svp(i,j,k,this%itrac_q(s)) &
-                                         + this%qp(i,j,k,s)
+                                         + this%qp(s,i,j,k)
           end do
         end do
       end do

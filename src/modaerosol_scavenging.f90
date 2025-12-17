@@ -141,14 +141,12 @@ contains
     real(field_r) :: gamma_n !< Number scavenging rate [s-1].
     real(field_r) :: gamma_m !< Mass scavenging rate [s-1].
 
-    real(field_r) :: tmp(maxspecies)
-
     integer :: i, j, k, s, st
 
     call timer_tic(routine, 2)
 
     !$acc parallel loop collapse(3) default(present) &
-    !$acc private(sed_qr, rm, gamma_n, gamma_m, st, tmp)
+    !$acc private(sed_qr, rm, gamma_n, gamma_m, st)
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
@@ -156,13 +154,7 @@ contains
           if (qr(i,j,k) > qrmin .and. sed_qr > 0.01) then
             sed_qr = min(max(sed_qr, 0.01001_field_r), 99.999_field_r)
 
-            tmp(:) = 0
-
-            do s = 1, f_mode%nspecies
-              tmp(s) = f_mode%q(i,j,k,s)
-            end do
-
-            rm = calc_median_diameter(f_mode%n(i,j,k), tmp, &
+            rm = calc_median_diameter(f_mode%n(i,j,k), f_mode%q(:,i,j,k), &
                                       f_mode%rho, f_mode%sig_g) * 0.5 * 1E6
             rm = min(max(1.5E-3_field_r, rm), 0.9999E3_field_r)
 
@@ -176,10 +168,10 @@ contains
 
             do s = 1, f_mode%nspecies
               st = f_mode%to_hydro%cnct(2,s)
-              f_mode%qp(i,j,k,s) = f_mode%qp(i,j,k,s) &
-                                   - gamma_m * f_mode%q(i,j,k,s)
-              r_mode%qp(i,j,k,s) = r_mode%qp(i,j,k,s) &
-                                   + gamma_m * f_mode%q(i,j,k,s)
+              f_mode%qp(s,i,j,k) = f_mode%qp(s,i,j,k) &
+                                   - gamma_m * f_mode%q(s,i,j,k)
+              r_mode%qp(st,i,j,k) = r_mode%qp(st,i,j,k) &
+                                   + gamma_m * f_mode%q(s,i,j,k)
             end do
           end if
         end do
@@ -222,14 +214,12 @@ contains
     real(field_r) :: gamma_n !< Number scavenging rate [s-1].
     real(field_r) :: gamma_m !< Mass scavenging rate [s-1].
 
-    real(field_r) :: tmp(maxspecies)
-
     integer :: i, j, k, s, st
 
     call timer_tic(routine, 2)
 
     !$acc parallel loop collapse(3) default(present) &
-    !$acc private(rc, rm, gamma_n, gamma_m, limit, st, tmp)
+    !$acc private(rc, rm, gamma_n, gamma_m, limit, st)
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
@@ -238,13 +228,7 @@ contains
                   / (4 * pi * nc(i,j,k) * rhow + 1E-16))**(1.0_field_r / 3)
             rc = min(max(rc, 5.001), 49.999)
 
-            tmp(:) = 0
-
-            do s = 1, f_mode%nspecies
-              tmp(s) = f_mode%q(i,j,k,s)
-            end do
-
-            rm = calc_median_diameter(f_mode%n(i,j,k), tmp, &
+            rm = calc_median_diameter(f_mode%n(i,j,k), f_mode%q(:,i,j,k), &
                                       f_mode%rho, f_mode%sig_g) * 0.5 * 100
             rm = min(max(rm, 1.0E-8), 8.0E-3)
 
@@ -263,10 +247,10 @@ contains
 
             do s = 1, f_mode%nspecies
               st = f_mode%to_hydro%cnct(2,s)
-              f_mode%qp(i,j,k,s) = f_mode%qp(i,j,k,s) &
-                                   - gamma_m * f_mode%q(i,j,k,s)
-              c_mode%qp(i,j,k,s) = c_mode%qp(i,j,k,s) &
-                                   + gamma_m * f_mode%q(i,j,k,s)
+              f_mode%qp(s,i,j,k) = f_mode%qp(s,i,j,k) &
+                                   - gamma_m * f_mode%q(s,i,j,k)
+              c_mode%qp(st,i,j,k) = c_mode%qp(st,i,j,k) &
+                                   + gamma_m * f_mode%q(s,i,j,k)
             end do
           end if
         end do
