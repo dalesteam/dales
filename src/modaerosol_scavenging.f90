@@ -9,12 +9,15 @@ module modaerosol_scavenging
   use modmpi,            only: myid, d_mpi_bcast
   use modprecision,      only: field_r
   use modstat_nc,        only: nchandle_error
+  use modtimer,          only: timer_tic, timer_toc
 
   use netcdf
 
   implicit none
 
   private
+
+  character(len=*), parameter :: modname = 'modaerosol_scavenging'
 
   public :: init_scavenging
   public :: aerosol_scavenging_rain_lut
@@ -130,6 +133,9 @@ contains
     class(aerosol_mode_t),     intent(inout) :: f_mode !< Free mode.
     class(hydrometeor_mode_t), intent(inout) :: r_mode !< In-rain mode.
 
+    character(len=*), parameter :: routine = &
+      modname//'/aerosol_scavenging_rain_lut'
+
     real(field_r) :: sed_qr  !< Sedimentation rate (= rain rate?) [mm hr-1].
     real(field_r) :: rm      !< Median aerosol radius [microns].
     real(field_r) :: gamma_n !< Number scavenging rate [s-1].
@@ -138,6 +144,8 @@ contains
     real(field_r) :: tmp(maxspecies)
 
     integer :: i, j, k, s, st
+
+    call timer_tic(routine, 2)
 
     !$acc parallel loop collapse(3) default(present) &
     !$acc private(sed_qr, rm, gamma_n, gamma_m, st, tmp)
@@ -178,6 +186,8 @@ contains
       end do
     end do
 
+    call timer_toc(routine)
+
   end subroutine aerosol_scavenging_rain_lut
 
   !> Compute washout of aerosols by cloud droplets (in-cloud scavenging).
@@ -203,6 +213,9 @@ contains
     class(aerosol_mode_t),     intent(inout) :: f_mode !< Free aerosol mode.
     class(hydrometeor_mode_t), intent(inout) :: c_mode !< In-cloud mode.
 
+    character(len=*), parameter :: routine = &
+      modname//'/aerosol_scavenging_cloud_lut'
+
     logical       :: limit   !< Limit the scavenging rate.
     real(field_r) :: rc      !< Mean cloud drop radius [microns].
     real(field_r) :: rm      !< Mean aerosol radius [cm].
@@ -212,6 +225,8 @@ contains
     real(field_r) :: tmp(maxspecies)
 
     integer :: i, j, k, s, st
+
+    call timer_tic(routine, 2)
 
     !$acc parallel loop collapse(3) default(present) &
     !$acc private(rc, rm, gamma_n, gamma_m, limit, st, tmp)
@@ -257,6 +272,8 @@ contains
         end do
       end do
     end do
+
+    call timer_toc(routine)
 
   end subroutine aerosol_scavenging_cloud_lut
 
