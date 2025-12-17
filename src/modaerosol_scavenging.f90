@@ -2,7 +2,7 @@
 module modaerosol_scavenging
 
   use bulkmicro_sb,      only: calc_sed_qr_sb
-  use modaerosol_common, only: calc_median_diameter
+  use modaerosol_common, only: calc_median_diameter, maxspecies
   use modaerosol_mode_t, only: aerosol_mode_t, hydrometeor_mode_t
   use modbulkmicro_data, only: qrmin, qcmin
   use modglobal,         only: i1, j1, kmax, ih, jh, rhow, pi
@@ -92,6 +92,15 @@ contains
 
     call nchandle_error(nf90_close(ncid))
 
+    !$acc enter data copyin(log_rp_inc(1:dims_inc(2)), &
+    !$acc                   log_rp_blc(1:dims_blc(2)), &
+    !$acc                   log_rr(1:dims_blc(1)), &
+    !$acc                   log_rc(1:dims_inc(1)), &
+    !$acc                   gamma_inc_m(1:dims_inc(1),1:dims_inc(2)), &
+    !$acc                   gamma_inc_n(1:dims_inc(1),1:dims_inc(2)), &
+    !$acc                   gamma_blc_m(1:dims_blc(1),1:dims_blc(2)), &
+    !$acc                   gamma_blc_n(1:dims_blc(1),1:dims_blc(2)))
+
   end subroutine init_scavenging
 
   !> Compute washout of aerosols by precipitation (below-cloud scavenging).
@@ -126,8 +135,12 @@ contains
     real(field_r) :: gamma_n !< Number scavenging rate [s-1].
     real(field_r) :: gamma_m !< Mass scavenging rate [s-1].
 
+    real(field_r) :: tmp(maxspecies)
+
     integer :: i, j, k, s, st
 
+    !$acc parallel loop collapse(3) default(present) &
+    !$acc private(sed_qr, rm, gamma_n, gamma_m, st, tmp)
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
@@ -135,7 +148,13 @@ contains
           if (qr(i,j,k) > qrmin .and. sed_qr > 0.01) then
             sed_qr = min(max(sed_qr, 0.01001_field_r), 99.999_field_r)
 
-            rm = calc_median_diameter(f_mode%n(i,j,k), f_mode%q(i,j,k,:), &
+            tmp(:) = 0
+
+            do s = 1, f_mode%nspecies
+              tmp(s) = f_mode%q(i,j,k,s)
+            end do
+
+            rm = calc_median_diameter(f_mode%n(i,j,k), tmp, &
                                       f_mode%rho, f_mode%sig_g) * 0.5 * 1E6
             rm = min(max(1.5E-3_field_r, rm), 0.9999E3_field_r)
 
@@ -190,8 +209,12 @@ contains
     real(field_r) :: gamma_n !< Number scavenging rate [s-1].
     real(field_r) :: gamma_m !< Mass scavenging rate [s-1].
 
+    real(field_r) :: tmp(maxspecies)
+
     integer :: i, j, k, s, st
 
+    !$acc parallel loop collapse(3) default(present) &
+    !$acc private(rc, rm, gamma_n, gamma_m, limit, st, tmp)
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
@@ -200,7 +223,13 @@ contains
                   / (4 * pi * nc(i,j,k) * rhow + 1E-16))**(1.0_field_r / 3)
             rc = min(max(rc, 5.001), 49.999)
 
-            rm = calc_median_diameter(f_mode%n(i,j,k), f_mode%q(i,j,k,:), &
+            tmp(:) = 0
+
+            do s = 1, f_mode%nspecies
+              tmp(s) = f_mode%q(i,j,k,s)
+            end do
+
+            rm = calc_median_diameter(f_mode%n(i,j,k), tmp, &
                                       f_mode%rho, f_mode%sig_g) * 0.5 * 100
             rm = min(max(rm, 1.0E-8), 8.0E-3)
 
