@@ -29,57 +29,103 @@ module modlsm
 
     public :: initlsm, lsm, exitlsm, init_lsm_tiles
 
+#ifdef _OPENACC
+    real :: rhocp_i(1), rholv_i(1)
+#endif
+
 contains
 
 subroutine lsm
   use modglobal, only : ldrydep
+  use modtimer,  only : timer_tic, timer_toc
+  ! XXX: delete v
+  use modsurfdata, only : &
+       H, LE, G0, tskin, qskin, thlflux, qtflux, dthldz, dqtdz, &
+       dudz, dvdz, ustar, obl, cliq, ra, rsveg, rssoil, phiw, &
+       lambda, lambdah, tsoil, lambdas, gammas, lambdash, gammash, &
+       wl, wlm, phiwm
+
   implicit none
 
     if (.not. llsm) return
+    call timer_tic('lsm', 0)
 
     ! Calculate dynamic tile fractions,
     ! based on the amount of liquid water on vegetation.
     ! For now only do this when dry deposition is on
     ! warning: the wet surface tile has no z0h, z0m - will break in Obukhov length calculation
     if (ldrydep) then
+       call timer_tic('lsm_calc_tile_fractions', 0)
+#ifdef _OPENACC
+       stop "acc: unsupported calc_tile_fractions"
+#endif
        call calc_tile_fractions
+       call timer_toc('lsm_calc_tile_fractions')
     end if
 
     ! Calculate root fraction weighted mean soil water content.
+    call timer_tic('lsm_calc_theta_mean', 0)
     do ilu=1,nlu
       if (tile(ilu)%lveg) then
         call calc_theta_mean(tile(ilu))
       end if
     end do
+    call timer_toc('lsm_calc_theta_mean')
 
     ! Calculate canopy/soil resistances.
     if (lags) then
+        call timer_tic('lsm_calc_canopy_resistance_ags', 0)
+#ifdef _OPENACC
+        stop "acc: unsupported lsm calc_canopy_resistance_ags"
+#endif
         call calc_canopy_resistance_ags
+        call timer_toc('lsm_calc_canopy_resistance_ags')
     else
+        call timer_tic('lsm_calc_canopy_resistance_js', 0)
         call calc_canopy_resistance_js
+        call timer_toc('lsm_calc_canopy_resistance_js')
     endif
 
     ! Calculate aerodynamic resistance (and u*, obuk).
+    call timer_tic('lsm_calc_stability', 0)
     call calc_stability
+    call timer_toc('lsm_calc_stability')
 
     ! Set grid point averaged boundary conditions (thls, qts, gradients, ..)
+    call timer_tic('lsm_calc_bulk_bcs', 0)
     call calc_bulk_bcs
+    call timer_toc('lsm_calc_bulk_bcs')
 
     ! Calculate soil tendencies
     ! Calc diffusivity heat:
+    call timer_tic('lsm_calc_thermal_properties', 0)
     call calc_thermal_properties
+    call timer_toc('lsm_calc_thermal_properties')
     ! Solve diffusion equation:
+    call timer_tic('lsm_integrate_t_soil', 0)
     call integrate_t_soil
+    call timer_toc('lsm_integrate_t_soil')
 
     ! Calc diffusivity and conductivity soil moisture:
+    call timer_tic('lsm_calc_hydraulic_properties', 0)
     call calc_hydraulic_properties
+    call timer_toc('lsm_calc_hydraulic_properties')
     ! Calculate tendency due to root water extraction
+    call timer_tic('lsm_calc_root_water_extraction', 0)
     call calc_root_water_extraction
+    call timer_toc('lsm_calc_root_water_extraction')
 
     ! Update liquid water reservoir
+    call timer_tic('lsm_calc_liquid_reservoir', 0)
     call calc_liquid_reservoir
+    call timer_toc('lsm_calc_liquid_reservoir')
     ! Solve diffusion equation:
+    call timer_tic('lsm_integrate_theta_soil', 0)
     call integrate_theta_soil
+    call timer_toc('lsm_integrate_theta_soil')
+
+    !$acc wait(1)
+    call timer_toc('lsm')
 end subroutine lsm
 
 !
@@ -158,8 +204,13 @@ subroutine calc_liquid_reservoir
     real, parameter :: to_ms  = 1./(rhow*rlv)
 
     rk3coef = rdt / (4. - dble(rk3step))
-    if(rk3step == 1) wlm(:,:) = wl(:,:)
+    if(rk3step == 1) then
+       !$acc kernels default(present) async(1)
+       wlm(:,:) = wl(:,:)
+       !$acc end kernels
+    endif
 
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2, j1
         do i=2, i1
             wl_tend_dew = 0
@@ -170,19 +221,21 @@ subroutine calc_liquid_reservoir
             wl_tend_max = (wl_max(i,j) - wlm(i,j)) / rk3coef
 
             do ilu=1,nlu
-              if (tile(ilu)%laqu) then
+              if (.not. tile(ilu)%laqu) then
+                ! Tendency due to evaporation from liquid water reservoir/tile.
+                !if (trim(tile(ilu)%lushort) == 'ws') then
+                if (ilu == ilu_ws) then
+                  wl_tend_liq = wl_tend_liq -max(0., tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j) * to_ms)
+                end if
+
+                ! Tendency due to dewfall into vegetation/soil/liquid water tiles
+                wl_tend_dew = wl_tend_dew &
+                  -( min(0., tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j) * to_ms) )
+#ifndef _OPENACC
+              else
                 cycle
-              end if
-
-              ! Tendency due to evaporation from liquid water reservoir/tile.
-              !if (trim(tile(ilu)%lushort) == 'ws') then
-              if (ilu == ilu_ws) then
-                wl_tend_liq = wl_tend_liq -max(0., tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j) * to_ms)
-              end if
-
-              ! Tendency due to dewfall into vegetation/soil/liquid water tiles
-              wl_tend_dew = wl_tend_dew &
-                -( min(0., tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j) * to_ms) )
+#endif
+              endif
             end do
 
             ! Tendency due to interception of precipitation by vegetation
@@ -227,9 +280,12 @@ subroutine calc_theta_mean(tile)
     integer :: i, j, k, si
     real :: theta_lim
 
+    !$acc kernels default(present) async(1)
     tile%phiw_mean(:,:) = 0.
+    !$acc end kernels
 
     do k=1, kmax_soil
+        !$acc parallel loop collapse(2) default(present) async(1)
         do j=2,j1
             do i=2,i1
                 si = soil_index(i,j,k)
@@ -248,9 +304,10 @@ end subroutine calc_theta_mean
 subroutine calc_canopy_resistance_js
     use modglobal,   only : i1, j1
     use modfields,   only : thl0, qt0, exnf, presf
-    use modsurface,  only : ps
     use modraddata,  only : swd
     use modsurfdata, only : phiw
+    use modprecision, only : field_r
+
     implicit none
 
     integer :: i, j, k, si
@@ -262,13 +319,22 @@ subroutine calc_canopy_resistance_js
     real, parameter :: c_f1 = 0.05
 
     k = kmax_soil
+
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
         do i=2,i1
-            si = soil_index(i,j,k)
+            ! si = soil_index(i,j,k)
 
             ! f1: reduction vegetation resistance as f(sw_in):
             swd_pos = max(0._field_r, -swd(i,j,1))
             f1(i,j) = 1./min(1., (b_f1*swd_pos + c_f1) / (a_f1 * (b_f1*swd_pos + 1.)))
+
+        enddo
+    enddo
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
 
             ! f2: reduction vegetation resistance as f(theta):
             do ilu=1,nlu
@@ -276,6 +342,13 @@ subroutine calc_canopy_resistance_js
                 tile(ilu)%f2(i,j) = 1./min(1., max(1.e-9, tile(ilu)%phiw_mean(i,j)))
               endif
             enddo
+
+        enddo
+    enddo
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
 
             ! f3: reduction vegetation resistance as f(VPD) (high veg only):
             T    = thl0(i,j,1) * exnf(1)
@@ -288,16 +361,30 @@ subroutine calc_canopy_resistance_js
               endif
             enddo
 
+        enddo
+    enddo
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
+            si = soil_index(i,j,k)
+
             ! f2b: reduction soil resistance as f(theta)
             theta_min = cveg(i,j) * theta_wp(si) + (1.-cveg(i,j)) * theta_res(si);
             theta_rel = (phiw(i,j,k) - theta_min) / (theta_fc(si) - theta_min);
             f2b(i,j)  = 1./min(1., max(1.e-9, theta_rel))
 
+        enddo
+    enddo
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
             ! Calculate canopy and soil resistance
             do ilu=1,nlu
               if (tile(ilu)%lveg) then
                 tile(ilu)%rs(i,j) = tile(ilu)%rs_min(i,j) / tile(ilu)%lai(i,j) * tile(ilu)%f2(i,j) * tile(ilu)%f3(i,j) * f1(i,j)
-              else if (trim(tile(ilu)%lushort) == 'bs' .or. trim(tile(ilu)%lushort) == 'brn') then !TODO; special function for bare soil
+              else if (tile(ilu)%lunum == lu_bs .or. tile(ilu)%lunum == lu_brn) then !TODO; special function for bare soil
                 tile(ilu)%rs(i,j) = tile(ilu)%rs_min(i,j) / f2b(i,j)
               else if (ilu == ilu_ws) then
                 tile(ilu)%rs(i,j) = 10
@@ -713,6 +800,7 @@ subroutine calc_stability
 
   ! Calculate properties shared by all tiles:
   ! Absolute wind speed difference, and virtual potential temperature atmosphere
+  !$acc parallel loop collapse(2) default(present) async(1)
   do j=2,j1
       do i=2,i1
           du = 0.5*(u0(i,j,1) + u0(i+1,j,1)) + cu
@@ -726,6 +814,7 @@ subroutine calc_stability
   do ilu=1, nlu
     call calc_obuk_ustar_ra(tile(ilu))
   end do
+
 end subroutine calc_stability
 
 !
@@ -739,6 +828,7 @@ subroutine calc_obuk_ustar_ra(tile)
     integer :: i, j
     real :: thvs
 
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
         do i=2,i1
             !if (tile%frac(i,j) > 0) then
@@ -746,9 +836,11 @@ subroutine calc_obuk_ustar_ra(tile)
                 thvs = tile%thlskin(i,j) * (1.+(rv/rd-1.)*tile%qtskin(i,j))
                 tile%db(i,j) = grav/thvs * (thv_1(i,j) - thvs)
 
+#ifndef _OPENACC
                 if (tile%z0m(i,j) < 1e-6 .or. tile%z0h(i,j) < 1e-6) then
                    write (*,*) 'z0 warning:', tile%lushort, i, j, tile%z0m(i,j), tile%z0h(i,j)
                 end if
+#endif
 
                 ! Iteratively find Obukhov length
                 tile%obuk(i,j) = calc_obuk_dirichlet( &
@@ -757,6 +849,7 @@ subroutine calc_obuk_ustar_ra(tile)
         end do
     end do
 
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
         do i=2,i1
             !if (tile%frac(i,j) > 0) then
@@ -783,12 +876,17 @@ subroutine calc_tile_bcs(tile)
     type(T_lsm_tile), intent(inout) :: tile
     integer :: i, j
     real :: Ts, esats, qsats, desatdTs, dqsatdTs, &
-        rs_lim, fH, fLE, fG, num, denom, Ta, qsat_new, &
-        rhocp_i, rholv_i, Qnet
+        rs_lim, fH, fLE, fG, num, denom, Ta, qsat_new, Qnet
+#ifndef _OPENACC
+    real :: rhocp_i(1), rholv_i(1)
+#endif
 
-    rhocp_i = 1. / (rhof(1) * cp)
-    rholv_i = 1. / (rhof(1) * rlv)
+    !$acc kernels default(present) async(1)
+    rhocp_i(1) = 1. / (rhof(1) * cp)
+    rholv_i(1) = 1. / (rhof(1) * rlv)
+    !$acc end kernels
 
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2, j1
         do i=2, i1
            ! if (tile%frac(i,j) > 0) then
@@ -841,8 +939,8 @@ subroutine calc_tile_bcs(tile)
                 tile%G (i,j) = fG  * (tsoil(i,j,kmax_soil) - tile%tskin(i,j))
 
                 ! Calculate kinematic surface fluxes
-                tile%wthl(i,j) = tile%H (i,j) * rhocp_i
-                tile%wqt (i,j) = tile%LE(i,j) * rholv_i
+                tile%wthl(i,j) = tile%H (i,j) * rhocp_i(1)
+                tile%wqt (i,j) = tile%LE(i,j) * rholv_i(1)
 
                 ! Calculate surface values
                 tile%thlskin(i,j) = thl0(i,j,1) + tile%wthl(i,j) * tile%ra(i,j)
@@ -867,6 +965,7 @@ subroutine calc_water_bcs(tile)
     integer :: i, j
     real :: esats
 
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2, j1
       do i=2, i1
         !if (tile%frac(i,j) > 0) then
@@ -919,11 +1018,16 @@ subroutine calc_bulk_bcs
     implicit none
 
     integer :: i, j
-    real :: rhocp_i, rholv_i, ucu, vcv, bflux
+    real :: ucu, vcv, bflux
+#ifndef _OPENACC
+    real :: rhocp_i(1), rholv_i(1)
+#endif
     real, pointer :: ustar_3D(:,:,:)
 
-    rhocp_i = 1. / (rhof(1) * cp)
-    rholv_i = 1. / (rhof(1) * rlv)
+    !$acc kernels default(present) async(1)
+    rhocp_i(1) = 1. / (rhof(1) * cp)
+    rholv_i(1) = 1. / (rhof(1) * rlv)
+    !$acc end kernels
 
     ! Calculate surface temperature for each tile, and calculate
     ! surface fluxes (H, LE, G0, wthl, wqt) and values (thlskin, qtskin)
@@ -935,6 +1039,7 @@ subroutine calc_bulk_bcs
       endif
     enddo
 
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
         do i=2,i1
             H(i,j) = 0
@@ -945,6 +1050,12 @@ subroutine calc_bulk_bcs
             qskin(i,j) = 0
             rsveg(i,j) = 0
             rssoil(i,j) = 0
+        enddo
+    enddo
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
             do ilu=1,nlu
               H(i,j)      = H(i,j)     + tile(ilu)%frac(i,j) * tile(ilu)%H(i,j)
               LE(i,j)     = LE(i,j)    + tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j)
@@ -952,11 +1063,24 @@ subroutine calc_bulk_bcs
               ustar(i,j)  = ustar(i,j) + tile(ilu)%frac(i,j) * tile(ilu)%ustar(i,j)
               tskin(i,j)  = tskin(i,j) + tile(ilu)%frac(i,j) * tile(ilu)%thlskin(i,j)
               qskin(i,j)  = qskin(i,j) + tile(ilu)%frac(i,j) * tile(ilu)%qtskin(i,j)
-            enddo
+           enddo
+        enddo
+    enddo
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
 
             ! Kinematic surface fluxes
-            thlflux(i,j) =  H(i,j)  * rhocp_i
-            qtflux (i,j) =  LE(i,j) * rholv_i
+            thlflux(i,j) =  H(i,j)  * rhocp_i(1)
+            qtflux (i,j) =  LE(i,j) * rholv_i(1)
+
+        enddo
+    enddo
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
 
             ! Calculate mean Obukhov length from mean fluxes
             bflux = grav/thvh(1) * (thlflux(i,j) * (1.-(1.-rv/rd)*qskin(i,j)) - &
@@ -967,12 +1091,26 @@ subroutine calc_bulk_bcs
             dthldz(i,j) = -thlflux(i,j) / (fkar * zf(1) * ustar(i,j)) * phih(zf(1)/obl(i,j))
             dqtdz (i,j) = -qtflux (i,j) / (fkar * zf(1) * ustar(i,j)) * phih(zf(1)/obl(i,j))
 
+        enddo
+    enddo
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
+
             ! NOTE: dudz, dvdz are at the grid center (full level), not the velocity locations.
             ucu = 0.5*(u0(i,j,1) + u0(i+1,j,1))+cu
             vcv = 0.5*(v0(i,j,1) + v0(i,j+1,1))+cv
 
             dudz(i,j) = ustar(i,j) / (fkar * zf(1)) * phim(zf(1)/obl(i,j)) * (ucu/du_tot(i,j))
             dvdz(i,j) = ustar(i,j) / (fkar * zf(1)) * phim(zf(1)/obl(i,j)) * (vcv/du_tot(i,j))
+
+        enddo
+    enddo
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
 
             ! Just for diagnostics (modlsmcrosssection)
             do ilu=1,nlu
@@ -981,6 +1119,13 @@ subroutine calc_bulk_bcs
                 cliq(i,j) = tile(ilu)%frac(i,j) / land_frac(i,j)
               endif
             enddo
+
+        enddo
+    enddo
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
 
             ! Calculate ra consistent with mean flux and temperature difference:
             ra(i,j) = (tskin(i,j) - thl0(i,j,1)) / thlflux(i,j)
@@ -1015,10 +1160,14 @@ subroutine calc_bulk_bcs
     ! Cyclic BCs where needed.
     ustar_3D(1:i2,1:j2,1:1) => ustar
     if(lopenbc) then ! Only use periodicity for non-domain boundaries when openboundaries are used
+#ifdef _OPENACC
+       stop "acc: unsupported lsm openboundary_excjs"
+#endif
        call openboundary_excjs(ustar_3D, 2,i1,2,j1,1,1,1,1, &
             & (.not.lboundary(1:4)).or.lperiodic(1:4))
     else
        !call excjs(ustar,2,i1,2,j1,1,1,1,1)
+       !$acc wait(1) ! XXX: should not have to stall here
        call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
     endif
 
@@ -1028,7 +1177,7 @@ end subroutine calc_bulk_bcs
 ! Interpolation soil from full to half levels,
 ! using various interpolation methods
 !
-subroutine interpolate_soil(fieldh, field, iinterp)
+subroutine interpolate_soil(fieldh, field, iinterp, acc)
     use modglobal, only : i1, j1
     implicit none
 
@@ -1038,9 +1187,10 @@ subroutine interpolate_soil(fieldh, field, iinterp)
     real, intent(in)    :: field(:,:,:)
     integer, intent(in) :: iinterp
     integer i, j, k
-
+    logical::acc
     if (iinterp == iinterp_amean) then
         do k=2,kmax_soil
+            !$acc parallel loop collapse(2) default(present) async(1) if(acc)
             do j=2,j1
                 do i=2,i1
                     fieldh(i,j,k) = 0.5*(field(i,j,k-1) + field(i,j,k))
@@ -1049,6 +1199,7 @@ subroutine interpolate_soil(fieldh, field, iinterp)
         end do
     else if (iinterp == iinterp_gmean) then
         do k=2,kmax_soil
+            !$acc parallel loop collapse(2) default(present) async(1) if(acc)
             do j=2,j1
                 do i=2,i1
                     fieldh(i,j,k) = sqrt(field(i,j,k-1) * field(i,j,k))
@@ -1057,6 +1208,7 @@ subroutine interpolate_soil(fieldh, field, iinterp)
         end do
     else if (iinterp == iinterp_hmean) then
         do k=2,kmax_soil
+            !$acc parallel loop collapse(2) default(present) async(1) if(acc)
             do j=2,j1
                 do i=2,i1
                     fieldh(i,j,k) = ((dz_soil(k-1)+dz_soil(k))*field(i,j,k-1)*field(i,j,k)) / &
@@ -1066,6 +1218,7 @@ subroutine interpolate_soil(fieldh, field, iinterp)
         end do
     else if (iinterp == iinterp_max) then
         do k=2,kmax_soil
+            !$acc parallel loop collapse(2) default(present) async(1) if(acc)
             do j=2,j1
                 do i=2,i1
                     fieldh(i,j,k) = max(field(i,j,k-1), field(i,j,k))
@@ -1091,6 +1244,7 @@ subroutine calc_thermal_properties
 
     ! Calculate diffusivity heat
     do k=1,kmax_soil
+        !$acc parallel loop collapse(2) default(present) async(1)
         do j=2,j1
             do i=2,i1
                 si = soil_index(i,j,k)
@@ -1113,7 +1267,7 @@ subroutine calc_thermal_properties
     end do
 
     ! Interpolate to half levels
-    call interpolate_soil(lambdah, lambda, iinterp_t)
+    call interpolate_soil(lambdah, lambda, iinterp_t, .true.)
 
 end subroutine calc_thermal_properties
 
@@ -1131,6 +1285,7 @@ subroutine calc_hydraulic_properties
 
     ! Calculate diffusivity and conductivity soil moisture
     do k=1,kmax_soil
+        !$acc parallel loop collapse(2) default(present) async(1)
         do j=2,j1
             do i=2,i1
                 si = soil_index(i,j,k)
@@ -1156,15 +1311,20 @@ subroutine calc_hydraulic_properties
         end do
     end do
 
+
     ! Interpolate to half levels
-    call interpolate_soil(lambdash, lambdas, iinterp_theta)
-    call interpolate_soil(gammash,  gammas,  iinterp_theta)
+    call interpolate_soil(lambdash, lambdas, iinterp_theta, .true.)
+    call interpolate_soil(gammash,  gammas,  iinterp_theta, .true.)
 
     ! Optionally, set free drainage bottom BC
     if (lfreedrainage) then
+        !$acc kernels default(present) async(1)
         gammash(:,:,1) = gammash(:,:,2)
+        !$acc end kernels
     else
+        !$acc kernels default(present) async(1)
         gammash(:,:,1) = 0.
+        !$acc end kernels
     end if
 
 end subroutine calc_hydraulic_properties
@@ -1181,31 +1341,32 @@ subroutine calc_root_water_extraction
     real :: phiw_rf, phi_frac, LE
     real, parameter :: fac = 1./(rhow * rlv)
 
+    !$acc kernels default(present) async(1)
     phiw_source = 0
-    do j=2, j1
-      do i=2, i1
-        do ilu=1,nlu
-          if (.not. tile(ilu)%lveg) then
-            cycle
-          else
-            LE = tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j)
-            phiw_rf = 0.
+    !$acc end kernels
+    do ilu=1,nlu
+      if (.not. tile(ilu)%lveg) then
+          cycle
+      else
+        !$acc parallel loop collapse(2) default(present) async(1)
+        do j=2, j1
+          do i=2, i1
+              LE = tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j)
+              phiw_rf = 0.
 
-            do k=1, kmax_soil
-                phiw_rf = phiw_rf + tile(ilu)%root_frac(i,j,k) * phiw(i,j,k)
-            end do
+              do k=1, kmax_soil
+                 phiw_rf = phiw_rf + tile(ilu)%root_frac(i,j,k) * phiw(i,j,k)
+              end do
 
-            do k=1, kmax_soil
-                phi_frac = tile(ilu)%root_frac(i,j,k) * phiw(i,j,k) / phiw_rf
+              do k=1, kmax_soil
+                 phi_frac = tile(ilu)%root_frac(i,j,k) * phiw(i,j,k) / phiw_rf
 
-                phiw_source(i,j,k) = phiw_source(i,j,k) &
-                                     - max(0., LE) * fac * dzi_soil(k) * phi_frac
-
-            end do
-
-          end if
+                 phiw_source(i,j,k) = phiw_source(i,j,k) &
+                                      - max(0., LE) * fac * dzi_soil(k) * phi_frac
+              end do
+           end do
         end do
-      end do
+      end if
     end do
 
 end subroutine calc_root_water_extraction
@@ -1223,10 +1384,15 @@ subroutine integrate_t_soil
     real :: tend, rk3coef, flux_top
 
     rk3coef = rdt / (4. - dble(rk3step))
-    if(rk3step == 1) tsoilm(:,:,:) = tsoil(:,:,:)
+    if(rk3step == 1) then
+       !$acc kernels default(present) async(1)
+       tsoilm(:,:,:) = tsoil(:,:,:)
+       !$acc end kernels
+    endif
 
     ! Top soil layer
     k = kmax_soil
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
         do i=2,i1
             si = soil_index(i,j,k)
@@ -1239,6 +1405,7 @@ subroutine integrate_t_soil
 
     ! Bottom soil layer
     k = 1
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
         do i=2,i1
             tend = ((lambdah(i,j,k+1) * (tsoil(i,j,k+1) - tsoil(i,j,k)) * dzhi_soil(k+1)))*dzi_soil(k)
@@ -1249,6 +1416,7 @@ subroutine integrate_t_soil
 
     ! Interior
     do k=2,kmax_soil-1
+        !$acc parallel loop collapse(2) default(present) async(1)
         do j=2,j1
             do i=2,i1
                 tend = ((lambdah(i,j,k+1) * (tsoil(i,j,k+1) - tsoil(i,j,k  )) * dzhi_soil(k+1)) &
@@ -1275,17 +1443,21 @@ subroutine integrate_theta_soil
     real :: tend, rk3coef, flux_top, fac
 
     rk3coef = rdt / (4. - dble(rk3step))
-    if(rk3step == 1) phiwm(:,:,:) = phiw(:,:,:)
+    if(rk3step == 1) then
+       !$acc kernels default(present) async(1)
+       phiwm(:,:,:) = phiw(:,:,:)
+       !$acc end kernels
+    endif
 
     fac = 1./(rhow * rlv)
 
      ! Top soil layer
     k = kmax_soil
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
         do i=2,i1
           do ilu=1,nlu
-            !if (trim(tile(ilu)%lushort) == 'bs') then
-            if (trim(tile(ilu)%lushort) == 'bs' .or. trim(tile(ilu)%lushort) == 'brn') then !TODO; special function for bare soil
+            if (tile(ilu)%lunum == lu_bs .or. tile(ilu)%lunum == lu_brn) then !TODO; special function for bare soil
               flux_top = tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j) * fac + throughfall(i,j)
               tend = (-flux_top - (lambdash(i,j,k) * (phiw(i,j,k) - phiw(i,j,k-1)) * dzhi_soil(k)))*dzi_soil(k) &
                     - gammash(i,j,k) * dzi_soil(k) + phiw_source(i,j,k)
@@ -1297,6 +1469,7 @@ subroutine integrate_theta_soil
 
     ! Bottom soil layer
     k = 1
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
         do i=2,i1
             tend = ((lambdash(i,j,k+1) * (phiw(i,j,k+1) - phiw(i,j,k)) * dzhi_soil(k+1)))*dzi_soil(k) &
@@ -1308,6 +1481,7 @@ subroutine integrate_theta_soil
 
     ! Interior
     do k=2,kmax_soil-1
+        !$acc parallel loop collapse(2) default(present) async(1)
         do j=2,j1
             do i=2,i1
                 tend = ((lambdash(i,j,k+1) * (phiw(i,j,k+1) - phiw(i,j,k  )) * dzhi_soil(k+1)) &
@@ -1320,6 +1494,8 @@ subroutine integrate_theta_soil
     end do
 
     ! Range check of phiw
+    !$acc update host(phiw) wait(1)
+    !$acc wait(1)
     call check_array(phiw, "phiw", "integrate_theta_soil", [0.0, 1.0])
 
 end subroutine integrate_theta_soil
@@ -1338,7 +1514,7 @@ subroutine initlsm
 
     character(len=*), parameter :: routine = modname//'/initlsm'
 
-    integer :: ierr
+    integer :: ierr, ilu
     logical :: lheterogeneous
 
     ! Namelist definition
@@ -1408,7 +1584,206 @@ subroutine initlsm
 
     end if
 
+    ! NOTE: we can't use trim in GPU kernels, use an integer flag instead
+    do ilu=1,nlu
+       if (trim(tile(ilu)%lushort) == 'bs') then
+          tile(ilu)%lunum = lu_bs
+       else if (trim(tile(ilu)%lushort) == 'brn') then
+          tile(ilu)%lunum = lu_brn
+       else
+          tile(ilu)%lunum = lu_default
+       endif
+    enddo
+
+    call allocate_on_device()
+
 end subroutine initlsm
+
+subroutine allocate_on_device()
+
+  use modsurfdata, only : tsoil, tsoilm, phiw, phiwm, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah, lambdas, gammas, lambdash, gammash, wl, wlm
+
+  implicit none
+
+  integer :: ilu
+
+  !$acc enter data copyin(G0)
+  !$acc enter data copyin(H)
+  !$acc enter data copyin(LE)
+  !$acc enter data copyin(cliq)
+  !$acc enter data copyin(cveg)
+  !$acc enter data copyin(du_tot)
+  !$acc enter data copyin(dz_soil)
+  !$acc enter data copyin(dzhi_soil)
+  !$acc enter data copyin(dzi_soil)
+  !$acc enter data copyin(f1)
+  !$acc enter data copyin(f2b)
+  !$acc enter data copyin(gamma_t_dry)
+  !$acc enter data copyin(gamma_theta_max)
+  !$acc enter data copyin(gamma_theta_min)
+  !$acc enter data copyin(gamma_theta_sat)
+  !$acc enter data copyin(gammas)
+  !$acc enter data copyin(gammash)
+  !$acc enter data copyin(interception)
+  !$acc enter data copyin(lambda)
+  !$acc enter data copyin(lambda_theta_max)
+  !$acc enter data copyin(lambda_theta_min)
+  !$acc enter data copyin(lambdah)
+  !$acc enter data copyin(lambdas)
+  !$acc enter data copyin(lambdash)
+  !$acc enter data copyin(land_frac)
+  !$acc enter data copyin(phiw)
+  !$acc enter data copyin(phiw_source)
+  !$acc enter data copyin(phiwm)
+  !$acc enter data copyin(rho_C)
+  !$acc enter data copyin(rssoil)
+  !$acc enter data copyin(rsveg)
+  !$acc enter data copyin(soil_index)
+  !$acc enter data copyin(theta_fc)
+  !$acc enter data copyin(theta_res)
+  !$acc enter data copyin(theta_sat)
+  !$acc enter data copyin(theta_wp)
+  !$acc enter data copyin(throughfall)
+  !$acc enter data copyin(thv_1)
+  !$acc enter data copyin(tsoil)
+  !$acc enter data copyin(tsoilm)
+  !$acc enter data copyin(vg_a)
+  !$acc enter data copyin(vg_l)
+  !$acc enter data copyin(vg_m)
+  !$acc enter data copyin(wl)
+  !$acc enter data copyin(wl_max)
+  !$acc enter data copyin(wlm)
+
+  !$acc enter data copyin(tile)
+  do ilu=1,nlu
+     !$acc enter data copyin(tile(ilu))
+
+     !$acc enter data copyin(tile(ilu)%G)
+     !$acc enter data copyin(tile(ilu)%H)
+     !$acc enter data copyin(tile(ilu)%LE)
+     !$acc enter data copyin(tile(ilu)%db)
+     !$acc enter data copyin(tile(ilu)%f2)
+     !$acc enter data copyin(tile(ilu)%f3)
+     !$acc enter data copyin(tile(ilu)%frac)
+     !$acc enter data copyin(tile(ilu)%gD)
+     !$acc enter data copyin(tile(ilu)%lai)
+     !$acc enter data copyin(tile(ilu)%lambda_stable)
+     !$acc enter data copyin(tile(ilu)%lambda_unstable)
+     !$acc enter data copyin(tile(ilu)%laqu)
+     !$acc enter data copyin(tile(ilu)%laqu)
+     !$acc enter data copyin(tile(ilu)%lveg)
+     !$acc enter data copyin(tile(ilu)%obuk)
+     !$acc enter data copyin(tile(ilu)%phiw_mean)
+     !$acc enter data copyin(tile(ilu)%qtskin)
+     !$acc enter data copyin(tile(ilu)%ra)
+     !$acc enter data copyin(tile(ilu)%root_frac)
+     !$acc enter data copyin(tile(ilu)%rs)
+     !$acc enter data copyin(tile(ilu)%rs_min)
+     !$acc enter data copyin(tile(ilu)%thlskin)
+     !$acc enter data copyin(tile(ilu)%tskin)
+     !$acc enter data copyin(tile(ilu)%ustar)
+     !$acc enter data copyin(tile(ilu)%wqt)
+     !$acc enter data copyin(tile(ilu)%wthl)
+     !$acc enter data copyin(tile(ilu)%z0h)
+     !$acc enter data copyin(tile(ilu)%z0m)
+  enddo
+
+  !$acc enter data create(rhocp_i, rholv_i)
+end subroutine allocate_on_device
+
+subroutine deallocate_from_device()
+
+  use modsurfdata, only : tsoil, tsoilm, phiw, phiwm, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah, lambdas, gammas, lambdash, gammash, wl, wlm
+
+  implicit none
+
+  integer :: ilu
+
+  return
+
+  !$acc exit data delete(G0)
+  !$acc exit data delete(H)
+  !$acc exit data delete(LE)
+  !$acc exit data delete(cliq)
+  !$acc exit data delete(cveg)
+  !$acc exit data delete(du_tot)
+  !$acc exit data delete(dz_soil)
+  !$acc exit data delete(dzhi_soil)
+  !$acc exit data delete(dzi_soil)
+  !$acc exit data delete(f1)
+  !$acc exit data delete(f2b)
+  !$acc exit data delete(gamma_t_dry)
+  !$acc exit data delete(gamma_theta_max)
+  !$acc exit data delete(gamma_theta_min)
+  !$acc exit data delete(gamma_theta_sat)
+  !$acc exit data delete(gammas)
+  !$acc exit data delete(gammash)
+  !$acc exit data delete(interception)
+  !$acc exit data delete(lambda)
+  !$acc exit data delete(lambda_theta_max)
+  !$acc exit data delete(lambda_theta_min)
+  !$acc exit data delete(lambdah)
+  !$acc exit data delete(lambdas)
+  !$acc exit data delete(lambdash)
+  !$acc exit data delete(land_frac)
+  !$acc exit data delete(phiw)
+  !$acc exit data delete(phiw_source)
+  !$acc exit data delete(phiwm)
+  !$acc exit data delete(rho_C)
+  !$acc exit data delete(rssoil)
+  !$acc exit data delete(rsveg)
+  !$acc exit data delete(soil_index)
+  !$acc exit data delete(theta_fc)
+  !$acc exit data delete(theta_res)
+  !$acc exit data delete(theta_sat)
+  !$acc exit data delete(theta_wp)
+  !$acc exit data delete(throughfall)
+  !$acc exit data delete(thv_1)
+  !$acc exit data delete(tsoil)
+  !$acc exit data delete(tsoilm)
+  !$acc exit data delete(vg_a)
+  !$acc exit data delete(vg_l)
+  !$acc exit data delete(vg_m)
+  !$acc exit data delete(wl)
+  !$acc exit data delete(wl_max)
+  !$acc exit data delete(wlm)
+
+  do ilu=1,nlu
+     !$acc exit data delete(tile(ilu)%G)
+     !$acc exit data delete(tile(ilu)%H)
+     !$acc exit data delete(tile(ilu)%LE)
+     !$acc exit data delete(tile(ilu)%db)
+     !$acc exit data delete(tile(ilu)%f2)
+     !$acc exit data delete(tile(ilu)%f3)
+     !$acc exit data delete(tile(ilu)%frac)
+     !$acc exit data delete(tile(ilu)%gD)
+     !$acc exit data delete(tile(ilu)%lai)
+     !$acc exit data delete(tile(ilu)%lambda_stable)
+     !$acc exit data delete(tile(ilu)%lambda_unstable)
+     !$acc exit data delete(tile(ilu)%laqu)
+     !$acc exit data delete(tile(ilu)%laqu)
+     !$acc exit data delete(tile(ilu)%lveg)
+     !$acc exit data delete(tile(ilu)%obuk)
+     !$acc exit data delete(tile(ilu)%phiw_mean)
+     !$acc exit data delete(tile(ilu)%qtskin)
+     !$acc exit data delete(tile(ilu)%ra)
+     !$acc exit data delete(tile(ilu)%root_frac)
+     !$acc exit data delete(tile(ilu)%rs)
+     !$acc exit data delete(tile(ilu)%rs_min)
+     !$acc exit data delete(tile(ilu)%thlskin)
+     !$acc exit data delete(tile(ilu)%tskin)
+     !$acc exit data delete(tile(ilu)%ustar)
+     !$acc exit data delete(tile(ilu)%wqt)
+     !$acc exit data delete(tile(ilu)%wthl)
+     !$acc exit data delete(tile(ilu)%z0h)
+     !$acc exit data delete(tile(ilu)%z0m)
+
+     !$acc exit data delete(tile(ilu))
+  enddo
+  !$acc exit data delete(tile)
+
+  !$acc exit data delete(rhocp_i, rholv_i)
+end subroutine deallocate_from_device
 
 !
 ! Cleanup (deallocate) the land-surface model
@@ -1422,6 +1797,8 @@ subroutine exitlsm
     implicit none
 
     if (.not. llsm) return
+
+    call deallocate_from_device()
 
     ! Allocated from `read_soil_table`:
     deallocate( theta_res, theta_wp, theta_fc, theta_sat, gamma_theta_sat, vg_a, vg_l, vg_n )
@@ -1691,6 +2068,7 @@ end subroutine allocate_tile
 subroutine deallocate_tile(tile)
     implicit none
     type(T_lsm_tile), intent(inout) :: tile
+
     deallocate( tile%z0m, tile%z0h, tile%base_frac, tile%frac )
     deallocate( tile%obuk, tile%ustar, tile%ra )
     deallocate( tile%lambda_stable, tile%lambda_unstable )
@@ -1720,6 +2098,10 @@ subroutine init_lsm_tiles
       tile(ilu) % thlskin(:,:) = thlprof(1)
       tile(ilu) % qtskin (:,:) = qtprof(1)
       tile(ilu) % obuk   (:,:) = -0.1
+
+      !$acc update device(tile(ilu)%thlskin)
+      !$acc update device(tile(ilu)%qtskin)
+      !$acc update device(tile(ilu)%obuk)
     end do
 
 end subroutine init_lsm_tiles
@@ -2418,6 +2800,7 @@ subroutine read_soil_table
     call D_MPI_BCAST(vg_l,            table_size, 0, comm3d, mpierr)
     call D_MPI_BCAST(vg_n,            table_size, 0, comm3d, mpierr)
 
+
 end subroutine read_soil_table
 
 !
@@ -2511,6 +2894,7 @@ function calc_obuk_dirichlet(L_in, du, db_in, zsl, z0m, z0h) result(res)
 
     integer :: m, n, nlim
     real :: res, L, db, Lmax, L0, Lstart, Lend, fx0, fxdif
+    !$acc routine seq
 
     m = 0
     nlim = 10
@@ -2583,8 +2967,10 @@ function calc_obuk_dirichlet(L_in, du, db_in, zsl, z0m, z0h) result(res)
     end do
 
     if (m > 1) then
+#ifndef _OPENACC
         print*,'WARNING: convergence has not been reached in Obukhov length iteration'
         print*,'Input: ', L_in, du, db_in, zsl, z0m, z0h
+#endif
         !stop
         res = 1e-9
         return
@@ -2651,6 +3037,7 @@ pure function calc_diffusivity_vg( &
     implicit none
     real, intent(in) :: theta_norm, vg_a, vg_l, vg_m, lambda_sat, theta_sat, theta_res
     real :: res
+    !$acc routine seq
 
     res = (1.-vg_m)*lambda_sat / (vg_a * vg_m * (theta_sat-theta_res)) * theta_norm**(vg_l-(1./vg_m)) * &
              (  (1.-theta_norm**(1./vg_m))**(-vg_m) + (1.-theta_norm**(1./vg_m))**vg_m - 2. )
@@ -2663,6 +3050,7 @@ pure function calc_conductivity_vg(theta_norm, vg_l, vg_m, gamma_sat) result(res
     implicit none
     real, intent(in) :: theta_norm, vg_l, vg_m, gamma_sat
     real :: res
+    !$acc routine seq
 
     res = gamma_sat * theta_norm**vg_l * ( 1.- (1.-theta_norm**(1./vg_m))**vg_m )**2.
 

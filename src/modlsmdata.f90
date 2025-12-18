@@ -45,12 +45,18 @@ module modlsmdata
   real, allocatable :: an_co2(:,:), resp_co2(:,:)
   integer :: co2_index = -1
 
+  ! Land use number
+  integer, parameter :: lu_default = 0
+  integer, parameter :: lu_bs = 1
+  integer, parameter :: lu_brn = 2
+
   ! Data structure for sub-grid tiles
   type T_lsm_tile
   ! Fixed LU properties
       ! Land use name
       character(len=64) :: luname
       character(len=3)  :: lushort
+      integer           :: lunum
       ! Check if LU type is vegetation
       logical           :: lveg
       ! Check if LU type is water

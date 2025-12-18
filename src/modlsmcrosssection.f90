@@ -371,6 +371,8 @@ contains
             vars(:,:,11) = rssoil(2:i1,2:j1)
             vars(:,:,12) = rsveg(2:i1,2:j1)
         else if (isurf == 11) then
+            !$acc update host(H, LE, G0, tskin, obl, ustar, cliq, Wl, ra, &
+            !$acc& rssoil, rsveg, f1, f2b)
             vars(:,:, 1) = H(2:i1,2:j1)
             vars(:,:, 2) = LE(2:i1,2:j1)
             vars(:,:, 3) = G0(2:i1,2:j1)
