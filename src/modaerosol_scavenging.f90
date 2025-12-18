@@ -10,6 +10,7 @@ module modaerosol_scavenging
   use modprecision,      only: field_r
   use modstat_nc,        only: nchandle_error
   use modtimer,          only: timer_tic, timer_toc
+  use fortran_support,   only: finish
 
   use netcdf
 
@@ -42,9 +43,19 @@ contains
   !> Read the scavenging lookup tables.
   subroutine init_scavenging()
 
+    character(len=*), parameter :: routine =  modname//'/init_scavenging'
+
     integer :: istat, ncid, varid, dimid
     integer :: dims_inc(2) !< Dimensions of the in-cloud LUT.
     integer :: dims_blc(2) !< DImensions of the below-cloud LUT.
+    logical :: file_exists
+
+    inquire(file="scavenging_lut.nc", exist=file_exists)
+
+    if (.not. file_exists) then
+      call finish(routine, "scavenging lookup table file 'scavenging_lut.nc' &
+        &not found.")
+    end if
 
     call nchandle_error(nf90_open("scavenging_lut.nc", NF90_NOWRITE, ncid))
 
