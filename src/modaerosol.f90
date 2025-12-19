@@ -2,23 +2,26 @@ module modaerosol
 
   use, intrinsic :: iso_fortran_env
 
-  use modaerosol_mode_t, only: aerosol_mode_t, hydrometeor_mode_t, mode_t, &
-                               mode_container_t, connect_modes
-  use modaerosol_common, only: maxspecies, maxmodes, iNUS, iAIS, iACS, iCOS, &
-                               iAII, iACI, iCOI, iINC, iINR, iSO4, iSS, iPOM, &
-                               iBC, iDU
-  use modglobal,         only: ifnamopt, fname_options, checknamelisterror, &
-                               cexpnr, i1, j1, k1, ih, jh, pi, nsv, rhow, kmax, &
-                               rk3step
-  use modfields,         only: sv0, svp
-  use modmicrodata,      only: qcmin, delt
-  use modmpi,            only: myid, D_MPI_BCAST, commwrld, mpierr
-  use modprecision,      only: field_r
-  use modtimer,          only: timer_tic, timer_toc
-  use modbulkmicro_data, only: l_sb, qrmin
-  use bulkmicro_sb,      only: calc_sed_qr_sb, calc_sed_nr_sb
-  use bulkmicro_kk,      only: calc_sed_nr_kk, calc_sed_qr_kk
-  use fortran_support,   only: nnml_output
+  use modaerosol_mode_t,     only: aerosol_mode_t, hydrometeor_mode_t, mode_t, &
+                                   mode_container_t, connect_modes
+  use modaerosol_common,     only: maxspecies, maxmodes, iNUS, iAIS, iACS, &
+                                   iCOS, iAII, iACI, iCOI, iINC, iINR, iSO4, &
+                                   iSS, iPOM, iBC, iDU, calc_median_diameter
+  use modaerosol_scavenging, only: init_scavenging, &
+                                   aerosol_scavenging_rain_lut, &
+                                   aerosol_scavenging_cloud_lut
+  use modglobal,             only: ifnamopt, fname_options, &
+                                   checknamelisterror, cexpnr, i1, j1, k1, ih, &
+                                   jh, pi, nsv, rhow, kmax, rk3step, rd, pirhow
+  use modfields,             only: sv0, svp
+  use modmicrodata,          only: qcmin, delt
+  use modmpi,                only: myid, D_MPI_BCAST, commwrld, mpierr
+  use modprecision,          only: field_r
+  use modtimer,              only: timer_tic, timer_toc
+  use modbulkmicro_data,     only: l_sb, qrmin, l_mur_cst, mur_cst
+  use bulkmicro_sb,          only: calc_sed_qr_sb, calc_sed_nr_sb
+  use bulkmicro_kk,          only: calc_sed_nr_kk, calc_sed_qr_kk
+  use fortran_support,       only: nnml_output
   use modstat_nc
 
   implicit none
@@ -37,6 +40,8 @@ module modaerosol
   public :: aerosol_resuspend_rain
   public :: aerosol_resuspend_cloud
   public :: aerosol_sedimentation_rain
+  public :: aerosol_scavenging_rain
+  public :: aerosol_scavenging_cloud
 
   interface erfcinv
     module procedure :: erfcinv_real32
@@ -159,6 +164,8 @@ contains
 
     !$acc enter data copyin(sed_qr(2:i1,2:j1,1:k1), qlm(2:i1,2:j1,1:k1))
 
+    call init_scavenging()
+
   end subroutine init_aerosol
 
   !> Prepares aerosol fields for microphysics calculations.
@@ -202,43 +209,6 @@ contains
     call timer_toc(routine)
 
   end subroutine aerosol_finish
-
-  !> Compute the median diameter of a log-normal distribution.
-  !!
-  !! @param[in] n Number concentration.
-  !! @param[in] q Mass concentration (dim=nspecies).
-  !! @param[in] rho Aerosol densities (dim=nspecies).
-  !! @param[in] sig_g Geometric standard deviation of the distribution.
-  pure function calc_median_diameter(n, q, rho, sig_g) result(dm)
-
-    real(field_r), intent(in) :: n, q(:), rho(:), sig_g
-
-
-    real(field_r) :: &
-      m,     & ! Total aerosol mass.
-      rho_m, & ! Mean density.
-      dm       ! Median diameter.
-
-    integer :: &
-      s ! Loop index
-
-    m = 0
-    rho_m = 0
-
-    do s = 1, size(q)
-      m = m + q(s)
-      rho_m = rho_m + q(s) / rho(s)
-    end do
-
-    m = max(0.0_field_r, m)
-    rho_m = max(0.0_field_r, m / (rho_m + 1E-16))
-
-    dm = ((6 * m) / (pi * n * rho_m + 1E-16))**(1.0_field_r / 3) &
-         * exp(- 0.5_field_r * 3 * log(sig_g) * log(sig_g))
-
-    dm = max(0.0_field_r, dm)
-
-  end function calc_median_diameter
 
   !> Aerosol activation based on updraft velocity.
   !!
@@ -288,8 +258,6 @@ contains
       tend_m,        & ! Real tendency of mass concentration.
       w0               ! Updraft velocity.
 
-    real(field_r) :: tmp(5) !< Temp array for mass concentrations, needed to prevent bug with OpenACC
-
     call timer_tic(routine, 2)
 
     m_ais => modes_f(iAIS)
@@ -298,16 +266,13 @@ contains
     m_inc => modes_h(iINC)
     
     !$acc parallel loop collapse(3) default(present) &
-    !$acc private(dm, fn, n_act, w0, dncdt, fm, tend_n, tend_m, st, tmp)
+    !$acc private(dm, fn, n_act, w0, dncdt, fm, tend_n, tend_m, st)
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
           if (ql(i,j,k) > qcmin) then
             if (m_ais%nspecies > 0) then
-              do s = 1, m_ais%nspecies
-                tmp(s) = m_ais%q(i,j,k,s)
-              end do
-              dm = calc_median_diameter(m_ais%n(i,j,k), tmp, &
+              dm = calc_median_diameter(m_ais%n(i,j,k), m_ais%q(:,i,j,k), &
                                         m_ais%rho, m_ais%sig_g)
               if (dm > 0) then
               fn = 1 - 0.5_field_r * erfc(-log(2 * r_crit / &
@@ -336,10 +301,10 @@ contains
             Ncp(i,j,k) = Ncp(i,j,k) + tend_n
 
             do s = 1, m_cos%nspecies
-              tend_m = max(0.0_field_r, fm * m_cos%q(i,j,k,s) / delt)
+              tend_m = max(0.0_field_r, fm * m_cos%q(s,i,j,k) / delt)
               st = m_cos%to_hydro%cnct(2,s)
-              m_cos%qp(i,j,k,s) = m_cos%qp(i,j,k,s) - tend_m
-              m_inc%qp(i,j,k,st) = m_inc%qp(i,j,k,st) + tend_m
+              m_cos%qp(s,i,j,k) = m_cos%qp(s,i,j,k) - tend_m
+              m_inc%qp(st,i,j,k) = m_inc%qp(st,i,j,k) + tend_m
             end do
 
             dncdt = dncdt - tend_n
@@ -358,10 +323,10 @@ contains
               Ncp(i,j,k) = Ncp(i,j,k) + tend_n
 
               do s = 1, m_acs%nspecies
-                tend_m = max(0.0_field_r, fm * m_acs%q(i,j,k,s) / delt)
+                tend_m = max(0.0_field_r, fm * m_acs%q(s,i,j,k) / delt)
                 st = m_acs%to_hydro%cnct(2,s)
-                m_acs%qp(i,j,k,s) = m_acs%qp(i,j,k,s) - tend_m
-                m_inc%qp(i,j,k,st) = m_inc%qp(i,j,k,st) + tend_m
+                m_acs%qp(s,i,j,k) = m_acs%qp(s,i,j,k) - tend_m
+                m_inc%qp(st,i,j,k) = m_inc%qp(st,i,j,k) + tend_m
               end do
 
               dncdt = dncdt - tend_n
@@ -382,10 +347,10 @@ contains
               Ncp(i,j,k) = Ncp(i,j,k) + tend_n
 
               do s = 1, m_ais%nspecies
-                tend_m = max(0.0_field_r, fm * m_ais%q(i,j,k,s) / delt)
+                tend_m = max(0.0_field_r, fm * m_ais%q(s,i,j,k) / delt)
                 st = m_ais%to_hydro%cnct(2,s)
-                m_ais%qp(i,j,k,s) = m_ais%qp(i,j,k,s) - tend_m
-                m_inc%qp(i,j,k,st) = m_inc%qp(i,j,k,st) + tend_m
+                m_ais%qp(s,i,j,k) = m_ais%qp(s,i,j,k) - tend_m
+                m_inc%qp(st,i,j,k) = m_inc%qp(st,i,j,k) + tend_m
               end do
             end if
           end if
@@ -427,14 +392,14 @@ contains
     m_inr => modes_h(iINR)
 
     !$acc parallel loop collapse(4) default(present) private(dqadt)
-    do s = 1, m_inc%nspecies
-      do k = 1, kmax
-        do j = 2, j1
-          do i = 2, i1
+    do k = 1, kmax
+      do j = 2, j1
+        do i = 2, i1
+          do s = 1, m_inc%nspecies
             if (qrp(i,j,k) > 0) then
-              dqadt = qrp(i,j,k) / qc(i,j,k) * m_inc%q(i,j,k,s)
-              m_inc%qp(i,j,k,s) = m_inc%qp(i,j,k,s) - dqadt
-              m_inr%qp(i,j,k,s) = m_inr%qp(i,j,k,s) + dqadt
+              dqadt = qrp(i,j,k) / qc(i,j,k) * m_inc%q(s,i,j,k)
+              m_inc%qp(s,i,j,k) = m_inc%qp(s,i,j,k) - dqadt
+              m_inr%qp(s,i,j,k) = m_inr%qp(s,i,j,k) + dqadt
             end if
           end do
         end do
@@ -514,7 +479,7 @@ contains
                   + 2 * f_evp + (4.0_field_r/3) * f_evp**(3.0_field_r/2))) &
                   * (1 - f_evp) + f_evp * f_evp
           
-            evapm(:) = eps * f_evp * m_inr%q(i,j,k,:) / delt
+            evapm(:) = eps * f_evp * m_inr%q(:,i,j,k) / delt
             evapn = max(0.0_field_r, -1 * nrp(i,j,k))
 
             ! Compute the median diameter of the resuspended aerosol.
@@ -530,9 +495,9 @@ contains
             m_cos%np(i,j,k) = m_cos%np(i,j,k) + (1 - fn) * evapn
 
             do s = 1, m_inr%nspecies
-              m_inr%qp(i,j,k,s) = m_inr%qp(i,j,k,s) - evapm(s)
-              m_acs%qp(i,j,k,s) = m_acs%qp(i,j,k,s) + fm * evapm(s)
-              m_cos%qp(i,j,k,s) = m_cos%qp(i,j,k,s) + (1 - fm) * evapm(s)
+              m_inr%qp(s,i,j,k) = m_inr%qp(s,i,j,k) - evapm(s)
+              m_acs%qp(s,i,j,k) = m_acs%qp(s,i,j,k) + fm * evapm(s)
+              m_cos%qp(s,i,j,k) = m_cos%qp(s,i,j,k) + (1 - fm) * evapm(s)
             end do
           end if
         end do
@@ -613,7 +578,7 @@ contains
                 + 2 * f_evp + (4.0_field_r/3) * f_evp**(3.0_field_r/2))) &
                 * (1 - f_evp) + f_evp * f_evp
           
-          evapm(:) = eps * f_evp * m_inc%q(i,j,k,:) / delt
+          evapm(:) = eps * f_evp * m_inc%q(:,i,j,k) / delt
           evapn = f_evp * nc(i,j,k) / delt
 
           ! Compute the median diameter of the resuspended aerosol.
@@ -631,9 +596,9 @@ contains
           m_cos%np(i,j,k) = m_cos%np(i,j,k) + (1 - fn) * evapn
 
           do s = 1, m_inc%nspecies
-            m_inc%qp(i,j,k,s) = m_inc%qp(i,j,k,s) - evapm(s)
-            m_acs%qp(i,j,k,s) = m_acs%qp(i,j,k,s) + fm * evapm(s)
-            m_cos%qp(i,j,k,s) = m_cos%qp(i,j,k,s) + (1 - fm) * evapm(s)
+            m_inc%qp(s,i,j,k) = m_inc%qp(s,i,j,k) - evapm(s)
+            m_acs%qp(s,i,j,k) = m_acs%qp(s,i,j,k) + fm * evapm(s)
+            m_cos%qp(s,i,j,k) = m_cos%qp(s,i,j,k) + (1 - fm) * evapm(s)
           end do
         end do
       end do
@@ -724,7 +689,7 @@ contains
       do j = 2, j1
         do i = 2, i1
           do s = 1, m_inr%nspecies
-            qa_spl(s,i,j,k) = m_inr%q(i,j,k,s)
+            qa_spl(s,i,j,k) = m_inr%q(s,i,j,k)
           end do
         end do
       end do
@@ -776,8 +741,8 @@ contains
       do j = 2, j1
         do i = 2, i1
           do s = 1, m_inr%nspecies
-            m_inr%qp(i,j,k,s) = m_inr%qp(i,j,k,s) + &
-                               (qa_spl(s,i,j,k) - m_inr%q(i,j,k,s)) / delt
+            m_inr%qp(s,i,j,k) = m_inr%qp(s,i,j,k) + &
+                               (qa_spl(s,i,j,k) - m_inr%q(s,i,j,k)) / delt
           end do
         end do
       end do
@@ -790,5 +755,38 @@ contains
     call timer_toc(routine)
 
   end subroutine aerosol_sedimentation_rain
+  
+  !> Compute scavenging of aerosols by rain drops.
+  subroutine aerosol_scavenging_rain(qr, nr, rho, delt)
+
+    real(field_r), intent(in) :: qr(2:,2:,:) !< Rain water content [kg kg-1].
+    real(field_r), intent(in) :: nr(2:,2:,:) !< Rain number concentration [m-3].
+    real(field_r), intent(in) :: rho(:)      !< Air density [kg m-3].
+    real(field_r), intent(in) :: delt        !< Time step size [s].
+
+    integer :: imod
+
+    do imod = 1, size(modes_f)
+      call aerosol_scavenging_rain_lut(qr, nr, rho, delt, modes_f(imod), &
+                                       modes_h(iINR))
+    end do
+
+  end subroutine aerosol_scavenging_rain
+
+  !> Compute scavenging of aerosols by cloud droplets.
+  subroutine aerosol_scavenging_cloud(ql, nc, rho, delt)
+
+    real(field_r), intent(in) :: ql(2-ih:,2-jh:,:) !< Cloud water content [kg kg-1].
+    real(field_r), intent(in) :: nc(2:,2:,:)       !< Cloud droplet number concentration [m-3].
+    real(field_r), intent(in) :: rho(:)            !< Air density [kg m-3].
+    real(field_r), intent(in) :: delt              !< Time step size [s].
+
+    integer :: imod
+
+    do imod = 1, size(modes_f)
+      call aerosol_scavenging_cloud_lut(ql, nc, rho, delt, modes_f(imod), modes_h(iINC))
+    end do
+
+  end subroutine aerosol_scavenging_cloud
 
 end module modaerosol
