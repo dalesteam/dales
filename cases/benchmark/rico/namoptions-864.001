@@ -34,7 +34,6 @@ xtime      =  0.0
 /
 
 &PHYSICS
-lmoist     =  .true.
 irad       =  0
 timerad    =  2
 lcoriol    =  .true.
@@ -54,7 +53,6 @@ z0hav =  3.2e-5
 
 &DYNAMICS
 llsadv     =  .false.
-lqlnr      =  .false.
 cu         =  -5.
 cv         =  -4.
 
@@ -63,6 +61,9 @@ iadv_tke   =  2
 iadv_thl   =  2
 iadv_qt    =  2
 iadv_sv    =  7
+/
+&THERMODYNAMICS
+lqlnr       = .false.
 /
 &NAMMICROPHYSICS
 imicro     = 2

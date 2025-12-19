@@ -26,7 +26,6 @@ xtime      =  0.
 /
 
 &PHYSICS
-lmoist     =  .true.
 lcoriol    =  .true.
 ltimedep   =  .true.
 /

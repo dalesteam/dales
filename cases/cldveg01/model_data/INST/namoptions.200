@@ -48,8 +48,6 @@ sgs_surface_fix = .false.
 /
 
 &DYNAMICS
-lqlnr      =  .true.
-lnoclouds  =  .false.
 cu         =  0
 cv         =  0.
 

@@ -33,7 +33,6 @@
 
 &physics
     igrw_damp = 2
-    lfast_thermo = .true.
     iradiation = 4
     timerad = 60
     lcoriol = .true.

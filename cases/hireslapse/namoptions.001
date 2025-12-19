@@ -27,7 +27,6 @@ xtime      =  4.
 &PHYSICS
 wsvsurf(1) =  0.
 wsvsurf(2) =  1.
-lmoist     =  .true.
 iradiation =  0
 useMcICA   =  .true.
 lcoriol    =  .true.

@@ -26,9 +26,12 @@ xtime      =  0.
 
 &PHYSICS
 ltimedep   =  .true.
-lmoist     =  .false.
 iradiation =  0
 lcoriol    =  .true.
+/
+
+&THERMODYNAMICS
+lmoist     = .false.
 /
 
 &NAMSURFACE

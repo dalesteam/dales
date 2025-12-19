@@ -29,7 +29,6 @@ xtime      =  0.
 &PHYSICS
 !wsvsurf    =  0.0 ! since DALES 5.0 this goes in tracerdata.inp
 
-lmoist     =  .false.
 iradiation =  2
 rad_smoke  = .true.
 rad_longw  = .true.
@@ -41,6 +40,10 @@ isvsmoke   =  1
 rka        =  0.02
 igrw_damp  = 0
 
+/
+
+&THERMODYNAMICS
+lmoist     = .false.
 /
 
 &NAMSURFACE

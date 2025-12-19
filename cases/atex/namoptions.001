@@ -26,7 +26,6 @@ ysize      =  6400
 /
 
 &PHYSICS
-lmoist     =  .true.
 iradiation =  2
 dlwtop     = 74
 dlwbot     = 0

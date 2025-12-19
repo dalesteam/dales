@@ -30,7 +30,6 @@ xtime  = 12
 /
 
 &PHYSICS
-lmoist = .true.
 lcoriol = .false.
 ltimedep = .true.
 iradiation = 4      ! 4 = RRTMG

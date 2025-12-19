@@ -28,7 +28,6 @@ xtime      =  0.
 /
 
 &PHYSICS
-lmoist     =  .true.
 iradiation =  4
 timerad    =  60.
 lcoriol    =  .true.
@@ -70,7 +69,6 @@ timeav          =  600
 
 &DYNAMICS
 llsadv     =  .false.
-lqlnr      =  .false.
 cu         =  2
 cv         =  -18
 
@@ -79,6 +77,9 @@ iadv_tke    =  52
 iadv_thl    =  52
 iadv_qt     =  52
 iadv_sv     =  52
+/
+&THERMODYNAMICS
+lqlnr       = .false.
 /
 &NAMCHECKSIM
 tcheck      = 0

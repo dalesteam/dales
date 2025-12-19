@@ -62,7 +62,6 @@ wsvsurf(19) = 0.0
 wsvsurf(20) = 0.0
 
 
-lmoist     =  .true.
 irad       =  0
 timerad    =  3600
 lcoriol    =  .true.
