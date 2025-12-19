@@ -147,12 +147,7 @@ save
 
       real :: lambda_crit=100. !< maximum value for the smoothness. This controls if WENO or
 
-      logical :: lmoist   = .true.  !<   switch to calculate moisture fields
-      logical :: lnoclouds = .false. !<   switch to enable/disable thl calculations
-      logical :: lfast_thermo = .true. !<   switch to enable faster icethermo scheme
       logical :: lsgbucorr= .false.  !<   switch to enable subgrid buoyancy flux
-      logical :: lconstexner = .false.  !<  switch to use the initial pressure profile in the exner function
-      logical :: lbaseexner = .false.   !<  switch to use the base pressure profile in the exner function
 
       ! Global variables (modvar.f90)
       integer :: xyear  = 0     !<     * year, only for time units in netcdf

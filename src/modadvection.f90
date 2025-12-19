@@ -34,7 +34,7 @@ contains
 !> Advection redirection function
 subroutine advection
 
-  use modglobal,      only : lmoist, nsv, iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv, &
+  use modglobal,      only : nsv, iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv, &
                              iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,&
                              iadv_upw,iadv_hybrid,iadv_hybrid_f,iadv_null,leq,&
                              lopenbc,lboundary,lperiodic,i1,j1
@@ -52,6 +52,7 @@ subroutine advection
   use advec_kappa,    only : hadvecc_kappa, vadvecc_kappa
   use advec_upw,      only : hadvecc_upw, vadvecc_upw
   use modopenboundary,only : advecc_2nd_boundary_buffer,advecu_2nd_boundary_buffer,advecv_2nd_boundary_buffer,advecw_2nd_boundary_buffer
+  use modthermodynamics, only: lmoist
   implicit none
   integer :: n,istart,iend,jstart,jend,ibuffer,jbuffer
   character(len=*), parameter :: routine = modname//'/advection'

@@ -476,7 +476,8 @@ contains
   end subroutine timedepz
 
   subroutine timedepsurf
-    use modglobal,   only : rtimee, lmoist
+    use modglobal,   only : rtimee
+    use modthermodynamics, only: lmoist
     use modsurfdata, only : wtsurf,wqsurf,thls,qts,ps, Qnetav
     use modsurface,  only : qtsurf
     implicit none

@@ -162,7 +162,8 @@ contains
    ! Diffusion subroutines
    ! Thijs Heus, Chiel van Heerwaarden, 15 June 2007
 
-    use modglobal,    only : nsv, lmoist, lopenbc, lboundary, lperiodic
+    use modglobal,    only : nsv, lopenbc, lboundary, lperiodic
+    use modthermodynamics, only: lmoist
     use modfields,    only : up,vp,wp,e12p,thl0,thlp,qt0,qtp,sv0,svp
     use modsurfdata,  only : thlflux,qtflux,svflux
 
