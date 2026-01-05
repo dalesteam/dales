@@ -73,10 +73,10 @@ contains
     use modglobal,         only : version,initglobal,iexpnr, ltotruntime, runtime, dtmax, dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,&
-                                  lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,cu,cv,&
-                                  ifnamopt,fname_options,llsadv,lconstexner,lbaseexner, &
+                                  lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,cu,cv,&
+                                  ifnamopt,fname_options,llsadv, &
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,&
-                                  lnoclouds,lfast_thermo,lrigidlid,unudge,ntimedep,&
+                                  lrigidlid,unudge,ntimedep,&
                                   checknamelisterror, &
                                   loutdirs, output_prefix, &
                                   lopenbc,linithetero,lperiodic,dxint,dyint,dzint,dxturb,dyturb,taum,tauh,pbc,&
@@ -138,12 +138,11 @@ contains
         xlat,xlon,xyear,xday,xtime,ksp
     namelist/PHYSICS/ &
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
-        lmoist,chi_half,&
         lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,ltimedep,ltimedepuv,ltimedepsv,ntimedep,&
         irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
-        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge,lfast_thermo,lconstexner,lbaseexner
+        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge
     namelist/DYNAMICS/ &
-        llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
+        llsadv, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv
     namelist/OPENBC/ &
         lopenbc,linithetero,lper,lbuoytop,dxint,dyint,dzint,dxturb,dyturb,taum,tauh,pbc,lsynturb,iturb,tau,lambda,nmodes,lambdas,lambdas_x,lambdas_y,lambdas_z,lbuoytop
 
@@ -241,8 +240,6 @@ contains
     call D_MPI_BCAST(xtime      ,1,0,commwrld,mpierr)
 
     !call D_MPI_BCAST(lneutraldrag ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(chi_half    ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(lmoist      ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lcoriol     ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lpressgrad  ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(igrw_damp   ,1,0,commwrld,mpierr)
@@ -255,9 +252,6 @@ contains
     call D_MPI_BCAST(ltimedepsv  ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lrigidlid   ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(unudge      ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(lfast_thermo,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(lconstexner ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(lbaseexner  ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(irad       ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(timerad    ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(iradiation ,1,0,commwrld,mpierr)
@@ -300,8 +294,6 @@ contains
     call D_MPI_BCAST(iadv_thl,1,0,commwrld,mpierr)
     call D_MPI_BCAST(iadv_qt ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(iadv_sv ,1,0,commwrld,mpierr)
-
-    call D_MPI_BCAST(lnoclouds  ,1,0,commwrld,mpierr)
 
     ! Broadcast openboundaries Variables
     call D_MPI_BCAST(lopenbc,    1, 0,commwrld,mpierr)
@@ -510,8 +502,9 @@ contains
                                   rtimee,timee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
-                                  trestart, ladaptive,llsadv,tnextrestart,longint,lconstexner,lbaseexner,lopenbc,linithetero, &
+                                  trestart, ladaptive,llsadv,tnextrestart,longint,lopenbc,linithetero, &
                                   iinput, input_netcdf, input_ascii, lcoriol
+    use modthermodynamics, only : lconstexner,lbaseexner
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
@@ -1625,8 +1618,8 @@ contains
     ! In the current implementation, neither the base pressure, nor the base virtual temperature plays a role in the dynamics
     ! They are nevertheless calculated and printed to the stdin/baseprof files for user convenience
     use modfields,         only : rhobf,rhobh,drhobdzf,drhobdzh,exnf,exnh
-    use modglobal,         only : k1,kmax,zf,zh,dzf,dzh,rv,rd,grav,cp,pref0,lwarmstart,ibas_prf,cexpnr,ifinput,ifoutput,&
-                                  lbaseexner
+    use modglobal,         only : k1,kmax,zf,zh,dzf,dzh,rv,rd,grav,cp,pref0,lwarmstart,ibas_prf,cexpnr,ifinput,ifoutput
+    use modthermodynamics, only : lbaseexner
     use modsurfdata,       only : thls,ps,qts
     use modmpi,            only : myid,comm3d,mpierr,D_MPI_BCAST
     use modlogging,        only : profile_output
@@ -1947,7 +1940,7 @@ contains
 
   !> Check prognostic variables before simulation
   subroutine check_initial_state()
-    use modglobal, only: lmoist
+    use modthermodynamics, only: lmoist
     use modfields, only: u0, v0, w0, thl0, qt0, sv0
 
     ! Weird bug, casting thresholds to _field_r leads to compilation error for

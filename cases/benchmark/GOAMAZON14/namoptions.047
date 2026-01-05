@@ -119,7 +119,6 @@ wsvsurf(19) = 0.0
 wsvsurf(20) = 0.0
 wsvsurf(21) = 0.0
 
-lmoist     =  .true.
 iradiation =  4
 
 lcoriol    =  .true.

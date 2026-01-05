@@ -25,7 +25,6 @@ xtime      =  10.
 /
 
 &PHYSICS
-lmoist     =  .true.
 iradiation =  0
 useMcICA   =  .true.
 lcoriol    =  .true.

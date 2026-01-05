@@ -26,7 +26,6 @@ xtime      =  15.
 /
 
 &PHYSICS
-lmoist     =  .true.
 iradiation =  10
 
 timerad    =  0

@@ -28,7 +28,6 @@
 /
 
 &physics
-    lmoist = .true.
     lcoriol = .true.
     iradiation = 4
     timerad = 60

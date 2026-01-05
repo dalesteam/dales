@@ -30,7 +30,6 @@ ps         =  100000.00
 thls       =  296.
 wtsurf     =  0.1
 wqsurf     =  0.0001
-lmoist     =  .true.
 isurf      =  1
 iradiation =  3
 useMcICA   =  .true.

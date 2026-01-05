@@ -25,10 +25,13 @@ xtime      =  0.
 /
 
 &PHYSICS
-lmoist     =  .false.
 iradiation =  0
 timerad    =  3600
 lcoriol    =  .false.
+/
+
+&THERMODYNAMICS
+lmoist     = .false.
 /
 
 &NAMSURFACE

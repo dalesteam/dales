@@ -29,9 +29,12 @@
 !
 
 module modthermodynamics
+  use modglobal,    only: checknamelisterror, ifnamopt
+  use modmpi,       only: myid, d_mpi_bcast, commwrld
   use modprecision, only : field_r
   use modtimer
   use modlogging, only: finish
+  use fortran_support, only: nnml_output
   implicit none
   character(len=*), parameter :: modname = 'modthermodynamics'
 !   private
@@ -41,8 +44,15 @@ module modthermodynamics
   public :: esatltab
   public :: esatitab
   public :: esatmtab
+  public :: thermodynamics_read_namelist
 
-  logical :: lqlnr    = .true. !< switch for ql calc. with Newton-Raphson (on/off)
+  logical :: lqlnr = .true.        !< Switch for ql calc. with Newton-Raphson (on/off).
+  logical :: lmoist = .true.       !< Switch to calculate moisture fields.
+  logical :: lnoclouds = .false.   !< Switch to enable/disable thl calculations.
+  logical :: lfast_thermo = .true. !< Switch to enable faster icethermo scheme.
+  logical :: lconstexner = .false. !< Switch to use the initial pressure profile in the exner function.
+  logical :: lbaseexner = .false.  !< Switch to use the base pressure profile in the exner function.
+
   real, allocatable :: th0av(:)
   real(field_r), allocatable :: thv0(:,:,:)
   real :: chi_half=0.5  !< set wet, dry or intermediate (default) mixing over the cloud edge
@@ -56,6 +66,34 @@ module modthermodynamics
   !$acc declare create(ttab, esatltab, esatitab, esatmtab)
 
 contains
+
+  !> Read thermodynamics namelist.
+  subroutine thermodynamics_read_namelist(nml_filename)
+
+    character(len=*), intent(in) :: nml_filename
+
+    integer :: ierr
+
+    namelist /thermodynamics/ lmoist, chi_half, lfast_thermo, lconstexner, &
+      lbaseexner, lqlnr, lnoclouds
+
+    if (myid == 0) then
+      open(ifnamopt, file=nml_filename, status='old', action='read', &
+           iostat=ierr)
+      read(ifnamopt, nml=thermodynamics, iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'thermodynamics')
+      write(nnml_output, thermodynamics)
+      close(ifnamopt)
+    end if
+
+    call d_mpi_bcast(lmoist, 1, 0, commwrld, ierr)
+    call d_mpi_bcast(chi_half, 1, 0, commwrld, ierr)
+    call d_mpi_bcast(lfast_thermo, 1, 0, commwrld, ierr)
+    call d_mpi_bcast(lconstexner, 1, 0, commwrld, ierr)
+    call d_mpi_bcast(lbaseexner, 1, 0, commwrld, ierr)
+    call d_mpi_bcast(lqlnr, 1, 0, commwrld, ierr)
+
+  end subroutine thermodynamics_read_namelist
 
 !> Allocate and initialize arrays
   subroutine initthermodynamics
@@ -102,7 +140,7 @@ contains
 !! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure,
 !! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
-    use modglobal,  only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds,lfast_thermo
+    use modglobal,  only : timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv
     use modfields,  only : thl0, qt0, ql0, presf, exnf, thvh, thv0h, qt0av, ql0av, thvf, rhof
     use modmpi,     only : slabsum
     use modibm,     only : fluid_mask
@@ -218,7 +256,7 @@ contains
 
 !> Calculate thetav and dthvdz
   subroutine calthv
-    use modglobal, only : lmoist,i1,j1,k1,kmax,zf,dzh,rlv,rd,rv,cp,eps1
+    use modglobal, only : i1,j1,k1,kmax,zf,dzh,rlv,rd,rv,cp,eps1
     use modfields, only : thl0,thl0h,ql0,ql0h,qt0,qt0h,exnf,exnh,thv0h,dthvdz
     use modsurfdata,only : dthldz,dqtdz
     implicit none
@@ -360,7 +398,7 @@ contains
 !!     qt,ql,exner,pressure and the density
 !! \author      Pier Siebesma   K.N.M.I.     06/01/1995
   subroutine diagfld
-  use modglobal,  only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0,timee,lconstexner,lbaseexner
+  use modglobal,  only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0,timee
   use modfields,  only : u0,v0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
                         presf,presh,exnf,exnh,rhof,thvf
   use modsurfdata,only : thls,ps

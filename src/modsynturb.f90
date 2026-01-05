@@ -59,7 +59,8 @@ type(randomNumberSequence) :: noise
 contains
   subroutine initsynturb
     use netcdf
-    use modglobal, only : dx,dy,imax,jmax,i1,j1,lambdas,lambdas_x,lambdas_y,lambdas_z,kmax,k1,cexpnr,lmoist
+    use modglobal, only : dx,dy,imax,jmax,i1,j1,lambdas,lambdas_x,lambdas_y,lambdas_z,kmax,k1,cexpnr
+    use modthermodynamics, only: lmoist
     use modmpi, only : myidx, myidy
     implicit none
 
@@ -213,7 +214,7 @@ contains
   end subroutine handle_err
 
   subroutine exitsynturb
-    use modglobal, only : lmoist
+    use modthermodynamics, only : lmoist
     implicit none
     integer :: ib
     if(.not.lsynturb) return
@@ -332,7 +333,8 @@ contains
   end subroutine synturb_all
 
   subroutine sepsim()
-    use modglobal, only : rtimee,lmoist
+    use modglobal, only : rtimee
+    use modthermodynamics, only : lmoist
     implicit none
 
     character(len=*), parameter :: routine = modname//'/sepsim'

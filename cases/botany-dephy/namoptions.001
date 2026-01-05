@@ -29,7 +29,6 @@ xtime      =  0.0
 /
 
 &PHYSICS
-lmoist     =  .true.
 timerad    =  60
 iradiation =  4
 lcoriol    =  .true.

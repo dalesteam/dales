@@ -28,7 +28,6 @@ xtime      =  0.0
 &PHYSICS
 
 
-lmoist     =  .true.
 irad       =  0
 timerad    =  2
 lcoriol    =  .true.

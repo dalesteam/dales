@@ -25,9 +25,12 @@ xlon       =  0.
 
 &PHYSICS
 ltimedep   =  .false.
-lmoist     =  .false.
 lcoriol    =  .true.
 iradiation = 0
+/
+
+&THERMODYNAMICS
+lmoist     = .false.
 /
 
 &NAMSURFACE

@@ -25,11 +25,14 @@ xtime      =  4.
 /
 
 &PHYSICS
-lmoist     =  .false.
 iradiation =  0
 useMcICA   =  .true.
 lcoriol    =  .true.
 igrw_damp  =  0
+/
+
+&THERMODYNAMICS
+lmoist     = .false.
 /
 
 &NAMNETCDFSTATS

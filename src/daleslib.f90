@@ -590,7 +590,8 @@ module daleslib
         ! update the surface pressure according to ps_tend
         ! perform the update every full timestep to avoid introducing ps0, psm
         subroutine update_ps
-          use modglobal,          only: rdt, rk3step, lmoist
+          use modglobal,          only: rdt, rk3step
+          use modthermodynamics,  only: lmoist
           use modsurfdata,        only : ps, qts
           use modsurface,         only : qtsurf
 
