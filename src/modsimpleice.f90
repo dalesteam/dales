@@ -34,6 +34,7 @@ module modsimpleice
   use modmicrodata, only: Nc_0, l_rain
   use modsimpleice_data, only: l_berry, l_graupel, l_warm, l_mp, &
                                evapfactor, courantp
+  use modfields, only: ql0, exnf, rhof, tmp0
   use modtimer
   implicit none
   private
@@ -274,7 +275,7 @@ contains
     call timer_toc(routine//'/setup')
     if (l_rain) then
       call bulkmicrotend
-      call autoconvert
+      call autoconvert(ql0, tmp0, rhof, exnf, delt, qtpmcr, thlpmcr, qrp)
       call bulkmicrotend
       call accrete
       call bulkmicrotend
@@ -318,13 +319,23 @@ contains
     call timer_toc(routine)
   end subroutine simpleice
 
-  subroutine autoconvert
-    use modglobal, only : i1,j1,kmax,rlv,cp,tmelt
-    use modfields, only : ql0,exnf,rhof,tmp0
-    use modmicrodata, only: qtpmcr, thlpmcr, delt, Nc_0
+  subroutine autoconvert(ql, T, rho, exn, delt, qtpmcr, thlpmcr, qrp)
+    use modglobal, only : i1,j1,ih,jh,kmax,rlv,cp,tmelt
+    use modmicrodata, only: Nc_0
     use modsimpleice_data, only : betakessi, l_berry, qli0, qll0, timekessl, &
-                             qrp, ilratio, qcmin
-    implicit none
+                                  ilratio, qcmin
+
+    real(field_r), intent(in) :: ql(2-ih:,2-jh:,:) !< Cloud water mixing ratio [kg/kg]
+    real(field_r), intent(in) :: T(2-ih:,2-jh:,:)  !< Temperature [K]
+    real(field_r), intent(in) :: rho(:)            !< Air density [kg/m3]
+    real(field_r), intent(in) :: exn(:)            !< Exner function [-]
+    real(field_r), intent(in) :: delt              !< Time step [s]
+
+    real(field_r), intent(inout) :: qtpmcr(2-ih:,2-jh:,:) !< Total water mixing ratio tendency [kg/kg/s]
+    real(field_r), intent(inout) :: thlpmcr(2:,2:,:)      !< Liquid water potential temperature tendency [K/s]
+    real(field_r), intent(inout) :: qrp(2:,2:,:)          !< Rain water mixing ratio tendency [kg/kg/s]
+
+
     character(len=*), parameter :: routine = modname//"/autoconvert"
     real(field_r) :: qll,qli,ddisp,lwc,autl,tc,times,auti,aut
     integer:: i,j,k
@@ -335,20 +346,20 @@ contains
     do k=1,kmax
     do j=2,j1
     do i=2,i1
-        if (ql0(i,j,k) > qcmin) then
+        if (ql(i,j,k) > qcmin) then
           ! ql partitioning
-          qll=ql0(i,j,k)*ilratio(i,j,k)
-          qli=ql0(i,j,k)-qll
+          qll=ql(i,j,k)*ilratio(i,j,k)
+          qli=ql(i,j,k)-qll
           ddisp=0.146-5.964e-2*log(Nc_0/2.e9) ! Relative dispersion coefficient for Berry autoconversion
-          lwc=1.e3_field_r*rhof(k)*qll ! Liquid water content in g/kg
-          autl=1/rhof(k)*1.67e-5_field_r*lwc*lwc/(5 + .0366_field_r*Nc_0/(1.e6_field_r*ddisp*(lwc+eps_lambda)))
-          tc=tmp0(i,j,k)-tmelt ! Temperature wrt melting point
+          lwc=1.e3_field_r*rho(k)*qll ! Liquid water content in g/kg
+          autl=1/rho(k)*1.67e-5_field_r*lwc*lwc/(5 + .0366_field_r*Nc_0/(1.e6_field_r*ddisp*(lwc+eps_lambda)))
+          tc=T(i,j,k)-tmelt ! Temperature wrt melting point
           times=min(1.e3,(3.56*tc+106.7)*tc+1.e3) ! Time scale for ice autoconversion
           auti=qli/times
-          aut = min(autl + auti,ql0(i,j,k)/delt)
+          aut = min(autl + auti,ql(i,j,k)/delt)
           qrp(i,j,k) = qrp(i,j,k)+aut
           qtpmcr(i,j,k) = qtpmcr(i,j,k)-aut
-          thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*aut
+          thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exn(k)))*aut
         endif
       enddo
       enddo
@@ -358,17 +369,17 @@ contains
       do k=1,kmax
       do j=2,j1
       do i=2,i1
-        if (ql0(i,j,k) > qcmin) then
+        if (ql(i,j,k) > qcmin) then
           ! ql partitioning
-          qll=ql0(i,j,k)*ilratio(i,j,k)
-          qli=ql0(i,j,k)-qll
+          qll=ql(i,j,k)*ilratio(i,j,k)
+          qli=ql(i,j,k)-qll
           autl=max(0._field_r,timekessl*(qll-qll0))
-          tc=tmp0(i,j,k)-tmelt
+          tc=T(i,j,k)-tmelt
           auti=max(0._field_r,betakessi*exp(0.025_field_r*tc)*(qli-qli0))
-          aut = min(autl + auti,ql0(i,j,k)/delt)
+          aut = min(autl + auti,ql(i,j,k)/delt)
           qrp(i,j,k) = qrp(i,j,k)+aut
           qtpmcr(i,j,k) = qtpmcr(i,j,k)-aut
-          thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*aut
+          thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exn(k)))*aut
         endif
       enddo
       enddo
