@@ -28,10 +28,10 @@
 
 
 module modsimpleice
-  use modglobal,    only: ifnamopt, checknamelisterror, ih, jh
+  use modglobal,    only: ifnamopt, checknamelisterror, ih, jh, dzh
   use modmpi,       only: myid, D_MPI_BCAST, comm3d, mpierr, print_info_stderr
   use modprecision, only : field_r
-  use modmicrodata, only: Nc_0, l_rain
+  use modmicrodata, only: Nc_0, l_rain, precep
   use modsimpleice_data, only: l_berry, l_graupel, l_warm, l_mp, &
                                evapfactor, courantp
   use modfields, only: ql0, exnf, rhof, tmp0, qt0, qvsl, qvsi, esl
@@ -282,7 +282,7 @@ contains
       call evapdep(qt0, ql0, qvsl, qvsi, esl, tmp0, rhof, exnf, delt, &
                    qtpmcr, thlpmcr, qrp)
       call bulkmicrotend
-      call precipitate
+      call precipitate(qr, rhof, rhobf, dzh, delt, qrp, precep)
       call bulkmicrotend
     endif
 
@@ -513,18 +513,25 @@ contains
     call timer_toc(routine)
   end subroutine evapdep
 
-  subroutine precipitate
-    use modglobal, only : i1,j1,kmax,dzf,dzh
-    use modfields, only : rhof,rhobf
-    use modmicrodata, only: precep, qtpmcr, thlpmcr, delt
-    use modsimpleice_data, only : qr_spl, sed_qr, qr, qrp, &
+  subroutine precipitate(qr, rhof, rhobf, dzh, delt, qrp, precep)
+    use modglobal, only : i1,j1,kmax
+    use modsimpleice_data, only : qr_spl, sed_qr, &
                              aag, aas, aar, bbg, bbs, bbr, ddg, dds, ddr, n0rg, n0rs, n0rr, &
                              qrmin, &
                              lambdag, lambdar, lambdas, &
                              ccgz, ccrz, ccsz, &
                              sgratio, rsgratio, &
                              courantp
-    implicit none
+    
+    real(field_r), intent(in) :: qr(2:,2:,:) !< Rain water mixing ratio [kg/kg]
+    real(field_r), intent(in) :: rhof(:)     !< Air density at full levels [kg/m3]
+    real(field_r), intent(in) :: rhobf(:)    !< Base state air density at full levels [kg/m3]
+    real(field_r), intent(in) :: dzh(:)      !< Grid thickness of half levels [m]
+    real(field_r), intent(in) :: delt        !< Time step size [s]
+    
+    real(field_r), intent(inout) :: qrp(2:,2:,:)    !< Rain water mixing ratio tendency [kg/kg/s]
+    real(field_r), intent(inout) :: precep(2:,2:,:) !< Precipitation rate [kg/kg/s]
+
     character(len=*), parameter :: routine = modname//"/precipitate"
     integer :: i,j,k,jn
     integer :: n_spl      !<  sedimentation time splitting loop
@@ -532,7 +539,7 @@ contains
 
     call timer_tic(routine, 1)
     wfallmax = 9.9
-    n_spl = ceiling(wfallmax*delt/(minval(dzf)*courantp))
+    n_spl = ceiling(wfallmax*delt/(minval(dzh)*courantp))
     dt_spl = delt/real(n_spl) !fixed time step
 
     !$acc kernels default(present)
