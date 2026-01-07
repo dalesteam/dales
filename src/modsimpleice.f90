@@ -28,13 +28,23 @@
 
 
 module modsimpleice
-  use modglobal,    only: ifnamopt, checknamelisterror, ih, jh, dzh
+  use modglobal,    only: i1, j1, k1, kmax, ih, jh, ifnamopt, &
+                          checknamelisterror, dzh, rdt, rk3step, timee, tup, &
+                          tdn, rlv, cp, pi, tmelt
+  use modfields,    only: ql0, exnf, rhof, tmp0, qt0, qvsl, qvsi, esl, sv0, &
+                          svm, svp, qtp, thlp, rhobf
   use modmpi,       only: myid, D_MPI_BCAST, comm3d, mpierr, print_info_stderr
   use modprecision, only : field_r
-  use modmicrodata, only: Nc_0, l_rain, precep
-  use modsimpleice_data, only: l_berry, l_graupel, l_warm, l_mp, &
-                               evapfactor, courantp
-  use modfields, only: ql0, exnf, rhof, tmp0, qt0, qvsl, qvsi, esl
+  use modmicrodata, only: Nc_0, l_rain, precep, delt, qtpmcr, thlpmcr, iqr
+  use modsimpleice_data, only: l_berry, l_graupel, l_warm, l_mp, evapfactor, &
+                               courantp, qr, qrp, qrmin, ilratio, rsgratio, sgratio, &
+                               lambdar, lambdas, lambdag, aag, aar, aas, bbg, &
+                               bbr, bbs, ccg, ccr, ccs, n0rg, n0rr, n0rs, &
+                               tuprsg, tupsg, tdnrsg, tdnsg, ccgz, ccrz, ccsz, &
+                               ccrz2, ccsz2, ccgz2, ceffgi, ceffgl, ceffri, ceffrl, ceffsi, ceffsl, &
+                               betakessi, timekessl, qli0, qll0, ddg, ddr, dds, qcmin, &
+                               betag, betar, betas, qr_spl, sed_qr
+  use modbulkmicrostat, only: bulkmicrotend
   use modtimer
   implicit none
   private
@@ -136,21 +146,6 @@ contains
 
 !> Calculates the microphysical source term.
   subroutine simpleice
-    use modglobal, only : i1,j1,kmax,k1,rdt,rk3step,timee,tup,tdn
-    use modfields, only : sv0,svm,svp,qtp,thlp,rhof,tmp0,rhobf
-    use modbulkmicrostat, only : bulkmicrotend
-    use modmicrodata, only: delt, qtpmcr, thlpmcr, iqr, l_rain
-    use modsimpleice_data, only : qrp, &
-                             qrmin, qr, &
-                             ilratio, rsgratio, sgratio, &
-                             aag, aar, aas, bbg, bbr, bbs, ccg, ccr, ccs, &
-                             n0rg, n0rr, n0rs, &
-                             tuprsg, tupsg, tdnrsg, tdnsg, &
-                             ccgz, ccrz, ccsz, &
-                             ccrz2, ccsz2, ccgz2, &
-                             lambdag, lambdar, lambdas, &
-                             l_graupel, l_warm
-    implicit none
     character(len=*), parameter :: routine = modname//"/simpleice"
     integer:: i,j,k
     real(field_r):: qrsmall, qrsum, qr_cor
@@ -321,10 +316,6 @@ contains
   end subroutine simpleice
 
   subroutine autoconvert(ql, T, rho, exn, delt, qtpmcr, thlpmcr, qrp)
-    use modglobal, only : i1,j1,ih,jh,kmax,rlv,cp,tmelt
-    use modmicrodata, only: Nc_0
-    use modsimpleice_data, only : betakessi, l_berry, qli0, qll0, timekessl, &
-                                  ilratio, qcmin
 
     real(field_r), intent(in) :: ql(2-ih:,2-jh:,:) !< Cloud water mixing ratio [kg/kg]
     real(field_r), intent(in) :: T(2-ih:,2-jh:,:)  !< Temperature [K]
@@ -390,11 +381,6 @@ contains
   end subroutine autoconvert
 
   subroutine accrete(ql, qr, exn, rho, delt, qtpmcr, thlpmcr, qrp)
-    use modglobal, only : i1,j1,ih,jh,kmax,rlv,cp,pi
-    use modsimpleice_data, only : ddg, ddr, dds, aag, aar, aas, bbg, bbr, bbs, &
-                             lambdag, lambdar, lambdas, ccgz, ccrz, ccsz, &
-                             ceffgi, ceffgl, ceffri, ceffrl, ceffsi, ceffsl, &
-                             ilratio, rsgratio, sgratio, qcmin, qrmin
 
     real(field_r), intent(in) :: ql(2-ih:,2-jh:,:) !< Cloud water mixing ratio [kg/kg]
     real(field_r), intent(in) :: qr(2:,2:,:)       !< Rain water mixing ratio [kg/kg]
@@ -450,11 +436,6 @@ contains
 
   subroutine evapdep(qt, ql, qvsl, qvsi, esl, T, rho, exn, delt, qtpmcr, &
                      thlpmcr, qrp)
-    use modglobal, only : i1,j1,kmax,rlv,cp,pi
-    use modsimpleice_data, only : betag, betar, betas, ddg, ddr, dds, &
-                             n0rg, n0rr, n0rs, &
-                             ccrz2, ccsz2, ccgz2, lambdag, lambdar, lambdas, &
-                             evapfactor, qr, qrmin
 
     real(field_r), intent(in) :: qt(2-ih:,2-jh:,:)   !< Total water mixing ratio [kg/kg]
     real(field_r), intent(in) :: ql(2-ih:,2-jh:,:)   !< Cloud water mixing ratio [kg/kg]
@@ -514,14 +495,6 @@ contains
   end subroutine evapdep
 
   subroutine precipitate(qr, rhof, rhobf, dzh, delt, qrp, precep)
-    use modglobal, only : i1,j1,kmax
-    use modsimpleice_data, only : qr_spl, sed_qr, &
-                             aag, aas, aar, bbg, bbs, bbr, ddg, dds, ddr, n0rg, n0rs, n0rr, &
-                             qrmin, &
-                             lambdag, lambdar, lambdas, &
-                             ccgz, ccrz, ccsz, &
-                             sgratio, rsgratio, &
-                             courantp
     
     real(field_r), intent(in) :: qr(2:,2:,:) !< Rain water mixing ratio [kg/kg]
     real(field_r), intent(in) :: rhof(:)     !< Air density at full levels [kg/m3]
