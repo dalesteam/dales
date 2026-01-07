@@ -28,13 +28,13 @@
 
 
 module modsimpleice
-  use modglobal,    only: ifnamopt, checknamelisterror
+  use modglobal,    only: ifnamopt, checknamelisterror, ih, jh
   use modmpi,       only: myid, D_MPI_BCAST, comm3d, mpierr, print_info_stderr
   use modprecision, only : field_r
   use modmicrodata, only: Nc_0, l_rain
   use modsimpleice_data, only: l_berry, l_graupel, l_warm, l_mp, &
                                evapfactor, courantp
-  use modfields, only: ql0, exnf, rhof, tmp0
+  use modfields, only: ql0, exnf, rhof, tmp0, qt0, qvsl, qvsi, esl
   use modtimer
   implicit none
   private
@@ -279,7 +279,8 @@ contains
       call bulkmicrotend
       call accrete(ql0, qr, exnf, rhof, delt, qtpmcr, thlpmcr, qrp)
       call bulkmicrotend
-      call evapdep
+      call evapdep(qt0, ql0, qvsl, qvsi, esl, tmp0, rhof, exnf, delt, &
+                   qtpmcr, thlpmcr, qrp)
       call bulkmicrotend
       call precipitate
       call bulkmicrotend
@@ -447,15 +448,28 @@ contains
     call timer_toc(routine)
   end subroutine accrete
 
-  subroutine evapdep
+  subroutine evapdep(qt, ql, qvsl, qvsi, esl, T, rho, exn, delt, qtpmcr, &
+                     thlpmcr, qrp)
     use modglobal, only : i1,j1,kmax,rlv,cp,pi
-    use modfields, only : qt0,ql0,exnf,rhof,tmp0,qvsl,qvsi,esl
-    use modmicrodata, only: qtpmcr, thlpmcr, delt
     use modsimpleice_data, only : betag, betar, betas, ddg, ddr, dds, &
                              n0rg, n0rr, n0rs, &
                              ccrz2, ccsz2, ccgz2, lambdag, lambdar, lambdas, &
-                             evapfactor, qr, qrp, qrmin
-    implicit none
+                             evapfactor, qr, qrmin
+
+    real(field_r), intent(in) :: qt(2-ih:,2-jh:,:)   !< Total water mixing ratio [kg/kg]
+    real(field_r), intent(in) :: ql(2-ih:,2-jh:,:)   !< Cloud water mixing ratio [kg/kg]
+    real(field_r), intent(in) :: qvsl(2-ih:,2-jh:,:) !< Saturation mixing ratio over liquid [kg/kg]
+    real(field_r), intent(in) :: qvsi(2-ih:,2-jh:,:) !< Saturation mixing ratio over ice [kg/kg]
+    real(field_r), intent(in) :: esl(2-ih:,2-jh:,:)  !< Saturation vapor pressure over liquid [Pa]
+    real(field_r), intent(in) :: T(2-ih:,2-jh:,:)    !< Temperature [K]
+    real(field_r), intent(in) :: rho(:)              !< Air density [kg/m3]
+    real(field_r), intent(in) :: exn(:)              !< Exner function [-]
+    real(field_r), intent(in) :: delt                !< Time step size [s]
+
+    real(field_r), intent(inout) :: qtpmcr(2-ih:,2-jh:,:) !< Total water mixing ratio tendency [kg/kg/s]
+    real(field_r), intent(inout) :: thlpmcr(2:,2:,:)      !< Liquid water potential temperature tendency [K/s]
+    real(field_r), intent(inout) :: qrp(2:,2:,:)          !< Rain water mixing ratio tendency [kg/kg/s]
+
     character(len=*), parameter :: routine = modname//"/evapdep"
     real(field_r) :: ssl,ssi,ventr,vents,ventg,&
                      thfun,evapdepr,evapdeps,evapdepg,devap
@@ -469,8 +483,8 @@ contains
     do i=2,i1
       if (qr(i,j,k) > qrmin) then
         ! saturation ratios
-        ssl=(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)
-        ssi=(qt0(i,j,k)-ql0(i,j,k))/qvsi(i,j,k)
+        ssl=(qt(i,j,k)-ql(i,j,k))/qvsl(i,j,k)
+        ssi=(qt(i,j,k)-ql(i,j,k))/qvsi(i,j,k)
         !integration over ventilation factors and diameters, see e.g. seifert 2008
         !Grabovski 1998 https://doi.org/10.1175/1520-0469(1998)055<3283:TCRMOL>2.0.CO;2 says
         !F  = 0.78 + 0.27 Re^1/2  for raindrops
@@ -488,10 +502,10 @@ contains
         evapdepg=(4*pi/(betag*rhof(k)))*(ssi-1)*ventg*thfun
         ! total growth by deposition and evaporation
         ! limit with qr and ql after accretion and autoconversion
-        devap= max(min(evapfactor*(evapdepr+evapdeps+evapdepg),ql0(i,j,k)/delt+qrp(i,j,k)),-qr(i,j,k)/delt-qrp(i,j,k))
+        devap= max(min(evapfactor*(evapdepr+evapdeps+evapdepg),ql(i,j,k)/delt+qrp(i,j,k)),-qr(i,j,k)/delt-qrp(i,j,k))
         qrp(i,j,k) = qrp(i,j,k)+devap
         qtpmcr(i,j,k) = qtpmcr(i,j,k)-devap
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*devap
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exn(k)))*devap
       end if
     enddo
     enddo
