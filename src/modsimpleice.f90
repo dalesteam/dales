@@ -277,7 +277,7 @@ contains
       call bulkmicrotend
       call autoconvert(ql0, tmp0, rhof, exnf, delt, qtpmcr, thlpmcr, qrp)
       call bulkmicrotend
-      call accrete
+      call accrete(ql0, qr, exnf, rhof, delt, qtpmcr, thlpmcr, qrp)
       call bulkmicrotend
       call evapdep
       call bulkmicrotend
@@ -388,16 +388,23 @@ contains
     call timer_toc(routine)
   end subroutine autoconvert
 
-  subroutine accrete
-    use modglobal, only : i1,j1,kmax,rlv,cp,pi
-    use modfields, only : ql0,exnf,rhof
-    use modmicrodata, only: qtpmcr, thlpmcr, delt
+  subroutine accrete(ql, qr, exn, rho, delt, qtpmcr, thlpmcr, qrp)
+    use modglobal, only : i1,j1,ih,jh,kmax,rlv,cp,pi
     use modsimpleice_data, only : ddg, ddr, dds, aag, aar, aas, bbg, bbr, bbs, &
                              lambdag, lambdar, lambdas, ccgz, ccrz, ccsz, &
                              ceffgi, ceffgl, ceffri, ceffrl, ceffsi, ceffsl, &
-                             qr, qrp, &
                              ilratio, rsgratio, sgratio, qcmin, qrmin
-    implicit none
+
+    real(field_r), intent(in) :: ql(2-ih:,2-jh:,:) !< Cloud water mixing ratio [kg/kg]
+    real(field_r), intent(in) :: qr(2:,2:,:)       !< Rain water mixing ratio [kg/kg]
+    real(field_r), intent(in) :: exn(:)            !< Exner function [-]
+    real(field_r), intent(in) :: rho(:)            !< Air density [kg/m3]
+    real(field_r), intent(in) :: delt              !< Time step [s]
+
+    real(field_r), intent(inout) :: qtpmcr(2-ih:,2-jh:,:) !< Total water mixing ratio tendency [kg/kg/s]
+    real(field_r), intent(inout) :: thlpmcr(2:,2:,:)      !< Liquid water potential temperature tendency [K/s]
+    real(field_r), intent(inout) :: qrp(2:,2:,:)          !< Rain water mixing ratio tendency [kg/kg/s]
+    
     character(len=*), parameter :: routine = modname//"/accrete"
     real(field_r) :: qll,qli,qrr,qrs,qrg,&
                      gaccrl,gaccsl,gaccgl,gaccri,gaccsi,gaccgi,accr,accs,accg,acc
@@ -410,28 +417,28 @@ contains
     do j=2,j1
     do i=2,i1
       if (qr(i,j,k) > qrmin) then
-      if (ql0(i,j,k) > qcmin) then ! apply mask
+      if (ql(i,j,k) > qcmin) then ! apply mask
         ! ql partitioning
-        qll=ql0(i,j,k)*ilratio(i,j,k)
-        qli=ql0(i,j,k)-qll
+        qll=ql(i,j,k)*ilratio(i,j,k)
+        qli=ql(i,j,k)-qll
         ! qr partitioning
         qrr=qr(i,j,k)*rsgratio(i,j,k)
         qrs=qr(i,j,k)*(1-rsgratio(i,j,k))*(1-sgratio(i,j,k))
         qrg=qr(i,j,k)*(1-rsgratio(i,j,k))*sgratio(i,j,k)
         ! collection of cloud water by rain etc.
-        gaccrl=pi/4*ccrz(k)*ceffrl*rhof(k)*qll*qrr*lambdar(i,j,k)**(bbr-2-ddr)*gammaddr3/(aar*gamb1r)
-        gaccsl=pi/4*ccsz(k)*ceffsl*rhof(k)*qll*qrs*lambdas(i,j,k)**(bbs-2-dds)*gammadds3/(aas*gamb1s)
-        gaccgl=pi/4*ccgz(k)*ceffgl*rhof(k)*qll*qrg*lambdag(i,j,k)**(bbg-2-ddg)*gammaddg3/(aag*gamb1g)
-        gaccri=pi/4*ccrz(k)*ceffri*rhof(k)*qli*qrr*lambdar(i,j,k)**(bbr-2-ddr)*gammaddr3/(aar*gamb1r)
-        gaccsi=pi/4*ccsz(k)*ceffsi*rhof(k)*qli*qrs*lambdas(i,j,k)**(bbs-2-dds)*gammadds3/(aas*gamb1s)
-        gaccgi=pi/4*ccgz(k)*ceffgi*rhof(k)*qli*qrg*lambdag(i,j,k)**(bbg-2-ddg)*gammaddg3/(aag*gamb1g)
+        gaccrl=pi/4*ccrz(k)*ceffrl*rho(k)*qll*qrr*lambdar(i,j,k)**(bbr-2-ddr)*gammaddr3/(aar*gamb1r)
+        gaccsl=pi/4*ccsz(k)*ceffsl*rho(k)*qll*qrs*lambdas(i,j,k)**(bbs-2-dds)*gammadds3/(aas*gamb1s)
+        gaccgl=pi/4*ccgz(k)*ceffgl*rho(k)*qll*qrg*lambdag(i,j,k)**(bbg-2-ddg)*gammaddg3/(aag*gamb1g)
+        gaccri=pi/4*ccrz(k)*ceffri*rho(k)*qli*qrr*lambdar(i,j,k)**(bbr-2-ddr)*gammaddr3/(aar*gamb1r)
+        gaccsi=pi/4*ccsz(k)*ceffsi*rho(k)*qli*qrs*lambdas(i,j,k)**(bbs-2-dds)*gammadds3/(aas*gamb1s)
+        gaccgi=pi/4*ccgz(k)*ceffgi*rho(k)*qli*qrg*lambdag(i,j,k)**(bbg-2-ddg)*gammaddg3/(aag*gamb1g)
         accr=(gaccrl+gaccri)*qrr/(qrr+eps_accr)
         accs=(gaccsl+gaccsi)*qrs/(qrs+eps_accr)
         accg=(gaccgl+gaccgi)*qrg/(qrg+eps_accr)
-        acc= min(accr+accs+accg,ql0(i,j,k)/delt)  ! total growth by accretion
+        acc= min(accr+accs+accg,ql(i,j,k)/delt)  ! total growth by accretion
         qrp(i,j,k) = qrp(i,j,k)+acc
         qtpmcr(i,j,k) = qtpmcr(i,j,k)-acc
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*acc
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exn(k)))*acc
       end if
       end if
     enddo
