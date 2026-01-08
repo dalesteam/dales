@@ -45,6 +45,8 @@ module modsimpleice
                                betakessi, timekessl, qli0, qll0, ddg, ddr, dds, qcmin, &
                                betag, betar, betas, qr_spl, sed_qr
   use modbulkmicrostat, only: bulkmicrotend
+  use modstat_profiles, only: is_sampling_timestep, add_profile, sample_field, &
+                              lprocblock
   use modtimer
   implicit none
   private
@@ -78,6 +80,8 @@ contains
     use modtracers, only: add_tracer
 
     implicit none
+
+    character(len=4) :: dim
 
     call add_tracer("qr", long_name="Total precipitation mixing ratio", &
                     unit="kg/kg", lmicro=.true., isv=iqr)
@@ -122,6 +126,28 @@ contains
     !$acc kernels default(present)
     precep=0
     !$acc end kernels
+
+    ! Register the statistical profiles
+
+    if (lprocblock) then
+      dim = 'tttt'
+    else
+      dim = 'tt'
+    end if
+
+    call add_profile('qrpaccr', 'Accretion rain water content tendency', &
+                     'kg/kg/s', dim)
+    call add_profile('qrpauto', 'Autoconversion rain water content tendency', &
+                     'kg/kg/s', dim)
+    call add_profile('qrpsed', 'Sedimentation rain water content tendency', &
+                     'kg/kg/s', dim)
+    call add_profile('qrpevap', 'Evaporation rain water content tendency', &
+                     'kg/kg/s', dim)
+    call add_profile('qrpclip', 'Rain water content tendency due to clipping', &
+                     'kg/kg/s', dim)
+    call add_profile('qrptot', 'Total rain water content tendency', &
+                     'kg/kg/s', dim)
+
   end subroutine initsimpleice
 
 !> Cleaning up after the run
@@ -149,6 +175,8 @@ contains
     character(len=*), parameter :: routine = modname//"/simpleice"
     integer:: i,j,k
     real(field_r):: qrsmall, qrsum, qr_cor
+
+    real(field_r), allocatable :: qrp_tmp(:,:,:)
 
     call timer_tic(routine, 1)
     call timer_tic(routine//'/setup', 1)
@@ -269,35 +297,59 @@ contains
     endif
     call timer_toc(routine//'/setup')
     if (l_rain) then
-      call bulkmicrotend
+      if (.not. is_sampling_timestep()) then
       call autoconvert(ql0, tmp0, rhof, exnf, delt, qtpmcr, thlpmcr, qrp)
-      call bulkmicrotend
       call accrete(ql0, qr, exnf, rhof, delt, qtpmcr, thlpmcr, qrp)
-      call bulkmicrotend
       call evapdep(qt0, ql0, qvsl, qvsi, esl, tmp0, rhof, exnf, delt, &
                    qtpmcr, thlpmcr, qrp)
-      call bulkmicrotend
       call precipitate(qr, rhof, rhobf, dzh, delt, qrp, precep)
-      call bulkmicrotend
+        call clip_tendency(qrp, svp(:,:,:,iqr), svm(:,:,:,iqr), delt, qrp)
+      else
+        ! Sample the tendencies of each process
+        allocate(qrp_tmp(2:i1,2:j1,1:k1))
+
+        call zero_field(qrp_tmp)
+
+        call autoconvert(ql0, tmp0, rhof, exnf, delt, qtpmcr, thlpmcr, qrp_tmp)
+
+        call sample_field('qrpauto', qrp_tmp)
+        call sum_fields(qrp_tmp, qrp)
+        call zero_field(qrp_tmp)
+
+        call accrete(ql0, qr, exnf, rhof, delt, qtpmcr, thlpmcr, qrp_tmp)
+
+        call sample_field('qrpaccr', qrp_tmp)
+        call sum_fields(qrp_tmp, qrp)
+        call zero_field(qrp_tmp)
+
+        call evapdep(qt0, ql0, qvsl, qvsi, esl, tmp0, rhof, exnf, delt, &
+                     qtpmcr, thlpmcr, qrp_tmp)
+
+        call sample_field('qrpevap', qrp_tmp)
+        call sum_fields(qrp_tmp, qrp)
+        call zero_field(qrp_tmp)
+
+        call precipitate(qr, rhof, rhobf, dzh, delt, qrp_tmp, precep)
+
+        call sample_field('qrpsed', qrp_tmp)
+        call sum_fields(qrp_tmp, qrp)
+        call zero_field(qrp_tmp)
+
+        call clip_tendency(qrp, svp(:,:,:,iqr), svm(:,:,:,iqr), delt, qrp_tmp)
+
+        call sample_field('qrpclip', qrp_tmp)
+        call sum_fields(qrp_tmp, qrp)
+        call zero_field(qrp_tmp)
+
+        call sample_field('qrptot', qrp)
+
+        !$acc exit data delete(qrp_tmp)
+
+        deallocate(qrp_tmp)
+      end if
     endif
 
     call timer_tic(routine//'/finalize', 1)
-
-
-    ! cap the microphysics tendency so that it doesn't take qr below 0
-    !$acc parallel loop collapse(3) default(present) private(qr_cor)
-    do k = 1, k1
-      do j = 2, j1
-        do i = 2, i1
-          qr_cor = min(svp(i,j,k,iqr) + qrp(i,j,k) + (svm(i,j,k,iqr) / delt), &
-                       0.0_field_r)
-
-          qrp(i,j,k) = qrp(i,j,k) - qr_cor
-        end do
-      end do
-    end do
-
-    call bulkmicrotend
 
     ! apply final microphysics tendency
     !$acc parallel loop collapse(3) default(present)
@@ -605,5 +657,82 @@ contains
     enddo
     call timer_toc(routine)
   end subroutine precipitate
+
+  !> Compute a corrective tendency to ensure that a field remains non-negative.
+  subroutine clip_tendency(tend_mcr, tend_tot, field, delt, tend_corr)
+
+    real(field_r), intent(in) :: tend_mcr(2:,2:,:)       !< Microphysics tendency [-/s]
+    real(field_r), intent(in) :: tend_tot(2-ih:,2-jh:,:) !< Total tendency [-/s]
+    real(field_r), intent(in) :: field(2-ih:,2-jh:,:)    !< Corresponding field [-]
+    real(field_r), intent(in) :: delt                    !< Time step size [s]
+
+    real(field_r), intent(inout) :: tend_corr(2:,2:,:) !< Tendency to correct [-/s]
+
+    integer :: i, j, k
+
+    real(field_r) :: corr !< Correction value [-/s]
+
+    !$acc parallel loop collapse(3) default(present) private(corr) async(1)
+    do k = 1, kmax
+      do j = 2, j1
+        do i = 2, i1
+          corr = min( &
+            tend_tot(i,j,k) + tend_mcr(i,j,k) + (field(i,j,k) / delt), &
+            0.0_field_r &
+          )
+          tend_corr(i,j,k) = tend_corr(i,j,k) - corr
+        end do
+      end do
+    end do
+
+  end subroutine clip_tendency
+
+  ! These are also available from modmicroutil, but to help with inlining we 
+  ! redefine them here.
+
+  subroutine zero_field(field)
+
+    real(field_r), intent(inout) :: field(:,:,:)
+    
+    integer :: i, j, k
+    integer :: s1, s2, s3
+
+    s1 = size(field, 1)
+    s2 = size(field, 2)
+    s3 = size(field, 3)
+
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 1, s3
+      do j = 1, s2
+        do i = 1, s1
+          field(i,j,k) = 0.0_field_r
+        end do
+      end do
+    end do
+
+  end subroutine zero_field
+
+  subroutine sum_fields(src, dest)
+
+    real(field_r), intent(in)    :: src(:,:,:)
+    real(field_r), intent(inout) :: dest(:,:,:)
+
+    integer :: i, j, k
+    integer :: s1, s2, s3
+
+    s1 = size(src, 1)
+    s2 = size(src, 2)
+    s3 = size(src, 3)
+
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 1, s3
+      do j = 1, s2
+        do i = 1, s1
+          dest(i,j,k) = dest(i,j,k) + src(i,j,k)
+        end do
+      end do
+    end do
+
+  end subroutine sum_fields
 
 end module modsimpleice
