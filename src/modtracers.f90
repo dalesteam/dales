@@ -102,7 +102,7 @@ contains
       call warning(routine, trim(file_profs)//' not found')
 #else
       l = len(trim(file_profs))
-      call warning(routine, file_profs//' not found')
+      call warning(routine, file_profs(1:l)//' not found')
 #endif
       nsv_user = 0
     end if
