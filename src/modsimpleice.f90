@@ -46,7 +46,7 @@ module modsimpleice
                                betag, betar, betas, qr_spl, sed_qr
   use modbulkmicrostat, only: bulkmicrotend
   use modstat_profiles, only: is_sampling_timestep, add_profile, sample_field, &
-                              lprocblock
+                              do_procblock
   use modtimer
   implicit none
   private
@@ -129,7 +129,7 @@ contains
 
     ! Register the statistical profiles
 
-    if (lprocblock) then
+    if (do_procblock()) then
       dim = 'tttt'
     else
       dim = 'tt'
