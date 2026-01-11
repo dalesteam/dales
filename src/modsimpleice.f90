@@ -45,8 +45,8 @@ module modsimpleice
                                betakessi, timekessl, qli0, qll0, ddg, ddr, dds, qcmin, &
                                betag, betar, betas, qr_spl, sed_qr
   use modbulkmicrostat, only: bulkmicrotend
-  use modstat_profiles, only: is_sampling_timestep, add_profile, sample_field, &
-                              do_procblock
+  use modstat_profiles, only: is_sampling_timestep, sample_field
+  use modsimpleice_stat, only: init_simpleice_stat, simpleice_stat
   use modtimer
   implicit none
   private
@@ -127,26 +127,8 @@ contains
     precep=0
     !$acc end kernels
 
-    ! Register the statistical profiles
-
-    if (do_procblock()) then
-      dim = 'tttt'
-    else
-      dim = 'tt'
-    end if
-
-    call add_profile('qrpaccr', 'Accretion rain water content tendency', &
-                     'kg/kg/s', dim)
-    call add_profile('qrpauto', 'Autoconversion rain water content tendency', &
-                     'kg/kg/s', dim)
-    call add_profile('qrpsed', 'Sedimentation rain water content tendency', &
-                     'kg/kg/s', dim)
-    call add_profile('qrpevap', 'Evaporation rain water content tendency', &
-                     'kg/kg/s', dim)
-    call add_profile('qrpclip', 'Rain water content tendency due to clipping', &
-                     'kg/kg/s', dim)
-    call add_profile('qrptot', 'Total rain water content tendency', &
-                     'kg/kg/s', dim)
+    ! Setup statistics
+    call init_simpleice_stat()
 
   end subroutine initsimpleice
 
@@ -346,6 +328,8 @@ contains
         !$acc exit data delete(qrp_tmp)
 
         deallocate(qrp_tmp)
+
+        call simpleice_stat(ql0, qr, precep)
       end if
     endif
 

@@ -91,6 +91,7 @@ set( dales_srcs
 	modsimpleice.f90
 	modsimpleice2.f90
 	modsimpleice_data.f90
+	modsimpleice_stat.f90
 	modslabaverage.f90
 	modspraying.f90
 	modsprayingdata.f90
