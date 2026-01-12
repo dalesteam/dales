@@ -89,7 +89,6 @@ set( dales_srcs
 	modsamptend.f90
 	modscalarpulse.f90
 	modsimpleice.f90
-	modsimpleice2.f90
 	modsimpleice_data.f90
 	modsimpleice_stat.f90
 	modslabaverage.f90
