@@ -290,6 +290,8 @@ contains
         ! Sample the tendencies of each process
         allocate(qrp_tmp(2:i1,2:j1,1:k1))
 
+        !$acc enter data create(qrp_tmp)
+
         call zero_field(qrp_tmp)
 
         call autoconvert(ql0, tmp0, rhof, exnf, delt, qtpmcr, thlpmcr, qrp_tmp)
