@@ -39,7 +39,7 @@ module modnudge
   logical :: lqtnudge = .true.
 
   logical :: ltthlnudge = .false. ! in the ASCII input, expect an additional column with thl nudge times
-  logical :: lsvnudge = .true.
+  logical :: lsvnudge = .false.
 
   ! Nudging profiles
   real(field_r), allocatable :: tnudge(:,:)
