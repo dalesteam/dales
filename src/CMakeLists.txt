@@ -26,7 +26,6 @@ set( dales_srcs
 	modbulkmicro3.f90
 	modbulkmicro3_column.f90
 	modbulkmicro3_point.f90
-	modbulkmicrostat.f90
 	modbulkmicro_data.f90
   modbulkmicro_stat.f90
 	modbulkmicrostat3.f90

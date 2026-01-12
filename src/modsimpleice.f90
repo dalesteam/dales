@@ -44,7 +44,6 @@ module modsimpleice
                                ccrz2, ccsz2, ccgz2, ceffgi, ceffgl, ceffri, ceffrl, ceffsi, ceffsl, &
                                betakessi, timekessl, qli0, qll0, ddg, ddr, dds, qcmin, &
                                betag, betar, betas, qr_spl, sed_qr
-  use modbulkmicrostat, only: bulkmicrotend
   use modstat_profiles, only: is_sampling_timestep, sample_field
   use modsimpleice_stat, only: init_simpleice_stat, simpleice_stat
   use modtimer

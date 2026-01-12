@@ -144,7 +144,6 @@ program DALES
                               tend_rad,tend_ls,tend_micro, tend_topbound,tend_pois,tend_addon, tend_coriolis,&
                               leibniztend, writesamptend
 
-  use modbulkmicrostat,only : initbulkmicrostat, bulkmicrostat,exitbulkmicrostat
   use modbudget,       only : initbudget, budgetstat, exitbudget
   use modheterostats,  only : initheterostats, heterostats, exitheterostats
   use modvarbudget,    only : initvarbudget, varbudget, exitvarbudget
@@ -217,7 +216,6 @@ program DALES
   !call initparticles
   call initnudge
   call initnudgeboundary
-  call initbulkmicrostat
   call initbudget
   call initvarbudget
   call initmsebudg
@@ -379,7 +377,6 @@ program DALES
     call radfield
     !call particles
 
-    call bulkmicrostat
     call budgetstat
     call varbudget
     call msebudg2
@@ -417,7 +414,6 @@ program DALES
   call exitsampling
   call exitquadrant
   call exitsamptend
-  call exitbulkmicrostat
   call exitbudget
   call exitvarbudget
   call exitmsebudg
