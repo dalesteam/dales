@@ -171,7 +171,6 @@ module modbulkmicro
                           aerosol_scavenging_rain, aerosol_scavenging_cloud
     use modglobal, only : i1,j1,kmax,k1,rdt,rk3step,timee,rlv,cp, dzf
     use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof, esl, qt0, qvsl, tmp0, w0, thl0, presf
-    use modbulkmicrostat, only : bulkmicrotend
     use modmpi,    only : myid
     use modbulkmicro_data, only : Nr, qr, Nrp, qrp,  &
                              l_sedc, l_mur_cst, l_lognormal,&

@@ -95,7 +95,6 @@ module daleslib
             use modradfield,        only : initradfield
             use modsamptend,        only : initsamptend
 
-            use modbulkmicrostat,   only : initbulkmicrostat
             use modbudget,          only : initbudget
             use modheterostats,     only : initheterostats
             use modvarbudget,       only : initvarbudget
@@ -171,7 +170,6 @@ module daleslib
             !call initparticles
             call initnudge
             call initnudgeboundary
-            call initbulkmicrostat
             call initbudget
             call initvarbudget
             !call initstressbudget
@@ -459,7 +457,6 @@ module daleslib
             use modsamptend,        only : samptend,tend_start,tend_subg,tend_force,&
                 tend_rad,tend_ls,tend_micro,tend_topbound,tend_pois,tend_addon,tend_coriolis,leibniztend
 
-            use modbulkmicrostat,   only : bulkmicrostat
             use modbudget,          only : budgetstat
             use modvarbudget,       only : varbudget
             use modheterostats,     only : heterostats
@@ -576,7 +573,6 @@ module daleslib
             call radfield
             !call particles
 
-            call bulkmicrostat
             call budgetstat
             call varbudget
             !call stressbudgetstat
@@ -664,7 +660,6 @@ module daleslib
             use modradfield,        only : exitradfield
             use modsamptend,        only : exitsamptend
 
-            use modbulkmicrostat,   only : exitbulkmicrostat
             use modbudget,          only : exitbudget
             use modvarbudget,       only : exitvarbudget
             use modheterostats,     only : exitheterostats
@@ -692,7 +687,6 @@ module daleslib
             call exitsampling
             call exitquadrant
             call exitsamptend
-            call exitbulkmicrostat
             call exitbudget
             call exitvarbudget
             !call exitstressbudget

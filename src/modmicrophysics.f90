@@ -43,7 +43,6 @@ module modmicrophysics
   use modmicrodata,      only: imicro, lstat, l_rain, Nc_0, sig_g
   use modsimpleice,      only: initsimpleice, &
                                exitsimpleice, simpleice
-  use modsimpleice2,     only: initsimpleice2, exitsimpleice2, simpleice2
   use modsimpleice_data, only: l_berry, l_graupel, l_warm, l_mp, evapfactor, &
                                courantp
   use modmpi,            only: myid, D_MPI_BCAST, comm3d, print_info_stderr
@@ -67,7 +66,6 @@ module modmicrophysics
     imicro_drizzle = 1, & !< Drizzle microphyics.
     imicro_bulk = 2,    & !< Double-moment warm microphysics.
     imicro_sice = 5,    & !< Single-moment mixed-phase microphysics.
-    imicro_sice2 = 6,   & !< Single-moment mixed-phase microphysics (alternative implementation).
     imicro_user = 10,   & !< User-provided microphysics.
     imicro_bulk3 = 11     !< Double-moment mixed-phase microphysics.
 
@@ -175,8 +173,6 @@ contains
         call initbulkmicro
       case(imicro_sice)
         call initsimpleice
-      case(imicro_sice2)
-        call initsimpleice2
       case(imicro_bulk3)
         call initbulkmicro3
     end select
@@ -199,8 +195,6 @@ contains
         call bulkmicro
       case(imicro_sice)
          call simpleice
-      case(imicro_sice2)
-        call simpleice2
       case(imicro_bulk3)
         call bulkmicro3
       case(imicro_user)
@@ -219,8 +213,6 @@ contains
         call exitbulkmicro
       case(imicro_sice)
         call exitsimpleice
-      case(imicro_sice2)
-        call exitsimpleice2
       case(imicro_bulk3)
         call exitbulkmicro3
     end select

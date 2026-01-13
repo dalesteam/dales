@@ -20,6 +20,7 @@ module modstat_profiles
 
   public :: is_sampling_timestep
   public :: is_writing_timestep
+  public :: do_procblock
 
   public :: add_profile
   public :: init_profiles
@@ -69,6 +70,12 @@ contains
     is_writing_timestep = write_stats
 
   end function is_writing_timestep
+
+  logical function do_procblock()
+
+    do_procblock = lprocblock
+
+  end function do_procblock
 
   function find_index(name) result(index)
 

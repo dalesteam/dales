@@ -28,12 +28,24 @@
 
 
 module modsimpleice
-  use modglobal,    only: ifnamopt, checknamelisterror
+  use modglobal,    only: i1, j1, k1, kmax, ih, jh, ifnamopt, &
+                          checknamelisterror, dzh, rdt, rk3step, timee, tup, &
+                          tdn, rlv, cp, pi, tmelt
+  use modfields,    only: ql0, exnf, rhof, tmp0, qt0, qvsl, qvsi, esl, sv0, &
+                          svm, svp, qtp, thlp, rhobf
   use modmpi,       only: myid, D_MPI_BCAST, comm3d, mpierr, print_info_stderr
   use modprecision, only : field_r
-  use modmicrodata, only: Nc_0, l_rain
-  use modsimpleice_data, only: l_berry, l_graupel, l_warm, l_mp, &
-                               evapfactor, courantp
+  use modmicrodata, only: Nc_0, l_rain, precep, delt, qtpmcr, thlpmcr, iqr
+  use modsimpleice_data, only: l_berry, l_graupel, l_warm, l_mp, evapfactor, &
+                               courantp, qr, qrp, qrmin, ilratio, rsgratio, sgratio, &
+                               lambdar, lambdas, lambdag, aag, aar, aas, bbg, &
+                               bbr, bbs, ccg, ccr, ccs, n0rg, n0rr, n0rs, &
+                               tuprsg, tupsg, tdnrsg, tdnsg, ccgz, ccrz, ccsz, &
+                               ccrz2, ccsz2, ccgz2, ceffgi, ceffgl, ceffri, ceffrl, ceffsi, ceffsl, &
+                               betakessi, timekessl, qli0, qll0, ddg, ddr, dds, qcmin, &
+                               betag, betar, betas, qr_spl, sed_qr
+  use modstat_profiles, only: is_sampling_timestep, sample_field
+  use modsimpleice_stat, only: init_simpleice_stat, simpleice_stat
   use modtimer
   implicit none
   private
@@ -67,6 +79,8 @@ contains
     use modtracers, only: add_tracer
 
     implicit none
+
+    character(len=4) :: dim
 
     call add_tracer("qr", long_name="Total precipitation mixing ratio", &
                     unit="kg/kg", lmicro=.true., isv=iqr)
@@ -111,6 +125,10 @@ contains
     !$acc kernels default(present)
     precep=0
     !$acc end kernels
+
+    ! Setup statistics
+    call init_simpleice_stat()
+
   end subroutine initsimpleice
 
 !> Cleaning up after the run
@@ -135,24 +153,11 @@ contains
 
 !> Calculates the microphysical source term.
   subroutine simpleice
-    use modglobal, only : i1,j1,kmax,k1,rdt,rk3step,timee,tup,tdn
-    use modfields, only : sv0,svm,svp,qtp,thlp,rhof,tmp0,rhobf
-    use modbulkmicrostat, only : bulkmicrotend
-    use modmicrodata, only: delt, qtpmcr, thlpmcr, iqr, l_rain
-    use modsimpleice_data, only : qrp, &
-                             qrmin, qr, &
-                             ilratio, rsgratio, sgratio, &
-                             aag, aar, aas, bbg, bbr, bbs, ccg, ccr, ccs, &
-                             n0rg, n0rr, n0rs, &
-                             tuprsg, tupsg, tdnrsg, tdnsg, &
-                             ccgz, ccrz, ccsz, &
-                             ccrz2, ccsz2, ccgz2, &
-                             lambdag, lambdar, lambdas, &
-                             l_graupel, l_warm
-    implicit none
     character(len=*), parameter :: routine = modname//"/simpleice"
     integer:: i,j,k
     real(field_r):: qrsmall, qrsum, qr_cor
+
+    real(field_r), allocatable :: qrp_tmp(:,:,:)
 
     call timer_tic(routine, 1)
     call timer_tic(routine//'/setup', 1)
@@ -273,34 +278,63 @@ contains
     endif
     call timer_toc(routine//'/setup')
     if (l_rain) then
-      call bulkmicrotend
-      call autoconvert
-      call bulkmicrotend
-      call accrete
-      call bulkmicrotend
-      call evapdep
-      call bulkmicrotend
-      call precipitate
-      call bulkmicrotend
+      if (.not. is_sampling_timestep()) then
+      call autoconvert(ql0, tmp0, rhof, exnf, delt, qtpmcr, thlpmcr, qrp)
+      call accrete(ql0, qr, exnf, rhof, delt, qtpmcr, thlpmcr, qrp)
+      call evapdep(qt0, ql0, qvsl, qvsi, esl, tmp0, rhof, exnf, delt, &
+                   qtpmcr, thlpmcr, qrp)
+      call precipitate(qr, rhof, rhobf, dzh, delt, qrp, precep)
+        call clip_tendency(qrp, svp(:,:,:,iqr), svm(:,:,:,iqr), delt, qrp)
+      else
+        ! Sample the tendencies of each process
+        allocate(qrp_tmp(2:i1,2:j1,1:k1))
+
+        !$acc enter data create(qrp_tmp)
+
+        call zero_field(qrp_tmp)
+
+        call autoconvert(ql0, tmp0, rhof, exnf, delt, qtpmcr, thlpmcr, qrp_tmp)
+
+        call sample_field('qrpauto', qrp_tmp)
+        call sum_fields(qrp_tmp, qrp)
+        call zero_field(qrp_tmp)
+
+        call accrete(ql0, qr, exnf, rhof, delt, qtpmcr, thlpmcr, qrp_tmp)
+
+        call sample_field('qrpaccr', qrp_tmp)
+        call sum_fields(qrp_tmp, qrp)
+        call zero_field(qrp_tmp)
+
+        call evapdep(qt0, ql0, qvsl, qvsi, esl, tmp0, rhof, exnf, delt, &
+                     qtpmcr, thlpmcr, qrp_tmp)
+
+        call sample_field('qrpevap', qrp_tmp)
+        call sum_fields(qrp_tmp, qrp)
+        call zero_field(qrp_tmp)
+
+        call precipitate(qr, rhof, rhobf, dzh, delt, qrp_tmp, precep)
+
+        call sample_field('qrpsed', qrp_tmp)
+        call sum_fields(qrp_tmp, qrp)
+        call zero_field(qrp_tmp)
+
+        call clip_tendency(qrp, svp(:,:,:,iqr), svm(:,:,:,iqr), delt, qrp_tmp)
+
+        call sample_field('qrpclip', qrp_tmp)
+        call sum_fields(qrp_tmp, qrp)
+        call zero_field(qrp_tmp)
+
+        call sample_field('qrptot', qrp)
+
+        !$acc exit data delete(qrp_tmp)
+
+        deallocate(qrp_tmp)
+
+        call simpleice_stat(ql0, qr, precep)
+      end if
     endif
 
     call timer_tic(routine//'/finalize', 1)
-
-
-    ! cap the microphysics tendency so that it doesn't take qr below 0
-    !$acc parallel loop collapse(3) default(present) private(qr_cor)
-    do k = 1, k1
-      do j = 2, j1
-        do i = 2, i1
-          qr_cor = min(svp(i,j,k,iqr) + qrp(i,j,k) + (svm(i,j,k,iqr) / delt), &
-                       0.0_field_r)
-
-          qrp(i,j,k) = qrp(i,j,k) - qr_cor
-        end do
-      end do
-    end do
-
-    call bulkmicrotend
 
     ! apply final microphysics tendency
     !$acc parallel loop collapse(3) default(present)
@@ -318,13 +352,19 @@ contains
     call timer_toc(routine)
   end subroutine simpleice
 
-  subroutine autoconvert
-    use modglobal, only : i1,j1,kmax,rlv,cp,tmelt
-    use modfields, only : ql0,exnf,rhof,tmp0
-    use modmicrodata, only: qtpmcr, thlpmcr, delt, Nc_0
-    use modsimpleice_data, only : betakessi, l_berry, qli0, qll0, timekessl, &
-                             qrp, ilratio, qcmin
-    implicit none
+  subroutine autoconvert(ql, T, rho, exn, delt, qtpmcr, thlpmcr, qrp)
+
+    real(field_r), intent(in) :: ql(2-ih:,2-jh:,:) !< Cloud water mixing ratio [kg/kg]
+    real(field_r), intent(in) :: T(2-ih:,2-jh:,:)  !< Temperature [K]
+    real(field_r), intent(in) :: rho(:)            !< Air density [kg/m3]
+    real(field_r), intent(in) :: exn(:)            !< Exner function [-]
+    real(field_r), intent(in) :: delt              !< Time step [s]
+
+    real(field_r), intent(inout) :: qtpmcr(2-ih:,2-jh:,:) !< Total water mixing ratio tendency [kg/kg/s]
+    real(field_r), intent(inout) :: thlpmcr(2:,2:,:)      !< Liquid water potential temperature tendency [K/s]
+    real(field_r), intent(inout) :: qrp(2:,2:,:)          !< Rain water mixing ratio tendency [kg/kg/s]
+
+
     character(len=*), parameter :: routine = modname//"/autoconvert"
     real(field_r) :: qll,qli,ddisp,lwc,autl,tc,times,auti,aut
     integer:: i,j,k
@@ -335,20 +375,20 @@ contains
     do k=1,kmax
     do j=2,j1
     do i=2,i1
-        if (ql0(i,j,k) > qcmin) then
+        if (ql(i,j,k) > qcmin) then
           ! ql partitioning
-          qll=ql0(i,j,k)*ilratio(i,j,k)
-          qli=ql0(i,j,k)-qll
+          qll=ql(i,j,k)*ilratio(i,j,k)
+          qli=ql(i,j,k)-qll
           ddisp=0.146-5.964e-2*log(Nc_0/2.e9) ! Relative dispersion coefficient for Berry autoconversion
-          lwc=1.e3_field_r*rhof(k)*qll ! Liquid water content in g/kg
-          autl=1/rhof(k)*1.67e-5_field_r*lwc*lwc/(5 + .0366_field_r*Nc_0/(1.e6_field_r*ddisp*(lwc+eps_lambda)))
-          tc=tmp0(i,j,k)-tmelt ! Temperature wrt melting point
+          lwc=1.e3_field_r*rho(k)*qll ! Liquid water content in g/kg
+          autl=1/rho(k)*1.67e-5_field_r*lwc*lwc/(5 + .0366_field_r*Nc_0/(1.e6_field_r*ddisp*(lwc+eps_lambda)))
+          tc=T(i,j,k)-tmelt ! Temperature wrt melting point
           times=min(1.e3,(3.56*tc+106.7)*tc+1.e3) ! Time scale for ice autoconversion
           auti=qli/times
-          aut = min(autl + auti,ql0(i,j,k)/delt)
+          aut = min(autl + auti,ql(i,j,k)/delt)
           qrp(i,j,k) = qrp(i,j,k)+aut
           qtpmcr(i,j,k) = qtpmcr(i,j,k)-aut
-          thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*aut
+          thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exn(k)))*aut
         endif
       enddo
       enddo
@@ -358,17 +398,17 @@ contains
       do k=1,kmax
       do j=2,j1
       do i=2,i1
-        if (ql0(i,j,k) > qcmin) then
+        if (ql(i,j,k) > qcmin) then
           ! ql partitioning
-          qll=ql0(i,j,k)*ilratio(i,j,k)
-          qli=ql0(i,j,k)-qll
+          qll=ql(i,j,k)*ilratio(i,j,k)
+          qli=ql(i,j,k)-qll
           autl=max(0._field_r,timekessl*(qll-qll0))
-          tc=tmp0(i,j,k)-tmelt
+          tc=T(i,j,k)-tmelt
           auti=max(0._field_r,betakessi*exp(0.025_field_r*tc)*(qli-qli0))
-          aut = min(autl + auti,ql0(i,j,k)/delt)
+          aut = min(autl + auti,ql(i,j,k)/delt)
           qrp(i,j,k) = qrp(i,j,k)+aut
           qtpmcr(i,j,k) = qtpmcr(i,j,k)-aut
-          thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*aut
+          thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exn(k)))*aut
         endif
       enddo
       enddo
@@ -377,16 +417,18 @@ contains
     call timer_toc(routine)
   end subroutine autoconvert
 
-  subroutine accrete
-    use modglobal, only : i1,j1,kmax,rlv,cp,pi
-    use modfields, only : ql0,exnf,rhof
-    use modmicrodata, only: qtpmcr, thlpmcr, delt
-    use modsimpleice_data, only : ddg, ddr, dds, aag, aar, aas, bbg, bbr, bbs, &
-                             lambdag, lambdar, lambdas, ccgz, ccrz, ccsz, &
-                             ceffgi, ceffgl, ceffri, ceffrl, ceffsi, ceffsl, &
-                             qr, qrp, &
-                             ilratio, rsgratio, sgratio, qcmin, qrmin
-    implicit none
+  subroutine accrete(ql, qr, exn, rho, delt, qtpmcr, thlpmcr, qrp)
+
+    real(field_r), intent(in) :: ql(2-ih:,2-jh:,:) !< Cloud water mixing ratio [kg/kg]
+    real(field_r), intent(in) :: qr(2:,2:,:)       !< Rain water mixing ratio [kg/kg]
+    real(field_r), intent(in) :: exn(:)            !< Exner function [-]
+    real(field_r), intent(in) :: rho(:)            !< Air density [kg/m3]
+    real(field_r), intent(in) :: delt              !< Time step [s]
+
+    real(field_r), intent(inout) :: qtpmcr(2-ih:,2-jh:,:) !< Total water mixing ratio tendency [kg/kg/s]
+    real(field_r), intent(inout) :: thlpmcr(2:,2:,:)      !< Liquid water potential temperature tendency [K/s]
+    real(field_r), intent(inout) :: qrp(2:,2:,:)          !< Rain water mixing ratio tendency [kg/kg/s]
+    
     character(len=*), parameter :: routine = modname//"/accrete"
     real(field_r) :: qll,qli,qrr,qrs,qrg,&
                      gaccrl,gaccsl,gaccgl,gaccri,gaccsi,gaccgi,accr,accs,accg,acc
@@ -399,28 +441,28 @@ contains
     do j=2,j1
     do i=2,i1
       if (qr(i,j,k) > qrmin) then
-      if (ql0(i,j,k) > qcmin) then ! apply mask
+      if (ql(i,j,k) > qcmin) then ! apply mask
         ! ql partitioning
-        qll=ql0(i,j,k)*ilratio(i,j,k)
-        qli=ql0(i,j,k)-qll
+        qll=ql(i,j,k)*ilratio(i,j,k)
+        qli=ql(i,j,k)-qll
         ! qr partitioning
         qrr=qr(i,j,k)*rsgratio(i,j,k)
         qrs=qr(i,j,k)*(1-rsgratio(i,j,k))*(1-sgratio(i,j,k))
         qrg=qr(i,j,k)*(1-rsgratio(i,j,k))*sgratio(i,j,k)
         ! collection of cloud water by rain etc.
-        gaccrl=pi/4*ccrz(k)*ceffrl*rhof(k)*qll*qrr*lambdar(i,j,k)**(bbr-2-ddr)*gammaddr3/(aar*gamb1r)
-        gaccsl=pi/4*ccsz(k)*ceffsl*rhof(k)*qll*qrs*lambdas(i,j,k)**(bbs-2-dds)*gammadds3/(aas*gamb1s)
-        gaccgl=pi/4*ccgz(k)*ceffgl*rhof(k)*qll*qrg*lambdag(i,j,k)**(bbg-2-ddg)*gammaddg3/(aag*gamb1g)
-        gaccri=pi/4*ccrz(k)*ceffri*rhof(k)*qli*qrr*lambdar(i,j,k)**(bbr-2-ddr)*gammaddr3/(aar*gamb1r)
-        gaccsi=pi/4*ccsz(k)*ceffsi*rhof(k)*qli*qrs*lambdas(i,j,k)**(bbs-2-dds)*gammadds3/(aas*gamb1s)
-        gaccgi=pi/4*ccgz(k)*ceffgi*rhof(k)*qli*qrg*lambdag(i,j,k)**(bbg-2-ddg)*gammaddg3/(aag*gamb1g)
+        gaccrl=pi/4*ccrz(k)*ceffrl*rho(k)*qll*qrr*lambdar(i,j,k)**(bbr-2-ddr)*gammaddr3/(aar*gamb1r)
+        gaccsl=pi/4*ccsz(k)*ceffsl*rho(k)*qll*qrs*lambdas(i,j,k)**(bbs-2-dds)*gammadds3/(aas*gamb1s)
+        gaccgl=pi/4*ccgz(k)*ceffgl*rho(k)*qll*qrg*lambdag(i,j,k)**(bbg-2-ddg)*gammaddg3/(aag*gamb1g)
+        gaccri=pi/4*ccrz(k)*ceffri*rho(k)*qli*qrr*lambdar(i,j,k)**(bbr-2-ddr)*gammaddr3/(aar*gamb1r)
+        gaccsi=pi/4*ccsz(k)*ceffsi*rho(k)*qli*qrs*lambdas(i,j,k)**(bbs-2-dds)*gammadds3/(aas*gamb1s)
+        gaccgi=pi/4*ccgz(k)*ceffgi*rho(k)*qli*qrg*lambdag(i,j,k)**(bbg-2-ddg)*gammaddg3/(aag*gamb1g)
         accr=(gaccrl+gaccri)*qrr/(qrr+eps_accr)
         accs=(gaccsl+gaccsi)*qrs/(qrs+eps_accr)
         accg=(gaccgl+gaccgi)*qrg/(qrg+eps_accr)
-        acc= min(accr+accs+accg,ql0(i,j,k)/delt)  ! total growth by accretion
+        acc= min(accr+accs+accg,ql(i,j,k)/delt)  ! total growth by accretion
         qrp(i,j,k) = qrp(i,j,k)+acc
         qtpmcr(i,j,k) = qtpmcr(i,j,k)-acc
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*acc
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exn(k)))*acc
       end if
       end if
     enddo
@@ -429,15 +471,23 @@ contains
     call timer_toc(routine)
   end subroutine accrete
 
-  subroutine evapdep
-    use modglobal, only : i1,j1,kmax,rlv,cp,pi
-    use modfields, only : qt0,ql0,exnf,rhof,tmp0,qvsl,qvsi,esl
-    use modmicrodata, only: qtpmcr, thlpmcr, delt
-    use modsimpleice_data, only : betag, betar, betas, ddg, ddr, dds, &
-                             n0rg, n0rr, n0rs, &
-                             ccrz2, ccsz2, ccgz2, lambdag, lambdar, lambdas, &
-                             evapfactor, qr, qrp, qrmin
-    implicit none
+  subroutine evapdep(qt, ql, qvsl, qvsi, esl, T, rho, exn, delt, qtpmcr, &
+                     thlpmcr, qrp)
+
+    real(field_r), intent(in) :: qt(2-ih:,2-jh:,:)   !< Total water mixing ratio [kg/kg]
+    real(field_r), intent(in) :: ql(2-ih:,2-jh:,:)   !< Cloud water mixing ratio [kg/kg]
+    real(field_r), intent(in) :: qvsl(2-ih:,2-jh:,:) !< Saturation mixing ratio over liquid [kg/kg]
+    real(field_r), intent(in) :: qvsi(2-ih:,2-jh:,:) !< Saturation mixing ratio over ice [kg/kg]
+    real(field_r), intent(in) :: esl(2-ih:,2-jh:,:)  !< Saturation vapor pressure over liquid [Pa]
+    real(field_r), intent(in) :: T(2-ih:,2-jh:,:)    !< Temperature [K]
+    real(field_r), intent(in) :: rho(:)              !< Air density [kg/m3]
+    real(field_r), intent(in) :: exn(:)              !< Exner function [-]
+    real(field_r), intent(in) :: delt                !< Time step size [s]
+
+    real(field_r), intent(inout) :: qtpmcr(2-ih:,2-jh:,:) !< Total water mixing ratio tendency [kg/kg/s]
+    real(field_r), intent(inout) :: thlpmcr(2:,2:,:)      !< Liquid water potential temperature tendency [K/s]
+    real(field_r), intent(inout) :: qrp(2:,2:,:)          !< Rain water mixing ratio tendency [kg/kg/s]
+
     character(len=*), parameter :: routine = modname//"/evapdep"
     real(field_r) :: ssl,ssi,ventr,vents,ventg,&
                      thfun,evapdepr,evapdeps,evapdepg,devap
@@ -451,8 +501,8 @@ contains
     do i=2,i1
       if (qr(i,j,k) > qrmin) then
         ! saturation ratios
-        ssl=(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)
-        ssi=(qt0(i,j,k)-ql0(i,j,k))/qvsi(i,j,k)
+        ssl=(qt(i,j,k)-ql(i,j,k))/qvsl(i,j,k)
+        ssi=(qt(i,j,k)-ql(i,j,k))/qvsi(i,j,k)
         !integration over ventilation factors and diameters, see e.g. seifert 2008
         !Grabovski 1998 https://doi.org/10.1175/1520-0469(1998)055<3283:TCRMOL>2.0.CO;2 says
         !F  = 0.78 + 0.27 Re^1/2  for raindrops
@@ -470,10 +520,10 @@ contains
         evapdepg=(4*pi/(betag*rhof(k)))*(ssi-1)*ventg*thfun
         ! total growth by deposition and evaporation
         ! limit with qr and ql after accretion and autoconversion
-        devap= max(min(evapfactor*(evapdepr+evapdeps+evapdepg),ql0(i,j,k)/delt+qrp(i,j,k)),-qr(i,j,k)/delt-qrp(i,j,k))
+        devap= max(min(evapfactor*(evapdepr+evapdeps+evapdepg),ql(i,j,k)/delt+qrp(i,j,k)),-qr(i,j,k)/delt-qrp(i,j,k))
         qrp(i,j,k) = qrp(i,j,k)+devap
         qtpmcr(i,j,k) = qtpmcr(i,j,k)-devap
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*devap
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exn(k)))*devap
       end if
     enddo
     enddo
@@ -481,18 +531,17 @@ contains
     call timer_toc(routine)
   end subroutine evapdep
 
-  subroutine precipitate
-    use modglobal, only : i1,j1,kmax,dzf,dzh
-    use modfields, only : rhof,rhobf
-    use modmicrodata, only: precep, qtpmcr, thlpmcr, delt
-    use modsimpleice_data, only : qr_spl, sed_qr, qr, qrp, &
-                             aag, aas, aar, bbg, bbs, bbr, ddg, dds, ddr, n0rg, n0rs, n0rr, &
-                             qrmin, &
-                             lambdag, lambdar, lambdas, &
-                             ccgz, ccrz, ccsz, &
-                             sgratio, rsgratio, &
-                             courantp
-    implicit none
+  subroutine precipitate(qr, rhof, rhobf, dzh, delt, qrp, precep)
+    
+    real(field_r), intent(in) :: qr(2:,2:,:) !< Rain water mixing ratio [kg/kg]
+    real(field_r), intent(in) :: rhof(:)     !< Air density at full levels [kg/m3]
+    real(field_r), intent(in) :: rhobf(:)    !< Base state air density at full levels [kg/m3]
+    real(field_r), intent(in) :: dzh(:)      !< Grid thickness of half levels [m]
+    real(field_r), intent(in) :: delt        !< Time step size [s]
+    
+    real(field_r), intent(inout) :: qrp(2:,2:,:)    !< Rain water mixing ratio tendency [kg/kg/s]
+    real(field_r), intent(inout) :: precep(2:,2:,:) !< Precipitation rate [kg/kg/s]
+
     character(len=*), parameter :: routine = modname//"/precipitate"
     integer :: i,j,k,jn
     integer :: n_spl      !<  sedimentation time splitting loop
@@ -500,7 +549,7 @@ contains
 
     call timer_tic(routine, 1)
     wfallmax = 9.9
-    n_spl = ceiling(wfallmax*delt/(minval(dzf)*courantp))
+    n_spl = ceiling(wfallmax*delt/(minval(dzh)*courantp))
     dt_spl = delt/real(n_spl) !fixed time step
 
     !$acc kernels default(present)
@@ -593,5 +642,82 @@ contains
     enddo
     call timer_toc(routine)
   end subroutine precipitate
+
+  !> Compute a corrective tendency to ensure that a field remains non-negative.
+  subroutine clip_tendency(tend_mcr, tend_tot, field, delt, tend_corr)
+
+    real(field_r), intent(in) :: tend_mcr(2:,2:,:)       !< Microphysics tendency [-/s]
+    real(field_r), intent(in) :: tend_tot(2-ih:,2-jh:,:) !< Total tendency [-/s]
+    real(field_r), intent(in) :: field(2-ih:,2-jh:,:)    !< Corresponding field [-]
+    real(field_r), intent(in) :: delt                    !< Time step size [s]
+
+    real(field_r), intent(inout) :: tend_corr(2:,2:,:) !< Tendency to correct [-/s]
+
+    integer :: i, j, k
+
+    real(field_r) :: corr !< Correction value [-/s]
+
+    !$acc parallel loop collapse(3) default(present) private(corr) async(1)
+    do k = 1, kmax
+      do j = 2, j1
+        do i = 2, i1
+          corr = min( &
+            tend_tot(i,j,k) + tend_mcr(i,j,k) + (field(i,j,k) / delt), &
+            0.0_field_r &
+          )
+          tend_corr(i,j,k) = tend_corr(i,j,k) - corr
+        end do
+      end do
+    end do
+
+  end subroutine clip_tendency
+
+  ! These are also available from modmicroutil, but to help with inlining we 
+  ! redefine them here.
+
+  subroutine zero_field(field)
+
+    real(field_r), intent(inout) :: field(:,:,:)
+    
+    integer :: i, j, k
+    integer :: s1, s2, s3
+
+    s1 = size(field, 1)
+    s2 = size(field, 2)
+    s3 = size(field, 3)
+
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 1, s3
+      do j = 1, s2
+        do i = 1, s1
+          field(i,j,k) = 0.0_field_r
+        end do
+      end do
+    end do
+
+  end subroutine zero_field
+
+  subroutine sum_fields(src, dest)
+
+    real(field_r), intent(in)    :: src(:,:,:)
+    real(field_r), intent(inout) :: dest(:,:,:)
+
+    integer :: i, j, k
+    integer :: s1, s2, s3
+
+    s1 = size(src, 1)
+    s2 = size(src, 2)
+    s3 = size(src, 3)
+
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 1, s3
+      do j = 1, s2
+        do i = 1, s1
+          dest(i,j,k) = dest(i,j,k) + src(i,j,k)
+        end do
+      end do
+    end do
+
+  end subroutine sum_fields
 
 end module modsimpleice

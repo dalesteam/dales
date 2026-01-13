@@ -54,6 +54,8 @@ module modbulkmicro3
   use modglobal, only: ifnamopt, lwarmstart
   use modmpi,    only : myid,comm3d,D_MPI_BCAST
   use modprecision, only : field_r
+  use modmicrodata,      only: lstat
+  use modbulkmicrostat3, only: initbulkmicrostat3
   implicit none
   private
   public initbulkmicro3, exitbulkmicro3, bulkmicro3
@@ -364,6 +366,9 @@ module modbulkmicro3
     statistic_svp_fsum = 0.
     statistic_svp_csum = 0.
   endif
+
+  if (lstat) call initbulkmicrostat3()
+
   end subroutine initbulkmicro3
 
 
