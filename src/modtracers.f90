@@ -97,13 +97,7 @@ contains
         call tracer_props_from_netcdf(file_profs)
       end if
     else
-#ifndef _OPENACC
-      ! BUG: broken with nvhpc 25.11
-      call warning(routine, trim(file_profs), ' not found')
-#else
-      l = len(trim(file_profs))
-      call warning(routine, file_profs(1:l), ' not found')
-#endif
+      call warning(routine, file_profs, ' not found')
       nsv_user = 0
     end if
 
@@ -148,7 +142,7 @@ contains
     ! Check if we have already allocated memory
     if (allocated(sv0)) then
       call finish(routine, 'adding new tracers after memory is &
-        & allocated is not allowed (tracer: ', trim(name), ')')
+        & allocated is not allowed (tracer: ', name, ')')
     end if
 
     ! Check if the tracer already exists. If so, don't add a new one.
@@ -156,7 +150,7 @@ contains
       do s = 1, nsv
         if (trim(to_lower(name)) == &
             trim(to_lower(tracer_prop(s) % tracname))) then
-          write(message, '(a,a,a)') 'tracer ', trim(name), ' already defined'
+          write(message, '(a,a,a)') 'tracer ', name, ' already defined'
           call warning(routine, message)
           if(present(isv)) isv = s
           return
@@ -301,7 +295,7 @@ contains
     open(1, file=file_profiles, status='old', iostat=ierr)
 
     if (ierr /= 0) then
-      call finish(routine, 'Error opening ', trim(file_profiles))
+      call finish(routine, 'Error opening ', file_profiles)
     end if
 
     read(1, '(a512)') line
@@ -318,7 +312,7 @@ contains
     open(1, file=file_properties, status='old', iostat=ierr)
 
     if (ierr /= 0) then
-      call warning(routine, 'Error opening ', trim(file_properties))
+      call warning(routine, 'Error opening ', file_properties)
     else
       ierr = 0
       isv = 0
