@@ -62,7 +62,7 @@ module modlogging
     open (profile_output, FILE=TRIM(file), IOSTAT=istat)
 
     if (istat /= 0) THEN
-      call finish(routine, 'Could not open '//TRIM(file))
+      call finish(routine, 'Could not open ', TRIM(file))
     end if
 
     end subroutine open_profile_input

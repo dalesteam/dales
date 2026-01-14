@@ -99,10 +99,10 @@ contains
     else
 #ifndef _OPENACC
       ! BUG: broken with nvhpc 25.11
-      call warning(routine, trim(file_profs)//' not found')
+      call warning(routine, trim(file_profs), ' not found')
 #else
       l = len(trim(file_profs))
-      call warning(routine, file_profs(1:l)//' not found')
+      call warning(routine, file_profs(1:l), ' not found')
 #endif
       nsv_user = 0
     end if
@@ -148,7 +148,7 @@ contains
     ! Check if we have already allocated memory
     if (allocated(sv0)) then
       call finish(routine, 'adding new tracers after memory is &
-        & allocated is not allowed (tracer: '//trim(name)//')')
+        & allocated is not allowed (tracer: ', trim(name), ')')
     end if
 
     ! Check if the tracer already exists. If so, don't add a new one.
@@ -301,7 +301,7 @@ contains
     open(1, file=file_profiles, status='old', iostat=ierr)
 
     if (ierr /= 0) then
-      call finish(routine, 'Error opening '//trim(file_profiles))
+      call finish(routine, 'Error opening ', trim(file_profiles))
     end if
 
     read(1, '(a512)') line
@@ -318,7 +318,7 @@ contains
     open(1, file=file_properties, status='old', iostat=ierr)
 
     if (ierr /= 0) then
-      call warning(routine, 'Error opening '//trim(file_properties))
+      call warning(routine, 'Error opening ', trim(file_properties))
     else
       ierr = 0
       isv = 0

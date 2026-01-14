@@ -109,7 +109,7 @@ contains
     else
       ! Check if given name already exists. For the long name, we don't care.
       if (find_index(name) /= 0) then
-        call finish(routine, 'profile '//trim(name)//' already exists')
+        call finish(routine, 'profile ', trim(name), ' already exists')
       else
         ! If already allocated, grow in size by 1
         allocate(tmp_ncname(size(ncname, dim=1) + 1, 4))
@@ -250,7 +250,7 @@ contains
       idx = find_index(name)
 
       if (idx == 0) then
-        call finish(routine, 'profile '//trim(name)//' not found')
+        call finish(routine, 'profile ', trim(name), ' not found')
       end if
 
       ! A bit hacky maybe: figure out if the given field has ghost cells
@@ -284,7 +284,7 @@ contains
       idx = find_index(name)
 
       if (idx == 0) then
-        call finish(routine, 'profile '//trim(name)//' not found')
+        call finish(routine, 'profile ', trim(name), ' not found')
       end if
 
       ! A bit hacky maybe: figure out if the given field has ghost cells
