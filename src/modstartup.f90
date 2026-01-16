@@ -99,7 +99,7 @@ contains
     use modtimedepsv,      only : inittimedepsv,ltimedepsv
     use modtestbed,        only : inittestbed
     use modboundary,       only : initboundary,ksp
-    use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
+    use modthermodynamics, only : initthermodynamics
     use modmicrophysics,   only : initmicrophysics
     use modsubgrid,        only : initsubgrid
     use modmpi,            only : initmpi,commwrld,myid,myidx,myidy,cmyidy,nprocx,nprocy,mpierr,periods &
@@ -271,7 +271,6 @@ contains
     call D_MPI_BCAST(lcloudshading,1,0,commwrld,mpierr)
 
     call D_MPI_BCAST(llsadv     ,1,0,commwrld,mpierr) ! DYNAMICS
-    call D_MPI_BCAST(lqlnr      ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lambda_crit,1,0,commwrld,mpierr)
     call D_MPI_BCAST(cu         ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(cv         ,1,0,commwrld,mpierr)

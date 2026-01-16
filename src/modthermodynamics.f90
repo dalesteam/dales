@@ -40,17 +40,14 @@ module modthermodynamics
   character(len=*), parameter :: modname = 'modthermodynamics'
 !   private
   public :: thermodynamics,calc_halflev
-  public :: lqlnr
   public :: ttab
   public :: esatltab
   public :: esatitab
   public :: esatmtab
   public :: thermodynamics_read_namelist
 
-  logical :: lqlnr = .true.        !< Switch for ql calc. with Newton-Raphson (on/off).
   logical :: lmoist = .true.       !< Switch to calculate moisture fields.
   logical :: lnoclouds = .false.   !< Switch to enable/disable thl calculations.
-  logical :: lfast_thermo = .true. !< Switch to enable faster icethermo scheme.
   logical :: lconstexner = .false. !< Switch to use the initial pressure profile in the exner function.
   logical :: lbaseexner = .false.  !< Switch to use the base pressure profile in the exner function.
 
@@ -75,8 +72,7 @@ contains
 
     integer :: ierr
 
-    namelist /thermodynamics/ lmoist, chi_half, lfast_thermo, lconstexner, &
-      lbaseexner, lqlnr, lnoclouds
+    namelist /thermodynamics/ lmoist, chi_half, lconstexner, lbaseexner, lnoclouds
 
     if (myid == 0) then
       open(ifnamopt, file=nml_filename, status='old', action='read', &
@@ -89,10 +85,8 @@ contains
 
     call d_mpi_bcast(lmoist, 1, 0, commwrld, ierr)
     call d_mpi_bcast(chi_half, 1, 0, commwrld, ierr)
-    call d_mpi_bcast(lfast_thermo, 1, 0, commwrld, ierr)
     call d_mpi_bcast(lconstexner, 1, 0, commwrld, ierr)
     call d_mpi_bcast(lbaseexner, 1, 0, commwrld, ierr)
-    call d_mpi_bcast(lqlnr, 1, 0, commwrld, ierr)
 
   end subroutine thermodynamics_read_namelist
 
