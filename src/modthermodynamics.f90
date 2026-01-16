@@ -44,6 +44,7 @@ module modthermodynamics
   public :: esatltab
   public :: esatitab
   public :: esatmtab
+  public :: calc_qsat
   public :: thermodynamics_read_namelist
 
   logical :: lmoist = .true.       !< Switch to calculate moisture fields.
@@ -687,6 +688,21 @@ contains
     ! convert saturation vapor pressure to saturation humidity
     qsat = (rd/rv) * es / (p - (1-rd/rv)*es)
   end function qsat_tab
+
+  !> Compute the saturation specific humidity
+  !!
+  !! This is just a wrapper around qsat_tab, but that can be changed to any of
+  !! the other qsat functions if needed.
+  pure function calc_qsat(T, p) result(qsat)
+
+    real(field_r), intent(in) :: T !< Temperature [K]
+    real(field_r), intent(in) :: p !< Pressure [Pa]
+
+    real(field_r) :: qsat !< Saturation specific humidity [kg/kg]
+
+    qsat = qsat_tab(T, p)
+
+  end function calc_qsat
 
   !> Compute the cloud water content via the saturation adjustment method.
   subroutine saturation_adjustment(qt, thl, pres, exn, ql, opt_stream)

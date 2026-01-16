@@ -26,6 +26,7 @@ module moddrydeposition
   use modfields, only : svp   ! tracer tendency array
   use modglobal, only : nsv, i1, j1, ldrydep
   use modlsm, only : llsm
+  use modthermodynamics, only: calc_qsat
   use modtracers, only: tracer_prop
   use modlogging, only: finish
 
@@ -176,7 +177,7 @@ end subroutine drydep
 subroutine depos_call(ilu, species, species_idx)  !GT added variable of species_idx for trac_id to allow looping in the calculations of ccomp
   use modlsm, only : tile
   use modglobal, only : i1, j1, xday, xlat, xlon, xtime, rtimee
-  use modfields, only : thl0, exnf, qt0, qsat, sv0             !GT added sv0
+  use modfields, only : thl0, exnf, qt0, sv0, ql0, presf
   use le_drydepos_gas, only : DryDepos_Gas
   use modraddata, only : zenith, swd
   use utils, only : to_upper
@@ -186,7 +187,7 @@ subroutine depos_call(ilu, species, species_idx)  !GT added variable of species_
   character(*), intent(in) :: species
   character(len=6) :: depos_species
   integer :: i, j, nwet = 0, status, depos_ilu
-  real :: T, RH, sinphi, lai, sai
+  real :: T, RH, sinphi, lai, sai, qsat
 
   ! Temporary values, until something better is available
   ! for now, assuming low NH3/SO2 ratios
@@ -220,7 +221,8 @@ subroutine depos_call(ilu, species, species_idx)  !GT added variable of species_
   do i = 2, i1
     do j = 2, j1
       T = thl0(i, j, 1) * exnf(1)
-      RH = qt0(i, j, 1) / qsat(i, j, 1) * 100
+      qsat = calc_qsat(T, presf(1))
+      RH = (qt0(i, j, 1) - ql0(i, j, 1))/ qsat * 100
       ! swd needs to be negated, since it is pointing downward.
       ! tsea is a temperature the deposition model needs in case of water LU classes
       call DryDepos_Gas(depos_species, int(xday), xlat, T, &
