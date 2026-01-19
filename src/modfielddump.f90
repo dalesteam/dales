@@ -65,11 +65,15 @@ save
   logical :: ltntr = .false.      !< switch for saving the tntr field
   logical :: ltntrs = .false.     !< switch for saving the tntrs field
   logical :: ltntrl = .false.     !< switch for saving the tntrl field
+  logical :: le12 = .false.       !< switch for saving the e12 field
+  logical :: lekh = .false.       !< switch for saving the ekh field
+  logical :: lekm = .false.       !< switch for saving the ekm field
   logical :: lsv(100) = .true.   !< switches for saving the sv fields
 
   ! indices for the variables in the netCDF vars array
   integer :: ind, ind_u=-1, ind_v=-1, ind_w=-1, ind_qt=-1, ind_ql=-1, ind_thl=-1, ind_buoy=-1, ind_sv(100)=-1
-  integer :: ind_cli=-1, ind_clw=-1, ind_ta=-1, ind_plw=-1, ind_pli=-1, ind_hus=-1, ind_hur=-1, ind_tntr=-1, ind_tntrs=-1, ind_tntrl=-1
+  integer :: ind_cli=-1, ind_clw=-1, ind_ta=-1, ind_plw=-1, ind_pli=-1, ind_hus=-1, ind_hur=-1, ind_tntr=-1
+  integer :: ind_tntrs=-1, ind_tntrl=-1, ind_e12=-1, ind_ekh=-1, ind_ekm=-1
 
 contains
 !> Initializing fielddump. Read out the namelist, initializing the variables
@@ -90,7 +94,7 @@ contains
 
     namelist/NAMFIELDDUMP/ &
          dtav,lfielddump,ldiracc,lbinary,klow,khigh,ncoarse, tmin, tmax,&
-         lu, lv, lw, lqt, lql, lthl, lbuoy, lcli, lclw, lta, lplw, lpli, lhus, lhur, ltntr, ltntrs, ltntrl, lsv
+         lu, lv, lw, lqt, lql, lthl, lbuoy, lcli, lclw, lta, lplw, lpli, lhus, lhur, ltntr, ltntrs, ltntrl, le12, lekh, lekm,  lsv
 
     dtav=dtav_glob
     klow=1
@@ -144,6 +148,9 @@ contains
     call D_MPI_BCAST(ltntr       ,1,0,comm3d,ierr)
     call D_MPI_BCAST(ltntrs      ,1,0,comm3d,ierr)
     call D_MPI_BCAST(ltntrl      ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(le12        ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lekh        ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lekm        ,1,0,comm3d,ierr)
     call D_MPI_BCAST(lsv       ,100,0,comm3d,ierr)
 
     idtav = int(dtav / tres, kind=kind(idtav))
@@ -252,6 +259,22 @@ contains
          call ncinfo(ncname(ind_tntrl, :),'tntrl','tendency of air temperature due to longwave radiative heating','K/s','tttt')   !new
       end if
 
+      if (le12) then
+         ind_e12 = ind
+         ind = ind + 1
+         call ncinfo(ncname(ind_e12, :),'e12','square root of turbulent kinetic energy','m/s','tttt')   !new
+      end if
+      if (lekh) then
+         ind_ekh = ind
+         ind = ind + 1
+         call ncinfo(ncname(ind_ekh, :),'ekh','diffusion coefficient for heat and moisture','m**2/s','tttt')   !new
+      end if
+      if (lekm) then
+         ind_ekm = ind
+         ind = ind + 1
+         call ncinfo(ncname(ind_ekm, :),'ekm','diffusion coefficient for momentum','m**2/s','tttt')   !new
+      end if
+
       do n=1,nsv
         if (lsv(n)) then
            ind_sv(n) = ind
@@ -280,7 +303,8 @@ contains
 !> if lbinary, collect data to truncated (2 byte) integers, and write them to file
 !> if lnetcdf, write to netCDF (as float32).
   subroutine fielddump
-    use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,thvh,tmp0,rhof,exnf,presf
+    use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,thvh,tmp0,rhof,exnf,presf,e120
+    use modsubgriddata, only: ekh,ekm
     use modsurfdata,only : thls,qts,thvs
     use modglobal, only : imax,i1,ih,jmax,j1,jh,k1,rk3step,dzf, &
                           timee,dt_lim,cexpnr,ifoutput,rtimee,cp,tdn,tup
@@ -327,6 +351,9 @@ contains
     !$acc update self(thl0) if(lthl) async
     !$acc update self(sv0) if(any(lsv)) async
     !$acc update self(thv0h, thvh) if(lbuoy) async
+    !$acc update self(e120) if(le12) async
+    !$acc update self(ekm) if(lekm) async
+    !$acc update self(ekh) if(lekh) async
     !$acc wait    
 
     if (lbinary) allocate(field(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -533,6 +560,10 @@ contains
                )  / (rhof(k)*exnf(k)*cp*dzf(k))
        end do
     end if
+
+    if (lnetcdf .and. le12) vars(:,:,:,ind_e12) = e120(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+    if (lnetcdf .and. lekh) vars(:,:,:,ind_ekh) = ekh(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+    if (lnetcdf .and. lekm) vars(:,:,:,ind_ekm) = ekm(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
 
     ! scalar variables
     if (lnetcdf) then
