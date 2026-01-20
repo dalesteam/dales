@@ -30,8 +30,12 @@
 
 module modthermodynamics
   use modglobal,    only: checknamelisterror, ifnamopt, i1, j1, k1, ih, jh, &
-                          rv, rlv, cp, rd
+                          rv, rlv, cp, rd, dzf, dzhi, iadv_kappa, iadv_qt, &
+                          iadv_thl
+  use modfields,    only: qt0, thl0, qt0h, thl0h
+  use modsurfdata,  only: qts, thls
   use modmpi,       only: myid, d_mpi_bcast, commwrld
+  use advec_kappa,  only: halflev_kappa
   use modprecision, only : field_r
   use modtimer
   use modlogging, only: finish
@@ -39,13 +43,14 @@ module modthermodynamics
   implicit none
   character(len=*), parameter :: modname = 'modthermodynamics'
 !   private
-  public :: thermodynamics,calc_halflev
+  public :: thermodynamics
   public :: ttab
   public :: esatltab
   public :: esatitab
   public :: esatmtab
   public :: calc_qsat
   public :: thermodynamics_read_namelist
+  public :: calc_halflev
 
   logical :: lmoist = .true.       !< Switch to calculate moisture fields.
   logical :: lnoclouds = .false.   !< Switch to enable/disable thl calculations.
@@ -181,7 +186,8 @@ contains
     end if
     call diagfld
 
-    call calc_halflev !calculate halflevel values of qt0 and thl0
+    call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
+    call calc_halflev(qt0, dzf, dzhi, qts, iadv_qt == iadv_kappa, qt0h)
 
     if (lmoist .and. (.not. lnoclouds)) then
       call saturation_adjustment(qt0h, thl0h, presh, exnh, ql0h)
@@ -826,52 +832,42 @@ contains
 
   end subroutine calc_saturation_humidities
 
-!> Calculates the scalars at half levels.
-!! If the kappa advection scheme is active, interpolation needs to be done consistently.
-  subroutine calc_halflev
-    use modglobal, only : i1, j1, k1, dzf, dzhi, iadv_thl, iadv_qt, iadv_kappa
-    use modfields, only : thl0, thl0h, qt0, qt0h
-    use modsurfdata,only: qts, thls
-    use advec_kappa,only: halflev_kappa
-    implicit none
+  !> Interpolate a scalar field to the half levels.
+  !!
+  !! CJ: this is a very general subroutine which could be in its own module.
+  !!     It's used only here and in modstartup, so I'll leave it here for now.
+  subroutine calc_halflev(phi, dzf, dzhi, phi_surf, lkappa, phi_half, &
+                          opt_stream)
+
+    real(field_r), intent(in) :: phi(2-ih:,2-jh:,:) !< Scalar field to interpolate [*]
+    real(field_r), intent(in) :: dzf(:)             !< Thickness of full model levels [m]
+    real(field_r), intent(in) :: dzhi(:)            !< Inverse of thickness of half model levels [m]
+    real(field_r), intent(in) :: phi_surf           !< Value to use at the surface level [*]
+    logical,       intent(in) :: lkappa             !< Interpolate using Kappa scheme
+
+    real(field_r), intent(out) :: phi_half(2-ih:,2-jh:,:) !< Scalar field on half levels [*]
+
+    integer, intent(in), optional :: opt_stream !< (Optional) OpenACC stream ID.
 
     integer :: i, j, k
+    integer :: stream = 1
 
-    call timer_tic('modthermodynamics/calc_halflev', 1)
+    if (present(opt_stream)) stream = opt_stream
 
-    if (iadv_thl==iadv_kappa) then
-      call halflev_kappa(thl0,thl0h)
+    if (lkappa) then
+      call halflev_kappa(phi, phi_half)
     else
-      !$acc parallel loop collapse(3) default(present) async(1)
-      do k = 2, k1
-        do j = 2 ,j1
-          do i = 2 ,i1
-            thl0h(i,j,k) = (thl0(i,j,k)*dzf(k-1)+thl0(i,j,k-1)*dzf(k)) * (0.5_field_r * dzhi(k))
-          end do
-        end do
-      end do
-    end if
-
-    !$acc parallel loop collapse(2) default(present) async(1)
-    do j = 2, j1
-      do i = 2, i1
-        thl0h(i,j,1) = thls
-      end do
-    end do
-
-    if (iadv_qt==iadv_kappa) then
-      call halflev_kappa(qt0,qt0h)
-    else
-      !$acc parallel loop collapse(3) default(present) async(1)
+      !$acc parallel loop collapse(3) default(present) async(stream)
       do k = 2, k1
         do j = 2, j1
           do i = 2, i1
-            qt0h(i,j,k)  = (qt0(i,j,k)*dzf(k-1)+qt0(i,j,k-1)*dzf(k)) * (0.5_field_r * dzhi(k))
+            phi_half(i,j,k) = (phi(i,j,k) * dzf(k-1) + phi(i,j,k-1) * dzf(k)) &
+                              * (0.5_field_r * dzhi(k))
           end do
         end do
       end do
 
-      !$acc parallel loop collapse(2) default(present) async(1)
+      !$acc parallel loop collapse(2) default(present) async(stream)
       do j = 2, j1
         do i = 2, i1
           qt0h(i,j,1) = qts
@@ -879,8 +875,6 @@ contains
       end do
     end if
 
-    !$acc wait(1)
-    call timer_toc('modthermodynamics/calc_halflev')
   end subroutine calc_halflev
 
 end module modthermodynamics

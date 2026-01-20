@@ -502,7 +502,8 @@ contains
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
                                   trestart, ladaptive,llsadv,tnextrestart,longint,lopenbc,linithetero, &
-                                  iinput, input_netcdf, input_ascii, lcoriol
+                                  iinput, input_netcdf, input_ascii, lcoriol, &
+                                  dzhi, iadv_thl, iadv_qt, iadv_kappa
     use modthermodynamics, only : lconstexner,lbaseexner
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
@@ -910,7 +911,8 @@ contains
       call update_gpu
 #endif
 
-      call calc_halflev
+      call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
+      call calc_halflev(qt0, dzf, dzhi, qts, iadv_qt == iadv_kappa, qt0h)
 
 #if defined(_OPENACC)
       call update_host
