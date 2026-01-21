@@ -206,10 +206,15 @@ contains
       end do
     end do
 
-    !$acc kernels default(present)
-    thvh(:) = 0.0
-    thvf(:) = 0.0
-    !$acc end kernels
+    !$acc parallel loop gang(static:1) default(present)
+    do k = 1, k1
+      thvh(k) = 0.0_field_r
+    end do
+
+    !$acc parallel loop gang(static:1) default(present)
+    do k = 1, k1
+      thvf(k) = 0.0_field_r
+    end do
 
     if (.not. lapply_ibm) then
       call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.) ! redefine halflevel thv using calculated thv
@@ -429,15 +434,42 @@ contains
 
 ! initialise local MPI arrays
 
-  !$acc kernels default(present)
-  u0av = 0.0
-  v0av = 0.0
-  thl0av = 0.0
-  th0av  = 0.0
-  qt0av  = 0.0
-  ql0av  = 0.0
-  sv0av = 0.
-  !$acc end kernels
+  !$acc parallel loop gang(static:1) default(present)
+  do k = 1, k1
+    u0av(k) = 0.0_field_r
+  end do
+
+  !$acc parallel loop gang(static:1) default(present)
+  do k = 1, k1
+    v0av(k) = 0.0_field_r
+  end do
+
+  !$acc parallel loop gang(static:1) default(present)
+  do k = 1, k1
+    thl0av(k) = 0.0_field_r
+  end do
+
+  !$acc parallel loop gang(static:1) default(present)
+  do k = 1, k1
+    th0av(k) = 0.0_field_r
+  end do
+
+  !$acc parallel loop gang(static:1) default(present)
+  do k = 1, k1
+    qt0av(k) = 0.0_field_r
+  end do
+
+  !$acc parallel loop gang(static:1) default(present)
+  do k = 1, k1
+    ql0av(k) = 0.0_field_r
+  end do
+
+  !$acc parallel loop gang vector collapse(2) default(present)
+  do k = 1, k1
+    do n = 1, nsv
+      sv0av(k,n) = 0.0_field_r
+    end do
+  end do
 
   !CvH changed momentum array dimensions to same value as scalars!
   if (.not. lapply_ibm) then
@@ -471,14 +503,17 @@ contains
     !$acc end kernels
   end if
   if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
-    !$acc kernels default(present)
-    exnf   = 1-grav*zf/(cp*thls)
-    exnh   = 1-grav*zh/(cp*thls)
-    !$acc end kernels
+    !$acc parallel loop gang(static:1) default(present)
+    do k = 1, k1
+      exnf(k) = 1 - grav * zf(k) / (cp * thls)
+      exnh(k) = 1 - grav * zh(k) / (cp * thls)
+    end do
   endif
-  !$acc kernels default(present)
-  th0av  = thl0av+ (rlv/cp)*ql0av/exnf
-  !$acc end kernels
+
+  !$acc parallel loop gang(static:1) default(present)
+  do k = 1, k1
+    th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
+  end do
 
 !***********************************************************
 !  2.0   calculate average profile of pressure at full and *
@@ -489,12 +524,17 @@ contains
 
    call fromztop
 
-   !$acc kernels default(present)
-   th0av = thl0av + (rlv/cp)*ql0av/exnf
+   !$acc parallel loop gang(static:1) default(present)
+   do k = 1, k1
+     th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
+   end do
+
    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
-      exnf = (presf/pref0)**(rd/cp)
-   endif
-   !$acc end kernels
+     !$acc parallel loop gang(static:1) default(present)
+     do k = 1, k1
+       exnf(k) = (presf(k) / pref0)**(rd / cp)
+     end do
+   end if
 
 !    2.2 Use new updated value of theta for determination of pressure
 
