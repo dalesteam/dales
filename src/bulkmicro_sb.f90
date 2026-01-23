@@ -380,6 +380,12 @@ contains
     real(field_r) :: xr, dvr, mur, lbdr, wfall_qr, sed_qr
 
     !$acc routine seq
+    
+    ! Short-circuit: avoid unphysical sedimentation and derived quantities for qr <= 0
+    if (qr <= 0._field_r) then
+        sed_qr = 0._field_r
+        return
+    end if
 
     xr = calc_xr(rho, qr, nr, xrmin, xrmax)
     dvr = calc_dvr(xr)
