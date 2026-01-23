@@ -120,10 +120,11 @@ contains
   !! \param ldep Tracer is deposited.
   !! \param lags Tracer is photosynthesized.
   !! \param lmicro Tracer is involved in cloud microphysics.
+  !! \param laero Tracer is aerosol.
   !! \param wsvsurf Kinematic surface flux (- m/s).
   !! \note All tracers should be added before readinitfiles is called!
   subroutine add_tracer(name, long_name, unit, molar_mass, lemis, lreact, &
-                        ldep, lags, lnudge, lmicro, wsvsurf, isv)
+                        ldep, lags, lnudge, lmicro, laero, wsvsurf, isv)
     character(len=*), intent(in)            :: name
     character(len=*), intent(in),  optional :: long_name
     character(len=*), intent(in),  optional :: unit
@@ -134,6 +135,7 @@ contains
     logical,          intent(in),  optional :: lags
     logical,          intent(in),  optional :: lnudge
     logical,          intent(in),  optional :: lmicro
+    logical,          intent(in),  optional :: laero
     real(field_r),    intent(in),  optional :: wsvsurf
     integer,          intent(out), optional :: isv
 
@@ -193,6 +195,7 @@ contains
     if (present(lags)) tracer_prop(nsv) % lags = lags
     if (present(lnudge)) tracer_prop(nsv) % lnudge = lnudge
     if (present(lmicro)) tracer_prop(nsv) % lmicro = lmicro
+    if (present(laero)) tracer_prop(nsv) % laero = laero
     if (present(wsvsurf)) tracer_prop(nsv) % wsvsurf = wsvsurf
 
     if (present(isv)) isv = nsv
@@ -209,28 +212,30 @@ contains
 
     ! Print tracer properties
     if (myid == 0) then
-      write(profile_output, '(a17,a17,a7,a9,a10,a11,a11)') &
-        'Tracer           ', &
-        'Unit             ', &
-        'Index  ', &
-        'Emitted  ', &
-        'Reactive  ', &
-        'Deposited  ', &
-        'Surf. Flux '
-      write(profile_output, '(a)') repeat('-', 81)
-      do isv = 1, nsv
-        tracer = tracer_prop(isv)
-        write(profile_output, '(a,x,a,x,i3,4x,l3,6x,l3,7x,l3,8x,e10.4,x)') & ! Ugh
-          tracer%tracname, &
-          tracer%unit, &
-          tracer%trac_idx, &
-          tracer%lemis, &
-          tracer%lreact, &
-          tracer%ldep, &
-          tracer%wsvsurf
-      end do
-    end if
+        write(profile_output, '(a17,a17,a7,a9,a10,a11,a11,a11)') &
+          'Tracer           ', &
+          'Unit             ', &
+          'Index  ', &
+          'Emitted  ', &
+          'Reactive  ', &
+          'Deposited  ', &
+          'Isaerosol  ', &
+          'Surf. Flux '
+        write(profile_output, '(a)') repeat('-', 81)
 
+        do isv = 1, nsv
+          tracer = tracer_prop(isv)
+          write(profile_output,'(a,x,a,x,i3,4x,l3,6x,l3,7x,l3,8x,l3,8x,e10.4,x)') &
+            tracer%tracname, &
+            tracer%unit, &
+            tracer%trac_idx, &
+            tracer%lemis, &
+            tracer%lreact, &
+            tracer%ldep, &
+            tracer%laero, &
+            tracer%wsvsurf
+        end do
+    end if
     allocate(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
              sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
              svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
@@ -296,6 +301,7 @@ contains
     logical           :: tracer_is_deposited(max_tracs) = .false.
     logical           :: tracer_is_photosynth(max_tracs) = .false.
     logical           :: tracer_is_microphys(max_tracs) = .false.
+    logical           :: tracer_is_aerosol(max_tracs) = .false.
     real(field_r)     :: wsvsurf(max_tracs) = 0.0
 
     open(1, file=file_profiles, status='old', iostat=ierr)
@@ -339,6 +345,7 @@ contains
                                         tracer_is_deposited(isv), &
                                         tracer_is_photosynth(isv), &
                                         tracer_is_microphys(isv), &
+                                        tracer_is_aerosol(isv), &
                                         wsvsurf(isv)
           end if
         end if
@@ -367,6 +374,8 @@ contains
                tracer_is_photosynth, defltvalue=.false.), & ! Default is False
         lmicro=findval(headers(n), tracname_short, &
                  tracer_is_microphys, defltvalue=.false.), & ! Default is False
+        laero=findval(headers(n), tracname_short, &
+                 tracer_is_aerosol, defltvalue=.false.), & ! Default is False
         wsvsurf=findval(headers(n), tracname_short, &
                   wsvsurf, defltvalue=0.0_field_r) &
       )
@@ -392,7 +401,7 @@ contains
     character(len=32)            :: long_name
     character(len=16)            :: unit
     real(field_r)                :: molar_mass
-    logical                      :: lemis, lreact, ldep, lags, lnudge
+    logical                      :: lemis, lreact, ldep, lags, laero, lnudge
 
     call nchandle_error(nf90_open(filename, NF90_NOWRITE, ncid))
     call nchandle_error(nf90_inquire(ncid, nVariables=nvars))
@@ -418,13 +427,15 @@ contains
                              default=.false.)
       call read_nc_attribute(ncid, varids(ivar), 'ldep', ldep, default=.false.)
       call read_nc_attribute(ncid, varids(ivar), 'lags', lags, default=.false.)
+      call read_nc_attribute(ncid, varids(ivar), 'laero', laero, default=.false.)
       call read_nc_attribute(ncid, varids(ivar), 'lnudge', lnudge, &
                              default=.false.)
+                             
 
       ! Setup tracer
       call add_tracer(trim(name), long_name=trim(long_name), unit=unit, &
                       molar_mass=molar_mass, lemis=lemis, lreact=lreact, &
-                      ldep=ldep, lags=lags, lnudge=lnudge, lmicro=.false.)
+                      ldep=ldep, lags=lags, lnudge=lnudge, lmicro=.false., laero=.false.)
     end do
 
     deallocate(varids)

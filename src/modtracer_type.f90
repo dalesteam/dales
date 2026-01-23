@@ -15,6 +15,7 @@ module modtracer_type
     logical           :: ldep = .false.     !< Boolean if tracer is deposited
     logical           :: lags = .false.     !< Boolean if in A-gs
     logical           :: lmicro = .false.   !< Boolean if in cloud microphysics
+    logical           :: laero = .false.    !< Boolean if in aerosol
     real(field_r)     :: wsvsurf = 0        !< Kinematic surface flux (- m/s)
     logical           :: lnudge = .false.   !< Boolean if tracer is nudged
   contains
@@ -36,6 +37,7 @@ contains
     write(*,*) "  ldep       : ", self%ldep
     write(*,*) "  lags       : ", self%lags
     write(*,*) "  lmicro     : ", self%lmicro
+    write(*,*) "  laero      : ", self%laero
     write(*,*) "  wsvsurf    : ", self%wsvsurf
   end subroutine tracer_print_properties
 
