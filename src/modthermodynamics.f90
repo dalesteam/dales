@@ -217,20 +217,16 @@ contains
     end do
 
     if (.not. lapply_ibm) then
-      call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.) ! redefine halflevel thv using calculated thv
-      call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
+      call slabavg(thv0h, ih, thvh)
+      call slabavg(thv0, ih, thvf)
     else
       call slabavg(thv0h,fluid_mask,ih,thvh)
       call slabavg(thv0,fluid_mask,ih,thvf)
     end if
 
-    !$acc kernels default(present) async(1)
-    if (.not. lapply_ibm) then
-      thvh(:) = thvh(:)/ijtot
-      thvf(:) = thvf(:)/ijtot
-    end if
-    thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
-    !$acc end kernels
+    !$acc serial default(present)
+    thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
+    !$acc end serial
 
     !$acc parallel loop default(present) async(1)
     do k = 1, k1
@@ -473,13 +469,13 @@ contains
 
   !CvH changed momentum array dimensions to same value as scalars!
   if (.not. lapply_ibm) then
-    call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
-    call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
-    call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
-    call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
-    call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
+    call slabavg(u0,ih,u0av)
+    call slabavg(v0,ih,v0av)
+    call slabavg(thl0,ih,thl0av)
+    call slabavg(qt0,ih,qt0av)
+    call slabavg(ql0,ih,ql0av)
     do n=1,nsv
-      call slabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
+      call slabavg(sv0(:,:,:,n),ih,sv0av(:,n))
     end do
   else
     call slabavg(u0,fluid_mask,ih,u0av)
@@ -492,16 +488,6 @@ contains
     end do
   end if
 
-  if (.not. lapply_ibm) then
-    !$acc kernels default(present)
-    u0av   = u0av  /ijtot + cu
-    v0av   = v0av  /ijtot + cv
-    thl0av = thl0av/ijtot
-    qt0av  = qt0av /ijtot
-    ql0av  = ql0av /ijtot
-    sv0av  = sv0av /ijtot
-    !$acc end kernels
-  end if
   if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
     !$acc parallel loop gang(static:1) default(present)
     do k = 1, k1
