@@ -39,8 +39,7 @@ module modthermodynamics
   use advec_kappa,  only: halflev_kappa
   use modprecision, only : field_r
   use modtimer
-  use modlogging, only: finish
-  use fortran_support, only: nnml_output
+  use fortran_support, only: nnml_output, finish
   implicit none
   character(len=*), parameter :: modname = 'modthermodynamics'
 !   private
@@ -149,6 +148,9 @@ contains
     use modibmdata, only : lapply_ibm
     use modslabaverage, only : slabavg
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/thermodynamics'
+
     integer:: i, j, k
 
     real(field_r) :: T
@@ -180,6 +182,12 @@ contains
           end do
         end do
       end do
+
+      if (too_cold) then
+        call finish(routine, 'temperature below 150 K encountered!')
+      else if (too_hot) then
+        call finish(routine, 'temperature above 550 K encountered!')
+      end if
 
       call saturation_adjustment(qt0, thl0, presf, exnf, ql0)
       call calc_dry_tmp ! tmp0 is used in statistics
