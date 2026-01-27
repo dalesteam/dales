@@ -28,6 +28,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 
+!> Module for thermodynamics calculations.
 module modthermodynamics
   use modglobal,    only: checknamelisterror, ifnamopt, i1, j1, k1, ih, jh, &
                           rv, rlv, cp, rd, dzf, dzhi, iadv_kappa, iadv_qt, &
@@ -96,7 +97,7 @@ contains
 
   end subroutine thermodynamics_read_namelist
 
-!> Allocate and initialize arrays
+  !> Allocate and initialize arrays
   subroutine initthermodynamics
     use modglobal, only : ih,i1,jh,j1,k1,tdn,tup
     use modmicrodata, only: imicro,imicro_bulk3
@@ -137,13 +138,13 @@ contains
 
   end subroutine initthermodynamics
 
-!> Do moist thermodynamics.
-!! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure,
-!! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
+  !> Main thermodynamics subroutine.
+  !!
+  !! Calculates liquid water content, mean hydrostatic pressure and virtual 
+  !! potential temperature.
   subroutine thermodynamics
     use modglobal,  only : timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv
     use modfields,  only : thl0, qt0, ql0, presf, exnf, thvh, thv0h, qt0av, ql0av, thvf, rhof, ql0h, thl0h, qt0h, presh, exnh
-    use modmpi,     only : slabsum
     use modibm,     only : fluid_mask
     use modibmdata, only : lapply_ibm
     use modslabaverage, only : slabavg
@@ -159,7 +160,7 @@ contains
       call diagfld
     end if
     if (lmoist .and. (.not. lnoclouds)) then
-      
+
       ! Before we do the saturation adjustment, check if 150 K < T < 550 K
       ! If this is not the case, we will read outside of the bounds of
       ! esatmtab
@@ -237,7 +238,7 @@ contains
     call timer_toc('modthermodynamics/thermodynamics')
   end subroutine thermodynamics
 
-!> Cleans up after the run
+  !> Cleans up after the run
   subroutine exitthermodynamics
     implicit none
     !$acc exit data delete(th0av, thv0, thetah, qth, qlh)
@@ -264,7 +265,7 @@ contains
 
   end subroutine calc_dry_tmp
 
-!> Calculate thetav and dthvdz
+  !> Calculate thetav and dthvdz
   subroutine calthv
     use modglobal, only : i1,j1,k1,kmax,zf,dzh,rlv,rd,rv,cp,eps1
     use modfields, only : thl0,thl0h,ql0,ql0h,qt0,qt0h,exnf,exnh,thv0h,dthvdz
@@ -402,11 +403,8 @@ contains
     call timer_toc('modthermodynamics/calthv')
 
   end subroutine calthv
-!> Calculate diagnostic slab averaged fields.
-!!     Calculates slab averaged fields assuming
-!!     hydrostatic equilibrium for: u,v,theta_l,theta_v,
-!!     qt,ql,exner,pressure and the density
-!! \author      Pier Siebesma   K.N.M.I.     06/01/1995
+
+  !> Diagnones slab averaged fields assuming hydrostatic equilibrium.
   subroutine diagfld
   use modglobal,  only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0,timee
   use modfields,  only : u0,v0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
@@ -422,13 +420,7 @@ contains
 
   call timer_tic('modthermodynamics/diagfld', 1)
 
-
-!*********************************************************
-!  1.0   calculate average profiles of u,v,thl,qt and ql *
-!        assuming hydrostatic equilibrium                *
-!*********************************************************
-
-! initialise local MPI arrays
+  ! 1. Compute slab averaged fields
 
   !$acc parallel loop gang(static:1) default(present)
   do k = 1, k1
@@ -467,7 +459,7 @@ contains
     end do
   end do
 
-  !CvH changed momentum array dimensions to same value as scalars!
+  ! If the IBM is enabled, exclude the building cells from the averages
   if (.not. lapply_ibm) then
     call slabavg(u0,ih,u0av)
     call slabavg(v0,ih,v0av)
@@ -501,12 +493,9 @@ contains
     th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
   end do
 
-!***********************************************************
-!  2.0   calculate average profile of pressure at full and *
-!        half levels, assuming hydrostatic equilibrium.    *
-!***********************************************************
+  ! 2. Calculate the pressure profiles assuming hydrostatic equilibrium.
 
-!    2.1 Use first guess of theta, then recalculate theta
+  ! 2.1 Use first guess of theta, then recalculate theta
 
    call fromztop
 
@@ -522,16 +511,12 @@ contains
      end do
    end if
 
-!    2.2 Use new updated value of theta for determination of pressure
+  ! 2.2 Use new updated value of theta for determination of pressure
 
    call fromztop
 
-!***********************************************************
-!  3.0   Construct density profiles and exner function     *
-!       for further use in the program                     *
-!***********************************************************
+  ! 3. Construct density profiles and exner function
 
-!  3.1 determine exner
    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
      !$acc serial default(present) async(1)
      exnh(1) = (ps/pref0)**(rd/cp)
@@ -545,7 +530,6 @@ contains
      end do
    endif
 
-!  3.2 determine rho
    !$acc parallel loop default(present) async wait(1, 2)
    do k=1,k1
      thvf(k) = th0av(k)*exnf(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
@@ -558,17 +542,7 @@ contains
    return
   end subroutine diagfld
 
-!> Calculates slab averaged pressure
-!!      Input :  zf,zh,theta and qt profile
-!!      Output:  pressure profile at full and
-!!               half levels
-!!
-!!      Method: Using hydrostatic equilibrium
-!!
-!!                              -g*pref0**(rd/cp)
-!! =====>       dp**(rd/cp)/dz = --------------
-!!                                 cp*thetav
-!! \author Pier Siebesma   K.N.M.I.     06/01/1995
+  !> Calculates slab averaged pressure.
   subroutine fromztop
 
   use modglobal, only : k1,dzf,dzh,rv,rd,cp,zf,grav,pref0
@@ -583,9 +557,7 @@ contains
 
   rdocp = rd/cp
 
-!**************************************************
-!    1.0 Determine theta and qt at half levels    *
-!**************************************************
+  ! Interpolate theta and qt to half levels
 
   !$acc parallel loop default(present)
   do k=2,k1
@@ -594,20 +566,14 @@ contains
     qlh   (k) = (ql0av(k)*dzf(k-1) + ql0av(k-1)*dzf(k))/(2*dzh(k))
   end do
 
-!**************************************************
-!     2.1  calculate pressures at full levels     *
-!          assuming hydrostatic equilibrium       *
-!**************************************************
-
-!     1: lowest level: use first level value for safety!
+  ! Calculate pressures at full levels
+  ! Do this on the CPU for now; these loops are serial so GPU is very slow!
 
   !$acc update self(thetah, qth, qlh, th0av, qt0av, ql0av)
 
   thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
   presf(1) = ps**rdocp - grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
   presf(1) = presf(1)**(1/rdocp)
-
-!     2: higher levels
 
   do k=2,k1
     thvh(k)  = thetah(k)*(1+(rv/rd-1)*qth(k)-rv/rd*qlh(k))
@@ -616,10 +582,7 @@ contains
     presf(k) = presf(k)**(1/rdocp)
   end do
 
-!**************************************************
-!     2.2   calculate pressures at half levels    *
-!           assuming hydrostatic equilibrium      *
-!**************************************************
+  ! Calculate pressures at half levels
 
   presh(1) = ps
   thvf(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
@@ -637,9 +600,10 @@ contains
   return
   end subroutine fromztop
 
-!> Magnus formulas for q_sat over liquid and ice
-!> from Huang 2018 https://doi.org/10.1175/JAMC-D-17-0334.
-!> Warning: for performance, check that rd/rv etc are pre-computed
+  !> Magnus formulas for q_sat over liquid and ice.
+  !!
+  !! from Huang 2018 https://doi.org/10.1175/JAMC-D-17-0334.
+  !! Warning: for performance, check that rd/rv etc are pre-computed
   pure function qsat_magnus(T, p) result(qsat)
     use modglobal, only : rd,rv,tup,tdn
     implicit none
@@ -659,10 +623,11 @@ contains
     qsat = (rd/rv) * es / (p - (1-rd/rv)*es)
   end function qsat_magnus
 
-!> Huang's formulas for q_sat over liquid and ice
-!> from Huang 2018 https://doi.org/10.1175/JAMC-D-17-0334.
-!> should be more accurate than Magnus, at the cost of more divisions
-!> Warning: for performance, check that rd/rv etc are pre-computed
+  !> Huang's formulas for q_sat over liquid and ice.
+  !!
+  !! from Huang 2018 https://doi.org/10.1175/JAMC-D-17-0334.
+  !! should be more accurate than Magnus, at the cost of more divisions
+  !! Warning: for performance, check that rd/rv etc are pre-computed
   pure function qsat_huang(T, p) result(qsat)
     use modglobal, only : rd,rv,tup,tdn
     implicit none
@@ -682,7 +647,7 @@ contains
     qsat = (rd/rv) * es / (p - (1-rd/rv)*es)
   end function qsat_huang
 
-  ! return esat for ice-liquid mix using table
+  !> Compute the saturation vapor pressure via table lookup.
   pure function esat_tab(T) result(es)
 
     implicit none
@@ -699,8 +664,7 @@ contains
     es = (thi-T)*5*esatmtab(tlonr)+(T-tlo)*5*esatmtab(tlonr+1)
   end function esat_tab
 
-!> q_sat over liquid and ice, using interpolation in a table created in modglobal.
-!> seems to be faster than the Magnus formula (on CPU)
+  !> Computes the saturation specific humidity via table lookup.
   pure function qsat_tab(T, p) result(qsat)
     use modglobal, only : rd,rv
 
@@ -801,7 +765,7 @@ contains
         end do
       end if
     end do
-    
+
     call timer_toc(routine)
 
   end subroutine saturation_adjustment
@@ -823,7 +787,7 @@ contains
       modname//'calc_saturation_humidities'
 
     integer :: i, j, k
-    
+
     real(field_r) :: esi   !< Saturation vapor pressure for ice (not stored) [Pa]
     real(field_r) :: qsat  !< Saturation specific humidity [kg/kg]
     real(field_r) :: T     !< Temperature [K]
