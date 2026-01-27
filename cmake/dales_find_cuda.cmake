@@ -5,17 +5,12 @@ macro( dales_find_cuda )
     set( CMAKE_CUDA_ARCHITECTURES 80 )
   endif()
   
-  # Look for the CUDA Toolkit, which has cuFFT and NVTX
-  set( HAVE_CUDA ON )
-  find_package( CUDAToolkit )
-
-  if( NOT TARGET CUDA::cufft AND ENABLE_ACC )
-    set( HAVE_CUDA OFF )
+  if( ${CMAKE_Fortran_COMPILER_ID} MATCHES PGI|NVHPC )
+    set( HAVE_CUDA ON )
+    ecbuild_add_fortran_flags( "-cudalib=cufft,nvtx3" )
+  else()
+    ecbuild_info( "Could not find CUDA" )
   endif()
-
-  if( TARGET CUDA::nvtx3 )
-    add_compile_definitions( USE_NVTX )
-  endif() 
 
 endmacro()
 

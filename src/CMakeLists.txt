@@ -260,8 +260,6 @@ ecbuild_add_executable( TARGET dales
                           $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3>
                           $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3f>
                           $<$<BOOL:${ENABLE_HYPRE}>:${HYPRE_LIB}>
-                          $<$<BOOL:${HAVE_CUDA}>:CUDA::cufft>
-                          $<$<BOOL:${HAVE_CUDA}>:CUDA::nvToolsExt>
                           $<$<BOOL:${HAVE_HIP}>:${HIPFORT_LIB}>
 )
 # Temporary
