@@ -37,11 +37,6 @@ ecbuild_add_option( FEATURE FP32_RAD
                     DESCRIPTION "Use single precision for RTE-RRTMGP (use with caution!)"
                     DEFAULT OFF )
 
-ecbuild_add_option( FEATURE NVTX
-                    DESCRIPTION "Enable NVTX profiling (only available when using NVIDIA compiler)"
-                    CONDITION "${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NVHPC"
-                    DEFAULT OFF )
-
 ecbuild_add_option( FEATURE DALESLIB
                     DESCRIPTION "Build DALES libraries for use with OMUSE"
                     DEFAULT OFF )
@@ -95,10 +90,6 @@ if( ENABLE_HYPRE )
   find_library( HYPRE_LIB HYPRE REQUIRED )
   ecbuild_info( "Found HYPRE: ${HYPRE_LIB}" )
   add_compile_definitions( USE_HYPRE )
-endif()
-
-if( ENABLE_NVTX )
-  add_compile_definitions( USE_NVTX )
 endif()
 
 if( ENABLE_RRTMG )
