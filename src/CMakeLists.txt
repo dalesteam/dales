@@ -250,6 +250,7 @@ ecbuild_add_executable( TARGET dales
                         INCLUDES
                           ${NetCDF_Fortran_INCLUDE_DIR}
                           $<$<BOOL:${ENABLE_FFTW}>:${FFTW_INCLUDE_DIRS}>
+                          $<$<BOOL:${HAVE_HIP}>:${HIPFORT_INCLUDE_DIRS}>
                         LIBS
                           MPI::MPI_Fortran
                           NetCDF::NetCDF_Fortran
@@ -259,13 +260,14 @@ ecbuild_add_executable( TARGET dales
                           $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3>
                           $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3f>
                           $<$<BOOL:${ENABLE_HYPRE}>:${HYPRE_LIB}>
-                          $<$<BOOL:${ENABLE_ACC}>:CUDA::cufft>
-                          $<$<BOOL:${ENABLE_NVTX}>:CUDA::nvToolsExt>
+                          $<$<BOOL:${HAVE_CUDA}>:CUDA::cufft>
+                          $<$<BOOL:${HAVE_CUDA}>:CUDA::nvToolsExt>
+                          $<$<BOOL:${HAVE_HIP}>:${HIPFORT_LIB}>
 )
 # Temporary
-if( ENABLE_ACC )
-  target_link_options( dales PUBLIC -cuda )
-endif()
+#if( ENABLE_ACC )
+#  target_link_options( dales PUBLIC -cuda )
+#endif()
 
 # DALES library, e.g. for use with OMUSE. Only built if -DENABLE_DALESLIB is turned on.
 ecbuild_add_library( TARGET libdales
