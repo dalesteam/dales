@@ -39,7 +39,7 @@ module modemisdata
   ! Define the PointSource type
   type PointSource
         integer :: npoints = 0            ! Number of point sources for each species
-        real, allocatable :: data(:,:,:)  ! (npoints, 6, 2) (6 data fields, 2 time slices)
+        real, allocatable :: data(:,:,:)  ! (npoints, 7, 2) (7 data fields, 2 time slices)
   end type PointSource
 
   ! Declare an allocatable array of PointSource for each tracer species
