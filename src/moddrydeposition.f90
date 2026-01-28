@@ -82,7 +82,7 @@ subroutine initdrydep
   ! ---------------------------------------------------------------------!
 
   ! --- Read & broadcast namelist DEPOSITION -----------------------------------
-  namelist/NAMDEPOSITION/ ldrydep, nh3_avg, so2_avg     !GT added nh3_avg and so2_avg
+  namelist/NAMDEPOSITION/ ldrydep, nh3_avg, so2_avg
 
 
   if (myid == 0) then
@@ -94,27 +94,28 @@ subroutine initdrydep
   endif
 
   call d_mpi_bcast(ldrydep,              1, 0, comm3d, ierr)
-  call d_mpi_bcast(nh3_avg,              1, 0, comm3d, ierr)    !GT added
-  call d_mpi_bcast(so2_avg,              1, 0, comm3d, ierr)    !GT added
+  call d_mpi_bcast(nh3_avg,              1, 0, comm3d, ierr)
+  call d_mpi_bcast(so2_avg,              1, 0, comm3d, ierr)
 
+  ! --- Local pre-calculations and settings
   do isv = 1,nsv
     if (.not. tracer_prop(isv)%ldep) cycle
     ndeptracers = ndeptracers + 1
-    write(*,*) 'tracer is deposited: ', tracer_prop(isv)%tracname
+    if (ldrydep) write(*,*) 'tracer is deposited: ', tracer_prop(isv)%tracname
   enddo
 
-  ! --- Local pre-calculations and settings
   if (ldrydep .and. ndeptracers == 0 .and. myid == 0) then
     write (*,*) "initdrydep: WARNING .. drydeposition switched on, but no tracers to deposit. &
       &Continuing without deposition model"
   end if
+
   if (.not. (ldrydep) .or. .not. (llsm) .or. ndeptracers == 0)  return
 
   allocate(depfield(i2, j2, ndeptracers))
   allocate(Rb(i2, j2))
   allocate(Rc(i2, j2))
   allocate(vd(i2, j2))
-  allocate(Ccomp(i2, j2))        !added by GT for addition of comp. point
+  allocate(Ccomp(i2, j2))
   Rb = 0.0
   Rc = 0.0
   vd = 0.0

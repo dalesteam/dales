@@ -726,20 +726,20 @@ contains
       end if
 
       if (myid == 0) then
-        ! Print tracer profiles to stderr
-        write(0, '(a9)', advance='no') 'height   '
+        ! Print tracer profiles to stdout
+        write(6, '(a9)', advance='no') 'height   '
         do isv = 1, nsv
-          write(0, '(a12)', advance='no') tracer_prop(isv)%tracname
+          write(6, '(a12)', advance='no') tracer_prop(isv)%tracname
         end do
 
-        write(0, *)
+        write(6, *)
 
         do k = kmax, 1, -1
-          write(0,'(f7.1,2x)', advance='no') height(k)
+          write(6,'(f7.1,2x)', advance='no') height(k)
           do isv = 1, nsv
-            write(0, '(e10.4,2x)', advance='no') svprof(k,isv)
+            write(6, '(e10.4,2x)', advance='no') svprof(k,isv)
           end do
-          write(0, *)
+          write(6, *)
         end do
       end if
 

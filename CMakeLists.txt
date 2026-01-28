@@ -87,6 +87,14 @@ if( ENABLE_FP32_RAD )
   ecbuild_info( "RRTMG is disabled because single precision is selected for RTE-RRTMGP" )
 endif()
 
+
+# Necessary hack to force cmake to find the NetCDF libraries on TNO HPC4
+# Please leave this alone, it does not affect you ;-) - Leon Geers (TNO)
+if(DEFINED ENV{NETCDF_C_HOME} AND DEFINED ENV{NETCDF_FORTRAN_HOME})
+    add_link_options(-L$ENV{NETCDF_C_HOME}/lib -L$ENV{NETCDF_FORTRAN_HOME}/lib)
+endif()
+set(target_lib dales)
+
 # Additional options
 
 if( ENABLE_FFTW )
