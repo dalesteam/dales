@@ -704,7 +704,7 @@ contains
 
     call timer_tic(routine, 1)
 
-    !$acc parallel loop gang vector collapse(3) default(present) async(stream) &
+    !$acc parallel loop gang default(present) async(stream) &
     !$acc private(b, qli, qsat, qti, Tl)
     do k = 1, k1
       ! Find lowest thl and highest qt in the slab.
@@ -715,6 +715,7 @@ contains
       qt_max = maxval(qt(2:i1,2:j1,k))
       qsat = qsat_tab(TL_min, pres(k))
       if (qt_max > qsat) then
+        !$acc loop vector collapse(2)
         do j = 2, j1
           do i = 2, i1
             qti = qt(i,j,k)
