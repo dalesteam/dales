@@ -29,6 +29,7 @@ module moddrydeposition
   use modthermodynamics, only: calc_qsat
   use modtracers, only: tracer_prop
   use modlogging, only: finish
+  use modprecision, only: field_r
 
   implicit none
 
@@ -221,7 +222,7 @@ subroutine depos_call(ilu, species, species_idx)  !GT added variable of species_
   do i = 2, i1
     do j = 2, j1
       T = thl0(i, j, 1) * exnf(1)
-      qsat = calc_qsat(T, presf(1))
+      qsat = calc_qsat(real(T, kind=field_r), real(presf(1), kind=field_r))
       RH = (qt0(i, j, 1) - ql0(i, j, 1))/ qsat * 100
       ! swd needs to be negated, since it is pointing downward.
       ! tsea is a temperature the deposition model needs in case of water LU classes
