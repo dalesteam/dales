@@ -165,7 +165,11 @@ contains
       ! If this is not the case, we will read outside of the bounds of
       ! esatmtab
 
-      !$acc parallel loop collapse(3) default(present) async(1) private(T)
+      too_cold = .false.
+      too_hot = .false.
+
+      !$acc parallel loop collapse(3) default(present) async(1) private(T) &
+      !$acc firstprivate(too_cold, too_hot)
       do k = 1, k1
         do j = 2 , j1
           do i = 2, i1
