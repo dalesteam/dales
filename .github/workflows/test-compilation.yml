@@ -68,7 +68,7 @@ jobs:
 
       - name: "Install NetCDF-C"
         run: |
-          sudo apt-get -y install libnetcdf-dev
+          sudo apt-get update && sudo apt-get -y install libnetcdf-dev
         
       - name: "Setup Fortran compiler"
         uses: fortran-lang/setup-fortran@v1
