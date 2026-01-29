@@ -30,14 +30,22 @@
 
 !> Module for thermodynamics calculations.
 module modthermodynamics
-  use modglobal,    only: checknamelisterror, ifnamopt, i1, j1, k1, ih, jh, &
-                          rv, rlv, cp, rd, dzf, dzhi, iadv_kappa, iadv_qt, &
-                          iadv_thl
-  use modfields,    only: qt0, thl0, qt0h, thl0h
-  use modsurfdata,  only: qts, thls
-  use modmpi,       only: myid, d_mpi_bcast, commwrld
-  use advec_kappa,  only: halflev_kappa
-  use modprecision, only : field_r
+  use modglobal,       only: checknamelisterror, ifnamopt, i1, j1, k1, ih, jh, &
+                             rv, rlv, cp, rd, dzf, dzhi, iadv_kappa, iadv_qt, &
+                             iadv_thl, tdn, tup, timee, ijtot, kmax, zf, dzh, &
+                             eps1, cu, cv, grav, pref0, nsv, zh
+  use modfields,       only: qt0, thl0, qt0h, thl0h, ql0, presf, exnf, thvh, &
+                             thv0h, qt0av, ql0av, thvf, rhof, ql0h, presh, exnh, &
+                             u0, v0, sv0, u0av, v0av, thl0av, ql0av, sv0av, &
+                             tmp0, dthvdz, thl0h, qt0h
+  use modsurfdata,     only: qts, thls, ps, dthldz, dqtdz
+  use modmpi,          only: myid, d_mpi_bcast, commwrld, slabsum
+  use modmicrodata,    only: imicro, imicro_bulk3
+  use modibm,          only: fluid_mask
+  use modibmdata,      only: lapply_ibm
+  use modslabaverage,  only: slabavg
+  use advec_kappa,     only: halflev_kappa
+  use modprecision,    only: field_r
   use modtimer
   use fortran_support, only: nnml_output, finish
   implicit none
@@ -98,9 +106,6 @@ contains
 
   !> Allocate and initialize arrays
   subroutine initthermodynamics
-    use modglobal, only : ih,i1,jh,j1,k1,tdn,tup
-    use modmicrodata, only: imicro,imicro_bulk3
-    implicit none
     real :: ilratio
     integer :: m
 
@@ -142,13 +147,6 @@ contains
   !! Calculates liquid water content, mean hydrostatic pressure and virtual 
   !! potential temperature.
   subroutine thermodynamics
-    use modglobal,  only : timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv
-    use modfields,  only : thl0, qt0, ql0, presf, exnf, thvh, thv0h, qt0av, ql0av, thvf, rhof, ql0h, thl0h, qt0h, presh, exnh
-    use modibm,     only : fluid_mask
-    use modibmdata, only : lapply_ibm
-    use modslabaverage, only : slabavg
-    implicit none
-
     character(len=*), parameter :: routine = modname//'/thermodynamics'
 
     integer:: i, j, k
@@ -248,18 +246,12 @@ contains
 
   !> Cleans up after the run
   subroutine exitthermodynamics
-    implicit none
     !$acc exit data delete(th0av, thv0, thetah, qth, qlh)
     deallocate(th0av, thv0, thetah, qth, qlh)
   end subroutine exitthermodynamics
 
   !> Calculate real temperature tmp0 from thl0, for the dry case i.e. ql=0
   subroutine calc_dry_tmp
-    use modglobal, only : i1,j1,k1
-    use modfields, only : thl0,exnf
-    use modfields, only : tmp0
-
-    implicit none
     integer :: i, j, k
 
     !$acc parallel loop collapse(3) default(present) async
@@ -275,11 +267,6 @@ contains
 
   !> Calculate thetav and dthvdz
   subroutine calthv
-    use modglobal, only : i1,j1,k1,kmax,zf,dzh,rlv,rd,rv,cp,eps1
-    use modfields, only : thl0,thl0h,ql0,ql0h,qt0,qt0h,exnf,exnh,thv0h,dthvdz
-    use modsurfdata,only : dthldz,dqtdz
-    implicit none
-
     integer i, j, k
     real(field_r)    qs
     real(field_r)    a_surf,b_surf,dq,dth,dthv,temp
@@ -414,16 +401,6 @@ contains
 
   !> Diagnones slab averaged fields assuming hydrostatic equilibrium.
   subroutine diagfld
-  use modglobal,  only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0,timee
-  use modfields,  only : u0,v0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
-                        presf,presh,exnf,exnh,rhof,thvf
-  use modsurfdata,only : thls,ps
-  use modmpi,     only : slabsum
-  use modibm,     only : fluid_mask
-  use modibmdata, only : lapply_ibm
-  use modslabaverage, only : slabavg
-  implicit none
-
   integer :: k,n
 
   call timer_tic('modthermodynamics/diagfld', 1)
@@ -552,12 +529,6 @@ contains
 
   !> Calculates slab averaged pressure.
   subroutine fromztop
-
-  use modglobal, only : k1,dzf,dzh,rv,rd,cp,zf,grav,pref0
-  use modfields, only : qt0av,ql0av,presf,presh,thvh,thvf
-  use modsurfdata,only : ps
-  implicit none
-
   integer   k
   real(field_r)  rdocp
 
@@ -613,8 +584,6 @@ contains
   !! from Huang 2018 https://doi.org/10.1175/JAMC-D-17-0334.
   !! Warning: for performance, check that rd/rv etc are pre-computed
   pure function qsat_magnus(T, p) result(qsat)
-    use modglobal, only : rd,rv,tup,tdn
-    implicit none
     real(field_r), intent(in) :: T, p
     real :: qsat
     real ilratio, TC, esl, esi, es
@@ -637,8 +606,6 @@ contains
   !! should be more accurate than Magnus, at the cost of more divisions
   !! Warning: for performance, check that rd/rv etc are pre-computed
   pure function qsat_huang(T, p) result(qsat)
-    use modglobal, only : rd,rv,tup,tdn
-    implicit none
     real(field_r), intent(in) :: T, p
     real :: qsat
     real ilratio, TC, esl, esi, es
@@ -657,8 +624,7 @@ contains
 
   !> Compute the saturation vapor pressure via table lookup.
   pure function esat_tab(T) result(es)
-
-    implicit none
+    
     !$acc routine seq
     real(field_r), intent(in) :: T
     integer :: tlonr
@@ -674,16 +640,13 @@ contains
 
   !> Computes the saturation specific humidity via table lookup.
   pure function qsat_tab(T, p) result(qsat)
-    use modglobal, only : rd,rv
-
-    implicit none
+    
     !$acc routine seq
     real(field_r), intent(in) :: T, p
     real(field_r) :: qsat
     integer :: tlonr
     real(field_r) :: tlo, thi, es
 
-    ! interpolated ice-liquid saturation vapor pressure from table
     tlonr=int((T-150)*5)
     tlo = 150 + 0.2_field_r*tlonr
     thi = tlo + 0.2_field_r
