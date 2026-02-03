@@ -244,7 +244,6 @@ ecbuild_add_library( TARGET libdales
                        ${dales_srcs}
                        ${rrtmg_lw_srcs}
                        ${rrtmg_sw_srcs}
-                       ${rrtmgp_srcs}
                        ${CMAKE_CURRENT_BINARY_DIR}/modversion.f90
                      DEPENDS tag_git_version
                      PUBLIC_INCLUDES
@@ -253,6 +252,8 @@ ecbuild_add_library( TARGET libdales
                      PUBLIC_LIBS
                        MPI::MPI_Fortran
                        NetCDF::NetCDF_Fortran
+											 rte-rrtmgp::rrtmgp
+											 rte-rrtmgp::rte
                        $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3>
                        $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3f>
                        $<$<BOOL:${ENABLE_HYPRE}>:${HYPRE_LIB}>
