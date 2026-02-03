@@ -96,9 +96,6 @@ if( ENABLE_RRTMG )
   add_compile_definitions( USE_RRTMG )
 endif()
 
-# Set the compiler flags for the selected compiler
-include( dales_compile_options )
-
 # GPU stuff
 include( dales_find_cuda )
 include( dales_find_hip )
@@ -137,5 +134,8 @@ include ( dales_add_fortran_support )
 
 # Add RRTMGP
 include( dales_add_rrtmgp )
+
+# Set the compiler flags for the selected compiler
+include( dales_compile_options )
 
 add_subdirectory( src )
