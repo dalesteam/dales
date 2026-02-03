@@ -96,6 +96,9 @@ if( ENABLE_RRTMG )
   add_compile_definitions( USE_RRTMG )
 endif()
 
+# Set the compiler flags for the selected compiler
+include( dales_compile_options )
+
 # GPU stuff
 include( dales_find_cuda )
 include( dales_find_hip )
@@ -103,6 +106,7 @@ include( dales_find_hip )
 if( ENABLE_ACC )
   find_package( OpenACC COMPONENTS Fortran QUIET )
   if( OpenACC_Fortran_FOUND )
+    ecbuild_add_fortran_flags( ${OpenACC_Fortran_FLAGS} )
     set( OpenACC ON )
     ecbuild_info( "Found OpenACC" )
   endif()
@@ -134,5 +138,4 @@ include ( dales_add_fortran_support )
 # Add RRTMGP
 include( dales_add_rrtmgp )
 
-include( dales_compile_options )
 add_subdirectory( src )
