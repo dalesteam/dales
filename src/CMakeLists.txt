@@ -196,37 +196,6 @@ set( rrtmg_sw_srcs
 	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/src/rrtmg_sw_vrtqdr.f90
 )
 
-# RTE-RRTMGP
-set( rrtmgp_srcs
-	# RTE
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-kernels/accel/mo_optical_props_kernels.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-kernels/accel/mo_rte_solver_kernels.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-kernels/mo_rte_util_array.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-kernels/mo_fluxes_broadband_kernels.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-kernels/mo_rte_kind.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_fluxes.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_optical_props.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_rte_config.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_rte_lw.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_rte_sw.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_source_functions.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_rte_util_array_validation.F90
-	# RRTMGP
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rrtmgp-kernels/accel/mo_gas_optics_rrtmgp_kernels.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rrtmgp-kernels/mo_cloud_optics_rrtmgp_kernels.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rrtmgp-frontend/mo_gas_optics_rrtmgp.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rrtmgp-frontend/mo_cloud_optics_rrtmgp.F90
-	# Gas optics
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/gas-optics/mo_gas_concentrations.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/gas-optics/mo_gas_optics.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/gas-optics/mo_gas_optics_constants.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/gas-optics/mo_gas_optics_util_string.F90
-	# Examples (why are these needed?)
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/examples/all-sky/mo_load_cloud_coefficients.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/examples/mo_load_coefficients.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/examples/mo_simple_netcdf.F90
-)
-
 if( "${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU" )
 	set_source_files_properties( ${rrtmg_lw_srcs} PROPERTIES COMPILE_FLAGS -Wno-error=implicit-interface )
 	set_source_files_properties( ${rrtmg_sw_srcs} PROPERTIES COMPILE_FLAGS -Wno-error=implicit-interface )
