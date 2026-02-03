@@ -31,4 +31,8 @@ module modsprayingdata
 
   real :: salinity = 0.03 ! this definition assumes 1 kg of sea water contains a mass of salt equal to salinity kg
 
+  logical :: lcoupled = .false. !< Enable coupling to aerosol module
+  logical :: my_process_sprays = .false.
+  integer :: target_mode = 3
+
 end module modsprayingdata

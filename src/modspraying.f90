@@ -4,12 +4,15 @@
 
 
 module modspraying
+   use modaerosol_common,  only: iACS, iCOS, iSS
+   use modaerosol,         only: modes_f
+   use modaerosol_sources, only: aerosol_point_source, MASS_SOURCE
    use modprecision, only: field_r
    use modsprayingdata, only: i_glob_spray,j_glob_spray,k_glob_spray,&
                               i_loc_spray,j_loc_spray,k_loc_spray,&
                               water_spray_rate,salt_spray_rate,&
                               lwater_spraying,lsalt_spraying,salinity,&
-                              isv_salt,tracer,lsalt_sponge
+                              isv_salt,tracer,lsalt_sponge, lcoupled, my_process_sprays, target_mode
    implicit none
 
   ! for lateral sponge
@@ -31,7 +34,7 @@ contains
   namelist/NAMSPRAYING/ lwater_spraying,lsalt_spraying,&
                         i_glob_spray,j_glob_spray,k_glob_spray,&
                         water_spray_rate,salt_spray_rate,salinity,&
-                        tracer,lsalt_sponge
+                        tracer,lsalt_sponge, lcoupled, target_mode
 
   if(myid==0) then    !first myid
     open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -50,6 +53,8 @@ contains
   call D_MPI_BCAST(salt_spray_rate,     1,  0, comm3d, mpierr)
   call D_MPI_BCAST(tracer,             20,  0, comm3d, mpierr)
   call D_MPI_BCAST(lsalt_sponge,        1,  0, comm3d, mpierr)
+  call D_MPI_BCAST(lcoupled,            1,  0, comm3d, mpierr)
+  call D_MPI_BCAST(target_mode,         1, 0, comm3d, mpierr)
   
   if (lwater_spraying) then
      lsalt_spraying  = .true.
@@ -58,7 +63,7 @@ contains
      water_spray_rate = 0.
   endif
 
-  if (lsalt_spraying) then
+  if (lsalt_spraying .and. .not. lcoupled) then
      call add_tracer(trim(tracer), long_name=trim(tracer)//" mixing ratio", &
           unit="kg/kg", isv=isv_salt)
   endif
@@ -75,7 +80,9 @@ contains
      write(profile_output,*) 'spraying point at myid = ',myid
      write(profile_output,*) 'global locations ',i_glob_spray,j_glob_spray,k_glob_spray
      write(profile_output,*) 'local locations ',i_loc_spray,j_loc_spray,k_loc_spray
+     my_process_sprays = .true.
   else  ! if not, there is no sprayer here
+     my_process_sprays = .false.
      i_loc_spray = -999
      j_loc_spray = -999
      k_loc_spray = -999
@@ -170,5 +177,21 @@ contains
     deallocate(fnudgeloc)
   end subroutine exitlateralsponge
 
+  subroutine spray_aerosol()
 
+    integer :: location(3)
+    real    :: source_strength
+
+    if (lcoupled .and. my_process_sprays) then
+      location(1) = i_loc_spray
+      location(2) = j_loc_spray
+      location(3) = k_loc_spray
+
+      source_strength = salt_spray_rate &
+                        / (rhobf(k_loc_spray) * dx * dy * dzf(k_loc_spray))
+
+      call aerosol_point_source(modes_f(target_mode), iSS, &
+                                source_strength, location, MASS_SOURCE)
+    end if
+  end subroutine spray_aerosol
 end module modspraying
