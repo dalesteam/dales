@@ -64,9 +64,6 @@ module modradrte_rrtmgp
 contains
 
   subroutine init_radrte_rrtmgp
-    use mo_load_coefficients,  only: load_and_init
-    use mo_load_cloud_coefficients, &
-                               only: load_cld_lutcoeff
     use mo_rte_config,         only: rte_config_checks
 
     ! DALES modules
