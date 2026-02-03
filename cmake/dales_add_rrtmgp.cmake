@@ -2,9 +2,7 @@ include( FetchContent )
 
 set( BUILD_C_HEADERS OFF )
 set( RTE_ENABLE_SP ${ENABLE_FP32_RAD} )
-if( ${ENABLE_ACC} )
-    set( KERNEL_MODE "accel" )
-endif()
+set( KERNEL_MODE "accel" )
 
 ecbuild_info( "Fetching RTE-RRTMGP" )
 
@@ -15,3 +13,10 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable( rrtmgp )
+
+# For some reason, RRTMGP doesn't pick up the OpenACC compiler flag,
+# so we set it here manually
+target_compile_options( rrtmgp PUBLIC ${OpenACC_Fortran_FLAGS} )
+target_compile_options( rrtmgpkernels PUBLIC ${OpenACC_Fortran_FLAGS} )
+target_compile_options( rte PUBLIC ${OpenACC_Fortran_FLAGS} )
+target_compile_options( rtekernels PUBLIC ${OpenACC_Fortran_FLAGS} )
