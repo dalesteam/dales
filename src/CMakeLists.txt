@@ -83,6 +83,7 @@ set( dales_srcs
 	modradrrtmg.f90
 	modradrte_rrtmgp.f90
 	modradstat.f90
+	modrrtmgp_utils.f90
 	modsampdata.f90
 	modsampling.f90
 	modsamptend.f90
@@ -244,7 +245,6 @@ ecbuild_add_executable( TARGET dales
                           ${dales_srcs}
                           $<$<BOOL:${ENABLE_RRTMG}>:${rrtmg_lw_srcs}>
                           $<$<BOOL:${ENABLE_RRTMG}>:${rrtmg_sw_srcs}>
-                          ${rrtmgp_srcs}
                           ${CMAKE_CURRENT_BINARY_DIR}/modversion.f90
                         DEPENDS tag_git_version
                         INCLUDES
@@ -256,6 +256,8 @@ ecbuild_add_executable( TARGET dales
                           NetCDF::NetCDF_Fortran
                           NetCDF::NetCDF_C
 													fortran-support::fortran-support
+													rte-rrtmgp::rrtmgp
+													rte-rrtmgp::rte
                           $<$<BOOL:${ENABLE_ACC}>:OpenACC::OpenACC_Fortran>
                           $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3>
                           $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3f>

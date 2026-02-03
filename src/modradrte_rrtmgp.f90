@@ -27,6 +27,8 @@ module modradrte_rrtmgp
   use modprecision, only : field_r
   use modtimer
   use modlogging, only: finish
+  use modrrtmgp_utils,        only: load_gas_optics, load_cloud_optics, &
+                                    stop_on_err
   ! RTE-RRTMGP modules
   use mo_optical_props,       only: ty_optical_props, &
                                     ty_optical_props_arry, &
@@ -60,19 +62,6 @@ module modradrte_rrtmgp
   public :: radrte_rrtmgp, exit_radrte_rrtmgp
 
 contains
-
-  subroutine stop_on_err(error_msg)
-    use iso_fortran_env, only : error_unit
-    implicit none
-
-    character(len=*), parameter :: routine = modname//'/stop_on_err'
-
-    character(len=*), intent(in) :: error_msg
-
-    if(error_msg /= "") then
-      call finish(routine, 'Error: ', trim(error_msg))
-    end if
-  end subroutine stop_on_err
 
   subroutine init_radrte_rrtmgp
     use mo_load_coefficients,  only: load_and_init
@@ -235,7 +224,7 @@ contains
     if(rad_longw) then
 
       ! Load k distributions
-      call load_and_init(k_dist_lw, k_dist_file_lw, gas_concs)
+      call load_gas_optics(k_dist_lw, k_dist_file_lw, gas_concs)
       if(.not. k_dist_lw%source_is_internal()) &
         call finish(routine, "k-distribution file isn't LW")
       nbndlw = k_dist_lw%get_nband()
@@ -249,7 +238,7 @@ contains
       end select
 
       ! Load cloud property data
-      call load_cld_lutcoeff (cloud_optics_lw, cloud_optics_file_lw)
+      call load_cloud_optics(cloud_optics_lw, cloud_optics_file_lw)
       call stop_on_err(cloud_optics_lw%set_ice_roughness(2))
 
       ! Initialize cloud optical properties
@@ -282,7 +271,7 @@ contains
     if(rad_shortw) then
 
       ! Load k distributions
-      call load_and_init(k_dist_sw, k_dist_file_sw, gas_concs)
+      call load_gas_optics(k_dist_sw, k_dist_file_sw, gas_concs)
       if(k_dist_sw%source_is_internal()) &
         call finish(routine, "k-distribution file isn't SW")
       nbndsw = k_dist_sw%get_nband()
@@ -297,7 +286,7 @@ contains
       end select
 
       ! Load cloud property data
-      call load_cld_lutcoeff (cloud_optics_sw, cloud_optics_file_sw)
+      call load_cloud_optics(cloud_optics_sw, cloud_optics_file_sw)
       call stop_on_err(cloud_optics_sw%set_ice_roughness(2))
 
       ! Initialize cloud optical properties
