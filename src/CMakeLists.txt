@@ -83,6 +83,7 @@ set( dales_srcs
 	modradrrtmg.f90
 	modradrte_rrtmgp.f90
 	modradstat.f90
+	modrrtmgp_utils.f90
 	modsampdata.f90
 	modsampling.f90
 	modsamptend.f90
@@ -195,37 +196,6 @@ set( rrtmg_sw_srcs
 	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/src/rrtmg_sw_vrtqdr.f90
 )
 
-# RTE-RRTMGP
-set( rrtmgp_srcs
-	# RTE
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-kernels/accel/mo_optical_props_kernels.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-kernels/accel/mo_rte_solver_kernels.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-kernels/mo_rte_util_array.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-kernels/mo_fluxes_broadband_kernels.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-kernels/mo_rte_kind.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_fluxes.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_optical_props.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_rte_config.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_rte_lw.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_rte_sw.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_source_functions.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_rte_util_array_validation.F90
-	# RRTMGP
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rrtmgp-kernels/accel/mo_gas_optics_rrtmgp_kernels.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rrtmgp-kernels/mo_cloud_optics_rrtmgp_kernels.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rrtmgp-frontend/mo_gas_optics_rrtmgp.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rrtmgp-frontend/mo_cloud_optics_rrtmgp.F90
-	# Gas optics
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/gas-optics/mo_gas_concentrations.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/gas-optics/mo_gas_optics.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/gas-optics/mo_gas_optics_constants.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/gas-optics/mo_gas_optics_util_string.F90
-	# Examples (why are these needed?)
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/examples/all-sky/mo_load_cloud_coefficients.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/examples/mo_load_coefficients.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/examples/mo_simple_netcdf.F90
-)
-
 if( "${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU" )
 	set_source_files_properties( ${rrtmg_lw_srcs} PROPERTIES COMPILE_FLAGS -Wno-error=implicit-interface )
 	set_source_files_properties( ${rrtmg_sw_srcs} PROPERTIES COMPILE_FLAGS -Wno-error=implicit-interface )
@@ -244,7 +214,6 @@ ecbuild_add_executable( TARGET dales
                           ${dales_srcs}
                           $<$<BOOL:${ENABLE_RRTMG}>:${rrtmg_lw_srcs}>
                           $<$<BOOL:${ENABLE_RRTMG}>:${rrtmg_sw_srcs}>
-                          ${rrtmgp_srcs}
                           ${CMAKE_CURRENT_BINARY_DIR}/modversion.f90
                         DEPENDS tag_git_version
                         INCLUDES
@@ -256,6 +225,8 @@ ecbuild_add_executable( TARGET dales
                           NetCDF::NetCDF_Fortran
                           NetCDF::NetCDF_C
 													fortran-support::fortran-support
+													rte-rrtmgp::rrtmgp
+													rte-rrtmgp::rte
                           $<$<BOOL:${ENABLE_ACC}>:OpenACC::OpenACC_Fortran>
                           $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3>
                           $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3f>
@@ -273,7 +244,6 @@ ecbuild_add_library( TARGET libdales
                        ${dales_srcs}
                        ${rrtmg_lw_srcs}
                        ${rrtmg_sw_srcs}
-                       ${rrtmgp_srcs}
                        ${CMAKE_CURRENT_BINARY_DIR}/modversion.f90
                      DEPENDS tag_git_version
                      PUBLIC_INCLUDES
@@ -282,6 +252,8 @@ ecbuild_add_library( TARGET libdales
                      PUBLIC_LIBS
                        MPI::MPI_Fortran
                        NetCDF::NetCDF_Fortran
+											 rte-rrtmgp::rrtmgp
+											 rte-rrtmgp::rte
                        $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3>
                        $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3f>
                        $<$<BOOL:${ENABLE_HYPRE}>:${HYPRE_LIB}>

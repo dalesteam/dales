@@ -4,9 +4,6 @@
 [submodule "src/RRTMG/RRTMG_SW"]
 	path = external/RRTMG/RRTMG_SW
 	url = https://github.com/dalesteam/RRTMG_SW.git
-[submodule "src/RTE-RRTMGP"]
-	path = external/RTE-RRTMGP
-	url = https://github.com/earth-system-radiation/rte-rrtmgp.git
 [submodule "external/ecbuild"]
 	path = external/ecbuild
 	url = https://github.com/ecmwf/ecbuild.git
