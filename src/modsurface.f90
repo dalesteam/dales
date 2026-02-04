@@ -61,6 +61,7 @@
 
 
 module modsurface
+  use iso_fortran_env, only: real64
   use modtimer
   use modsurfdata
   use modfields,  only: u0, v0, thl0, qt0, u0av, v0av, thl0av, qt0av
@@ -1372,7 +1373,7 @@ contains
       oblav = -1.e10
     else 
       !$acc serial default(present) copy(oblav)
-      retval = calc_obl_iter(thl0av(1), qt0av(1), thls, qts, zf(1), z0mav, &
+      retval = calc_obl_iter(thl0av(1), qt0av(1), real(thls), qts, zf(1), z0mav, &
                              z0hav, u0av(1), v0av(1), oblav)
       !$acc end serial
 
@@ -1380,9 +1381,9 @@ contains
         !$acc parallel loop collapse(2) default(present)
         do j = 2, j1
           do i = 2, i1
-            upcu = 0.5_field_r * (u0(i,j,1) + u0(i+1,j,1)) + cu 
-            vpcv = 0.5_field_r * (v0(i,j,1) + v0(i,j+1,1)) + cv
-            retval = calc_obl_iter(thl0(i,j,1), qt0(i,j,1), tskin(i,j), &
+            upcu = 0.5_real64 * (u0(i,j,1) + u0(i+1,j,1)) + cu 
+            vpcv = 0.5_real64 * (v0(i,j,1) + v0(i,j+1,1)) + cv
+            retval = calc_obl_iter(thl0(i,j,1), qt0(i,j,1), real(tskin(i,j)), &
                                    qskin(i,j), zf(1), z0m(i,j), z0h(i,j), &
                                    upcu, vpcv, obl(i,j))
           end do
@@ -1405,26 +1406,26 @@ contains
 
     real(field_r), intent(in) :: thl   !< Liquid potential temperature [K]
     real(field_r), intent(in) :: qt    !< Specific humidity [kg/kg]
-    real(field_r), intent(in) :: tskin !< Skin temperature [K]
+    real(real64),  intent(in) :: tskin !< Skin temperature [K]
     real(field_r), intent(in) :: qskin !< Skin specific humidity [kg/kg]
     real(field_r), intent(in) :: z     !< Height [m]
-    real(field_r), intent(in) :: z0m   !< Roughness length for momentum [m]
-    real(field_r), intent(in) :: z0h   !< Roughness length for heat [m]
+    real(real64),  intent(in) :: z0m   !< Roughness length for momentum [m]
+    real(real64),  intent(in) :: z0h   !< Roughness length for heat [m]
     real(field_r), intent(in) :: u     !< U wind component at first model level [m/s]
     real(field_r), intent(in) :: v     !< V wind component at first model level [m/s]
 
-    real(field_r), intent(inout) :: L !< Obukhov length [-]
+    real(real64), intent(inout) :: L !< Obukhov length [-]
 
-    real(field_r) :: horv2  !< Horizontal wind velocity, squared [m2/s2]
-    real(field_r) :: Rib    !< Bulk Richardson number
-    real(field_r) :: thv    !< Virtual potential temperature [K]
-    real(field_r) :: thvsl  !< Skin virtual potential temperature [K]
+    real(real64) :: horv2  !< Horizontal wind velocity, squared [m2/s2]
+    real(real64) :: Rib    !< Bulk Richardson number
+    real(real64) :: thv    !< Virtual potential temperature [K]
+    real(real64) :: thvsl  !< Skin virtual potential temperature [K]
     integer       :: retval !< Return value (0 = ok, 1 = not converged)
 
     ! Variables for iteration
     integer       :: iter
-    real(field_r) :: fx, fxdif
-    real(field_r) :: Lend, Lold, Lstart
+    real(real64) :: fx, fxdif
+    real(real64) :: Lend, Lold, Lstart
 
     thv = thl * (1 + (rv/rd - 1) * qt)
     thvsl = tskin * (1 + (rv/rd - 1) * qskin)
@@ -1432,7 +1433,7 @@ contains
 
     Rib = grav / thvsl * z * (thv - thvsl) / horv2
 
-    if (Rib == 0.0_field_r) then
+    if (Rib == 0.0_real64) then
       L = 1E6
     else
       iter = 0
@@ -1478,11 +1479,11 @@ contains
   elemental function calc_rib_from_obl(z, L, z0h, z0m) result(fac)
     
     real(field_r), intent(in) :: z   !< Height [m]
-    real(field_r), intent(in) :: L   !< Obukhov length [m]
-    real(field_r), intent(in) :: z0h !< Roughness length for heat [m]
-    real(field_r), intent(in) :: z0m !< Roughness length for momentum [m]
+    real(real64),  intent(in) :: L   !< Obukhov length [m]
+    real(real64),  intent(in) :: z0h !< Roughness length for heat [m]
+    real(real64),  intent(in) :: z0m !< Roughness length for momentum [m]
 
-    real(field_r) :: fac !< Factor relating bulk Richardson number to Obukhov length
+    real(real64) :: fac !< Factor relating bulk Richardson number to Obukhov length
 
     fac = z / L &
           * (log(z / z0h) - psih(z / L) + psih(z0h / L)) &

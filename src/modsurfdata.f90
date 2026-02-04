@@ -105,7 +105,7 @@ SAVE
   real              :: Wlav     = -1
   real, parameter   :: Wmax     = 0.0002 !<  Maximum layer of liquid water on surface [m]
   real, allocatable :: Wlm        (:,:) !<  Liquid water reservoir previous timestep [m]
-  real, allocatable :: qskin      (:,:) !<  Skin specific humidity [kg/kg]
+  real(field_r), allocatable :: qskin      (:,:) !<  Skin specific humidity [kg/kg]
   real, allocatable :: albedo     (:,:) !<  Surface albedo [-]
   real              :: albedoav = -1
   real, allocatable :: LAI        (:,:) !<  Leaf area index vegetation [-]
