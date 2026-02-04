@@ -175,6 +175,8 @@ contains
     call D_MPI_BCAST(ltskininp                  ,            1, 0, commwrld, istat)
     call D_MPI_BCAST(min_horv                   ,            1, 0, commwrld, istat)
 
+    !$acc update device(min_horv)
+
   end subroutine surface_read_namelist
 
   !> Initializes the surface.

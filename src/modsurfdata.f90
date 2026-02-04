@@ -222,6 +222,7 @@ SAVE
   real, allocatable :: qtflux  (:,:)          !<  Kinematic specific humidity flux [kg/kg m/s]
   real, allocatable :: svflux  (:,:,:)        !<  Kinematic scalar flux [- m/s]
   real              :: min_horv = .1          !<  minimum surface wind speed for drag calculation
+  !$acc declare create(min_horv)
 
   ! Surface gradients of prognostic variables
   real, allocatable :: dudz  (:,:)            !<  U-wind gradient in surface layer [1/s]
