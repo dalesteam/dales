@@ -1349,6 +1349,7 @@ contains
 
   end subroutine qtsurf
 
+  !> Calculate the Obukhov length.
   subroutine get_obl()
 
     character(len=*), parameter :: routine = modname//'/get_obl'
@@ -1412,8 +1413,6 @@ contains
 
     real(field_r), intent(inout) :: L !< Obukhov length [-]
 
-    integer :: iter
-
     real(field_r) :: horv2  !< Horizontal wind velocity, squared [m2/s2]
     real(field_r) :: Rib    !< Bulk Richardson number
     real(field_r) :: thv    !< Virtual potential temperature [K]
@@ -1421,12 +1420,13 @@ contains
     integer       :: retval !< Return value (0 = ok, 1 = not converged)
 
     ! Variables for iteration
+    integer       :: iter
     real(field_r) :: fx, fxdif
     real(field_r) :: Lend, Lold, Lstart
 
     thv = thl * (1 + (rv/rd - 1) * qt)
     thvsl = tskin * (1 + (rv/rd - 1) * qskin)
-    horv2 = max(u**2 + v**2, min_horv)
+    horv2 = max(u**2 + v**2, min_horv**2)
 
     Rib = grav / thvsl * z * (thv - thvsl) / horv2
 
@@ -1434,13 +1434,14 @@ contains
       L = 1E6
     else
       iter = 0
+      Lold = 0
 
       if (Rib * L < 0. .or. abs(L) == 1e5) then
         if (Rib > 0) L = 0.01
         if (Rib < 0) L = -0.01
       end if
 
-      do while (abs(L - Lold) / L < 1E-4 .and. iter < 1000)
+      do while (abs((L - Lold) / L) > 1E-4 .and. iter < 1000)
         iter = iter + 1
 
         Lold = L
@@ -1449,8 +1450,8 @@ contains
 
         fx = Rib - calc_rib_from_obl(z, L, z0h, z0m)
         
-        fxdif = (calc_rib_from_obl(z, Lstart, z0h, z0m) &
-                - calc_rib_from_obl(z, Lend, z0h, z0m)) / (Lstart - Lend)
+        fxdif = (- calc_rib_from_obl(z, Lstart, z0h, z0m) &
+                + calc_rib_from_obl(z, Lend, z0h, z0m)) / (Lstart - Lend)
 
         L = L - fx / fxdif
 
