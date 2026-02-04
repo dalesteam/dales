@@ -40,6 +40,7 @@ module modstat_nc
     logical :: lsync   = .false.     ! Sync NetCDF file after each writestat_*_nc
     logical :: lclassic = .false.    ! Create netCDF in CLASSIC format (less RAM usage, compression not supported)
     integer :: deflate = 2           ! Deflate level for netCDF files (only for NETCDF4 format)
+    integer :: zstandard = 0         ! Zstandard level for netCDF files (only for NETCDF4 format).
 
     integer, save :: timeID=0, ztID=0, zmID=0, xtID=0, xmID=0, ytID=0, ymID=0,ztsID=0, zqID=0
     real(kind=4) :: nc_fillvalue = -999.
@@ -85,7 +86,7 @@ contains
     integer             :: ierr
 
     namelist/NAMNETCDFSTATS/ &
-    lnetcdf, lsync, lclassic, deflate
+    lnetcdf, lsync, lclassic, deflate, zstandard
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -99,6 +100,7 @@ contains
     call D_MPI_BCAST(lsync      ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(lclassic   ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(deflate    ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(zstandard  ,1, 0,comm3d,mpierr)
 
   end subroutine initstat_nc
 !
@@ -338,10 +340,18 @@ contains
         call nchandle_error(iret)
       end if
 
-      if (deflate > 0 .and. .not. lclassic) then
-         call nchandle_error(nf90_def_var_deflate(ncid,varID, 0, 1, deflate_level = deflate))
-         ! NETCDF4 only
+      if (.not. lclassic) then ! NETCDF4 only
+         if (zstandard > 0) then
+#ifdef NC_ZSTANDARD
+            call nchandle_error(nf90_def_var_zstandard(ncid, varID, zstandard))
+#else
+            STOP "Tried to set netCDF zstandard compression, but it is not available."
+#endif
+         else if (deflate > 0) then
+            call nchandle_error(nf90_def_var_deflate(ncid,varID, 0, 1, deflate_level = deflate))
+         end if
       end if
+
       call nchandle_error(nf90_put_att(ncID,VarID,'long_name',sx(n,2)))
       call nchandle_error(nf90_put_att(ncID,VarID,'units',sx(n,3)))
       call nchandle_error(nf90_put_att(ncid, VarID, '_FillValue',nc_fillvalue))

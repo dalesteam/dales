@@ -96,6 +96,10 @@ if( ENABLE_RRTMG )
   add_compile_definitions( USE_RRTMG )
 endif()
 
+# Zstandard compression
+include( dales_check_zstandard )
+dales_check_zstandard()
+
 # GPU stuff
 include( dales_find_cuda )
 include( dales_find_hip )
@@ -132,4 +136,5 @@ endif()
 include ( dales_add_fortran_support )
 
 include( dales_compile_options )
+
 add_subdirectory( src )
