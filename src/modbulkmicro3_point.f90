@@ -595,7 +595,11 @@ subroutine hetfreez3
   real :: J_het   ! freezing rate
   real :: dq_cl_het = 0.   !< heterogeneou freezing of cloud water
 
-  J_het = A_het *exp( B_het*(T_3-tmp0) -1)
+  if (l_sb_tlimhetfreeze) then
+    J_het = A_het *exp( B_het*(T_3-max(tlimhetfreeze ,tmp0)) -1)
+  else
+    J_het = A_het *exp( B_het*(T_3-tmp0) -1)
+  end if
 
   dn_cl_het = -c_mmt_1cl * n_cl * x_cl * J_het
   dq_cl_het = -c_mmt_2cl * q_cl * x_cl * J_het
@@ -1718,7 +1722,11 @@ subroutine rainhetfreez3
   real :: dn_hr_het = 0. !< heterogeneou freezing of raindrops
 
   ! maybe only for temperatures below T_3 ?
-  J_het = A_het *exp( B_het*(T_3-tmp0) -1)
+  if (l_sb_tlimhetfreeze) then
+    J_het = A_het *exp( B_het*(T_3-max(tlimhetfreeze ,tmp0)) -1)
+  else
+    J_het = A_het *exp( B_het*(T_3-tmp0) -1)
+  end if
 
   dn_hr_het = -c_mmt_1hr * n_hr * x_hr * J_het
   dq_hr_het = -c_mmt_2hr * q_hr * x_hr * J_het
