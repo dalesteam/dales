@@ -805,7 +805,7 @@ contains
     select case (isurf)
       case (1) ! Interactive land surface model
         call calc_mean_wind
-        call getobl
+        call get_obl
         call calc_drag_coefficients
         call calc_aerodynamic_resistance
         call do_lsm
@@ -814,7 +814,7 @@ contains
         call calc_surface_gradients
       case (2) ! Forced surface temperature, fluxes calculated
         call calc_mean_wind
-        call getobl
+        call get_obl
         call calc_drag_coefficients
         call calc_aerodynamic_resistance
         call presc_skin_temperature
@@ -825,7 +825,7 @@ contains
       case (3) ! Forced fluxes, surface temperature calculated
         call calc_mean_wind
         call calc_drag_coefficients
-        call getobl
+        call get_obl
         call presc_friction_velocity
         call presc_surface_flux
         call calc_surface_gradients
@@ -833,7 +833,7 @@ contains
       case (4) ! Forced moisture and heat flux, u_star and surface temperature calculated
         call calc_mean_wind
         call calc_drag_coefficients
-        call getobl
+        call get_obl
         call calc_friction_velocity
         call presc_surface_flux
         call calc_surface_gradients
@@ -1515,7 +1515,6 @@ contains
 
 
     if (lneutral) then
-      !$acc parallel loop collapse(2) default(present)
       do i=1,i2
         do j=1,j2
           obl(i,j) = -1.e10
@@ -1529,7 +1528,6 @@ contains
 
       oblavl = 0.
 
-      !$acc parallel loop collapse(2) default(present)
       do i=2,i1
         do j=2,j1
           thv     =   thl0(i,j,1)  * (1. + (rv/rd - 1.) * qt0(i,j,1))
@@ -1680,10 +1678,8 @@ contains
     endif ! if lhetero
 
     !CvH also do a global evaluation if lmostlocal = .true. to get an appropriate local mean
-    !$acc update self(thl0av(1), qt0av(1))
     thv    = thl0av(1) * (1. + (rv/rd - 1.) * qt0av(1))
 
-    !$acc update self(u0av(1), v0av(1))
     horv2 = u0av(1)**2. + v0av(1)**2.
     horv2 = max(horv2, min_horv**2)
 
@@ -1725,7 +1721,6 @@ contains
        if (abs(L)>1e6) L = sign(1.0e6,L)
        if(.not. lmostlocal) then
           if(.not. lhetero) then
-            !$acc parallel loop collapse(2) default(present)
             do j = 1, j2
               do i = 1, i2
                 obl(i,j) = L
