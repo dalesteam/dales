@@ -1373,7 +1373,7 @@ contains
       oblav = -1.e10
     else 
       !$acc serial default(present) copy(oblav)
-      retval = calc_obl_iter(thl0av(1), qt0av(1), real(thls), qts, zf(1), z0mav, &
+      retval = calc_obl_iter(thl0av(1), qt0av(1), thls, qts, zf(1), z0mav, &
                              z0hav, u0av(1), v0av(1), oblav)
       !$acc end serial
 
@@ -1384,8 +1384,8 @@ contains
             upcu = 0.5_real64 * (u0(i,j,1) + u0(i+1,j,1)) + cu 
             vpcv = 0.5_real64 * (v0(i,j,1) + v0(i,j+1,1)) + cv
             retval = calc_obl_iter(thl0(i,j,1), qt0(i,j,1), real(tskin(i,j)), &
-                                   qskin(i,j), zf(1), z0m(i,j), z0h(i,j), &
-                                   upcu, vpcv, obl(i,j))
+                                   real(qskin(i,j)), zf(1), z0m(i,j), &
+                                   z0h(i,j), upcu, vpcv, obl(i,j))
           end do
         end do
       else
@@ -1407,7 +1407,7 @@ contains
     real(field_r), intent(in) :: thl   !< Liquid potential temperature [K]
     real(field_r), intent(in) :: qt    !< Specific humidity [kg/kg]
     real(real64),  intent(in) :: tskin !< Skin temperature [K]
-    real(field_r), intent(in) :: qskin !< Skin specific humidity [kg/kg]
+    real(real64),  intent(in) :: qskin !< Skin specific humidity [kg/kg]
     real(field_r), intent(in) :: z     !< Height [m]
     real(real64),  intent(in) :: z0m   !< Roughness length for momentum [m]
     real(real64),  intent(in) :: z0h   !< Roughness length for heat [m]
