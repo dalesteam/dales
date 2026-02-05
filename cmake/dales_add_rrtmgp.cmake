@@ -2,7 +2,11 @@ include( FetchContent )
 
 set( BUILD_C_HEADERS OFF )
 set( RTE_ENABLE_SP ${ENABLE_FP32_RAD} )
-set( KERNEL_MODE "accel" )
+set( KERNEL_MODE "default" CACHE STRING "Set kernel mode for RTE" )
+
+if( ${ENABLE_ACC} )
+    set( KERNEL_MODE "accel" )
+endif()
 
 ecbuild_info( "Fetching RTE-RRTMGP" )
 
