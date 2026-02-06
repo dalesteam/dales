@@ -16,8 +16,6 @@ module modspraying
    implicit none
 
   ! for lateral sponge
-  real(field_r), allocatable :: fnudgeloc(:,:) ! local, cpu dependent array of fnudge values
-  integer :: nudgedepthgr = 10 ! number of lateral nudge grid points
 
 contains
   subroutine initspraying
@@ -101,81 +99,10 @@ contains
      write(profile_output,*)
   endif
 
-  if (lsalt_spraying .and. lsalt_sponge) then
-     call initlateralsponge ! TODO: move this to be independent of spraying
-  end if
-
   end subroutine initspraying
 
 
-  ! smooth nudging of a scalar field to 0 at the boundary - a lateral sponge
-  ! modified from code by Pim van Dorp 2015
-  subroutine initlateralsponge
-    use modglobal, only: itot, jtot, imax, jmax, i1, j1, ih, jh, pi
-    use modmpi, only : myidx,myidy
-    real(field_r) :: fnudge
-    integer i, j, iglob, jglob
-    real(field_r), allocatable :: fnudgeglob(:,:) ! global array of fnudge values
-
-    allocate(fnudgeglob(1-ih:itot+ih,1-jh:jtot+jh))
-    allocate(fnudgeloc(2-ih:i1+ih,2-jh:j1+jh))
-    fnudgeglob = 0
-    fnudgeloc = 0
-
-    ! construct a 2D field of nudging constants
-    do i=nudgedepthgr,1,-1
-      fnudge = 0.5 + 0.5*cos((pi/(nudgedepthgr-1))*(i-1))
-
-      fnudgeglob(i,i:jtot-i+1) = fnudge
-      fnudgeglob(itot-i+1,i:jtot-i+1) = fnudge
-      fnudgeglob(i+1:(itot-i),i) = fnudge
-      fnudgeglob(i+1:(itot-i),jtot-i+1) = fnudge
-   end do
-
-   ! cut out the part for this processor
-   do j=2,j1
-      do i=2,i1
-         iglob = i + imax*myidx - 1
-         jglob = j + jmax*myidy - 1
-         fnudgeloc(i,j) = fnudgeglob(iglob,jglob)
-      end do
-   end do
-
-   deallocate(fnudgeglob)
-
-  end subroutine initlateralsponge
-
-  subroutine lateralsponge
-    use modglobal, only : kmax, i1, j1, rdt, nsv
-    use modfields, only : svp,sv0 !lsv_nudge_at_boundary
-
-    integer i,j,k,isv
-    if (.not. lsalt_sponge) return
-
-    !if (nsv.gt.0) then
-       !do isv=1,nsv
-       !if (lsv_nudge_at_boundary(isv)) then
-    isv = isv_salt  ! TODO: for now only nudge the sprayed salt scalar to 0
-       do k=1,kmax
-          do j=2,j1
-             do i=2,i1
-                ! svp(i,j,k,isv) = (1-fnudgeloc(i,j,k))*svp(i,j,k,isv) + fnudgeloc(i,j,k)*(0-sv0(i,j,k,isv))/rdt
-                ! the original nudged also the tendency towards 0
-
-                svp(i,j,k,isv) = svp(i,j,k,isv) + fnudgeloc(i,j)*(0-sv0(i,j,k,isv))/rdt
-             end do
-          end do
-       end do
-    !endif
-    !end do
-    !endif
-
-  end subroutine lateralsponge
-
-
-  subroutine exitlateralsponge
-    deallocate(fnudgeloc)
-  end subroutine exitlateralsponge
+    real(field_r) :: dqldt_spraying, dsvdt_spraying
 
   subroutine spray_aerosol()
 

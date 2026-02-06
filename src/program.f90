@@ -166,6 +166,7 @@ program DALES
   use modstat_profiles, only: init_profiles, sample_profiles, write_profiles, exit_profiles
   use modibm,          only : applyibm, zerowallvelocity
   use modibmdata,      only : lpoislast
+  use modlatsponge,    only : lateral_sponge
 !----------------------------------------------------------------
 !     0.2     USE STATEMENTS FOR TIMER MODULE
 !----------------------------------------------------------------
@@ -179,7 +180,6 @@ program DALES
 #if defined(_OPENACC)
   use modgpu, only: update_gpu, host_is_updated
 #endif
-  use modspraying,     only : lateralsponge
 
   implicit none
 
@@ -330,7 +330,7 @@ program DALES
     call samptend(tend_pois,lastterm=.true.)
     if(lopenbc) call openboundary_phasevelocity()
 
-    call lateralsponge                          ! optional lateral sponge layer for scalars
+    call lateral_sponge
 
     call tstep_integrate                        ! Apply tendencies to all variables
 
