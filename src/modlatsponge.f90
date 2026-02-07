@@ -22,6 +22,8 @@ module modlatsponge
   logical :: llateral_sponge = .false. !< Whether to apply the lateral sponge layer
   integer :: nudgedepth = 10           !< Number of nudge grid points
 
+  !$acc declare create(nudgedepth)
+
 contains
 
   !> Read the namelist for the lateral sponge layer.
@@ -43,6 +45,8 @@ contains
 
     call d_mpi_bcast(llateral_sponge, 1, 0, comm3d, ierr)
     call d_mpi_bcast(nudgedepth, 1, 0, comm3d, ierr)
+
+    !$acc update device(nudgedepth)
 
   end subroutine lateral_sponge_read_namelist
 
