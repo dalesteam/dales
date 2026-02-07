@@ -134,6 +134,8 @@ contains
 
     if (lwater_spraying .and. my_process_sprays) then
       dqldt_spraying = water_spray_rate / (rhobf(k_spray) * cell_volume)
+
+      !$acc serial default(present) async
       qtp(i_spray,j_spray,k_spray) = qtp(i_spray,j_spray,k_spray) &
         + (1-qt0(i_spray,j_spray,k_spray)) * dqldt_spraying
 
@@ -141,6 +143,7 @@ contains
       thlp(i_spray,j_spray,k_spray) = thlp(i_spray,j_spray,k_spray) & 
         - (rlv / (cp * exnf(k_spray))) &
         * (1 - ql0(i_spray,j_spray,k_spray)) * dqldt_spraying
+      !$acc end serial
     end if
 
     if (lsalt_spraying .and. my_process_sprays) then
@@ -151,18 +154,25 @@ contains
         dn = salt_spray_rate / (2165.0 * pi / 6 * (75e-9)**3)
         dn = dn / cell_volume ! Number concentrations are in #/m3
 
+        !$acc serial default(present) async
         svp(i_spray,j_spray,k_spray,isv_salt) = &
           svp(i_spray,j_spray,k_spray,isv_salt) + dm
        
         svp(i_spray,j_spray,k_spray,isv_salt_n) = &
           svp(i_spray,j_spray,k_spray,isv_salt_n) + dn
+        !$acc end serial
       else
         dsvdt_spraying = salt_spray_rate / (rhobf(k_spray) * cell_volume) &
           * (1 - sv0(i_spray,j_spray,k_spray,isv_salt) / salinity)
+
+        !$acc serial default(present) async
         svp(i_spray,j_spray,k_spray,isv_salt) = &
           svp(i_spray,j_spray,k_spray,isv_salt) + dsvdt_spraying
+        !$acc end serial
       end if
     endif
+
+    !$acc wait
 
   end subroutine spraying
 
