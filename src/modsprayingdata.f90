@@ -27,12 +27,14 @@ module modsprayingdata
   real :: dsvdt_spraying = 0.   ! convert salt spray rate to local value in LES grid
 
   character(20) :: tracer = "salt" ! name of the sprayed scalar
-  integer :: isv_salt = -1
+  integer :: isv_salt = -1   !< Tracer index for salt mass concentration
+  integer :: isv_salt_n = -1 !< Tracer index for salt number concentration
 
   real :: salinity = 0.03 ! this definition assumes 1 kg of sea water contains a mass of salt equal to salinity kg
 
   logical :: lcoupled = .false. !< Enable coupling to aerosol module
   logical :: my_process_sprays = .false.
-  integer :: target_mode = 3
+
+  character(len=3) :: target_mode = 'acs' !< Aerosol mode to spray in
 
 end module modsprayingdata
