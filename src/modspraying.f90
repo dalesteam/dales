@@ -24,15 +24,18 @@ module modspraying
 
   character(len=*), parameter :: modname = 'modspraying'
 
+  public :: spraying_read_namelist
   public :: initspraying
   public :: spraying
 
 contains
 
-  !> Initialize spraying parameters and determine local spraying location.
-  subroutine initspraying
+  !> Read the namelist for spraying.
+  subroutine spraying_read_namelist(nml_filename)
 
-    character(len=*), parameter :: routine = modname//'/initspraying'
+    character(len=*), intent(in) :: nml_filename
+
+    character(len=*), parameter :: routine = modname//'/spraying_read_namelist'
 
     integer :: ierr
 
@@ -60,7 +63,14 @@ contains
     call D_MPI_BCAST(lsalt_sponge,        1,  0, comm3d, mpierr)
     call D_MPI_BCAST(lcoupled,            1,  0, comm3d, mpierr)
     call D_MPI_BCAST(target_mode,         3, 0, comm3d, mpierr)
-  
+
+  end subroutine spraying_read_namelist
+
+  !> Initialize spraying parameters and determine local spraying location.
+  subroutine initspraying
+
+    character(len=*), parameter :: routine = modname//'/initspraying'
+
     if (lwater_spraying) then
       lsalt_spraying  = .true.
       salt_spray_rate = water_spray_rate * salinity ! directy coupled to water spray rate
