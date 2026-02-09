@@ -122,7 +122,7 @@ subroutine tstep_update
 
   if(lwarmstart) spinup = .false.
 
-  rk3step = mod(rk3step,3) + 1
+  ! In the original precursor code, this was commented out; why?
   if(rk3step == 1) then
 
     ! Initialization
