@@ -59,7 +59,7 @@
             ,l_sb_inuc_sat     = .false. &  !< ice nucleation:   whether include q_cl in super-saturation calculation
             ,l_sb_inuc_expl    = .false. &  !< ice nucleation:   whether explicit nucleation
             ,l_sb_reisner      = .true.  &  !< whether to use Reisner correction in ice nucleation
-            ,l_sb_tlimhetfreeze = .true.   !< whether to apply air temperature limiting for heterogeneous freezing
+            ,l_sb_tlimhetfreeze = .false.   !< whether to apply air temperature limiting for heterogeneous freezing
 
 
 
