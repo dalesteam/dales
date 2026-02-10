@@ -146,7 +146,7 @@ contains
 
 
     ! Check if we have already allocated memory
-    if (allocated(sv0)) then
+    if (associated(sv0)) then
       call finish(routine, 'adding new tracers after memory is &
         & allocated is not allowed (tracer: '//trim(name)//')')
     end if

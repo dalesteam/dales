@@ -169,7 +169,7 @@ program DALES
   use modlatsponge,    only : lateral_sponge
   use modspraying,     only : spraying
   use modprecursor,    only : init_precursor, precursor_nudge_boundary, &
-                              loadfields, savefields, exit_precursor, &
+                              swap_fields, exit_precursor, &
                               lprecursor, Nsim, statid, turid, refid
 !----------------------------------------------------------------
 !     0.2     USE STATEMENTS FOR TIMER MODULE
@@ -251,8 +251,6 @@ program DALES
     do simid = 1, Nsim
 
       if (simid == refid) call tstep_update
-
-      if (lprecursor) call loadfields(simid)
 
       do rk3step = 1, 3
         call timer_tic('program/timestep', istep)
@@ -407,7 +405,7 @@ program DALES
         call timer_toc('program/timestep')
       end do ! rk3step
 
-      if (lprecursor) call savefields(simid)
+      if (lprecursor) call swap_fields
     end do ! simid
     istep = istep + 1
   end do ! time loop

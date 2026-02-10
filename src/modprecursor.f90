@@ -7,8 +7,20 @@
 module modprecursor
   use modglobal, only : longint, nsv
   use modfields, only : sv0, svm, svp, sv0av
+  use modtimer, only: timer_tic, timer_toc
 
   implicit none 
+
+  character(len=*), parameter :: modname = 'modprecursor'
+
+  !> Pointer swap
+  interface swap
+    module procedure :: swap_4d
+    module procedure :: swap_3d
+    module procedure :: swap_2d
+    module procedure :: swap_1d
+  end interface swap
+
   logical :: lprecursor = .false. 
   logical :: lstatref = .false. 
 
@@ -23,44 +35,44 @@ module modprecursor
   integer :: nudgedepthgr = 10 ! number of nudge grid points
   
   ! Prognostic variables; first dimension: 1=turbine simulation, 2=reference simulation
-  real, allocatable :: umsave(:,:,:,:)        !<   x-component of velocity at time step t-1
-  real, allocatable :: vmsave(:,:,:,:)        !<   y-component of velocity at time step t-1
-  real, allocatable :: wmsave(:,:,:,:)        !<   z-component of velocity at time step t-1
-  real, allocatable :: thlmsave(:,:,:,:)      !<   liq. water pot. temperature at time step t-1
-  real, allocatable :: e12msave(:,:,:,:)      !<   square root of turb. kin. energy at time step t-1
-  real, allocatable :: qtmsave(:,:,:,:)       !<   total specific humidity at time step t
+  real, pointer :: umsave(:,:,:)        !<   x-component of velocity at time step t-1
+  real, pointer :: vmsave(:,:,:)        !<   y-component of velocity at time step t-1
+  real, pointer :: wmsave(:,:,:)        !<   z-component of velocity at time step t-1
+  real, pointer :: thlmsave(:,:,:)      !<   liq. water pot. temperature at time step t-1
+  real, pointer :: e12msave(:,:,:)      !<   square root of turb. kin. energy at time step t-1
+  real, pointer :: qtmsave(:,:,:)       !<   total specific humidity at time step t
 
-  real, allocatable :: u0save(:,:,:,:)        !<   x-component of velocity at time step t
-  real, allocatable :: v0save(:,:,:,:)        !<   y-component of velocity at time step t
-  real, allocatable :: w0save(:,:,:,:)        !<   z-component of velocity at time step t
-  real, allocatable :: thl0save(:,:,:,:)      !<   liq. water pot. temperature at time step t
-  real, allocatable :: qt0save(:,:,:,:)       !<   total specific humidity at time step t
-  real, allocatable :: ql0save(:,:,:,:)   
-  real, allocatable :: ql0hsave(:,:,:,:)  
-  real, allocatable :: e120save(:,:,:,:)      !<   square root of turb. kin. energy at time step t
+  real, pointer :: u0save(:,:,:)        !<   x-component of velocity at time step t
+  real, pointer :: v0save(:,:,:)        !<   y-component of velocity at time step t
+  real, pointer :: w0save(:,:,:)        !<   z-component of velocity at time step t
+  real, pointer :: thl0save(:,:,:)      !<   liq. water pot. temperature at time step t
+  real, pointer :: qt0save(:,:,:)       !<   total specific humidity at time step t
+  real, pointer :: ql0save(:,:,:)   
+  real, pointer :: ql0hsave(:,:,:)  
+  real, pointer :: e120save(:,:,:)      !<   square root of turb. kin. energy at time step t
 
-  real, allocatable :: dthvdzsave(:,:,:,:)  
-  real, allocatable :: ekmsave(:,:,:,:)  
-  real, allocatable :: tmp0save(:,:,:,:)  
-  real, allocatable :: eslsave(:,:,:,:)  
-  real, allocatable :: qvslsave(:,:,:,:)  
-  real, allocatable :: qvsisave(:,:,:,:)  
+  real, pointer :: dthvdzsave(:,:,:)  
+  real, pointer :: ekmsave(:,:,:)  
+  real, pointer :: tmp0save(:,:,:)  
+  real, pointer :: eslsave(:,:,:)  
+  real, pointer :: qvslsave(:,:,:)  
+  real, pointer :: qvsisave(:,:,:)  
 
-  real, allocatable :: thv0hsave(:,:,:,:)  
+  real, pointer :: thv0hsave(:,:,:)  
 
-  real, allocatable :: presfsave(:,:)  
-  real, allocatable :: preshsave(:,:)  
+  real, pointer :: presfsave(:)  
+  real, pointer :: preshsave(:)  
 
-  real, allocatable :: thvhsave(:,:)  
+  real, pointer :: thvhsave(:)  
 
-  real, allocatable :: u0avsave(:,:)
-  real, allocatable :: v0avsave(:,:)
-  real, allocatable :: thl0avsave(:,:)
-  real, allocatable :: qt0avsave(:,:)
+  real, pointer :: u0avsave(:)
+  real, pointer :: v0avsave(:)
+  real, pointer :: thl0avsave(:)
+  real, pointer :: qt0avsave(:)
 
-  real, allocatable :: svmsave(:,:,:,:,:)
-  real, allocatable :: sv0save(:,:,:,:,:)
-  real, allocatable :: sv0avsave(:,:,:)
+  real, pointer :: svmsave(:,:,:,:)
+  real, pointer :: sv0save(:,:,:,:)
+  real, pointer :: sv0avsave(:,:)
 
 contains
   subroutine init_precursor
@@ -73,7 +85,7 @@ contains
     use modsubgrid, only : ekm
 
     implicit none
-    integer i,j,k,ierr, simid
+    integer i,j,k,n,ierr, simid
 
 
     namelist/precursor/ lprecursor, lstatref, nudgedepthgr
@@ -94,84 +106,90 @@ contains
     call D_MPI_BCAST(lstatref,1,0,MPI_COMM_WORLD,mpierr) !DH
     call D_MPI_BCAST(nudgedepthgr       ,1,0,MPI_COMM_WORLD,mpierr) !DH
 
+    if (.not. lprecursor) return
+
     if (lprecursor) Nsim = 2
     if (lprecursor) turid = 2
     if (.not. lstatref .and. Nsim == 2) statid = 2
 
-    allocate(umsave(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(vmsave(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(wmsave(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(thlmsave(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(e12msave(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(qtmsave(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(svmsave(2-ih:i1+ih,2-jh:j1+jh,k1,nsv,2))
+    ! Which of these are really needed?
+    ! Maybe save some memory here
+    allocate(umsave(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(vmsave(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(wmsave(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thlmsave(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(e12msave(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(qtmsave(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(svmsave(2-ih:i1+ih,2-jh:j1+jh,k1,1:nsv))
 
-    allocate(u0save(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(v0save(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(w0save(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(thl0save(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(qt0save(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(ql0save(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(ql0hsave(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(e120save(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(dthvdzsave(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(ekmsave(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(tmp0save(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(eslsave(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(qvslsave(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(qvsisave(2-ih:i1+ih,2-jh:j1+jh,k1,2))
-    allocate(sv0save(2-ih:i1+ih,2-jh:j1+jh,k1,nsv,2))
+    allocate(u0save(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(v0save(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(w0save(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thl0save(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(qt0save(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(ql0save(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(ql0hsave(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(e120save(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(dthvdzsave(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(ekmsave(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(tmp0save(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(eslsave(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(qvslsave(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(qvsisave(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(sv0save(2-ih:i1+ih,2-jh:j1+jh,k1,1:nsv))
 
-    allocate(thv0hsave(2-ih:i1+ih,2-jh:j1+jh,k1,2))
+    allocate(thv0hsave(2-ih:i1+ih,2-jh:j1+jh,k1))
 
-    allocate(presfsave(k1,2))
-    allocate(preshsave(k1,2))
+    allocate(presfsave(k1))
+    allocate(preshsave(k1))
 
-    allocate(thvhsave(k1,2))
+    allocate(thvhsave(k1))
 
-    allocate(u0avsave(k1,2))
-    allocate(v0avsave(k1,2))
-    allocate(thl0avsave(k1,2))
-    allocate(qt0avsave(k1,2))
-    allocate(sv0avsave(k1,nsv,2))
+    allocate(u0avsave(k1))
+    allocate(v0avsave(k1))
+    allocate(thl0avsave(k1))
+    allocate(qt0avsave(k1))
+    allocate(sv0avsave(k1,nsv))
 
-    do simid=1,2
-      umsave(:,:,:,simid) = um(:,:,:)
-      vmsave(:,:,:,simid) = vm(:,:,:)
-      wmsave(:,:,:,simid) = wm(:,:,:)
-      e12msave(:,:,:,simid) = e12m(:,:,:)
-      thlmsave(:,:,:,simid) = thlm(:,:,:)
-      qtmsave(:,:,:,simid) = qtm(:,:,:)
-      svmsave(:,:,:,:,simid) = svm(:,:,:,:)
+    umsave(:,:,:) = um(:,:,:) ! Copy
+    vmsave(:,:,:) = vm(:,:,:)
+    wmsave(:,:,:) = wm(:,:,:)
+    e12msave(:,:,:) = e12m(:,:,:)
+    thlmsave(:,:,:) = thlm(:,:,:)
+    qtmsave(:,:,:) = qtm(:,:,:)
 
-      u0save(:,:,:,simid) = u0(:,:,:)
-      v0save(:,:,:,simid) = v0(:,:,:)
-      w0save(:,:,:,simid) = w0(:,:,:)
-      thl0save(:,:,:,simid) = thl0(:,:,:)
-      qt0save(:,:,:,simid) = qt0(:,:,:)
-      ql0save(:,:,:,simid) = ql0(:,:,:)
-      ql0hsave(:,:,:,simid) = ql0h(:,:,:)
-      e120save(:,:,:,simid) = e120(:,:,:)
-      dthvdzsave(:,:,:,simid) = dthvdz(:,:,:)
-      ekmsave(:,:,:,simid) = ekm(:,:,:)
-      tmp0save(:,:,:,simid) = tmp0(:,:,:)
-      eslsave(:,:,:,simid) = esl(:,:,:)
-      qvslsave(:,:,:,simid) = qvsl(:,:,:)
-      qvsisave(:,:,:,simid) = qvsi(:,:,:)
-      sv0save(:,:,:,:,simid) = sv0(:,:,:,:)
+    u0save(:,:,:) = u0(:,:,:)
+    v0save(:,:,:) = v0(:,:,:)
+    w0save(:,:,:) = w0(:,:,:)
+    thl0save(:,:,:) = thl0(:,:,:)
+    qt0save(:,:,:) = qt0(:,:,:)
+    ql0save(:,:,:) = ql0(:,:,:)
+    ql0hsave(:,:,:) = ql0h(:,:,:)
+    e120save(:,:,:) = e120(:,:,:)
+    dthvdzsave(:,:,:) = dthvdz(:,:,:)
+    ekmsave(:,:,:) = ekm(:,:,:)
+    tmp0save(:,:,:) = tmp0(:,:,:)
+    eslsave(:,:,:) = esl(:,:,:)
+    qvslsave(:,:,:) = qvsl(:,:,:)
+    qvsisave(:,:,:) = qvsi(:,:,:)
 
-      thv0hsave(:,:,:,simid) = thv0h(:,:,:)
+    thv0hsave(:,:,:) = thv0h(:,:,:)
 
-      presfsave(:,simid) = presf(:)
-      preshsave(:,simid) = presf(:)
+    presfsave(:) = presf(:)
+    preshsave(:) = presf(:)
 
-      thvhsave(:,simid) = thvh(:)
+    thvhsave(:) = thvh(:)
 
-      u0avsave(:,simid) = u0av(:)
-      v0avsave(:,simid) = v0av(:)
-      thl0avsave(:,simid) = thl0av(:)
-      qt0avsave(:,simid) = qt0av(:)
-      sv0avsave(:,:,simid) = sv0av(:,:)
+    u0avsave(:) = u0av(:)
+    v0avsave(:) = v0av(:)
+    thl0avsave(:) = thl0av(:)
+    qt0avsave(:) = qt0av(:)
+
+    ! Not using a loop here causes a segfault for some reason
+    do n = 1, nsv
+      sv0save(:,:,:,n) = sv0(:,:,:,n)
+      svmsave(:,:,:,n) = svm(:,:,:,n)
+      sv0avsave(:,n) = sv0av(:,n)
     end do
 
     allocate(fnudgeglob(1-ih:itot+ih,1-jh:jtot+jh,1:k1))
@@ -220,7 +238,7 @@ contains
 
   end subroutine calcfnudge
 
-  subroutine loadfields(simid)
+  subroutine swap_fields()
     use modfields, only : u0, v0, w0, e120, thl0, qt0, ql0, ql0h, tmp0, &
                           um, vm, wm, e12m, thlm, qtm, &
                           presf, presh, dthvdz, esl, qvsl, qvsi, thv0h, &
@@ -228,95 +246,40 @@ contains
     use modsubgrid, only : ekm
 
     implicit none
-    integer, intent(in) :: simid  
 
-    um(:,:,:) = umsave(:,:,:,simid)
-    vm(:,:,:) = vmsave(:,:,:,simid)
-    wm(:,:,:) = wmsave(:,:,:,simid)
-    e12m(:,:,:) = e12msave(:,:,:,simid)
-    thlm(:,:,:) = thlmsave(:,:,:,simid)
-    qtm(:,:,:) = qtmsave(:,:,:,simid)
-    svm(:,:,:,:) = svmsave(:,:,:,:,simid)
+    call swap(um, umsave)
+    call swap(vm, vmsave)
+    call swap(wm, wmsave)
+    call swap(e12m, e12msave)
+    call swap(thlm, thlmsave)
+    call swap(qtm, qtmsave)
+    call swap(u0, u0save)
+    call swap(v0, v0save)
+    call swap(w0, w0save)
+    call swap(thl0, thl0save)
+    call swap(qt0, qt0save)
+    call swap(ql0, ql0save)
+    call swap(ql0h, ql0hsave)
+    call swap(e120, e120save)
+    call swap(dthvdz, dthvdzsave)
+    call swap(ekm, ekmsave)
+    call swap(tmp0, tmp0save)
+    call swap(esl, eslsave)
+    call swap(qvsl, qvslsave)
+    call swap(qvsi, qvsisave)
+    call swap(thv0h, thv0hsave)
+    call swap(presf, presfsave)
+    call swap(presh, preshsave)
+    call swap(thvh, thvhsave)
+    call swap(u0av, u0avsave)
+    call swap(v0av, v0avsave)
+    call swap(thl0av, thl0avsave)
+    call swap(qt0av, qt0avsave)
+    call swap(sv0, sv0save)
+    call swap(svm, svmsave)
+    call swap(sv0av, sv0avsave)
 
-    u0(:,:,:) = u0save(:,:,:,simid)
-    v0(:,:,:) = v0save(:,:,:,simid)
-    w0(:,:,:) = w0save(:,:,:,simid)
-    thl0(:,:,:) = thl0save(:,:,:,simid)
-    qt0(:,:,:) = qt0save(:,:,:,simid)
-    ql0(:,:,:) = ql0save(:,:,:,simid)
-    ql0h(:,:,:) = ql0hsave(:,:,:,simid)
-    e120(:,:,:) = e120save(:,:,:,simid)
-    dthvdz(:,:,:) = dthvdzsave(:,:,:,simid)
-    ekm(:,:,:) = ekmsave(:,:,:,simid)
-    tmp0(:,:,:) = tmp0save(:,:,:,simid)
-    esl(:,:,:) = eslsave(:,:,:,simid)
-    qvsl(:,:,:) = qvslsave(:,:,:,simid)
-    qvsi(:,:,:) = qvsisave(:,:,:,simid)
-    sv0(:,:,:,:) = sv0save(:,:,:,:,simid)
-
-    thv0h(:,:,:) = thv0hsave(:,:,:,simid)
-
-    presf(:) = presfsave(:,simid)
-    presh(:) = presfsave(:,simid)
-
-    thvh(:) = thvhsave(:,simid)
-
-    u0av(:) = u0avsave(:,simid)
-    v0av(:) = v0avsave(:,simid)
-    thl0av(:) = thl0avsave(:,simid)
-    qt0av(:) = qt0avsave(:,simid)
-    sv0av(:,:) = sv0avsave(:,:,simid)
-
-  end subroutine loadfields
-
-  subroutine savefields(simid)
-    use modfields, only : u0, v0, w0, e120, thl0, qt0, ql0, ql0h, tmp0, &
-                          um, vm, wm, e12m, thlm, qtm, &
-                          presf, presh, dthvdz, esl, qvsl, qvsi, thv0h, &
-                          u0av, v0av, thl0av, qt0av, thvh
-    use modsubgrid, only : ekm
-
-    implicit none
-    integer, intent(in) :: simid  
-
-    umsave(:,:,:,simid) = um(:,:,:)
-    vmsave(:,:,:,simid) = vm(:,:,:)
-    wmsave(:,:,:,simid) = wm(:,:,:)
-    e12msave(:,:,:,simid) = e12m(:,:,:)
-    thlmsave(:,:,:,simid) = thlm(:,:,:)
-    qtmsave(:,:,:,simid) = qtm(:,:,:)
-    svmsave(:,:,:,:,simid) = svm(:,:,:,:)
-
-    u0save(:,:,:,simid) = u0(:,:,:)
-    v0save(:,:,:,simid) = v0(:,:,:)
-    w0save(:,:,:,simid) = w0(:,:,:)
-    thl0save(:,:,:,simid) = thl0(:,:,:)
-    qt0save(:,:,:,simid) = qt0(:,:,:)
-    ql0save(:,:,:,simid) = ql0(:,:,:)
-    ql0hsave(:,:,:,simid) = ql0h(:,:,:)
-    e120save(:,:,:,simid) = e120(:,:,:)
-    dthvdzsave(:,:,:,simid) = dthvdz(:,:,:)
-    ekmsave(:,:,:,simid) = ekm(:,:,:)
-    tmp0save(:,:,:,simid) = tmp0(:,:,:)
-    eslsave(:,:,:,simid) = esl(:,:,:)
-    qvslsave(:,:,:,simid) = qvsl(:,:,:)
-    qvsisave(:,:,:,simid) = qvsi(:,:,:)
-    sv0save(:,:,:,:,simid) = sv0(:,:,:,:)
-
-    thv0hsave(:,:,:,simid) = thv0h(:,:,:)
-
-    presfsave(:,simid) = presf(:)
-    preshsave(:,simid) = presf(:)
-
-    thvhsave(:,simid) = thvh(:)
-
-    u0avsave(:,simid) = u0av(:)
-    v0avsave(:,simid) = v0av(:)
-    thl0avsave(:,simid) = thl0av(:)
-    qt0avsave(:,simid) = qt0av(:)
-    sv0avsave(:,:,simid) = sv0av(:,:)
-
-  end subroutine savefields
+  end subroutine swap_fields
 
   subroutine precursor_nudge_boundary 
     use modglobal, only : kmax, i1, j1, rdt, nsv
@@ -328,12 +291,12 @@ contains
     do k=1,kmax
       do j=2,j1
         do i=2,i1
-          up(i,j,k) = (1-fnudgeloc(i,j,k))*up(i,j,k) + fnudgeloc(i,j,k)*(u0save(i,j,k,1)-u0(i,j,k))/rdt
-          vp(i,j,k) = (1-fnudgeloc(i,j,k))*vp(i,j,k) + fnudgeloc(i,j,k)*(v0save(i,j,k,1)-v0(i,j,k))/rdt
-          wp(i,j,k) = (1-fnudgeloc(i,j,k))*wp(i,j,k) + fnudgeloc(i,j,k)*(w0save(i,j,k,1)-w0(i,j,k))/rdt
-          thlp(i,j,k) = (1-fnudgeloc(i,j,k))*thlp(i,j,k) + fnudgeloc(i,j,k)*(thl0save(i,j,k,1)-thl0(i,j,k))/rdt
-          qtp(i,j,k) = (1-fnudgeloc(i,j,k))*qtp(i,j,k) + fnudgeloc(i,j,k)*(qt0save(i,j,k,1)-qt0(i,j,k))/rdt
-          e12p(i,j,k) = (1-fnudgeloc(i,j,k))*e12p(i,j,k) + fnudgeloc(i,j,k)*(e120save(i,j,k,1)-e120(i,j,k))/rdt
+          up(i,j,k) = (1-fnudgeloc(i,j,k))*up(i,j,k) + fnudgeloc(i,j,k)*(u0save(i,j,k)-u0(i,j,k))/rdt
+          vp(i,j,k) = (1-fnudgeloc(i,j,k))*vp(i,j,k) + fnudgeloc(i,j,k)*(v0save(i,j,k)-v0(i,j,k))/rdt
+          wp(i,j,k) = (1-fnudgeloc(i,j,k))*wp(i,j,k) + fnudgeloc(i,j,k)*(w0save(i,j,k)-w0(i,j,k))/rdt
+          thlp(i,j,k) = (1-fnudgeloc(i,j,k))*thlp(i,j,k) + fnudgeloc(i,j,k)*(thl0save(i,j,k)-thl0(i,j,k))/rdt
+          qtp(i,j,k) = (1-fnudgeloc(i,j,k))*qtp(i,j,k) + fnudgeloc(i,j,k)*(qt0save(i,j,k)-qt0(i,j,k))/rdt
+          e12p(i,j,k) = (1-fnudgeloc(i,j,k))*e12p(i,j,k) + fnudgeloc(i,j,k)*(e120save(i,j,k)-e120(i,j,k))/rdt
         end do
       end do
     end do
@@ -342,7 +305,7 @@ contains
       do k = 1, kmax
         do j = 2, j1
           do i = 2, i1
-            svp(i,j,k,s) = (1-fnudgeloc(i,j,k))*svp(i,j,k,s) + fnudgeloc(i,j,k)*(sv0save(i,j,k,s,1)-sv0(i,j,k,s))/rdt
+            svp(i,j,k,s) = (1-fnudgeloc(i,j,k))*svp(i,j,k,s) + fnudgeloc(i,j,k)*(sv0save(i,j,k,s)-sv0(i,j,k,s))/rdt
           end do
         end do
       end do
@@ -378,5 +341,57 @@ contains
     jglob = jloc + jmax*myidyloc - 1
 
   end function jglob
+
+  subroutine swap_4d(a, b)
+
+    real, pointer, intent(inout) :: a(:,:,:,:)
+    real, pointer, intent(inout) :: b(:,:,:,:)
+
+    real, pointer :: temp(:,:,:,:)
+
+    temp => a
+    a => b
+    b => temp
+
+  end subroutine swap_4d
+
+  subroutine swap_3d(a, b)
+
+    real, pointer, intent(inout) :: a(:,:,:)
+    real, pointer, intent(inout) :: b(:,:,:)
+
+    real, pointer :: temp(:,:,:)
+
+    temp => a
+    a => b
+    b => temp
+
+  end subroutine swap_3d
+
+  subroutine swap_2d(a, b)
+
+    real, pointer, intent(inout) :: a(:,:)
+    real, pointer, intent(inout) :: b(:,:)
+
+    real, pointer :: temp(:,:)
+
+    temp => a
+    a => b
+    b => temp
+
+  end subroutine swap_2d
+
+  subroutine swap_1d(a, b)
+
+    real, pointer, intent(inout) :: a(:)
+    real, pointer, intent(inout) :: b(:)
+
+    real, pointer :: temp(:)
+
+    temp => a
+    a => b
+    b => temp
+
+  end subroutine swap_1d
 
 end module modprecursor

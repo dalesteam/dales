@@ -123,7 +123,7 @@ subroutine tstep_update
   if(lwarmstart) spinup = .false.
 
   ! In the original precursor code, this was commented out; why?
-  if(rk3step == 1) then
+  !if(rk3step == 1) then
 
     ! Initialization
     if (spinup) then
@@ -216,7 +216,7 @@ subroutine tstep_update
         timeleft=timeleft-dt
       end if
     end if
-  end if
+  !end if
 
   ! set all tendencies to zero
   !$acc parallel loop collapse(3) default(present) async(1)

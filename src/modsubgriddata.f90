@@ -55,7 +55,7 @@ save
   real(field_r) :: beta_kolm   = 1.      !< factor in Kolmogorov relation for temperature spectrum
   logical :: sgs_surface_fix = .false.  !< which fix to apply to coupling of SGSTKE to surface
 
-  real(field_r), allocatable :: ekm(:,:,:)   !< k-coefficient for momentum
+  real(field_r), pointer     :: ekm(:,:,:)   !< k-coefficient for momentum
   real(field_r), allocatable :: ekh(:,:,:)   !< k-coefficient for heat and q_tot
   real(field_r), allocatable :: sbdiss(:,:,:)!< dissiation
   real(field_r), allocatable :: sbshr(:,:,:) !< shear production
