@@ -76,6 +76,7 @@ set( dales_srcs
 	modpois_data.f90
 	modpois.f90
 	modprecision.f90
+	modprecursor.f90
 	modquadrant.f90
 	modraddata.f90
 	modradfield.f90
