@@ -5,12 +5,16 @@
 !!      Modification for compatibility with newest DALES v4.4: MPI_BCAST -> D_MPI_BCAST, MPI_ALLREDUCE -> D_MPI_ALLREDUCE
 
 module modprecursor
-  use modglobal, only : longint, nsv
+  use fortran_support, only: nnml_output
+  use modglobal, only : longint, nsv, checknamelisterror, ifnamopt
   use modfields, only : sv0, svm, svp, sv0av
+  use modmpi, only: myid, comm3d, d_mpi_bcast
   use modtimer, only: timer_tic, timer_toc
   use modprecision, only: field_r
 
   implicit none 
+
+  public :: precursor_read_namelist
 
   character(len=*), parameter :: modname = 'modprecursor'
 
@@ -76,6 +80,30 @@ module modprecursor
   real(field_r), pointer :: sv0avsave(:,:)
 
 contains
+  
+  !> Read precursor namelist options.
+  subroutine precursor_read_namelist(nml_filename)
+
+    character(len=*), intent(in) :: nml_filename !<  Name of namelist file
+
+    integer :: ierr
+
+    namelist /precursor/ lprecursor, lstatref, nudgedepthgr
+
+    if (myid == 0) then
+      open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
+      read(ifnamopt,precursor, iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'precursor')
+      write(nnml_output, precursor)
+      close(ifnamopt)
+    end if
+
+    call d_mpi_bcast(lprecursor, 1, 0, comm3d, ierr)
+    call d_mpi_bcast(lstatref, 1, 0, comm3d, ierr)
+    call d_mpi_bcast(nudgedepthgr, 1, 0, comm3d, ierr)
+
+  end subroutine precursor_read_namelist
+
   subroutine init_precursor
     use modglobal, only: itot, jtot, kmax, i1, i2, j1, j2, k1, ih, jh,ifnamopt, fname_options, tres, ladaptive, dtmax,btime, dx, dy , pi, dt
     use modmpi, only : myidx,myidy,myid,MPI_INTEGER,D_MPI_BCAST, MPI_SUM,MPI_COMM_WORLD,MPI_LOGICAL,comm3d,mpierr
@@ -86,26 +114,9 @@ contains
     use modsubgrid, only : ekm
 
     implicit none
-    integer i,j,k,n,ierr, simid
+    integer i,j,k,n,simid
 
 
-    namelist/precursor/ lprecursor, lstatref, nudgedepthgr
-
-    if (myid==0) then
-      open(ifnamopt,file=fname_options,status='old',iostat=ierr)
-        read (ifnamopt,precursor,iostat=ierr)
-        if (ierr > 0) then
-          print *, 'Problem in namoptions precursor'
-          print *, 'iostat error: ', ierr
-          stop 'ERROR: Problem in namoptions precursor'
-        endif
-        write(6 ,precursor)
-      close(ifnamopt)
-    end if
-
-    call D_MPI_BCAST(lprecursor ,1,0,MPI_COMM_WORLD,mpierr) !DH
-    call D_MPI_BCAST(lstatref,1,0,MPI_COMM_WORLD,mpierr) !DH
-    call D_MPI_BCAST(nudgedepthgr       ,1,0,MPI_COMM_WORLD,mpierr) !DH
 
     if (.not. lprecursor) return
 
