@@ -130,47 +130,50 @@ contains
     real(field_r) :: dm, dn
     real(field_r) :: cell_volume !< Air density times grid cell volume [kg]
 
-    cell_volume = dx * dy * dzf(k_spray)
+    if (my_process_sprays) then
 
-    if (lwater_spraying .and. my_process_sprays) then
-      dqldt_spraying = water_spray_rate / (rhobf(k_spray) * cell_volume)
+      cell_volume = dx * dy * dzf(k_spray)
 
-      !$acc serial default(present) async
-      qtp(i_spray,j_spray,k_spray) = qtp(i_spray,j_spray,k_spray) &
-        + (1-qt0(i_spray,j_spray,k_spray)) * dqldt_spraying
-
-      ! Evaporative cooling
-      thlp(i_spray,j_spray,k_spray) = thlp(i_spray,j_spray,k_spray) & 
-        - (rlv / (cp * exnf(k_spray))) &
-        * (1 - ql0(i_spray,j_spray,k_spray)) * dqldt_spraying
-      !$acc end serial
-    end if
-
-    if (lsalt_spraying .and. my_process_sprays) then
-      if (lcoupled) then
-        dm = salt_spray_rate / (rhobf(k_spray) * cell_volume)
-
-        ! Increase in number concentration, assuming monodisperse aerosol
-        dn = salt_spray_rate / (2165.0 * pi / 6 * (75e-9)**3)
-        dn = dn / cell_volume ! Number concentrations are in #/m3
+      if (lwater_spraying) then
+        dqldt_spraying = water_spray_rate / (rhobf(k_spray) * cell_volume)
 
         !$acc serial default(present) async
-        svp(i_spray,j_spray,k_spray,isv_salt) = &
-          svp(i_spray,j_spray,k_spray,isv_salt) + dm
-       
-        svp(i_spray,j_spray,k_spray,isv_salt_n) = &
-          svp(i_spray,j_spray,k_spray,isv_salt_n) + dn
-        !$acc end serial
-      else
-        dsvdt_spraying = salt_spray_rate / (rhobf(k_spray) * cell_volume) &
-          * (1 - sv0(i_spray,j_spray,k_spray,isv_salt) / salinity)
+        qtp(i_spray,j_spray,k_spray) = qtp(i_spray,j_spray,k_spray) &
+          + (1-qt0(i_spray,j_spray,k_spray)) * dqldt_spraying
 
-        !$acc serial default(present) async
-        svp(i_spray,j_spray,k_spray,isv_salt) = &
-          svp(i_spray,j_spray,k_spray,isv_salt) + dsvdt_spraying
+        ! Evaporative cooling
+        thlp(i_spray,j_spray,k_spray) = thlp(i_spray,j_spray,k_spray) & 
+          - (rlv / (cp * exnf(k_spray))) &
+          * (1 - ql0(i_spray,j_spray,k_spray)) * dqldt_spraying
         !$acc end serial
       end if
-    endif
+
+      if (lsalt_spraying) then
+        if (lcoupled) then
+          dm = salt_spray_rate / (rhobf(k_spray) * cell_volume)
+
+          ! Increase in number concentration, assuming monodisperse aerosol
+          dn = salt_spray_rate / (2165.0 * pi / 6 * (75e-9)**3)
+          dn = dn / cell_volume ! Number concentrations are in #/m3
+
+          !$acc serial default(present) async
+          svp(i_spray,j_spray,k_spray,isv_salt) = &
+            svp(i_spray,j_spray,k_spray,isv_salt) + dm
+        
+          svp(i_spray,j_spray,k_spray,isv_salt_n) = &
+            svp(i_spray,j_spray,k_spray,isv_salt_n) + dn
+          !$acc end serial
+        else
+          dsvdt_spraying = salt_spray_rate / (rhobf(k_spray) * cell_volume) &
+            * (1 - sv0(i_spray,j_spray,k_spray,isv_salt) / salinity)
+
+          !$acc serial default(present) async
+          svp(i_spray,j_spray,k_spray,isv_salt) = &
+            svp(i_spray,j_spray,k_spray,isv_salt) + dsvdt_spraying
+          !$acc end serial
+        end if
+      endif
+    end if
 
     !$acc wait
 
