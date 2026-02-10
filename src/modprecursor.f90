@@ -8,6 +8,7 @@ module modprecursor
   use modglobal, only : longint, nsv
   use modfields, only : sv0, svm, svp, sv0av
   use modtimer, only: timer_tic, timer_toc
+  use modprecision, only: field_r
 
   implicit none 
 
@@ -29,50 +30,50 @@ module modprecursor
   integer :: refid = 1
   integer :: turid = 1
 
-  real, allocatable :: fnudgeglob(:,:,:) ! global array of fnudge values
-  real, allocatable :: fnudgeloc(:,:,:) ! local, cpu dependent array of fnudge values
+  real(field_r), allocatable :: fnudgeglob(:,:,:) ! global array of fnudge values
+  real(field_r), allocatable :: fnudgeloc(:,:,:) ! local, cpu dependent array of fnudge values
 
   integer :: nudgedepthgr = 10 ! number of nudge grid points
   
   ! Prognostic variables; first dimension: 1=turbine simulation, 2=reference simulation
-  real, pointer :: umsave(:,:,:)        !<   x-component of velocity at time step t-1
-  real, pointer :: vmsave(:,:,:)        !<   y-component of velocity at time step t-1
-  real, pointer :: wmsave(:,:,:)        !<   z-component of velocity at time step t-1
-  real, pointer :: thlmsave(:,:,:)      !<   liq. water pot. temperature at time step t-1
-  real, pointer :: e12msave(:,:,:)      !<   square root of turb. kin. energy at time step t-1
-  real, pointer :: qtmsave(:,:,:)       !<   total specific humidity at time step t
+  real(field_r), pointer :: umsave(:,:,:)        !<   x-component of velocity at time step t-1
+  real(field_r), pointer :: vmsave(:,:,:)        !<   y-component of velocity at time step t-1
+  real(field_r), pointer :: wmsave(:,:,:)        !<   z-component of velocity at time step t-1
+  real(field_r), pointer :: thlmsave(:,:,:)      !<   liq. water pot. temperature at time step t-1
+  real(field_r), pointer :: e12msave(:,:,:)      !<   square root of turb. kin. energy at time step t-1
+  real(field_r), pointer :: qtmsave(:,:,:)       !<   total specific humidity at time step t
 
-  real, pointer :: u0save(:,:,:)        !<   x-component of velocity at time step t
-  real, pointer :: v0save(:,:,:)        !<   y-component of velocity at time step t
-  real, pointer :: w0save(:,:,:)        !<   z-component of velocity at time step t
-  real, pointer :: thl0save(:,:,:)      !<   liq. water pot. temperature at time step t
-  real, pointer :: qt0save(:,:,:)       !<   total specific humidity at time step t
-  real, pointer :: ql0save(:,:,:)   
-  real, pointer :: ql0hsave(:,:,:)  
-  real, pointer :: e120save(:,:,:)      !<   square root of turb. kin. energy at time step t
+  real(field_r), pointer :: u0save(:,:,:)        !<   x-component of velocity at time step t
+  real(field_r), pointer :: v0save(:,:,:)        !<   y-component of velocity at time step t
+  real(field_r), pointer :: w0save(:,:,:)        !<   z-component of velocity at time step t
+  real(field_r), pointer :: thl0save(:,:,:)      !<   liq. water pot. temperature at time step t
+  real(field_r), pointer :: qt0save(:,:,:)       !<   total specific humidity at time step t
+  real(field_r), pointer :: ql0save(:,:,:)   
+  real(field_r), pointer :: ql0hsave(:,:,:)  
+  real(field_r), pointer :: e120save(:,:,:)      !<   square root of turb. kin. energy at time step t
 
-  real, pointer :: dthvdzsave(:,:,:)  
-  real, pointer :: ekmsave(:,:,:)  
-  real, pointer :: tmp0save(:,:,:)  
-  real, pointer :: eslsave(:,:,:)  
-  real, pointer :: qvslsave(:,:,:)  
-  real, pointer :: qvsisave(:,:,:)  
+  real(field_r), pointer :: dthvdzsave(:,:,:)  
+  real(field_r), pointer :: ekmsave(:,:,:)  
+  real(field_r), pointer :: tmp0save(:,:,:)  
+  real(field_r), pointer :: eslsave(:,:,:)  
+  real(field_r), pointer :: qvslsave(:,:,:)  
+  real(field_r), pointer :: qvsisave(:,:,:)  
 
-  real, pointer :: thv0hsave(:,:,:)  
+  real(field_r), pointer :: thv0hsave(:,:,:)  
 
-  real, pointer :: presfsave(:)  
-  real, pointer :: preshsave(:)  
+  real(field_r), pointer :: presfsave(:)  
+  real(field_r), pointer :: preshsave(:)  
 
-  real, pointer :: thvhsave(:)  
+  real(field_r), pointer :: thvhsave(:)  
 
-  real, pointer :: u0avsave(:)
-  real, pointer :: v0avsave(:)
-  real, pointer :: thl0avsave(:)
-  real, pointer :: qt0avsave(:)
+  real(field_r), pointer :: u0avsave(:)
+  real(field_r), pointer :: v0avsave(:)
+  real(field_r), pointer :: thl0avsave(:)
+  real(field_r), pointer :: qt0avsave(:)
 
-  real, pointer :: svmsave(:,:,:,:)
-  real, pointer :: sv0save(:,:,:,:)
-  real, pointer :: sv0avsave(:,:)
+  real(field_r), pointer :: svmsave(:,:,:,:)
+  real(field_r), pointer :: sv0save(:,:,:,:)
+  real(field_r), pointer :: sv0avsave(:,:)
 
 contains
   subroutine init_precursor
@@ -212,7 +213,7 @@ contains
 
     implicit none
     integer i,j,k
-    real fnudge
+    real(field_r) fnudge
 
     fnudgeglob = 0.
     fnudgeloc = 0.
@@ -344,10 +345,10 @@ contains
 
   subroutine swap_4d(a, b)
 
-    real, pointer, intent(inout) :: a(:,:,:,:)
-    real, pointer, intent(inout) :: b(:,:,:,:)
+    real(field_r), pointer, intent(inout) :: a(:,:,:,:)
+    real(field_r), pointer, intent(inout) :: b(:,:,:,:)
 
-    real, pointer :: temp(:,:,:,:)
+    real(field_r), pointer :: temp(:,:,:,:)
 
     temp => a
     a => b
@@ -357,10 +358,10 @@ contains
 
   subroutine swap_3d(a, b)
 
-    real, pointer, intent(inout) :: a(:,:,:)
-    real, pointer, intent(inout) :: b(:,:,:)
+    real(field_r), pointer, intent(inout) :: a(:,:,:)
+    real(field_r), pointer, intent(inout) :: b(:,:,:)
 
-    real, pointer :: temp(:,:,:)
+    real(field_r), pointer :: temp(:,:,:)
 
     temp => a
     a => b
@@ -370,10 +371,10 @@ contains
 
   subroutine swap_2d(a, b)
 
-    real, pointer, intent(inout) :: a(:,:)
-    real, pointer, intent(inout) :: b(:,:)
+    real(field_r), pointer, intent(inout) :: a(:,:)
+    real(field_r), pointer, intent(inout) :: b(:,:)
 
-    real, pointer :: temp(:,:)
+    real(field_r), pointer :: temp(:,:)
 
     temp => a
     a => b
@@ -383,10 +384,10 @@ contains
 
   subroutine swap_1d(a, b)
 
-    real, pointer, intent(inout) :: a(:)
-    real, pointer, intent(inout) :: b(:)
+    real(field_r), pointer, intent(inout) :: a(:)
+    real(field_r), pointer, intent(inout) :: b(:)
 
-    real, pointer :: temp(:)
+    real(field_r), pointer :: temp(:)
 
     temp => a
     a => b
