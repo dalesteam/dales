@@ -80,6 +80,38 @@ module modprecursor
   real(field_r), pointer :: sv0avsave(:,:)
 
 contains
+
+  !> Compute the nudging factor.
+  pure function nudge_fac(i, depth) result(fac)
+
+    integer, intent(in) :: i     !< Index of grid point in the nudging layer (1 at the boundary, increasing towards the interior)
+    integer, intent(in) :: depth !< Depth of the nudging layer
+
+    real(field_r) :: fac !< Nudging factor
+
+    fac = 0.5 + 0.5 * cos((pi / (depth - 1)) * (i - 1))
+
+  end function nudge_fac
+
+  !> Compute the updated tendency of a field after nudging at the boundary.
+  pure function calc_nudged_tend(tend_in, nudge_target, field, dt, depth, i) &
+    result(tend_out)
+
+    real(field_r), intent(in) :: tend_in      !< Original tendency of the field.
+    real(field_r), intent(in) :: nudge_target !< Target values to nudge towards.
+    real(field_r), intent(in) :: field        !< Current values of the field.
+    real(field_r), intent(in) :: dt           !< Time step size
+    integer,       intent(in) :: depth        !< Depth of the nudging layer
+    integer,       intent(in) :: i            !< Index of grid point in the nudging layer (1 at the boundary, increasing towards the interior)
+
+    real(field_r) :: nudge_fac_
+    real(field_r) :: tend_out
+
+    nudge_fac_ = nudge_fac(i, depth)
+    tend_out = (1 - nudge_fac_) * tend_in &
+               + nudge_fac_ * (nudge_target - field) / dt
+
+  end function calc_nudged_tend
   
   !> Read precursor namelist options.
   subroutine precursor_read_namelist(nml_filename)
@@ -217,39 +249,6 @@ contains
     end if
   end subroutine init_precursor
 
-  subroutine calcfnudge
-    use modglobal, only : pi, itot, jtot, ih, jh, k1, j1, i1, kmax
-    use modfields, only : u0av, v0av
-    use modmpi, only : myidx, myidy
-
-    implicit none
-    integer i,j,k
-    real(field_r) fnudge
-
-    fnudgeglob = 0.
-    fnudgeloc = 0.
-
-    do i=1,nudgedepthgr 
-
-      fnudge = 0.5 + 0.5*COS((pi/(nudgedepthgr-1))*(i-1))
-
-      fnudgeglob(i,i:jtot-i+1,:) = fnudge
-      fnudgeglob(itot-i+1,i:jtot-i+1,:) = fnudge
-      fnudgeglob(i+1:(itot-i),i,:) = fnudge
-      fnudgeglob(i+1:(itot-i),jtot-i+1,:) = fnudge
-
-    end do
-
-    do k=1,kmax
-      do j=2,j1
-        do i=2,i1
-          fnudgeloc(i,j,k) = fnudgeglob(iglob(i,myidx),jglob(j,myidy),k)
-        end do
-      end do
-    end do
-
-  end subroutine calcfnudge
-
   subroutine swap_fields()
     use modfields, only : u0, v0, w0, e120, thl0, qt0, ql0, ql0h, tmp0, &
                           um, vm, wm, e12m, thlm, qtm, &
@@ -298,32 +297,102 @@ contains
     use modfields, only : u0, v0, w0, thl0, e120, qt0, up, vp, wp, thlp, qtp, e12p
 
     implicit none
+
+    character(len=*), parameter :: routine = modname//'/precursor_nudge_boundary'
+
     integer i,j,k, s
 
-    do k=1,kmax
-      do j=2,j1
-        do i=2,i1
-          up(i,j,k) = (1-fnudgeloc(i,j,k))*up(i,j,k) + fnudgeloc(i,j,k)*(u0save(i,j,k)-u0(i,j,k))/rdt
-          vp(i,j,k) = (1-fnudgeloc(i,j,k))*vp(i,j,k) + fnudgeloc(i,j,k)*(v0save(i,j,k)-v0(i,j,k))/rdt
-          wp(i,j,k) = (1-fnudgeloc(i,j,k))*wp(i,j,k) + fnudgeloc(i,j,k)*(w0save(i,j,k)-w0(i,j,k))/rdt
-          thlp(i,j,k) = (1-fnudgeloc(i,j,k))*thlp(i,j,k) + fnudgeloc(i,j,k)*(thl0save(i,j,k)-thl0(i,j,k))/rdt
-          qtp(i,j,k) = (1-fnudgeloc(i,j,k))*qtp(i,j,k) + fnudgeloc(i,j,k)*(qt0save(i,j,k)-qt0(i,j,k))/rdt
-          e12p(i,j,k) = (1-fnudgeloc(i,j,k))*e12p(i,j,k) + fnudgeloc(i,j,k)*(e120save(i,j,k)-e120(i,j,k))/rdt
-        end do
-      end do
-    end do
+    call timer_tic(routine, 0)
+
+    call nudge_field_at_boundary(u0, u0save, rdt, up)
+    call nudge_field_at_boundary(v0, v0save, rdt, vp)
+    call nudge_field_at_boundary(w0, w0save, rdt, wp)
+    call nudge_field_at_boundary(thl0, thl0save, rdt, thlp)
+    call nudge_field_at_boundary(qt0, qt0save, rdt, qtp)
+    call nudge_field_at_boundary(e120, e120save, rdt, e12p)
 
     do s = 1, nsv
+      call nudge_field_at_boundary(sv0(:,:,:,s), sv0save(:,:,:,s), rdt, svp(:,:,:,s))
+    end do
+
+    call timer_toc(routine)
+
+  end subroutine precursor_nudge_boundary
+
+  !> Nudge a prognostic field at the lateral boundaries
+  subroutine nudge_field_at_boundary(field, nudge_target, dt, tend)
+
+    real(field_r), intent(in) :: field(2-ih:,2-jh:,:)        !< Field to nudge at the boundary.
+    real(field_r), intent(in) :: nudge_target(2-ih:,2-jh:,:) !< Target values to nudge towards.
+    real(field_r), intent(in) :: dt                          !< Time step size.
+
+    real(field_r), intent(inout) :: tend(2-ih:,2-jh:,:) !< Tendency of field.
+
+    character(len=*), parameter :: routine = modname//'/nudge_field_at_boundary'
+
+    integer :: i, j, k
+
+    call timer_tic(routine, 1)
+
+    ! North
+    if (myidy == 0) then
+      !$acc parallel loop gang vector collapse(3) default(present) async
       do k = 1, kmax
-        do j = 2, j1
+        do j = 1, nudgedepthgr
           do i = 2, i1
-            svp(i,j,k,s) = (1-fnudgeloc(i,j,k))*svp(i,j,k,s) + fnudgeloc(i,j,k)*(sv0save(i,j,k,s)-sv0(i,j,k,s))/rdt
+            tend(i,j,k) = calc_nudged_tend(tend(i,j,k), nudge_target(i,j,k), &
+                                           field(i,j,k), dt, nudgedepthgr, j)
           end do
         end do
       end do
-    end do
+    end if
 
-  end subroutine precursor_nudge_boundary
+    ! South
+    if (myidy == nprocy - 1) then
+      !$acc parallel loop gang vector collapse(3) default(present) async
+      do k = 1, kmax
+        do j = j1 - nudgedepthgr + 1, j1
+          do i = 2, i1
+            tend(i,j,k) = calc_nudged_tend(tend(i,j,k), nudge_target(i,j,k), &
+                                           field(i,j,k), dt, nudgedepthgr, &
+                                           j1 - j + 1)
+          end do
+        end do
+      end do
+    end if
+
+    ! West
+    if (myidx == 0) then
+      !$acc parallel loop gang vector collapse(3) default(present) async
+      do k = 1, kmax
+        do j = 2, j1
+          do i = 1, nudgedepthgr
+            tend(i,j,k) = calc_nudged_tend(tend(i,j,k), nudge_target(i,j,k), &
+                                           field(i,j,k), dt, nudgedepthgr, i)
+          end do
+        end do
+      end do
+    end if
+
+    ! East
+    if (myidx == nprocx - 1) then
+      !$acc parallel loop gang vector collapse(3) default(present) async
+      do k = 1, kmax
+        do j = 2, j1
+          do i = i1 - nudgedepthgr + 1, i1
+            tend(i,j,k) = calc_nudged_tend(tend(i,j,k), nudge_target(i,j,k), &
+                                           field(i,j,k), dt, nudgedepthgr, &
+                                           i1 - i + 1)
+          end do
+        end do
+      end do
+    end if
+
+    !$acc wait
+
+    call timer_toc(routine)
+
+  end subroutine nudge_field_at_boundary
 
   subroutine exit_precursor
     deallocate(fnudgeglob,fnudgeloc)
