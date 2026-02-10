@@ -39,7 +39,8 @@ module modmicrophysics
                                l_sb_reisner, N_inuc, n_i_max, tmp_inuc, x_inuc,     &
                                N_inuc_R, c_inuc_R, a1_inuc_R, a2_inuc_R, c_ccn,     &
                                n_clmax, kappa_ccn, x_cnuc,sat_max, xc0_min, Nccn0,  &
-                               l_statistics, l_tendencies
+                               l_statistics, l_tendencies, l_sb_tlimhetfreeze,      &
+                               tlimhetfreeze
   use modmicrodata,      only: imicro, lstat, l_rain, Nc_0, sig_g
   use modsimpleice,      only: initsimpleice, &
                                exitsimpleice, simpleice
@@ -93,6 +94,7 @@ contains
       l_sb_inuc_expl, l_sb_reisner, N_inuc, n_i_max, tmp_inuc, x_inuc,          &
       N_inuc_R, c_inuc_R, a1_inuc_R, a2_inuc_R, c_ccn, n_clmax, kappa_ccn,      &
       x_cnuc,sat_max, xc0_min, Nccn0, l_statistics, l_tendencies,               &
+      l_sb_tlimhetfreeze, tlimhetfreeze,                                        &
       ! Simpleice
       l_berry, l_graupel, l_warm, l_mp, evapfactor, courantp
 
@@ -133,7 +135,6 @@ contains
     call D_MPI_BCAST(l_sb_inuc_sat, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(l_sb_inuc_expl, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(l_sb_reisner, 1, 0, comm3d, ierr)
-    call D_MPI_BCAST(l_sb_reisner, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(N_inuc_R, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(c_inuc_R, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(a1_inuc_R, 1, 0, comm3d, ierr)
@@ -149,6 +150,8 @@ contains
     call D_MPI_BCAST(x_cnuc, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(xc0_min, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(Nccn0, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_sb_tlimhetfreeze, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(tlimhetfreeze, 1, 0, comm3d, ierr)
     ! Simpleice
     call D_MPI_BCAST(l_berry, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(l_graupel, 1, 0, comm3d, ierr)

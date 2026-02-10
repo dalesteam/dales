@@ -58,7 +58,8 @@
             ,l_sb_nuc_diff     = .true.  &  !< cloud nucleation: whether to use derivation
             ,l_sb_inuc_sat     = .false. &  !< ice nucleation:   whether include q_cl in super-saturation calculation
             ,l_sb_inuc_expl    = .false. &  !< ice nucleation:   whether explicit nucleation
-            ,l_sb_reisner      = .true.     !< whether to use Reisner correction in ice nucleation
+            ,l_sb_reisner      = .true.  &  !< whether to use Reisner correction in ice nucleation
+            ,l_sb_tlimhetfreeze = .false.   !< whether to apply air temperature limiting for heterogeneous freezing
 
 
 
@@ -251,7 +252,8 @@
                     ,B_het      = 0.65        & !< mult const. in exp in heterogeneous freezing
                     ,al_0snow   = 0.01        & !< parameter alpha_0,snow in partial conv. s-->g
                     ,al_0ice    = 0.68        & !< parameter alpha_0,snow in partial conv. i-->g
-                    ,D_convmin  = 5.0e-4        !< 500 \mi m - min size of ice/snow for partial conv.
+                    ,D_convmin  = 5.0e-4      & !< 500 \mi m - min size of ice/snow for partial conv.
+                    ,def_tlimhetfreeze = 238.0  !< max heterogenous freezing at this temperature
                     !-> close it later here
 
   ! parameters for ventilation coefficients
@@ -332,7 +334,8 @@
             ,c_inuc_R        = c_R98          & !< temperature parameter in Reisner correction R98
             ,b_inuc_R        = b_R98          & !< coefficient in Fletcher formula
             ,a1_inuc_R       = a1_R98         & !< by order of magnitude below
-            ,a2_inuc_R       = a2_R98           !< by order of magnitude above
+            ,a2_inuc_R       = a2_R98         & !< by order of magnitude above
+            ,tlimhetfreeze   = def_tlimhetfreeze !< max heterogenous freezing at this temperature
 
 
   ! parameters for statistics
