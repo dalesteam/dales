@@ -114,7 +114,7 @@ program DALES
   use modforces,         only : forces, coriolis, lstend
   use modradiation,      only : radiation
   use modpois,           only : poisson
-  use tstep,             only : tstep_update,  tstep_integrate
+  use tstep,             only : tstep_update,  tstep_integrate, reset_tendencies
   use modlogging,        only : initlogging, exitlogging
   !use modedgecold,       only : coldedge
 
@@ -399,6 +399,9 @@ program DALES
           call testwctime
           call writerestartfiles
         end if
+
+        call reset_tendencies
+
 #if defined(_OPENACC)
         host_is_updated = .false.
 #endif
