@@ -46,7 +46,7 @@ module modthermodynamics
   use modslabaverage,  only: slabavg
   use advec_kappa,     only: halflev_kappa
   use modprecision,    only: field_r
-  use modtimer
+  use modtimer,        only: timer_tic, timer_toc
   use fortran_support, only: nnml_output, finish
   implicit none
   character(len=*), parameter :: modname = 'modthermodynamics'
@@ -168,7 +168,7 @@ contains
     real(field_r) :: T
     logical :: too_hot, too_cold
 
-    call timer_tic('modthermodynamics/thermodynamics', 0)
+    call timer_tic(routine, 0)
 
     if (timee < 0.01) then
       call diagfld
@@ -264,7 +264,9 @@ contains
     end do
 
     !$acc wait
-    call timer_toc('modthermodynamics/thermodynamics')
+
+    call timer_toc(routine)
+
   end subroutine thermodynamics
 
   !> Cleans up after the run
@@ -290,13 +292,16 @@ contains
 
   !> Calculate thetav and dthvdz
   subroutine calthv
+
+    character(len=*), parameter :: routine = modname//'/calthv'
+
     integer i, j, k
     real(field_r)    qs
     real(field_r)    a_surf,b_surf,dq,dth,dthv,temp
     real(field_r)    a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, chi_sat, chi
     real(field_r)    del_thv_sat, del_thv_dry
 
-    call timer_tic('modthermodynamics/calthv', 1)
+    call timer_tic(routine, 1)
 
     dthvdz = 0
 
@@ -418,15 +423,18 @@ contains
 
     !$acc wait
 
-    call timer_toc('modthermodynamics/calthv')
+    call timer_toc(routine)
 
   end subroutine calthv
 
   !> Diagnones slab averaged fields assuming hydrostatic equilibrium.
   subroutine diagfld
+
+    character(len=*), parameter :: routine = modname//'/diagfld'
+
     integer :: k,n
 
-    call timer_tic('modthermodynamics/diagfld', 1)
+    call timer_tic(routine, 1)
 
     ! 1. Compute slab averaged fields
 
@@ -545,16 +553,19 @@ contains
     end do
     !$acc wait
 
-    call timer_toc('modthermodynamics/diagfld')
+    call timer_toc(routine)
 
   end subroutine diagfld
 
   !> Calculates slab averaged pressure.
   subroutine fromztop
+
+    character(len=*), parameter :: routine = modname//'/fromztop'
+
     integer   k
     real(field_r)  rdocp
 
-    call timer_tic('modthermodynamics/fromztop', 1)
+    call timer_tic(routine, 2)
 
     rdocp = rd/cp
 
@@ -596,9 +607,9 @@ contains
     end do
 
     !$acc update device(thvh, presf, thvf, presh)
-    call timer_toc('modthermodynamics/fromztop')
 
-    return
+    call timer_toc(routine)
+
   end subroutine fromztop
 
   !> Magnus formulas for q_sat over liquid and ice.
