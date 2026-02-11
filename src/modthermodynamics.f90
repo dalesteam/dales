@@ -424,130 +424,129 @@ contains
 
   !> Diagnones slab averaged fields assuming hydrostatic equilibrium.
   subroutine diagfld
-  integer :: k,n
+    integer :: k,n
 
-  call timer_tic('modthermodynamics/diagfld', 1)
+    call timer_tic('modthermodynamics/diagfld', 1)
 
-  ! 1. Compute slab averaged fields
+    ! 1. Compute slab averaged fields
 
-  !$acc parallel loop gang(static:1) default(present)
-  do k = 1, k1
-    u0av(k) = 0.0_field_r
-  end do
-
-  !$acc parallel loop gang(static:1) default(present)
-  do k = 1, k1
-    v0av(k) = 0.0_field_r
-  end do
-
-  !$acc parallel loop gang(static:1) default(present)
-  do k = 1, k1
-    thl0av(k) = 0.0_field_r
-  end do
-
-  !$acc parallel loop gang(static:1) default(present)
-  do k = 1, k1
-    th0av(k) = 0.0_field_r
-  end do
-
-  !$acc parallel loop gang(static:1) default(present)
-  do k = 1, k1
-    qt0av(k) = 0.0_field_r
-  end do
-
-  !$acc parallel loop gang(static:1) default(present)
-  do k = 1, k1
-    ql0av(k) = 0.0_field_r
-  end do
-
-  !$acc parallel loop gang vector collapse(2) default(present)
-  do k = 1, k1
-    do n = 1, nsv
-      sv0av(k,n) = 0.0_field_r
-    end do
-  end do
-
-  ! If the IBM is enabled, exclude the building cells from the averages
-  if (.not. lapply_ibm) then
-    call slabavg(u0,ih,u0av)
-    call slabavg(v0,ih,v0av)
-    call slabavg(thl0,ih,thl0av)
-    call slabavg(qt0,ih,qt0av)
-    call slabavg(ql0,ih,ql0av)
-    do n=1,nsv
-      call slabavg(sv0(:,:,:,n),ih,sv0av(:,n))
-    end do
-  else
-    call slabavg(u0,fluid_mask,ih,u0av)
-    call slabavg(v0,fluid_mask,ih,v0av)
-    call slabavg(thl0,fluid_mask,ih,thl0av)
-    call slabavg(qt0,fluid_mask,ih,qt0av)
-    call slabavg(ql0,fluid_mask,ih,ql0av)
-    do n=1,nsv
-      call slabavg(sv0(:,:,:,n),fluid_mask,ih,sv0av(:,n))
-    end do
-  end if
-
-  if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
     !$acc parallel loop gang(static:1) default(present)
     do k = 1, k1
-      exnf(k) = 1 - grav * zf(k) / (cp * thls)
-      exnh(k) = 1 - grav * zh(k) / (cp * thls)
+      u0av(k) = 0.0_field_r
     end do
-  endif
 
-  !$acc parallel loop gang(static:1) default(present)
-  do k = 1, k1
-    th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
-  end do
+    !$acc parallel loop gang(static:1) default(present)
+    do k = 1, k1
+      v0av(k) = 0.0_field_r
+    end do
 
-  ! 2. Calculate the pressure profiles assuming hydrostatic equilibrium.
+    !$acc parallel loop gang(static:1) default(present)
+    do k = 1, k1
+      thl0av(k) = 0.0_field_r
+    end do
 
-  ! 2.1 Use first guess of theta, then recalculate theta
+    !$acc parallel loop gang(static:1) default(present)
+    do k = 1, k1
+      th0av(k) = 0.0_field_r
+    end do
 
-   call fromztop
+    !$acc parallel loop gang(static:1) default(present)
+    do k = 1, k1
+      qt0av(k) = 0.0_field_r
+    end do
 
-   !$acc parallel loop gang(static:1) default(present)
-   do k = 1, k1
-     th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
-   end do
+    !$acc parallel loop gang(static:1) default(present)
+    do k = 1, k1
+      ql0av(k) = 0.0_field_r
+    end do
 
-   if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
-     !$acc parallel loop gang(static:1) default(present)
-     do k = 1, k1
-       exnf(k) = (presf(k) / pref0)**(rd / cp)
-     end do
-   end if
+    !$acc parallel loop gang vector collapse(2) default(present)
+    do k = 1, k1
+      do n = 1, nsv
+        sv0av(k,n) = 0.0_field_r
+      end do
+    end do
 
-  ! 2.2 Use new updated value of theta for determination of pressure
+    ! If the IBM is enabled, exclude the building cells from the averages
+    if (.not. lapply_ibm) then
+      call slabavg(u0,ih,u0av)
+      call slabavg(v0,ih,v0av)
+      call slabavg(thl0,ih,thl0av)
+      call slabavg(qt0,ih,qt0av)
+      call slabavg(ql0,ih,ql0av)
+      do n=1,nsv
+        call slabavg(sv0(:,:,:,n),ih,sv0av(:,n))
+      end do
+    else
+      call slabavg(u0,fluid_mask,ih,u0av)
+      call slabavg(v0,fluid_mask,ih,v0av)
+      call slabavg(thl0,fluid_mask,ih,thl0av)
+      call slabavg(qt0,fluid_mask,ih,qt0av)
+      call slabavg(ql0,fluid_mask,ih,ql0av)
+      do n=1,nsv
+        call slabavg(sv0(:,:,:,n),fluid_mask,ih,sv0av(:,n))
+      end do
+    end if
 
-   call fromztop
+    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
+      !$acc parallel loop gang(static:1) default(present)
+      do k = 1, k1
+        exnf(k) = 1 - grav * zf(k) / (cp * thls)
+        exnh(k) = 1 - grav * zh(k) / (cp * thls)
+      end do
+    endif
 
-  ! 3. Construct density profiles and exner function
+    !$acc parallel loop gang(static:1) default(present)
+    do k = 1, k1
+      th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
+    end do
 
-   if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
-     !$acc serial default(present) async(1)
-     exnh(1) = (ps/pref0)**(rd/cp)
-     exnf(1) = (presf(1)/pref0)**(rd/cp)
-     !$acc end serial
+    ! 2. Calculate the pressure profiles assuming hydrostatic equilibrium.
 
-     !$acc parallel loop default(present) async(2)
-     do k=2,k1
-       exnf(k) = (presf(k)/pref0)**(rd/cp)
-       exnh(k) = (presh(k)/pref0)**(rd/cp)
-     end do
-   endif
+    ! 2.1 Use first guess of theta, then recalculate theta
 
-   !$acc parallel loop default(present) async wait(1, 2)
-   do k=1,k1
-     thvf(k) = th0av(k)*exnf(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
-     rhof(k) = presf(k)/(rd*thvf(k))
-   end do
-   !$acc wait
+    call fromztop
 
-   call timer_toc('modthermodynamics/diagfld')
+    !$acc parallel loop gang(static:1) default(present)
+    do k = 1, k1
+      th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
+    end do
 
-   return
+    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
+      !$acc parallel loop gang(static:1) default(present)
+      do k = 1, k1
+        exnf(k) = (presf(k) / pref0)**(rd / cp)
+      end do
+    end if
+
+    ! 2.2 Use new updated value of theta for determination of pressure
+
+    call fromztop
+
+    ! 3. Construct density profiles and exner function
+
+    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
+      !$acc serial default(present) async(1)
+      exnh(1) = (ps/pref0)**(rd/cp)
+      exnf(1) = (presf(1)/pref0)**(rd/cp)
+      !$acc end serial
+
+      !$acc parallel loop default(present) async(2)
+      do k=2,k1
+        exnf(k) = (presf(k)/pref0)**(rd/cp)
+        exnh(k) = (presh(k)/pref0)**(rd/cp)
+      end do
+    endif
+
+    !$acc parallel loop default(present) async wait(1, 2)
+    do k=1,k1
+      thvf(k) = th0av(k)*exnf(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
+      rhof(k) = presf(k)/(rd*thvf(k))
+    end do
+    !$acc wait
+
+    call timer_toc('modthermodynamics/diagfld')
+
   end subroutine diagfld
 
   !> Calculates slab averaged pressure.
