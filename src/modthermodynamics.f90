@@ -79,6 +79,20 @@ module modthermodynamics
 
 contains
 
+  !> Calculate the virtual potential temperature.
+  elemental function calc_virt_pot_temp(thl, qt, ql, exn) result(thv)
+
+    real(field_r), intent(in) :: thl  !< Liquid water potential temperature [K]
+    real(field_r), intent(in) :: qt   !< Total water specific humidity [kg/kg]
+    real(field_r), intent(in) :: ql   !< Liquid water specific humidity [kg/kg]
+    real(field_r), intent(in) :: exn  !< Exner function [-]
+
+    real(field_r) :: thv !< Virtual potential temperature [K]
+
+    thv = (thl + rlv * ql / (cp * exn)) * (1 + (rv / rd - 1) * qt - rv / rd * ql)
+
+  end function calc_virt_pot_temp
+
   !> Read thermodynamics namelist.
   subroutine thermodynamics_read_namelist(nml_filename)
 
