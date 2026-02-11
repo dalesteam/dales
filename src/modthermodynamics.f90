@@ -551,54 +551,54 @@ contains
 
   !> Calculates slab averaged pressure.
   subroutine fromztop
-  integer   k
-  real(field_r)  rdocp
+    integer   k
+    real(field_r)  rdocp
 
-  call timer_tic('modthermodynamics/fromztop', 1)
+    call timer_tic('modthermodynamics/fromztop', 1)
 
-  rdocp = rd/cp
+    rdocp = rd/cp
 
-  ! Interpolate theta and qt to half levels
+    ! Interpolate theta and qt to half levels
 
-  !$acc parallel loop default(present)
-  do k=2,k1
-    thetah(k) = (th0av(k)*dzf(k-1) + th0av(k-1)*dzf(k))/(2*dzh(k))
-    qth   (k) = (qt0av(k)*dzf(k-1) + qt0av(k-1)*dzf(k))/(2*dzh(k))
-    qlh   (k) = (ql0av(k)*dzf(k-1) + ql0av(k-1)*dzf(k))/(2*dzh(k))
-  end do
+    !$acc parallel loop default(present)
+    do k=2,k1
+      thetah(k) = (th0av(k)*dzf(k-1) + th0av(k-1)*dzf(k))/(2*dzh(k))
+      qth   (k) = (qt0av(k)*dzf(k-1) + qt0av(k-1)*dzf(k))/(2*dzh(k))
+      qlh   (k) = (ql0av(k)*dzf(k-1) + ql0av(k-1)*dzf(k))/(2*dzh(k))
+    end do
 
-  ! Calculate pressures at full levels
-  ! Do this on the CPU for now; these loops are serial so GPU is very slow!
+    ! Calculate pressures at full levels
+    ! Do this on the CPU for now; these loops are serial so GPU is very slow!
 
-  !$acc update self(thetah, qth, qlh, th0av, qt0av, ql0av)
+    !$acc update self(thetah, qth, qlh, th0av, qt0av, ql0av)
 
-  thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
-  presf(1) = ps**rdocp - grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
-  presf(1) = presf(1)**(1/rdocp)
+    thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
+    presf(1) = ps**rdocp - grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
+    presf(1) = presf(1)**(1/rdocp)
 
-  do k=2,k1
-    thvh(k)  = thetah(k)*(1+(rv/rd-1)*qth(k)-rv/rd*qlh(k))
-    presf(k) = presf(k-1)**rdocp - &
-                   grav*(pref0**rdocp)*dzh(k) /(cp*thvh(k))
-    presf(k) = presf(k)**(1/rdocp)
-  end do
+    do k=2,k1
+      thvh(k)  = thetah(k)*(1+(rv/rd-1)*qth(k)-rv/rd*qlh(k))
+      presf(k) = presf(k-1)**rdocp - &
+                     grav*(pref0**rdocp)*dzh(k) /(cp*thvh(k))
+      presf(k) = presf(k)**(1/rdocp)
+    end do
 
-  ! Calculate pressures at half levels
+    ! Calculate pressures at half levels
 
-  presh(1) = ps
-  thvf(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
+    presh(1) = ps
+    thvf(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
 
-  do k=2,k1
-    thvf(k)  = th0av(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
-    presh(k) = presh(k-1)**rdocp - &
-                   grav*(pref0**rdocp)*dzf(k-1) / (cp*thvf(k-1))
-    presh(k) = presh(k)**(1/rdocp)
-  end do
+    do k=2,k1
+      thvf(k)  = th0av(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
+      presh(k) = presh(k-1)**rdocp - &
+                     grav*(pref0**rdocp)*dzf(k-1) / (cp*thvf(k-1))
+      presh(k) = presh(k)**(1/rdocp)
+    end do
 
-  !$acc update device(thvh, presf, thvf, presh)
-  call timer_toc('modthermodynamics/fromztop')
+    !$acc update device(thvh, presf, thvf, presh)
+    call timer_toc('modthermodynamics/fromztop')
 
-  return
+    return
   end subroutine fromztop
 
   !> Magnus formulas for q_sat over liquid and ice.
