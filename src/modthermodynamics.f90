@@ -205,17 +205,22 @@ contains
         call finish(routine, 'temperature above 550 K encountered!')
       end if
 
+      ! Do the saturation adjustment on the full levels
       call saturation_adjustment(qt0, thl0, presf, exnf, ql0)
+
+      call diagfld
+
+      ! Interpolate thl and qt to the half levels
+      call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
+      call calc_halflev(qt0, dzf, dzhi, qts, iadv_qt == iadv_kappa, qt0h)
+
+      ! Do saturation adjustment again on the half levels
+      call saturation_adjustment(qt0h, thl0h, presh, exnh, ql0h)
+    else
       call calc_dry_tmp ! tmp0 is used in statistics
                          ! can consider calculating it only when needed
-    end if
-    call diagfld
+      call diagfld
 
-    call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
-    call calc_halflev(qt0, dzf, dzhi, qts, iadv_qt == iadv_kappa, qt0h)
-
-    if (lmoist .and. (.not. lnoclouds)) then
-      call saturation_adjustment(qt0h, thl0h, presh, exnh, ql0h)
     end if
 
     ! recalculate thv and rho on the basis of results
