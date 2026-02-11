@@ -222,6 +222,35 @@ contains
         svmsave(:,:,:,s) = svm(:,:,:,s)
         sv0avsave(:,s) = sv0av(:,s)
       end do
+
+      !$acc enter data copyin(umsave(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   vmsave(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   wmsave(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   e12msave(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   thlmsave(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   qtmsave(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   u0save(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   v0save(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   w0save(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   thl0save(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   qt0save(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   ql0save(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   ql0hsave(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   e120save(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   dthvdzsave(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   ekmsave(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   tmp0save(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   eslsave(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   qvslsave(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   qvsisave(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   thv0hsave(2-ih:i1+ih,2-jh:j1+jh,1:k1), &
+      !$acc                   svmsave(2-ih:i1+ih,2-jh:j1+jh,1:k1,1:nsv), &
+      !$acc                   sv0save(2-ih:i1+ih,2-jh:j1+jh,1:k1,1:nsv), &
+      !$acc                   sv0avsave(1:k1,1:nsv), &
+      !$acc                   presfsave(1:k1), preshsave(1:k1), thvhsave(1:k1), &
+      !$acc                   u0avsave(1:k1), v0avsave(1:k1), thl0av(1:k1), &
+      !$acc                   qt0avsave(1:k1))
+
     end if
 
   end subroutine init_precursor
@@ -366,11 +395,19 @@ contains
   !> Deallocate the arrays used for the precursor method.
   subroutine exit_precursor
 
+    !$acc exit data delete(umsave, vmsave, wmsave, thlmsave, qtmsave, &
+    !$acc                  e12msave, u0save, v0save, w0save, thl0save, &
+    !$acc                  qt0save, e120save, ql0save, ql0hsave, dthvdzsave, &
+    !$acc                  ekmsave, tmp0save, eslsave, qvslsave, qvsisave, &
+    !$acc                  presfsave, preshsave, thv0hsave, u0avsave, &
+    !$acc                  v0avsave,thl0avsave,qt0avsave, thvhsave, &
+    !$acc                  svmsave, sv0save, sv0avsave)
+
     deallocate(umsave, vmsave, wmsave, thlmsave, qtmsave, e12msave, &
                u0save, v0save, w0save, thl0save, qt0save, e120save, &
                ql0save, ql0hsave, dthvdzsave, ekmsave, tmp0save, eslsave, &
                qvslsave, qvsisave, presfsave, preshsave, thv0hsave, &
-               u0avsave,v0avsave,thl0avsave,qt0avsave, thvhsave, &
+               u0avsave, v0avsave, thl0avsave, qt0avsave, thvhsave, &
                svmsave, sv0save, sv0avsave)
 
   end subroutine exit_precursor
