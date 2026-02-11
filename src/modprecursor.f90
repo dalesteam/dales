@@ -52,37 +52,37 @@ module modprecursor
   integer :: refid = 1  !< ID of the reference simulation (undisturbed)
   integer :: turid = 1  !< ID of the disturbed simulation
   
-  real(field_r), pointer :: umsave(:,:,:)
-  real(field_r), pointer :: vmsave(:,:,:)
-  real(field_r), pointer :: wmsave(:,:,:)
-  real(field_r), pointer :: thlmsave(:,:,:)
-  real(field_r), pointer :: e12msave(:,:,:)
-  real(field_r), pointer :: qtmsave(:,:,:)
-  real(field_r), pointer :: u0save(:,:,:)
-  real(field_r), pointer :: v0save(:,:,:)
-  real(field_r), pointer :: w0save(:,:,:)
-  real(field_r), pointer :: thl0save(:,:,:)
-  real(field_r), pointer :: qt0save(:,:,:)
-  real(field_r), pointer :: ql0save(:,:,:)
-  real(field_r), pointer :: ql0hsave(:,:,:)
-  real(field_r), pointer :: e120save(:,:,:)
-  real(field_r), pointer :: dthvdzsave(:,:,:)  
-  real(field_r), pointer :: ekmsave(:,:,:)  
-  real(field_r), pointer :: tmp0save(:,:,:)  
-  real(field_r), pointer :: eslsave(:,:,:)  
-  real(field_r), pointer :: qvslsave(:,:,:)  
-  real(field_r), pointer :: qvsisave(:,:,:)  
-  real(field_r), pointer :: thv0hsave(:,:,:)  
-  real(field_r), pointer :: presfsave(:)  
-  real(field_r), pointer :: preshsave(:)  
-  real(field_r), pointer :: thvhsave(:)  
-  real(field_r), pointer :: u0avsave(:)
-  real(field_r), pointer :: v0avsave(:)
-  real(field_r), pointer :: thl0avsave(:)
-  real(field_r), pointer :: qt0avsave(:)
-  real(field_r), pointer :: svmsave(:,:,:,:)
-  real(field_r), pointer :: sv0save(:,:,:,:)
-  real(field_r), pointer :: sv0avsave(:,:)
+  real(field_r), allocatable :: umsave(:,:,:)
+  real(field_r), allocatable :: vmsave(:,:,:)
+  real(field_r), allocatable :: wmsave(:,:,:)
+  real(field_r), allocatable :: thlmsave(:,:,:)
+  real(field_r), allocatable :: e12msave(:,:,:)
+  real(field_r), allocatable :: qtmsave(:,:,:)
+  real(field_r), allocatable :: u0save(:,:,:)
+  real(field_r), allocatable :: v0save(:,:,:)
+  real(field_r), allocatable :: w0save(:,:,:)
+  real(field_r), allocatable :: thl0save(:,:,:)
+  real(field_r), allocatable :: qt0save(:,:,:)
+  real(field_r), allocatable :: ql0save(:,:,:)
+  real(field_r), allocatable :: ql0hsave(:,:,:)
+  real(field_r), allocatable :: e120save(:,:,:)
+  real(field_r), allocatable :: dthvdzsave(:,:,:)  
+  real(field_r), allocatable :: ekmsave(:,:,:)  
+  real(field_r), allocatable :: tmp0save(:,:,:)  
+  real(field_r), allocatable :: eslsave(:,:,:)  
+  real(field_r), allocatable :: qvslsave(:,:,:)  
+  real(field_r), allocatable :: qvsisave(:,:,:)  
+  real(field_r), allocatable :: thv0hsave(:,:,:)  
+  real(field_r), allocatable :: presfsave(:)  
+  real(field_r), allocatable :: preshsave(:)  
+  real(field_r), allocatable :: thvhsave(:)  
+  real(field_r), allocatable :: u0avsave(:)
+  real(field_r), allocatable :: v0avsave(:)
+  real(field_r), allocatable :: thl0avsave(:)
+  real(field_r), allocatable :: qt0avsave(:)
+  real(field_r), allocatable :: svmsave(:,:,:,:)
+  real(field_r), allocatable :: sv0save(:,:,:,:)
+  real(field_r), allocatable :: sv0avsave(:,:)
 
 contains
 
@@ -378,56 +378,56 @@ contains
   !> Swap the pointers of two 4D arrays.
   subroutine swap_4d(a, b)
 
-    real(field_r), pointer, intent(inout) :: a(:,:,:,:)
-    real(field_r), pointer, intent(inout) :: b(:,:,:,:)
+    real(field_r), allocatable, intent(inout) :: a(:,:,:,:)
+    real(field_r), allocatable, intent(inout) :: b(:,:,:,:)
 
-    real(field_r), pointer :: temp(:,:,:,:)
-
-    temp => a
-    a => b
-    b => temp
+    real(field_r), allocatable :: temp(:,:,:,:)
+    
+    call move_alloc(a, temp)
+    call move_alloc(b, a)
+    call move_alloc(temp, b)
 
   end subroutine swap_4d
 
   !> Swap the pointers of two 3D arrays.
   subroutine swap_3d(a, b)
 
-    real(field_r), pointer, intent(inout) :: a(:,:,:)
-    real(field_r), pointer, intent(inout) :: b(:,:,:)
+    real(field_r), allocatable, intent(inout) :: a(:,:,:)
+    real(field_r), allocatable, intent(inout) :: b(:,:,:)
 
-    real(field_r), pointer :: temp(:,:,:)
+    real(field_r), allocatable :: temp(:,:,:)
 
-    temp => a
-    a => b
-    b => temp
+    call move_alloc(a, temp)
+    call move_alloc(b, a)
+    call move_alloc(temp, b)
 
   end subroutine swap_3d
 
   !> Swap the pointers of two 2D arrays.
   subroutine swap_2d(a, b)
 
-    real(field_r), pointer, intent(inout) :: a(:,:)
-    real(field_r), pointer, intent(inout) :: b(:,:)
+    real(field_r), allocatable, intent(inout) :: a(:,:)
+    real(field_r), allocatable, intent(inout) :: b(:,:)
 
-    real(field_r), pointer :: temp(:,:)
+    real(field_r), allocatable :: temp(:,:)
 
-    temp => a
-    a => b
-    b => temp
+    call move_alloc(a, temp)
+    call move_alloc(b, a)
+    call move_alloc(temp, b)
 
   end subroutine swap_2d
 
   !> Swap the pointers of two 1D arrays.
   subroutine swap_1d(a, b)
 
-    real(field_r), pointer, intent(inout) :: a(:)
-    real(field_r), pointer, intent(inout) :: b(:)
+    real(field_r), allocatable, intent(inout) :: a(:)
+    real(field_r), allocatable, intent(inout) :: b(:)
 
-    real(field_r), pointer :: temp(:)
+    real(field_r), allocatable :: temp(:)
 
-    temp => a
-    a => b
-    b => temp
+    call move_alloc(a, temp)
+    call move_alloc(b, a)
+    call move_alloc(temp, b)
 
   end subroutine swap_1d
 
