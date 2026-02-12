@@ -239,8 +239,8 @@ contains
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
-          thv0(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
-                      * (1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
+          thv0(i,j,k) = calc_virt_pot_temp(thl0(i,j,k), qt0(i,j,k), &
+                                           ql0(i,j,k), exnf(k))
         end do
       end do
     end do
@@ -321,8 +321,8 @@ contains
       do k = 2, k1
         do j = 2, j1
           do i = 2, i1
-            thv0h(i,j,k) = (thl0h(i,j,k)+rlv*ql0h(i,j,k)/(cp*exnh(k))) &
-                          *(1+(rv/rd-1)*qt0h(i,j,k)-rv/rd*ql0h(i,j,k))
+            thv0h(i,j,k) = calc_virt_pot_temp(thl0h(i,j,k), qt0h(i,j,k), &
+                                              ql0h(i,j,k), exnh(k))
           end do
         end do
       end do
