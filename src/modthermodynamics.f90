@@ -329,8 +329,9 @@ contains
 
       !TODO: fix the branching in this loop
       !$acc parallel loop collapse(3) default(present) &
-      !$acc& private(a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, chi_sat, chi, dthv, del_thv_dry, del_thv_sat, temp, qs, dq, dth) &
-      !$acc& async(1)
+      !$acc private(a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, &
+      !$acc         chi_sat, chi, dthv, del_thv_dry, del_thv_sat, temp, qs, dq, dth) &
+      !$acc async(1)
       do k = 2, kmax
         do j = 2 , j1
           do i = 2, i1
