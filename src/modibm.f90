@@ -151,6 +151,7 @@ contains
     call D_MPI_BCAST(thlibm             ,    1, 0, comm3d, mpierr)
     call D_MPI_BCAST(qtibm              ,    1, 0, comm3d, mpierr)
     call D_MPI_BCAST(thlroof            ,    1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(qtroof             ,    1, 0, comm3d, mpierr)
     call D_MPI_BCAST(lpoislast          ,    1, 0, comm3d, mpierr)
     call D_MPI_BCAST(z0m_wall           ,    1, 0, comm3d, mpierr)
     call D_MPI_BCAST(z0h_wall           ,    1, 0, comm3d, mpierr)
