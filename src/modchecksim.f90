@@ -583,6 +583,8 @@ contains
             if (val < threshold(1) .or. val > threshold(2)) then
               call print_warning_out_of_range(name, step, [i, j, k], cval, &
                       [number2string(threshold(1)), number2string(threshold(2))])
+            else
+              cycle
             end if
           else
             cycle
@@ -624,6 +626,8 @@ contains
             if (val < threshold(1) .or. val > threshold(2)) then
               call print_warning_out_of_range(name, step, [i, j, k], cval, &
                       [number2string(threshold(1)), number2string(threshold(2))])
+            else
+              cycle
             end if
           else
             cycle
