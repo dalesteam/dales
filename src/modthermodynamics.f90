@@ -206,7 +206,12 @@ contains
       end if
 
       ! Do the saturation adjustment on the full levels
-      call saturation_adjustment(qt0, thl0, presf, exnf, ql0)
+#if defined(DALES_GPU)
+      call saturation_adjustment_gpu(qt0, thl0, presf, exnf, ql0, opt_stream=1)
+#else
+      call saturation_adjustment(qt0, thl0, presf, exnf, ql0, opt_stream=1)
+#endif
+
 
       call diagfld
 
@@ -215,7 +220,11 @@ contains
       call calc_halflev(qt0, dzf, dzhi, qts, iadv_qt == iadv_kappa, qt0h)
 
       ! Do saturation adjustment again on the half levels
-      call saturation_adjustment(qt0h, thl0h, presh, exnh, ql0h)
+#if defined(DALES_GPU)
+      call saturation_adjustment_gpu(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1)
+#else
+      call saturation_adjustment(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1)
+#endif
     else
       call calc_dry_tmp ! tmp0 is used in statistics
                          ! can consider calculating it only when needed
@@ -226,7 +235,7 @@ contains
     ! recalculate thv and rho on the basis of results
     call calthv
 
-    !$acc parallel loop collapse(3) default(present) async(2)
+    !$acc parallel loop collapse(3) default(present) async(1)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
@@ -236,15 +245,17 @@ contains
       end do
     end do
 
-    !$acc parallel loop gang(static:1) default(present)
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
     do k = 1, k1
       thvh(k) = 0.0_field_r
     end do
 
-    !$acc parallel loop gang(static:1) default(present)
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
     do k = 1, k1
       thvf(k) = 0.0_field_r
     end do
+
+    !$acc wait
 
     if (.not. lapply_ibm) then
       call slabavg(thv0h, ih, thvh)
@@ -254,7 +265,7 @@ contains
       call slabavg(thv0,fluid_mask,ih,thvf)
     end if
 
-    !$acc serial default(present)
+    !$acc serial default(present) async(1)
     thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
     !$acc end serial
 
@@ -279,7 +290,7 @@ contains
   subroutine calc_dry_tmp
     integer :: i, j, k
 
-    !$acc parallel loop collapse(3) default(present) async
+    !$acc parallel loop collapse(3) default(present) async(1)
     do k = 1,k1
        do j = 2,j1
           do i = 2,i1
@@ -319,7 +330,7 @@ contains
       !TODO: fix the branching in this loop
       !$acc parallel loop collapse(3) default(present) &
       !$acc& private(a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, chi_sat, chi, dthv, del_thv_dry, del_thv_sat, temp, qs, dq, dth) &
-      !$acc& async(2)
+      !$acc& async(1)
       do k = 2, kmax
         do j = 2 , j1
           do i = 2, i1
@@ -364,7 +375,7 @@ contains
         end do
       end do
 
-      !$acc parallel loop collapse(2) default(present) private(temp, qs, a_surf, b_surf) async(3)
+      !$acc parallel loop collapse(2) default(present) private(temp, qs, a_surf, b_surf) async(1)
       do j=2,j1
         do i=2,i1
           if(ql0(i,j,1)>0) then
@@ -384,7 +395,7 @@ contains
       end do
 
     else
-      !$acc parallel loop collapse(3) default(present)
+      !$acc parallel loop collapse(3) default(present) async(1)
       do k = 2, k1
         do j = 2, j1
           do i = 2, i1
@@ -393,7 +404,7 @@ contains
         end do
       end do
 
-      !$acc parallel loop collapse(3) default(present)
+      !$acc parallel loop collapse(3) default(present) async(1)
       do k = 2, kmax
         do j = 2, j1
           do i = 2, i1
@@ -402,7 +413,7 @@ contains
         end do
       end do
 
-      !$acc parallel loop collapse(2) default(present)
+      !$acc parallel loop collapse(2) default(present) async(1)
       do j = 2, j1
         do i = 2, i1
           dthvdz(i,j,1) = dthldz(i,j)
@@ -410,7 +421,7 @@ contains
       end do
     end if
 
-    !$acc parallel loop collapse(3) default(present) async wait(2, 3)
+    !$acc parallel loop collapse(3) default(present) async(1)
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
@@ -420,8 +431,6 @@ contains
         end do
       end do
     end do
-
-    !$acc wait
 
     call timer_toc(routine)
 
@@ -438,42 +447,44 @@ contains
 
     ! 1. Compute slab averaged fields
 
-    !$acc parallel loop gang(static:1) default(present)
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
     do k = 1, k1
       u0av(k) = 0.0_field_r
     end do
 
-    !$acc parallel loop gang(static:1) default(present)
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
     do k = 1, k1
       v0av(k) = 0.0_field_r
     end do
 
-    !$acc parallel loop gang(static:1) default(present)
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
     do k = 1, k1
       thl0av(k) = 0.0_field_r
     end do
 
-    !$acc parallel loop gang(static:1) default(present)
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
     do k = 1, k1
       th0av(k) = 0.0_field_r
     end do
 
-    !$acc parallel loop gang(static:1) default(present)
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
     do k = 1, k1
       qt0av(k) = 0.0_field_r
     end do
 
-    !$acc parallel loop gang(static:1) default(present)
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
     do k = 1, k1
       ql0av(k) = 0.0_field_r
     end do
 
-    !$acc parallel loop gang vector collapse(2) default(present)
+    !$acc parallel loop gang vector collapse(2) default(present) async wait(1)
     do k = 1, k1
       do n = 1, nsv
         sv0av(k,n) = 0.0_field_r
       end do
     end do
+
+    !$acc wait
 
     ! If the IBM is enabled, exclude the building cells from the averages
     if (.not. lapply_ibm) then
@@ -504,7 +515,7 @@ contains
       end do
     endif
 
-    !$acc parallel loop gang(static:1) default(present)
+    !$acc parallel loop gang(static:1) default(present) async(1)
     do k = 1, k1
       th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
     end do
@@ -515,7 +526,7 @@ contains
 
     call fromztop
 
-    !$acc parallel loop gang(static:1) default(present)
+    !$acc parallel loop gang(static:1) default(present) async(1)
     do k = 1, k1
       th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
     end do
@@ -546,12 +557,11 @@ contains
       end do
     endif
 
-    !$acc parallel loop default(present) async wait(1, 2)
+    !$acc parallel loop default(present) async(1)
     do k=1,k1
       thvf(k) = th0av(k)*exnf(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
       rhof(k) = presf(k)/(rd*thvf(k))
     end do
-    !$acc wait
 
     call timer_toc(routine)
 
@@ -571,7 +581,7 @@ contains
 
     ! Interpolate theta and qt to half levels
 
-    !$acc parallel loop default(present)
+    !$acc parallel loop default(present) async(1)
     do k=2,k1
       thetah(k) = (th0av(k)*dzf(k-1) + th0av(k-1)*dzf(k))/(2*dzh(k))
       qth   (k) = (qt0av(k)*dzf(k-1) + qt0av(k-1)*dzf(k))/(2*dzh(k))
@@ -606,7 +616,7 @@ contains
       presh(k) = presh(k)**(1/rdocp)
     end do
 
-    !$acc update device(thvh, presf, thvf, presh)
+    !$acc update device(thvh, presf, thvf, presh) async(1)
 
     call timer_toc(routine)
 
@@ -774,6 +784,69 @@ contains
     call timer_toc(routine)
 
   end subroutine saturation_adjustment
+
+#if defined(DALES_GPU)
+  !> Compute the cloud water content via the saturation adjustment method.
+  subroutine saturation_adjustment_gpu(qt, thl, pres, exn, ql, opt_stream)
+
+    real(field_r), intent(in) :: qt(2-ih:,2-jh:,:)  !< Total water specific humidity [kg/kg]
+    real(field_r), intent(in) :: thl(2-ih:,2-jh:,:) !< Liquid water potential temperature [K]
+    real(field_r), intent(in) :: pres(:)            !< Pressure [Pa]
+    real(field_r), intent(in) :: exn(:)             !< Exner function [-]
+
+    real(field_r), intent(inout) :: ql(2-ih:,2-jh:,:) !< Liquid water specific humidity [kg/kg].
+
+    integer, optional, intent(in) :: opt_stream !< (Optional) OpenACC stream ID.
+
+    character(len=*), parameter :: routine = modname//'saturation_adjustment'
+
+    integer :: i, j, k
+    integer :: stream = 1 !< OpenACC stream ID.
+
+    real(field_r) :: b      !< Factor in the equation for saturation specific humidity [-]
+    real(field_r) :: qli    !< Intermediate value of liquid water specific humidity [kg/kg]
+    real(field_r) :: qsat   !< Saturation specific humidity [kg/kg]
+    real(field_r) :: qti    !< Intermediate value of total water specific humditiy [kg/kg]
+    real(field_r) :: Tl     !< Liquid water temperature [K]
+    real(field_r) :: Tl_min !< Minimum value of the liquid water temperature [K]
+    real(field_r) :: qt_max !< Maximum value of the total water specific humidity [kg/kg]
+
+    if (present(opt_stream)) stream = opt_stream
+
+    call timer_tic(routine, 1)
+
+    !$acc parallel loop gang vector collapse(3) default(present) async(stream) &
+    !$acc private(b, qli, qsat, qti, Tl)
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
+          qti = qt(i,j,k)
+
+          ! First step
+          Tl = exn(k) * thl(i,j,k)
+          qsat = qsat_tab(Tl, pres(k))
+          b = rlv**2 / (rv * cp * Tl**2)
+          qsat = qsat * (1 + b * qti) / (1 + b * qsat)
+
+          ! Update the starting point
+          qli = max(qti - qsat, 0.0_field_r)
+          Tl = Tl + (rlv / cp) * qli
+          qti = qti - qli
+
+          ! Second step
+          qsat = qsat_tab(Tl, pres(k))
+          b = rlv**2 / (rv * cp * Tl**2)
+          qsat = qsat * (1 + b * qti) / (1 + b * qsat)
+
+          ql(i,j,k) = max(qt(i,j,k) - qsat, 0.0_field_r)
+        end do
+      end do
+    end do
+
+    call timer_toc(routine)
+
+  end subroutine saturation_adjustment_gpu
+#endif
 
   !> Diagnose saturation specific humidities over liquid and ice.
   subroutine calc_saturation_humidities(qt, ql, thl, pres, exn, esl, qvsl, qvsi)
