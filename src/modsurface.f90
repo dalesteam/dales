@@ -1404,6 +1404,7 @@ contains
   function calc_obl_iter(thl, qt, tskin, qskin, z, z0m, z0h, u, v, L) &
     result(retval)
 
+    !$acc routine seq
     real(field_r), intent(in) :: thl   !< Liquid potential temperature [K]
     real(field_r), intent(in) :: qt    !< Specific humidity [kg/kg]
     real(real64),  intent(in) :: tskin !< Skin temperature [K]
