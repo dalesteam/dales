@@ -1,34 +1,37 @@
-!> \file modspraying.f90
-!! Stephan de Roode and Annelot Broerze
-
+!> Common data for the spraying module.
+!!
+!! @author Stephan de Roode
+!! @author Annelot Broerze
 module modsprayingdata
 
+  use modprecision, only: field_r
+
   implicit none
-  save
 
-  logical :: lwater_spraying   = .false.     !< Switch to enable water and sea salt spraying
-  logical :: lsalt_spraying    = .false.     !< Switch to enable sea salt spraying
-  logical :: lsalt_sponge      = .false.     !< Switch to enable nudging of salt to 0 at the boundary
-  !< Set default value for water spraying
-  !< Set default location
+  public
 
-  integer :: i_glob_spray = 2  !these are global grid points (numbering in the whole domain)
-  integer :: j_glob_spray = 2
-  integer :: k_glob_spray = 2
+  logical :: lwater_spraying = .false. !< Switch to enable water and sea salt spraying
+  logical :: lsalt_spraying  = .false. !< Switch to enable sea salt spraying
+  logical :: lsalt_sponge    = .false. !< Switch to enable nudging of salt to 0 at the boundary
+  logical :: lcoupled        = .false. !< Enable coupling to aerosol module
 
-  integer :: i_loc_spray = -999
-  integer :: j_loc_spray = -999
-  integer :: k_loc_spray = -999
+  integer :: i_glob_spray = 2 !< Global i index of spraying point.
+  integer :: j_glob_spray = 2 !< Global j index of spraying point.
+  integer :: k_glob_spray = 2 !< Global k index of spraying point.
 
-  real :: water_spray_rate = 1.    ! kg/sec water spraying excluding salt
-  real :: salt_spray_rate  = 0.030 ! kg/sec salt spraying
+  integer :: i_spray = -999 !< Local i index of spraying point
+  integer :: j_spray = -999 !< Local j index of spraying point
+  integer :: k_spray = -999 !< Local k index of spraying point
 
-  real :: dqldt_spraying = 0.   ! convert water_spray_rate to local value in LES grid
-  real :: dsvdt_spraying = 0.   ! convert salt spray rate to local value in LES grid
+  real(field_r) :: water_spray_rate = 1.    !< Water spray rate [kg/s]
+  real(field_r) :: salt_spray_rate  = 0.030 !< Salt spray rate [kg/s]
+  real(field_r) :: salinity = 0.03          !< Salinity of sprayed water [kg of salt per kg of seawater]
 
-  character(20) :: tracer = "salt" ! name of the sprayed scalar
-  integer :: isv_salt = -1
+  character(len=20) :: tracer = "salt"     !< Name of the sprayed scalar (only used if lcoupled is false)
+  integer           :: isv_salt = -1       !< Tracer index for salt mass concentration
+  integer           :: isv_salt_n = -1     !< Tracer index for salt number concentration (only used if lcoupled is true)
+  character(len=3)  :: target_mode = 'acs' !< Aerosol mode to spray in (acs or cos), only used if lcoupled is true
 
-  real :: salinity = 0.03 ! this definition assumes 1 kg of sea water contains a mass of salt equal to salinity kg
+  logical :: my_process_sprays = .false. !< Whether this process should apply spraying (i.e. whether the spraying point is located on this process)
 
 end module modsprayingdata

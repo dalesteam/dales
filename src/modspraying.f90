@@ -1,174 +1,179 @@
-!> \file modspraying.f99
-!! Stephan de Roode and Annelot Broerze
-
-
-
+!> MCB sprayers with evaporative cooling.
+!!
+!! @author Stephan de Roode
+!! @author Annelot Broerze
 module modspraying
-   use modprecision, only: field_r
-   use modsprayingdata, only: i_glob_spray,j_glob_spray,k_glob_spray,&
-                              i_loc_spray,j_loc_spray,k_loc_spray,&
-                              water_spray_rate,salt_spray_rate,&
-                              lwater_spraying,lsalt_spraying,salinity,&
-                              isv_salt,tracer,lsalt_sponge
-   implicit none
+  use fortran_support, only: nnml_output
+  use modfields,       only: qtp, qt0, thlp, exnf, ql0, svp, sv0, rhobf
+  use modglobal,       only: dx, dy, dzf, i1, j1, imax, jmax, kmax, ifnamopt, &
+                             fname_options, checknamelisterror, cp, rlv, pi
+  use modlogging,      only: profile_output
+  use modmpi,          only: myid, myidx, myidy, comm3d, mpierr, d_mpi_bcast
+  use modprecision,    only: field_r
+  use modsprayingdata, only: i_glob_spray, j_glob_spray, k_glob_spray, &
+                             i_spray, j_spray, k_spray, &
+                             water_spray_rate, salt_spray_rate, &
+                             lwater_spraying, lsalt_spraying, salinity, &
+                             isv_salt,tracer, lsalt_sponge, lcoupled, &
+                             my_process_sprays, target_mode, isv_salt_n
+  use modtracers,      only: add_tracer, get_tracer_index
 
-  ! for lateral sponge
-  real(field_r), allocatable :: fnudgeloc(:,:) ! local, cpu dependent array of fnudge values
-  integer :: nudgedepthgr = 10 ! number of lateral nudge grid points
+  implicit none
+
+  private
+
+  character(len=*), parameter :: modname = 'modspraying'
+
+  public :: spraying_read_namelist
+  public :: initspraying
+  public :: spraying
 
 contains
+
+  !> Read the namelist for spraying.
+  subroutine spraying_read_namelist(nml_filename)
+
+    character(len=*), intent(in) :: nml_filename
+
+    character(len=*), parameter :: routine = modname//'/spraying_read_namelist'
+
+    integer :: ierr
+
+    namelist /namspraying/ lwater_spraying, lsalt_spraying, &
+                           i_glob_spray, j_glob_spray, k_glob_spray, &
+                           water_spray_rate, salt_spray_rate, salinity, &
+                           tracer, lsalt_sponge, lcoupled, target_mode
+
+    if(myid==0) then
+      open(ifnamopt, file=fname_options, status='old', iostat=ierr)
+      read(ifnamopt, namspraying, iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'NAMSPRAYING')
+      write(nnml_output, namspraying)
+      close(ifnamopt)
+    endif
+
+    call D_MPI_BCAST(lwater_spraying ,    1,  0, comm3d, mpierr)
+    call D_MPI_BCAST(lsalt_spraying  ,    1,  0, comm3d, mpierr)
+    call D_MPI_BCAST(i_glob_spray    ,    1,  0, comm3d, mpierr)
+    call D_MPI_BCAST(j_glob_spray    ,    1,  0, comm3d, mpierr)
+    call D_MPI_BCAST(k_glob_spray    ,    1,  0, comm3d, mpierr)
+    call D_MPI_BCAST(water_spray_rate,    1,  0, comm3d, mpierr)
+    call D_MPI_BCAST(salt_spray_rate,     1,  0, comm3d, mpierr)
+    call D_MPI_BCAST(tracer,             20,  0, comm3d, mpierr)
+    call D_MPI_BCAST(lsalt_sponge,        1,  0, comm3d, mpierr)
+    call D_MPI_BCAST(lcoupled,            1,  0, comm3d, mpierr)
+    call D_MPI_BCAST(target_mode,         3, 0, comm3d, mpierr)
+
+  end subroutine spraying_read_namelist
+
+  !> Initialize spraying parameters and determine local spraying location.
   subroutine initspraying
-  use modglobal,    only : i1,j1,imax,jmax,kmax,ifnamopt,fname_options,checknamelisterror
-  use modmpi,       only : myid,myidx,myidy,comm3d, mpierr, d_mpi_bcast
-  use modtracers,   only: add_tracer
-  use fortran_support, only: nnml_output
-  use modlogging,      only : profile_output
-  !use modnudgeboundary, only : lnudgeboundary
 
+    character(len=*), parameter :: routine = modname//'/initspraying'
 
-  integer ierr
+    if (lwater_spraying) then
+      lsalt_spraying  = .true.
+      salt_spray_rate = water_spray_rate * salinity ! directy coupled to water spray rate
+    else
+      water_spray_rate = 0
+    endif
 
-  namelist/NAMSPRAYING/ lwater_spraying,lsalt_spraying,&
-                        i_glob_spray,j_glob_spray,k_glob_spray,&
-                        water_spray_rate,salt_spray_rate,salinity,&
-                        tracer,lsalt_sponge
+    if (lsalt_spraying) then
+      if (lcoupled) then
+        isv_salt = get_tracer_index('ss_'//target_mode)
+        isv_salt_n = get_tracer_index(target_mode//'_n')
+      else
+        call add_tracer(trim(tracer), long_name=trim(tracer)//" mixing ratio", &
+                        unit="kg/kg", isv=isv_salt)
+      end if
+    endif
 
-  if(myid==0) then    !first myid
-    open(ifnamopt,file=fname_options,status='old',iostat=ierr)
-    read (ifnamopt,NAMSPRAYING,iostat=ierr)
-    call checknamelisterror(ierr, ifnamopt, 'NAMSPRAYING')
-    write(nnml_output ,NAMSPRAYING)
-    close(ifnamopt)
-  endif
+    ! determine local position of spraying from global position
+    i_spray = i_glob_spray - myidx*imax
+    j_spray = j_glob_spray - myidy*jmax
+    k_spray = k_glob_spray
 
-  call D_MPI_BCAST(lwater_spraying ,    1,  0, comm3d, mpierr)
-  call D_MPI_BCAST(lsalt_spraying  ,    1,  0, comm3d, mpierr)
-  call D_MPI_BCAST(i_glob_spray    ,    1,  0, comm3d, mpierr)
-  call D_MPI_BCAST(j_glob_spray    ,    1,  0, comm3d, mpierr)
-  call D_MPI_BCAST(k_glob_spray    ,    1,  0, comm3d, mpierr)
-  call D_MPI_BCAST(water_spray_rate,    1,  0, comm3d, mpierr)
-  call D_MPI_BCAST(salt_spray_rate,     1,  0, comm3d, mpierr)
-  call D_MPI_BCAST(tracer,             20,  0, comm3d, mpierr)
-  call D_MPI_BCAST(lsalt_sponge,        1,  0, comm3d, mpierr)
-  
-  if (lwater_spraying) then
-     lsalt_spraying  = .true.
-     salt_spray_rate = water_spray_rate * salinity   !directy coupled to water spray rate
-  else
-     water_spray_rate = 0.
-  endif
+    ! are the local coordinates actually in the domain?
+    if (i_spray >= 2 .and. i_spray <= i1 .and. &
+        j_spray >= 2 .and. j_spray <= j1 .and. &
+        k_spray >= 1 .and. k_spray <= kmax) then
+      write(profile_output,*) 'spraying point at myidx = ',myidx, ' myidy = ', myidy
+      write(profile_output,*) 'global locations ',i_glob_spray,j_glob_spray,k_glob_spray
+      write(profile_output,*) 'local locations ',i_spray,j_spray,k_spray
+      my_process_sprays = .true.
+    else  ! if not, there is no sprayer here
+      my_process_sprays = .false.
+      i_spray = -999
+      j_spray = -999
+      k_spray = -999
+    endif
 
-  if (lsalt_spraying) then
-     call add_tracer(trim(tracer), long_name=trim(tracer)//" mixing ratio", &
-          unit="kg/kg", isv=isv_salt)
-  endif
-
-  !determine local position of spraying from global position
-  i_loc_spray = i_glob_spray - myidx*imax
-  j_loc_spray = j_glob_spray - myidy*jmax
-  k_loc_spray = k_glob_spray
-
-  ! are the local coordinates actually in the domain?
-  if (i_loc_spray >= 2 .and. i_loc_spray <= i1 .and. &
-       j_loc_spray >= 2 .and. j_loc_spray <= j1 .and. &
-       k_loc_spray >= 1 .and. k_loc_spray <= kmax) then
-     write(profile_output,*) 'spraying point at myid = ',myid
-     write(profile_output,*) 'global locations ',i_glob_spray,j_glob_spray,k_glob_spray
-     write(profile_output,*) 'local locations ',i_loc_spray,j_loc_spray,k_loc_spray
-  else  ! if not, there is no sprayer here
-     i_loc_spray = -999
-     j_loc_spray = -999
-     k_loc_spray = -999
-  endif
-
-  if (myid==0) then
-     write(profile_output,*) 'Spraying data used: '
-     write(profile_output,*) 'lwater_spraying     ',lwater_spraying
-     write(profile_output,*) 'lsalt_spraying      ',lsalt_spraying
-     write(profile_output,*) 'i_glob_spray        ',i_glob_spray
-     write(profile_output,*) 'j_glob_spray        ',j_glob_spray
-     write(profile_output,*) 'k_glob_spray        ',k_glob_spray
-     write(profile_output,*) 'water_spray_rate    ',water_spray_rate
-     write(profile_output,*) 'salt_spray_rate     ',salt_spray_rate
-     write(profile_output,*) 'salt scalar number  ',isv_salt
-     write(profile_output,*)
-  endif
-
-  if (lsalt_spraying .and. lsalt_sponge) then
-     call initlateralsponge ! TODO: move this to be independent of spraying
-  end if
+    if (myid==0) then
+      write(profile_output,*) 'Spraying data used: '
+      write(profile_output,*) 'lwater_spraying     ',lwater_spraying
+      write(profile_output,*) 'lsalt_spraying      ',lsalt_spraying
+      write(profile_output,*) 'i_glob_spray        ',i_glob_spray
+      write(profile_output,*) 'j_glob_spray        ',j_glob_spray
+      write(profile_output,*) 'k_glob_spray        ',k_glob_spray
+      write(profile_output,*) 'water_spray_rate    ',water_spray_rate
+      write(profile_output,*) 'salt_spray_rate     ',salt_spray_rate
+      write(profile_output,*) 'salt scalar number  ',isv_salt
+      write(profile_output,*)
+    endif
 
   end subroutine initspraying
 
+  !> Apply spraying tendencies to the model fields.
+  subroutine spraying()
 
-  ! smooth nudging of a scalar field to 0 at the boundary - a lateral sponge
-  ! modified from code by Pim van Dorp 2015
-  subroutine initlateralsponge
-    use modglobal, only: itot, jtot, imax, jmax, i1, j1, ih, jh, pi
-    use modmpi, only : myidx,myidy
-    real(field_r) :: fnudge
-    integer i, j, iglob, jglob
-    real(field_r), allocatable :: fnudgeglob(:,:) ! global array of fnudge values
+    real(field_r) :: dqldt_spraying, dsvdt_spraying
+    real(field_r) :: dm, dn
+    real(field_r) :: cell_volume !< Air density times grid cell volume [kg]
 
-    allocate(fnudgeglob(1-ih:itot+ih,1-jh:jtot+jh))
-    allocate(fnudgeloc(2-ih:i1+ih,2-jh:j1+jh))
-    fnudgeglob = 0
-    fnudgeloc = 0
+    cell_volume = dx * dy * dzf(k_spray)
 
-    ! construct a 2D field of nudging constants
-    do i=nudgedepthgr,1,-1
-      fnudge = 0.5 + 0.5*cos((pi/(nudgedepthgr-1))*(i-1))
+    if (lwater_spraying .and. my_process_sprays) then
+      dqldt_spraying = water_spray_rate / (rhobf(k_spray) * cell_volume)
 
-      fnudgeglob(i,i:jtot-i+1) = fnudge
-      fnudgeglob(itot-i+1,i:jtot-i+1) = fnudge
-      fnudgeglob(i+1:(itot-i),i) = fnudge
-      fnudgeglob(i+1:(itot-i),jtot-i+1) = fnudge
-   end do
+      !$acc serial default(present) async
+      qtp(i_spray,j_spray,k_spray) = qtp(i_spray,j_spray,k_spray) &
+        + (1-qt0(i_spray,j_spray,k_spray)) * dqldt_spraying
 
-   ! cut out the part for this processor
-   do j=2,j1
-      do i=2,i1
-         iglob = i + imax*myidx - 1
-         jglob = j + jmax*myidy - 1
-         fnudgeloc(i,j) = fnudgeglob(iglob,jglob)
-      end do
-   end do
+      ! Evaporative cooling
+      thlp(i_spray,j_spray,k_spray) = thlp(i_spray,j_spray,k_spray) & 
+        - (rlv / (cp * exnf(k_spray))) &
+        * (1 - ql0(i_spray,j_spray,k_spray)) * dqldt_spraying
+      !$acc end serial
+    end if
 
-   deallocate(fnudgeglob)
+    if (lsalt_spraying .and. my_process_sprays) then
+      if (lcoupled) then
+        dm = salt_spray_rate / (rhobf(k_spray) * cell_volume)
 
-  end subroutine initlateralsponge
+        ! Increase in number concentration, assuming monodisperse aerosol
+        dn = salt_spray_rate / (2165.0 * pi / 6 * (75e-9)**3)
+        dn = dn / cell_volume ! Number concentrations are in #/m3
 
-  subroutine lateralsponge
-    use modglobal, only : kmax, i1, j1, rdt, nsv
-    use modfields, only : svp,sv0 !lsv_nudge_at_boundary
+        !$acc serial default(present) async
+        svp(i_spray,j_spray,k_spray,isv_salt) = &
+          svp(i_spray,j_spray,k_spray,isv_salt) + dm
+       
+        svp(i_spray,j_spray,k_spray,isv_salt_n) = &
+          svp(i_spray,j_spray,k_spray,isv_salt_n) + dn
+        !$acc end serial
+      else
+        dsvdt_spraying = salt_spray_rate / (rhobf(k_spray) * cell_volume) &
+          * (1 - sv0(i_spray,j_spray,k_spray,isv_salt) / salinity)
 
-    integer i,j,k,isv
-    if (.not. lsalt_sponge) return
+        !$acc serial default(present) async
+        svp(i_spray,j_spray,k_spray,isv_salt) = &
+          svp(i_spray,j_spray,k_spray,isv_salt) + dsvdt_spraying
+        !$acc end serial
+      end if
+    endif
 
-    !if (nsv.gt.0) then
-       !do isv=1,nsv
-       !if (lsv_nudge_at_boundary(isv)) then
-    isv = isv_salt  ! TODO: for now only nudge the sprayed salt scalar to 0
-       do k=1,kmax
-          do j=2,j1
-             do i=2,i1
-                ! svp(i,j,k,isv) = (1-fnudgeloc(i,j,k))*svp(i,j,k,isv) + fnudgeloc(i,j,k)*(0-sv0(i,j,k,isv))/rdt
-                ! the original nudged also the tendency towards 0
+    !$acc wait
 
-                svp(i,j,k,isv) = svp(i,j,k,isv) + fnudgeloc(i,j)*(0-sv0(i,j,k,isv))/rdt
-             end do
-          end do
-       end do
-    !endif
-    !end do
-    !endif
-
-  end subroutine lateralsponge
-
-
-  subroutine exitlateralsponge
-    deallocate(fnudgeloc)
-  end subroutine exitlateralsponge
-
+  end subroutine spraying
 
 end module modspraying
