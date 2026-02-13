@@ -483,7 +483,7 @@ contains
    !$acc kernels default(present)
    th0av = thl0av + (rlv/cp)*ql0av/exnf
    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
-      exnf = (presf/pref0)**(rd/cp)
+      exnf(:) = (presf(:)/pref0)**(rd/cp)
    endif
    !$acc end kernels
 

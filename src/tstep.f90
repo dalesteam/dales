@@ -122,8 +122,8 @@ subroutine tstep_update
 
   if(lwarmstart) spinup = .false.
 
-  rk3step = mod(rk3step,3) + 1
-  if(rk3step == 1) then
+  ! In the original precursor code, this was commented out; why?
+  !if(rk3step == 1) then
 
     ! Initialization
     if (spinup) then
@@ -216,37 +216,7 @@ subroutine tstep_update
         timeleft=timeleft-dt
       end if
     end if
-  end if
-
-  ! set all tendencies to zero
-  !$acc parallel loop collapse(3) default(present) async(1)
-  do k = 1, k1
-    do j = 2, j2     ! i2, j2 here to include one ghost cell,
-      do i = 2, i2   ! needed for up, vp with open boundaries
-        up(i,j,k)=0.
-        vp(i,j,k)=0.
-        wp(i,j,k)=0.
-        thlp(i,j,k)=0.
-        e12p(i,j,k)=0.
-        qtp(i,j,k)=0.
-      enddo
-    enddo
-  enddo
-
-  ! Scalars
-  if (nsv > 0) then
-    !$acc parallel loop collapse(4) default(present) async(2)
-    do n = 1, nsv
-      do k = 1, k1
-        do j = 2, j1
-          do i = 2, i1
-            svp(i,j,k,n)=0.
-          enddo
-        enddo
-      enddo
-    enddo
-  endif
-  !$acc wait(1,2)
+  !end if
 
   call timer_toc('tstep/tstep_update')
 end subroutine tstep_update
@@ -352,5 +322,51 @@ subroutine tstep_integrate
   end if
   call timer_toc('tstep/tstep_integrate')
 end subroutine tstep_integrate
+
+subroutine reset_tendencies()
+
+  use modfields, only: up, vp, wp, thlp, qtp, e12p, svp
+  use modglobal, only: i1, i2, j1, j2, k1, nsv
+
+  character(len=*), parameter :: routine = 'tstep/reset_tendencies'
+
+  integer :: i, j, k, n
+
+  call timer_tic(routine, 0)
+
+  ! set all tendencies to zero
+  !$acc parallel loop collapse(3) default(present) async(1)
+  do k = 1, k1
+    do j = 2, j2     ! i2, j2 here to include one ghost cell,
+      do i = 2, i2   ! needed for up, vp with open boundaries
+        up(i,j,k)=0.
+        vp(i,j,k)=0.
+        wp(i,j,k)=0.
+        thlp(i,j,k)=0.
+        e12p(i,j,k)=0.
+        qtp(i,j,k)=0.
+      enddo
+    enddo
+  enddo
+
+  ! Scalars
+  if (nsv > 0) then
+    !$acc parallel loop collapse(4) default(present) async(2)
+    do n = 1, nsv
+      do k = 1, k1
+        do j = 2, j1
+          do i = 2, i1
+            svp(i,j,k,n)=0.
+          enddo
+        enddo
+      enddo
+    enddo
+  endif
+
+  !$acc wait
+
+  call timer_toc(routine)
+
+end subroutine reset_tendencies
 
 end module tstep
