@@ -232,6 +232,8 @@ save
       real(field_r), allocatable :: zf(:)           !<  height of full level [m]
       real(field_r) :: xsize    = -1                !<  domain size in x-direction
       real(field_r) :: ysize    = -1                !<  domain size in y-direction
+      real(field_r) :: x0       = 0                 !<  domain origin in x-direction
+      real(field_r) :: y0       = 0                 !<  domain origin in y-direction
       real(field_r), allocatable :: delta(:)        !<  (dx*dy*dz)**(1/3)
       real(field_r), allocatable :: deltai(:)       !<  (dx*dy*dz)**(-1/3)  or dzf**-1 for anisotropic diffusion
 
