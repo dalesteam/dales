@@ -302,8 +302,11 @@ contains
     use utils
 
     implicit none
+    character :: routine = modname//'/openboundary_readboundary'
     type(T_tracer), dimension(:), intent(in) :: tracer_prop
     integer :: ib
+    integer :: i_tboundary
+    real :: cur_boundary_time
     character(len = nf90_max_name) :: RecordDimName
     integer :: VARID,STATUS,NCID,timeID,n
     integer, dimension(3) :: istart
@@ -324,6 +327,16 @@ contains
     if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
     STATUS = NF90_GET_VAR (NCID, VARID, tboundary, start=(/1/), count=(/ntboundary/) )
     if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+
+    !--- check if boundaries are ascending in time...
+    cur_boundary_time = tboundary(1)
+    do i_tboundary = 2, ntboundary
+      if (tboundary(i_tboundary) <= cur_boundary_time) then
+        call finish(routine, 'Boundary times are not in ascending order: ', tboundary(i_tboundary), ' <= ', cur_boundary_time)
+      end if
+      cur_boundary_time = tboundary(i_tboundary)
+    end do
+
     do ib = 1,5 ! loop over boundaries
       ! Allocate input fields
       if(.not.lboundary(ib) .or. lperiodic(ib)) cycle ! Open boundary not present
