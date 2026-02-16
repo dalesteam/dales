@@ -87,6 +87,7 @@ contains
     use moddatetime,       only : initdatetime
     use modemission,       only : initemission
     use modlsm,            only : initlsm, kmax_soil
+    use modslurb,          only : initslurb
     use moddrydeposition,  only : initdrydep
     use modfields,         only : initfields,um,vm,wm,u0,v0,w0,up,vp,wp,rhobf
     use modtracers,        only : inittracers, allocate_tracers, add_tracer
@@ -393,6 +394,7 @@ contains
     endif
 
     call inittstep
+    call initslurb
 
     call checkinitvalues
 
@@ -1539,6 +1541,7 @@ contains
     use modtracers,        only : exittracers
     use modsurface,        only : exitsurface
     use modlsm,            only : exitlsm
+    use modslurb,          only : exitslurb
     use moddrydeposition,  only : exitdrydep
     use modthermodynamics, only : exitthermodynamics
     use modemission,       only : exitemission
@@ -1554,6 +1557,7 @@ contains
     call exitchecksim
     call exitsurface
     call exitlsm
+    call exitslurb
     call exitdrydep
     call exitsubgrid
     call exitradiation
@@ -1912,7 +1916,8 @@ contains
                        fillvalue=0._field_r)
     call read_nc_field(ncid, "tke", e12prof, start=1, count=kmax, &
                        fillvalue=0._field_r)
-    call read_nc_field(ncid, "zh", height)
+    ! reading with no count in assumes kmax+1 values in the NC file, so we need to set count
+    call read_nc_field(ncid, "zh", height, start=1, count=kmax)
 
     ! Large-scale forcings
     call read_nc_field(ncid, "ug", ug, start=1, count=kmax, &
