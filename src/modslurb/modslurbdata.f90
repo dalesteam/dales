@@ -337,13 +337,6 @@ module modslurbdata
     REAL(field_r), PARAMETER ::  ol_tol   = 1.0E-4_field_r  !< convergence limit for Obukhov length, relative tolerance (m)
     REAL(field_r), PARAMETER ::  rib_max  = 1.0E1_field_r   !< maximum bulk Richardson number (absolute value) (.)
 
-    integer :: ibc_pt_b = 0 ! indicates dirichlet bc
-    !SELFTODO NU 0 OM OL BETER TE BEREKENEN
-
-    ! CHARACTER (LEN=20)   ::  bc_pt_b = 'dirichlet'                        !< namelist parameter
-    ! CHARACTER (LEN=20)   ::  bc_pt_t = 'initial_gradient'                 !< namelist parameter
-
-
     !-- Internal logical switches for character-based namelist settings.
     !TODO ADD CHECKS
     LOGICAL ::  facade_rah_doe       = .TRUE.  !< facade resistance parameterization using DOE-2
@@ -382,7 +375,8 @@ contains
 !--------------------------------------------------------------------------------------------------!
 ! Description:
 ! ------------
-!> Default parameters for the building types. These are based on the urban surface mod.
+!> Default parameters for the building types. These are based on the PALM urban surface mod. (urban_surface_mod.f90)
+!> These values can only be considered valid for german buildings, and are not necessarily representative for other regions.
 !--------------------------------------------------------------------------------------------------!
  SUBROUTINE slurb_default_pars
 

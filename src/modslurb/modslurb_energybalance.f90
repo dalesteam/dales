@@ -46,19 +46,12 @@ module modslurb_energybalance
     INTEGER ::  k_topo  !< k index of topography
     INTEGER ::  k_atm   !< k index of the first atmospheric level
 
-    LOGICAL ::  runge_l  !< flag to vectorize timestep scheme switch
 
 
-    ! IF ( debug_output_timestep )  THEN
-    !    WRITE( debug_string, * ) 'slurb_energy_balance_model'
-    !    CALL debug_message( debug_string, 'start' )
-    ! ENDIF
 
-    ! runge_l = ( timestep_scheme(1:5) == 'runge' )
-    runge_l = .true.
     k_topo = 1
     k_atm = 1
-    rho_cp = cp * rho_air_zw(k_topo) !TODOSELF
+    rho_cp = cp * rho_air_zw(k_topo) ! TODO, check if this is the right density to use for roof/wall/window/road energy balance calculations, or if we should use a different height level..
    do j=2,j1
       do i=2,i1
       !  k_topo = topo_top_ind(j,i,0)
@@ -74,30 +67,8 @@ module modslurb_energybalance
       enddo
    enddo
 
-    ! IF ( debug_output_timestep )  THEN
-    !    WRITE( debug_string, * ) 'slurb_energy_balance_model'
-    !    CALL debug_message( debug_string, 'end' )
-    ! ENDIF
    contains
 
-!  subroutine calc_tend_surf_t_p ( t, tt_surf, coef_1, coef_2, c )
-!     use modglobal, only : rk3step, rdt
-!     implicit none
-
-!     REAL(field_r), INTENT(IN) ::  c       !< total layer heat capacity (J m^-2 K^-1)
-!     REAL(field_r), INTENT(IN) ::  coef_1  !< coefficient A in the prognostic equation (W m^-2)
-!     REAL(field_r), INTENT(IN) ::  coef_2  !< coefficient B in the prognostic equation (W m^-2 K^-1)
-!     REAL(field_r), INTENT(IN) ::  t       !< current layer temperature (K)
-
-!     REAL(field_r), INTENT(OUT) ::  tt_surf  !< current temperature tendency (K s^-1)
-
-!     real :: rk3coef
-
-!     rk3coef = rdt / (4. - dble(rk3step))
-
-!     tt_surf = (( coef_1 * (rk3coef) + c * t )  / ( c + coef_2 * (rk3coef)  ) - t ) / rk3coef
-
-!  END SUBROUTINE calc_tend_surf_t_p
 
     !--------------------------------------------------------------------------------------------------!
     ! Description:
@@ -122,7 +93,6 @@ module modslurb_energybalance
     REAL(field_r) :: t_new_implicit
 
     real :: rk3coef
-    real :: tt_new_old, t_p_old, t_old, tt_current_old
     real :: rdt3 
 
     rdt3 = rdt / 3
@@ -134,7 +104,7 @@ module modslurb_energybalance
         tt_new = (t_new_implicit - t_0) / rk3coef
         t_0 = t_new_implicit
 
-        tt_current = tt_new*(-4.25)
+        tt_current = tt_new
 
 
     ENDIF
@@ -171,7 +141,6 @@ module modslurb_energybalance
 
     rk3coef = rdt / (4. - dble(rk3step))
 
-
     !
     !-- Loop through non-boundary layers of the material.
     !-- @todo Split loop into three to move IFs out for better vecotrization.
@@ -179,53 +148,25 @@ module modslurb_energybalance
     !
     !--    New prognostic layer temperature.
     !--    Compute the t between neighbouring layers.
-       IF ( k /= UBOUND( t_0 , 1 ) )  THEN
-          tt_new = ( 1.0_field_r / c(k) ) * ( lambda(k) * ( t_0(k+1) - t_0(k) ) +                           &
-                   lambda(k-1) * ( t_0(k-1) - t_0(k) ) )
-       else
-    !
-    !--    Use a constant value boundary condition (skin temperature) for the innermost layer.
-            ! (J^-1 m^2 K) (J s^-1 m^-2 K^-1) * K
-            ! K s^-1
-          tt_new = ( 1.0_field_r / c(k) ) * ( lambda(k) * ( t_bc - t_0(k) ) +                             &
-                   lambda(k-1) * ( t_0(k-1) - t_0(k) ) )
-       endif
-    !
-    !--    Add tendency from absorbed shortwave radiation.
-       IF ( PRESENT( sw_in ) )  THEN
+      IF ( k /= UBOUND( t_0 , 1 ) )  THEN
+         tt_new = ( 1.0_field_r / c(k) ) * ( lambda(k) * ( t_0(k+1) - t_0(k) ) +                           &
+                  lambda(k-1) * ( t_0(k-1) - t_0(k) ) )
+      else
+   !
+   !--    Use a constant value boundary condition (skin temperature) for the innermost layer.
+         tt_new = ( 1.0_field_r / c(k) ) * ( lambda(k) * ( t_bc - t_0(k) ) +                             &
+                  lambda(k-1) * ( t_0(k-1) - t_0(k) ) )
+      endif
+      !
+      !--    Add tendency from absorbed shortwave radiation.
+      IF ( PRESENT( sw_in ) )  THEN
           tt_new = tt_new + ( 1.0_field_r / c(k) ) * sw_in * phi(k)
-       ENDIF
-    !
-    !--    Compute the prognostic temperature and RK3 tendency for next time step.
-    !    t_p(k) = t(k) + (rdt) * ( tsc(2) * tt_new + tsc(3) * tt_current(k) )
-    !    temp1(k) = t(k) + (rdt) * ( tsc(2) * tt_new + tsc(3) * tt_current(k) )
+      ENDIF
 
-    !    if (rk3step == 1) then
-    !     t_p(k) = t(k) + (rk3coef) * ( tt_new)
-    !     else
-    !     t_p(k) = t(k) + (rk3coef) * ( tt_new  + tt_current(k) / 4.25 )
-    !    endif
-        ! if ((rk3step == 1).and.(k/=1)) then
-        !     tt_current(k) = 0
-        ! endif
-        ! tt_new = tt_current(k)/(-4.25) + tt_new
-        t_0(k) = t_m(k) + (rk3coef) * ( tt_new )
+      t_0(k) = t_m(k) + (rk3coef) * ( tt_new )
 
-        tt_current(k) = (-4.25)*tt_new
+      tt_current(k) = tt_new
 
-        ! t_0(k) = t_m(k)
-        ! tt_current(k) = 0
-
-
-    !    CALL calc_rk3_tend( tt_current(k), tt_new )
-        
-        ! IF ((rk3step == 1).and.(k /= 1)) THEN
-        ! IF ((rk3step == 1)) THEN
-        !     tt_current(k) = tt_new * 4.25
-        ! ELSE
-        !     tt_current(k) = tt_current(k) + tt_new* 4.25
-        ! endif
-        ! tt_current(k) = ( t_p(k) - t(k) - rk3coef * tt_current(k) ) / ( rk3coef )
     ENDDO
 
  END SUBROUTINE calc_heat_diffusion
@@ -383,8 +324,6 @@ module modslurb_energybalance
     !--    Check for negative water reservoir. @todo store the removed water as runoff for output.
        slurb_tile%m_liq_roof_0(i,j) = MAX( slurb_tile%m_liq_roof_0(i,j), 0.0_field_r )
     !
-    !--    Compute RK3 tendency.
-    !    CALL calc_rk3_tend( slurb_tile%tm_liq_roof(i,j), tm_new )
        
        slurb_tile%tm_liq_roof(i,j) = tm_new
     !
@@ -548,7 +487,6 @@ module modslurb_energybalance
        slurb_tile%m_liq_road_0(i,j) = MAX( slurb_tile%m_liq_road_0(i,j), 0.0_field_r )
     !
     !--    Compute RK3 tendency
-    !    CALL calc_rk3_tend( slurb_tile%tm_liq_road(i,j), tm_new )
        slurb_tile%tm_liq_road(i,j) = tm_new
     !
     !--    Compute the new liquid water coverage.

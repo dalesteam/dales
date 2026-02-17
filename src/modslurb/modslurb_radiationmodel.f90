@@ -47,20 +47,10 @@ module modslurb_radiationmodel
 
 
 
-    ! IF ( debug_output_timestep )  THEN
-    !    WRITE( debug_string, * ) 'slurb_radiation_model'
-    !    CALL debug_message( debug_string, 'start' )
-    ! ENDIF
 
-    !
-    !-- Calculate solar angles if not already done by RTM.
-    ! IF ( .NOT. radiation_interactions )  THEN
-    !    CALL get_date_time( time_since_reference_point, day_of_year = day_of_year,                  &
-    !                        second_of_day = second_of_day )
-        ! assume for now zenith is magically already calculated.... TODOSELF
-    !    CALL calc_zenith( day_of_year, second_of_day )
-    ! ENDIF
-
+      !
+      !-- Compute the solar zenith and azimuth angles for the current time and location. These are needed
+      !-- for the shortwave radiation calculations
     call zenith_lon_lat(xtime*3600_field_r + rtimee, xday, xlat, xlon, zenith, sun_dir_lon, sun_dir_lat)
     azimuth = ATAN2( sun_dir_lon, sun_dir_lat )
     cos_zenith = COS(zenith)
@@ -70,8 +60,6 @@ module modslurb_radiationmodel
     !-- Split the incoming SW radiation into direct and diffuse parts.
     !-- Direct-diffuse SW split is quite weirdly done in the radiation mod if radiation
     !-- interactions are enabled. However, we do need it here even without interactions.
-   !  IF ( cos_zenith > 0.0_field_r )  CALL radiation_calc_diffusion_radiation
-
    do j=2,j1
       do i=2,i1
 
@@ -92,11 +80,6 @@ module modslurb_radiationmodel
     ENDDO
    enddo
 
-    ! IF ( debug_output_timestep )  THEN
-    !    WRITE( debug_string, * ) 'slurb_radiation_model'
-    !    CALL debug_message( debug_string, 'end' )
-    ! ENDIF
-
     !
     !-- Private functions and subroutines of slurb_radiation_model.
     CONTAINS
@@ -115,7 +98,7 @@ module modslurb_radiationmodel
 
     !
     !-- Compute the effective radiative temperature of the incoming LW radiation.
-    slurb_tile%rad_lw_in_urb(i,j) = abs(lwd(i,j,1)) !TODOSELF
+    slurb_tile%rad_lw_in_urb(i,j) = abs(lwd(i,j,1)) !TODO check which level to use, and check which radiation model is allowed.
     ! lwd is positive in DALES
     t_rad_sky = SQRT( SQRT( slurb_tile%rad_lw_in_urb(i,j) / boltz ) )
 
@@ -391,7 +374,7 @@ module modslurb_radiationmodel
     !-- Save effective albedo for the radiation model.
     if (slurb_tile%rad_sw_in_urb(i,j) /= 0.0) then
      slurb_tile%albedo_urb(i,j) = slurb_tile%rad_sw_out_urb(i,j) / slurb_tile%rad_sw_in_urb(i,j)
-    endif ! TODOSELF WHY IS SWD 0?
+    endif
 
  END SUBROUTINE calc_rad_sw
 

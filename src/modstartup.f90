@@ -1947,6 +1947,7 @@ contains
   subroutine check_initial_state()
     use modthermodynamics, only: lmoist
     use modfields, only: u0, v0, w0, thl0, qt0, sv0
+    use modchecksim, only: lstop
 
     ! Weird bug, casting thresholds to _field_r leads to compilation error for
     ! some reason
@@ -1955,18 +1956,18 @@ contains
     integer :: s
 
     call check_array(u0, 'u0', 'startup', &
-                     threshold=[real(-100, rkind), real(100, rkind)])
+                     threshold=[real(-100, rkind), real(100, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
     call check_array(v0, 'v0', 'startup', &
-                     threshold=[real(-100, rkind), real(100, rkind)])
+                     threshold=[real(-100, rkind), real(100, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
     call check_array(w0, 'w0', 'startup', &
-                     threshold=[real(-30, rkind), real(30, rkind)])
+                     threshold=[real(-30, rkind), real(30, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
     call check_array(thl0, 'thl0', 'startup', &
-                     threshold=[real(150, rkind), real(2000, rkind)])
+                     threshold=[real(150, rkind), real(2000, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
     if (lmoist) call check_array(qt0, 'qt0', 'startup', &
-                                 threshold=[real(0, rkind), real(1, rkind)])
+                                 threshold=[real(0, rkind), real(1, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
 
     do s = 1, size(sv0, dim=4)
-      call check_array(sv0(:,:,:,s), 'sv0('//number2string(s)//')', 'startup')
+      call check_array(sv0(:,:,:,s), 'sv0('//number2string(s)//')', 'startup',stop_if_invalid=lstop, dump_if_invalid=.true.)
     end do
 
   end subroutine check_initial_state

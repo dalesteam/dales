@@ -173,8 +173,9 @@ subroutine initslurb
     use modglobal,   only : i1, j1
     use modlsmdata, only : ilu, nlu, tile
     use modslurbhelpers, only: slurb_bulk_allocations
-    use modinputchecking, only: check_grid_variable
+    use modchecksim, only: check_array
     implicit none
+    integer, parameter :: rkind = kind( 1.0_field_r )
 
     integer :: i, j, slurb_ilu
     character(len=*), parameter :: routine = modname//'/initslurb'
@@ -203,9 +204,17 @@ subroutine initslurb
     if (.not. enable_slurb) then
         return
     end if
+    call warning(routine, "SLUrb module enabled. Keep in mind that calculation of effective albedo is not implemented yet!")
+    call warning(routine, "SLUrb module enabled. Keep in mind that different building drag parametrizations have not been tested yet!")
+    call warning(routine, "SLUrb module enabled. Keep in mind that moist_physics=false has not been tested yet!")
+    call warning(routine, "SLUrb module enabled. Only rrtmgp radiation has been tested with SLUrb!")
 
-    call check_grid_variable("deep_soil_temperature", deep_soil_temperature, 100.0_field_r, 400.0_field_r)
-    call check_grid_variable("building_indoor_temperature", building_indoor_temperature, 100.0_field_r, 400.0_field_r)
+    call check_array([deep_soil_temperature],"deep_soil_temperature", routine, &
+    threshold=[real(100.0_field_r,rkind),real( 400.0_field_r,rkind)], &
+    stop_if_invalid=.true.)
+    call check_array([building_indoor_temperature],"building_indoor_temperature", &
+    routine, threshold=[real(100.0_field_r,rkind),real( 400.0_field_r,rkind)], &
+    stop_if_invalid=.true.)
 
     call slurb_bulk_allocations
     do j=2,j1
@@ -330,12 +339,12 @@ end subroutine slurb_update_external_vars
     use modmpi,      only : myid, myidx, myidy
     use modslurbdata, only : slurb_default_pars, building_pars_slurb, pavement_pars_slurb
     use modstat_nc, only : read_nc_field, nchandle_error
-    use modinputchecking, only : check_grid_variable
+    use modchecksim, only: check_array
     implicit none
     character(len=*), parameter :: routine = modname//'/process_surface_parameters'
 
     real(field_r), allocatable :: canyon_orientation_tmp(:,:)
-
+    integer, parameter :: rkind = kind( 1.0_field_r )
     INTEGER, DIMENSION(:,:), ALLOCATABLE ::  type_tmp  !< array to contain building type temporarily
     integer i,j,k, ncid
     
@@ -355,8 +364,7 @@ end subroutine slurb_update_external_vars
     call read_nc_field(ncid, 'f_bld', slurb_tile%f_bld(2:i1,2:j1), fillvalue=0.5_field_r, requirefill=.true., &
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-    call check_grid_variable("f_bld", slurb_tile%f_bld(2:i1,2:j1), TINY( 1.0_field_r ), 1.0_field_r )
-    ! slurb_tile%f_bld(:,:) = 0.5_field_r !TODOSELF deze is nu 0.5 voor nu
+    call check_array(slurb_tile%f_bld(2:i1,2:j1), "f_bld", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real(  1.0_field_r ,rkind)], stop_if_invalid=.true.)
     do j=2,j1
       do i=2,i1
         if ( fraction_slurb(i,j) /= 0) then
@@ -376,7 +384,7 @@ end subroutine slurb_update_external_vars
     call read_nc_field(ncid, 'h_bld', slurb_tile%h_bld(2:i1,2:j1), fillvalue=building_height, requirefill=.true.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-    call check_grid_variable("h_bld", slurb_tile%h_bld(2:i1,2:j1), 0.1_field_r, 1000.0_field_r )
+    call check_array(slurb_tile%h_bld(2:i1,2:j1), "h_bld", routine, threshold=[real( 0.1_field_r,rkind),real(  1000.0_field_r ,rkind)], stop_if_invalid=.true.)
 
     !
     !-- Urban surface and street canyon MOST heights.
@@ -395,8 +403,7 @@ end subroutine slurb_update_external_vars
         IF ( street_canyon_orientation /= -9999.0_field_r  )  THEN
             canyon_orientation_tmp(:,:) = street_canyon_orientation
         ENDIF
-    !    CALL get_grid_variable_1d_real( 'street_canyon_orientation', canyon_orientation_tmp,        &
-    !                                    street_canyon_orientation )
+
         call read_nc_field(ncid, 'street_canyon_orientation', canyon_orientation_tmp(2:i1,2:j1), requirefill=.false.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
@@ -425,32 +432,26 @@ end subroutine slurb_update_external_vars
         enddo
     ENDIF
 
-    ! CALL get_grid_variable_1d_real( 'street_canyon_aspect_ratio', slurb_tile%hw_can,                     &
-    !                                 street_canyon_aspect_ratio )
-    ! call check_grid_variable("street_canyon_aspect_ratio", slurb_tile%street_canyon_aspect_ratio(2:i1,2:j1),                   &
-    !                                   TINY( 1.0_field_r ), HUGE( 0.0_field_r ) )
     call read_nc_field(ncid, 'hw_can', slurb_tile%hw_can(2:i1,2:j1), fillvalue=street_canyon_aspect_ratio, requirefill=.true.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-    call check_grid_variable("hw_can", slurb_tile%hw_can(2:i1,2:j1), TINY(0.0_field_r), 1000.0_field_r ) !TODOSELF REALISTIC FALUE
+    call check_array(slurb_tile%hw_can(2:i1,2:j1), "hw_can", routine, threshold=[real( TINY(0.0_field_r),rkind),real(  1000.0_field_r ,rkind)], stop_if_invalid=.true.) !TODOSELF REALISTIC FALUE
 
-    ! CALL get_grid_variable_1d_real( 'z0_urb', slurb_tile%z0_urb, urban_roughness_length )
-    ! call check_grid_variable("z0_urb", slurb_tile%z0_urb(2:i1,2:j1), TINY( 1.0_field_r ), MINVAL( slurb_tile%z_mo ) )
     call read_nc_field(ncid, 'z0_urb', slurb_tile%z0_urb(2:i1,2:j1), fillvalue=urban_roughness_length, requirefill=.true.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-    call check_grid_variable("z0_urb", slurb_tile%z0_urb(2:i1,2:j1), TINY(0.0_field_r), 1000.0_field_r ) !TODOSELF REALISTIC FALUE
+    call check_array(slurb_tile%z0_urb(2:i1,2:j1), "z0_urb", routine, threshold=[real( TINY(0.0_field_r),rkind),real(  1000.0_field_r ,rkind)], stop_if_invalid=.true.) !TODOSELF REALISTIC FALUE
 
 
     ALLOCATE( type_tmp(i2, j2) )
-    type_tmp(:,:) = 2 ! TODOSELF buiding type staat voor nu gewoon even vast op 2
+    type_tmp(:,:) = 2 ! init building type at 2
 
     CALL slurb_default_pars
 
     call read_nc_field(ncid, "building_type", type_tmp, fillvalue=2, requirefill=.true.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-    CALL check_grid_variable( 'building_type', type_tmp, 1, 6 )
+    call check_array(type_tmp, "building_type", routine, threshold=[1,6], stop_if_invalid=.true.)
 
     do j=2,j1
       do i=2,i1
@@ -527,7 +528,7 @@ end subroutine slurb_update_external_vars
         call read_nc_field(ncid, "pavement_type", type_tmp, fillvalue=2, requirefill=.true.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-        CALL check_grid_variable( 'pavement_type', type_tmp, 1, 5 )
+        call check_array(type_tmp, "pavement_type", routine, threshold=[1,5], stop_if_invalid=.true.)
     endif
     !
     !-- Process pavement type.
@@ -569,146 +570,139 @@ end subroutine slurb_update_external_vars
         call read_nc_field(ncid, 'albedo_roof', slurb_tile%albedo_roof(2:i1,2:j1), requirefill=.false.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-        call check_grid_variable("albedo_roof", slurb_tile%albedo_roof(2:i1,2:j1), 0.0_field_r, 1.0_field_r )
+        call check_array(slurb_tile%albedo_roof(2:i1,2:j1), "albedo_roof", routine, threshold=[real( 0.0_field_r,rkind),real(  1.0_field_r ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'dz_roof', slurb_tile%dz_roof(:,2:i1,2:j1), requirefill=.false.,&
                                 start = (/1, 1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/n_layers_roofs, imax, jmax/) )
-        call check_grid_variable("dz_roof", slurb_tile%dz_roof(:,2:i1,2:j1), TINY( 1.0_field_r ), HUGE( 1.0_field_r ) )
+        call check_array(slurb_tile%dz_roof(:,2:i1,2:j1), "dz_roof", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real(  HUGE( 1.0_field_r ) ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'emiss_roof', slurb_tile%emiss_roof(2:i1,2:j1), requirefill=.false.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-        call check_grid_variable("emiss_roof", slurb_tile%emiss_roof(2:i1,2:j1), 0.0_field_r, 1.0_field_r )
+        call check_array(slurb_tile%emiss_roof(2:i1,2:j1), "emiss_roof", routine, threshold=[real( 0.0_field_r,rkind),real(  1.0_field_r ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'c_roof', slurb_tile%c_roof(:,2:i1,2:j1), requirefill=.false.,&
                                 start = (/1, 1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/n_layers_roofs, imax, jmax/) )
-        call check_grid_variable("c_roof", slurb_tile%c_roof(:,2:i1,2:j1), TINY( 1.0_field_r ), HUGE( 1.0_field_r ) )
+        call check_array(slurb_tile%c_roof(:,2:i1,2:j1), "c_roof", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real(  HUGE( 1.0_field_r ) ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'z0_roof', slurb_tile%z0_roof(2:i1,2:j1), requirefill=.false.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-        call check_grid_variable("z0_roof", slurb_tile%z0_roof(2:i1,2:j1),                                     &
-                                        TINY( 1.0_field_r ), 0.5_field_r * MINVAL( slurb_tile%z_mo(2:i1,2:j1) ) )
+        call check_array(slurb_tile%z0_roof(2:i1,2:j1), "z0_roof", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real(0.5_field_r * MINVAL( slurb_tile%z_mo(2:i1,2:j1)),rkind) ], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'z0h_roof', slurb_tile%z0h_roof(2:i1,2:j1), requirefill=.false.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-        call check_grid_variable("z0h_roof", slurb_tile%z0h_roof(2:i1,2:j1),                                   &
-                                        TINY( 1.0_field_r ), 0.5_field_r * MINVAL( slurb_tile%z_mo(2:i1,2:j1) ) )
+        call check_array(slurb_tile%z0h_roof(2:i1,2:j1), "z0h_roof", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real(0.5_field_r * MINVAL( slurb_tile%z_mo(2:i1,2:j1)),rkind) ], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'lambda_roof', slurb_tile%lambda_roof(:,2:i1,2:j1), requirefill=.false.,&
                                 start = (/1, 1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/n_layers_roofs, imax, jmax/) )
-        call check_grid_variable("lambda_roof", slurb_tile%lambda_roof(:,2:i1,2:j1),                             &
-                                        TINY( 1.0_field_r ), HUGE( 1.0_field_r )  )
+        call check_array(slurb_tile%lambda_roof(:,2:i1,2:j1), "lambda_roof", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real( HUGE( 1.0_field_r ) ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'albedo_wall', slurb_tile%albedo_wall(2:i1,2:j1), requirefill=.false.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-        call check_grid_variable("albedo_wall", slurb_tile%albedo_wall(2:i1,2:j1), 0.0_field_r, 1.0_field_r )
+        call check_array(slurb_tile%albedo_wall(2:i1,2:j1), "albedo_wall", routine, threshold=[real( 0.0_field_r,rkind),real(  1.0_field_r ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'dz_wall', slurb_tile%dz_wall(:,2:i1,2:j1), requirefill=.false.,&
                                 start = (/1, 1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/n_layers_walls, imax, jmax/) )
-        call check_grid_variable("dz_wall", slurb_tile%dz_wall(:,2:i1,2:j1), TINY( 1.0_field_r ), HUGE( 1.0_field_r ) )
+        call check_array(slurb_tile%dz_wall(:,2:i1,2:j1), "dz_wall", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real(  HUGE( 1.0_field_r ) ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'emiss_wall', slurb_tile%emiss_wall(2:i1,2:j1), requirefill=.false.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-        call check_grid_variable("emiss_wall", slurb_tile%emiss_wall(2:i1,2:j1), 0.0_field_r, 1.0_field_r )
+        call check_array(slurb_tile%emiss_wall(2:i1,2:j1), "emiss_wall", routine, threshold=[real( 0.0_field_r,rkind),real(  1.0_field_r ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'c_wall', slurb_tile%c_wall(:,2:i1,2:j1), requirefill=.false.,&
                                 start = (/1, 1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/n_layers_walls, imax, jmax/) )
-        call check_grid_variable("c_wall", slurb_tile%c_wall(:,2:i1,2:j1), TINY( 1.0_field_r ), HUGE( 1.0_field_r ) )
+        call check_array(slurb_tile%c_wall(:,2:i1,2:j1), "c_wall", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real(  HUGE( 1.0_field_r ) ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'z0_wall', slurb_tile%z0_wall(2:i1,2:j1), requirefill=.false.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-        call check_grid_variable("z0_wall", slurb_tile%z0_wall(2:i1,2:j1), TINY( 1.0_field_r ), 1.0_field_r )
+        call check_array(slurb_tile%z0_wall(2:i1,2:j1), "z0_wall", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real(  1.0_field_r ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'lambda_wall', slurb_tile%lambda_wall(:,2:i1,2:j1), requirefill=.false.,&
                                 start = (/1, 1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/n_layers_walls, imax, jmax/) )
-        call check_grid_variable("lambda_wall", slurb_tile%lambda_wall(:,2:i1,2:j1),                             &
-                                        TINY( 1.0_field_r ), HUGE( 1.0_field_r )  )
+        call check_array(slurb_tile%lambda_wall(:,2:i1,2:j1), "lambda_wall", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real( HUGE( 1.0_field_r ) ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'albedo_win', slurb_tile%albedo_win(2:i1,2:j1), requirefill=.false.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-        call check_grid_variable("albedo_win", slurb_tile%albedo_win(2:i1,2:j1), 0.0_field_r, 1.0_field_r )
+        call check_array(slurb_tile%albedo_win(2:i1,2:j1), "albedo_win", routine, threshold=[real( 0.0_field_r,rkind),real(  1.0_field_r ,rkind)], stop_if_invalid=.true.)
         
         call read_nc_field(ncid, 'dz_win', slurb_tile%dz_win(:,2:i1,2:j1), requirefill=.false.,&
                                 start = (/1, 1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/n_layers_windows, imax, jmax/) )
-        call check_grid_variable("dz_win", slurb_tile%dz_win(:,2:i1,2:j1), TINY( 1.0_field_r ), HUGE( 1.0_field_r ) )
+        call check_array(slurb_tile%dz_win(:,2:i1,2:j1), "dz_win", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real(  HUGE( 1.0_field_r ) ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'emiss_win', slurb_tile%emiss_win(2:i1,2:j1), requirefill=.false.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-        call check_grid_variable("emiss_win", slurb_tile%emiss_win(2:i1,2:j1), 0.0_field_r, 1.0_field_r )
+        call check_array(slurb_tile%emiss_win(2:i1,2:j1), "emiss_win", routine, threshold=[real( 0.0_field_r,rkind),real(  1.0_field_r ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'c_win', slurb_tile%c_win(:,2:i1,2:j1), requirefill=.false.,&
                                 start = (/1, 1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/n_layers_windows, imax, jmax/) )
-        call check_grid_variable("c_win", slurb_tile%c_win(:,2:i1,2:j1), TINY( 1.0_field_r ), HUGE( 1.0_field_r ) )
+        call check_array(slurb_tile%c_win(:,2:i1,2:j1), "c_win", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real(  HUGE( 1.0_field_r ) ,rkind)], stop_if_invalid=.true.)
 
         ! slurb_tile%c_win = slurb_tile%c_win * slurb_tile%dz_win
         call read_nc_field(ncid, 'lambda_win', slurb_tile%lambda_win(:,2:i1,2:j1), requirefill=.false.,&
                                 start = (/1, 1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/n_layers_windows, imax, jmax/) )
-        call check_grid_variable("lambda_win", slurb_tile%lambda_win(:,2:i1,2:j1),                            &
-                                        TINY( 1.0_field_r ), HUGE( 1.0_field_r )  )
+        call check_array(slurb_tile%lambda_win(:,2:i1,2:j1), "lambda_win", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real( HUGE( 1.0_field_r ) ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'transmissivity_win', slurb_tile%transmissivity_win(2:i1,2:j1), requirefill=.false.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-        call check_grid_variable("transmissivity_win", slurb_tile%transmissivity_win(2:i1,2:j1),            &
-                                        0.0_field_r, 1.0_field_r )
+        call check_array(slurb_tile%transmissivity_win(2:i1,2:j1), "transmissivity_win", routine, threshold=[real( 0.0_field_r,rkind),real( 1.0_field_r ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'f_win', slurb_tile%f_win(2:i1,2:j1), requirefill=.false.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-        call check_grid_variable("f_win", slurb_tile%f_win(2:i1,2:j1), 0.0_field_r, 1.0_field_r )
+        call check_array(slurb_tile%f_win(2:i1,2:j1), "f_win", routine, threshold=[real( 0.0_field_r,rkind),real(  1.0_field_r ,rkind)], stop_if_invalid=.true.)
 
 
         call read_nc_field(ncid, 'albedo_road', slurb_tile%albedo_road(2:i1,2:j1), requirefill=.false.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-        call check_grid_variable("albedo_road", slurb_tile%albedo_road(2:i1,2:j1), 0.0_field_r, 1.0_field_r )
+        call check_array(slurb_tile%albedo_road(2:i1,2:j1), "albedo_road", routine, threshold=[real( 0.0_field_r,rkind),real(  1.0_field_r ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'dz_road', slurb_tile%dz_road(:,2:i1,2:j1), requirefill=.false.,&
                                 start = (/1, 1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/n_layers_roads, imax, jmax/) )
-        call check_grid_variable("dz_road", slurb_tile%dz_road(:,2:i1,2:j1), TINY( 1.0_field_r ), HUGE( 1.0_field_r ) )
+        call check_array(slurb_tile%dz_road(:,2:i1,2:j1), "dz_road", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real(  HUGE( 1.0_field_r ) ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'emiss_road', slurb_tile%emiss_road(2:i1,2:j1), requirefill=.false.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-        call check_grid_variable("emiss_road", slurb_tile%emiss_road(2:i1,2:j1), 0.0_field_r, 1.0_field_r )
+        call check_array(slurb_tile%emiss_road(2:i1,2:j1), "emiss_road", routine, threshold=[real( 0.0_field_r,rkind),real(  1.0_field_r ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'c_road', slurb_tile%c_road(:,2:i1,2:j1), requirefill=.false.,&
                                 start = (/1, 1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/n_layers_roads, imax, jmax/) )
-        call check_grid_variable("c_road", slurb_tile%c_road(:,2:i1,2:j1), TINY( 1.0_field_r ), HUGE( 1.0_field_r ) )
+        call check_array(slurb_tile%c_road(:,2:i1,2:j1), "c_road", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real(  HUGE( 1.0_field_r ) ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'z0_road', slurb_tile%z0_road(2:i1,2:j1), requirefill=.false.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-        call check_grid_variable("z0_road", slurb_tile%z0_road(2:i1,2:j1), TINY( 1.0_field_r ), 1.0_field_r )
+        call check_array(slurb_tile%z0_road(2:i1,2:j1), "z0_road", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real(  1.0_field_r ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'z0h_road', slurb_tile%z0h_road(2:i1,2:j1), requirefill=.false.,&
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-        call check_grid_variable("z0h_road", slurb_tile%z0h_road(2:i1,2:j1), TINY( 1.0_field_r ), 1.0_field_r )
+        call check_array(slurb_tile%z0h_road(2:i1,2:j1), "z0h_road", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real(  1.0_field_r ,rkind)], stop_if_invalid=.true.)
 
         call read_nc_field(ncid, 'lambda_road', slurb_tile%lambda_road(:,2:i1,2:j1), requirefill=.false.,&
                                 start = (/1, 1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/n_layers_roads, imax, jmax/) )
-        call check_grid_variable("lambda_road", slurb_tile%lambda_road(:,2:i1,2:j1),                             &
-                                        TINY( 1.0_field_r ), HUGE( 1.0_field_r )  )
+        call check_array(slurb_tile%lambda_road(:,2:i1,2:j1), "lambda_road", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real( HUGE( 1.0_field_r ) ,rkind)], stop_if_invalid=.true.)
 
     endif
 
@@ -716,15 +710,11 @@ end subroutine slurb_update_external_vars
     do j=2,j1
       do i=2,i1
         if (slurb_tile%z0_road(i,j) >= slurb_tile%z_mo_can(i,j)) then
-            call warning(routine, 'i,j=',i,',',j,' z0_road=', slurb_tile%z0_road(i,j), ' z_mo_can=', slurb_tile%z_mo_can(i,j))
+            call finish(routine, 'i,j=',i,',',j,' z0_road=', slurb_tile%z0_road(i,j), ' z_mo_can=', slurb_tile%z_mo_can(i,j))
         endif
       enddo
     enddo
 
-    ! slurb_tile%lambda_road(:,:,:) = 0.00001
-    ! slurb_tile%lambda_roof(:,:,:) = 0.00001
-    ! slurb_tile%lambda_win(:,:,:) = 0.00001
-    ! slurb_tile%lambda_wall(:,:,:) = 0.00001
     !
     !-- SLUrb uses the total layer heat capacity instead of specific heat capacity,
     !-- so multiply c_roof by dz_roof.
@@ -808,58 +798,28 @@ end subroutine slurb_update_external_vars
     do j=2,j1
         do i=2,i1
 
-        k_atm = 1 !TODOSELF
+        k_atm = 1 !TODOSELF check vertical levels for density calculations
         k_topo = 1
 
         ! TODOSELF is ql0 the correct liquid water?
         ! in PALM pt=liquid water potential temperature
         ! this implies slurb_tile%pt1 = pt+L/cpexn ql0, slurb_tile%q1 = q - ql, vpt1 = pt1 * (1+0.61q1)
-        ! write (6,*) 'thl0: ', thl0(i, j, k_atm) 
-        ! write (6,*) 'ql0: ', ql0(i,j,k_atm)
         slurb_tile%pt1(i,j)  = thl0(i, j, k_atm) + (rlv/(cp * exnf(k_atm)))  * ql0(i,j,k_atm)
         slurb_tile%q1(i,j)   = qt0(i, j, k_atm) - ql0(i, j, k_atm)
         slurb_tile%vpt1(i,j) = slurb_tile%pt1(i,j) * ( 1.0_field_r + 0.61_field_r * slurb_tile%q1(i,j) )
 
-
-        !
-        !--    Calculate the pt, vpt and q for atmosphere depending on what modules are enabled.
-        ! IF ( bulk_cloud_model )  THEN
-        !     slurb_tile%pt1(i,j)  = pt(k_atm,j,i) + lv_d_cp * (1 / exnf(k_atm)) * ql(k_atm,j,i)
-        !     slurb_tile%q1(i,j)   = q(k_atm,j,i) - ql(k_atm,j,i)
-        !     slurb_tile%vpt1(i,j) = slurb_tile%pt1(i,j) * ( 1.0_field_r + 0.61_field_r * slurb_tile%q1(i,j) )
-        ! ELSEIF ( cloud_droplets )  THEN
-        !     slurb_tile%pt1(i,j)  = pt(k_atm,j,i) + lv_d_cp * (1 / exnf(k_atm)) * ql(k_atm,j,i)
-        !     slurb_tile%q1(i,j)   = q(k_atm,j,i)
-        !     slurb_tile%vpt1(i,j) = slurb_tile%pt1(i,j) * ( 1.0_field_r + 0.61_field_r * slurb_tile%q1(i,j) )
-        ! ELSE
-        !     slurb_tile%pt1(i,j) = pt(k_atm,j,i)
-        !     IF ( moist_physics )  THEN
-        !         slurb_tile%q1(i,j)   = q(k_atm,j,i)
-        !         slurb_tile%vpt1(i,j) = slurb_tile%pt1(i,j) * ( 1.0_field_r + 0.61_field_r * slurb_tile%q1(i,j) )
-        !     ENDIF
-        ! ENDIF
-
-
-
         
 
-        ! slurb_tile%uv_abs1(i,j) = SQRT( ( 0.5 * ( u(k_atm,j,i) + u(k_atm,j,i+1) ) )**2 +                    &
-        !                         ( 0.5 * ( v(k_atm,j,i) + v(k_atm,j+1,i) ) )**2 )
         du = 0.5*(u0(i,j,1) + u0(i+1,j,1)) + cu
         dv = 0.5*(v0(i,j,1) + v0(i,j+1,1)) + cv
         slurb_tile%uv_abs1(i,j) = sqrt(du**2 + dv**2)
         ! slurb_tile%uv_abs1(i,j) = max(0.1, sqrt(du**2 + dv**2)) DALES VERSION
         slurb_tile%uv_eff1(i,j) = slurb_tile%uv_abs1(i,j)
 
-    !
-    !--    Initialize the prognostic model variables and all the other variables where the value from
-    !--    the previous time step is used. For restart runs or if spinup data is available, these are
-    !--    read from the restart files, and should not be overwritten here.
-        ! IF ( TRIM( initializing_actions ) /= 'read_restart_data'  .AND.  .NOT. read_spinup_data )   &
-        ! THEN
-    !
-    !--       If spinup is enabled for current run, use diurnal mean spinup pt as the initial
-    !--       atmospheric boundary condition. Otherwise, use the first atmospheric grid level.
+
+        !--       If spinup is enabled for current run, use diurnal mean spinup pt as the initial
+        !--       atmospheric boundary condition. Otherwise, use the first atmospheric grid level.
+        !--       Does DALES have a spinup option?
         ! IF ( spinup )  THEN
         !     bc_atm = spinup_pt_mean * exnf(k_topo)
         ! ELSE
@@ -898,6 +858,7 @@ end subroutine slurb_update_external_vars
             slurb_tile%t_wall_b_0(:,i,j)   = slurb_tile%t_wall_a_0(:,i,j)
             slurb_tile%t_wall_b_m(:,i,j) = slurb_tile%t_wall_a_0(:,i,j)
         ELSE
+            ! PALM extra debug option. If data_output_raw=false, set wall temperatures to fill value to prevent meaningless output values.
             IF ( .NOT. data_output_raw )  THEN
                 slurb_tile%t_wall_a_0(:,i,j)   = output_fill_value
                 slurb_tile%t_wall_a_m(:,i,j) = output_fill_value
@@ -912,6 +873,7 @@ end subroutine slurb_update_external_vars
             slurb_tile%t_win_b_0(:,i,j)   = slurb_tile%t_win_a_0(:,i,j)
             slurb_tile%t_win_b_m(:,i,j) = slurb_tile%t_win_a_0(:,i,j)
         ELSE
+            ! PALM extra debug option. If data_output_raw=false, set wall temperatures to fill value to prevent meaningless output values.
             IF ( .NOT. data_output_raw )  THEN
                 slurb_tile%t_win_a_0(:,i,j)   = output_fill_value
                 slurb_tile%t_win_a_m(:,i,j) = output_fill_value
@@ -944,17 +906,17 @@ end subroutine slurb_update_external_vars
         slurb_tile%ol_road(i,j) = slurb_tile%z_mo_can(i,j) / zeta_min
         slurb_tile%ol_can(i,j)  = slurb_tile%z_mo(i,j)     / zeta_min
         slurb_tile%ol_urb(i,j)  = slurb_tile%z_mo(i,j)     / zeta_min
-        ! ENDIF
 
-    !
-    !--    Init potential temperatures and virtual potential temperatures. These need to be computed
-    !--    also for the restart case, as d_exner is not yet available when rrd routines are called.
+        !
+        !--    Init potential temperatures and virtual potential temperatures. These need to be computed
+        !--    also for the restart case, as d_exner is not yet available when rrd routines are called.
         slurb_tile%pt_can(i,j) = slurb_tile%t_can_0(i,j) / exnf(k_topo)
 
         IF ( slurb_tile%f_win(i,j) < 1.0_field_r )  THEN
             slurb_tile%pt_wall_a(i,j) = slurb_tile%t_wall_a_0(nzt_wall,i,j) / exnf(k_topo)
             slurb_tile%pt_wall_b(i,j) = slurb_tile%t_wall_b_0(nzt_wall,i,j) / exnf(k_topo)
         ELSE
+            ! PALM extra debug option. If data_output_raw=false, set wall temperatures to fill value to prevent meaningless output values.
             IF ( .NOT. data_output_raw )  THEN
                 slurb_tile%pt_wall_a(i,j) = output_fill_value
                 slurb_tile%pt_wall_b(i,j) = output_fill_value
@@ -965,6 +927,7 @@ end subroutine slurb_update_external_vars
             slurb_tile%pt_win_a(i,j) = slurb_tile%t_win_a_0(nzt_win,i,j) / exnf(k_topo)
             slurb_tile%pt_win_b(i,j) = slurb_tile%t_win_b_0(nzt_win,i,j) / exnf(k_topo)
         ELSE
+            ! PALM extra debug option. If data_output_raw=false, set wall temperatures to fill value to prevent meaningless output values.
             IF ( .NOT. data_output_raw )  THEN
                 slurb_tile%pt_win_a(i,j) = output_fill_value
                 slurb_tile%pt_win_b(i,j) = output_fill_value
@@ -1092,7 +1055,7 @@ end subroutine slurb_update_external_vars
         enddo
     enddo
 
-        !
+    !
     !-- Calculate logarithms of ratio z/z0.
     !>  TODO: Since the ratios do not change during the simulation, they can be stored once at the
     !>        and stored in surf_slurb, like it is done for the other surface types, too.
@@ -1123,6 +1086,8 @@ END SUBROUTINE init_slurb_variables
     
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/precompute_latent_variables'
+
     REAL(field_r) ::  emiss_facade       !< aggregated facade emissivity
     REAL(field_r) ::  f_wall             !< wall fraction
     REAL(field_r) ::  f_win              !< window fraction
@@ -1136,28 +1101,6 @@ END SUBROUTINE init_slurb_variables
     !-- Precompute model constants.
     rho_lv = rlv * rhof(1)
     drho_l_lv = 1.0_field_r / (rhow * rlv)
-
-
-    !TODOSELF
-    ! do j=2,j1
-    !     do i=2,i1
-    !         slurb_tile%hw_can(i,j) = 0.3
-    !     enddo
-    ! ENDDO
-    
-    !
-    !-- Check street canyon height-to-width ratio.
-    
-    ! do j=2,j1
-    !     do i=2,i1
-    !         IF ( slurb_tile%h_bld(i,j) == 0.0_field_r  .OR.  slurb_tile%hw_can(i,j) == 0.0_field_r )  THEN
-    !             WRITE( message_string, * ) 'Building height or street canyon aspect ratio ' //           &
-    !                                         'set to zero at (j,i)=', j, i, 'with non-zero ' //            &
-    !                                         'urban_fraction = ', fr_urb(j,i), '.'
-    !             CALL message( 'slurb_init', 'SLU0024', 2, 2, myid, 6, 0 )
-    !         ENDIF
-    !     enddo
-    ! ENDDO
 
     !
     !-- Precompute layer total conductivities from layer thicknesses and thermal conductivities.
@@ -1405,10 +1348,6 @@ END SUBROUTINE init_slurb_variables
         enddo
     ENDDO
 
-    ! slurb_tile%lw_win_coef(:,:,:) = 0
-    ! slurb_tile%lw_wall_coef(:,:,:) = 0
-    ! slurb_tile%lw_roof_coef(:,:,:) = 0
-    ! slurb_tile%lw_road_coef(:,:,:) = 0
     !
     !-- Precompute shortwave radiation reflection denominator.
     do j=2,j1
@@ -1488,13 +1427,8 @@ END SUBROUTINE init_slurb_variables
         enddo
        ENDDO
     ELSE
-        write(*,*) 'WARNING: no canyon coefficient set for calculating absolute canyon velocity, this might have unintended consequences.'
-        call abort
+        call finish(routine, 'no canyon coefficient set for calculating absolute canyon velocity, this might have unintended consequences.')
     endif
-    ! slurb_tile%conductivity_road(:,:,:) = 0.001
-    ! slurb_tile%conductivity_roof(:,:,:) = 0.001
-    ! slurb_tile%conductivity_wall(:,:,:) = 0.001
-    ! slurb_tile%conductivity_win(:,:,:) = 0.001
     !
     !-- Compute minimum timestep based on SLUrb internal diffusivities.
     do j=2,j1
@@ -1527,8 +1461,7 @@ END SUBROUTINE init_slurb_variables
     ! IF ( collective_wait )  CALL MPI_BARRIER( comm2d, ierr )
     CALL D_MPI_ALLREDUCE( dt_slurb, dt_slurb_individual, 1, mpi_min, comm3d, mpierr )
 
-    write(*,*) 'max_dt for slurb'
-    write(*,*) dt_slurb
+    call warning(routine, 'Maximum timestep for SLUrb estimated to be ', dt_slurb, ' seconds. This is probably calculated incorrectly, and this is NOT applied to tstep yet!!')
     ! #endif
 
  END SUBROUTINE precompute_latent_variables
@@ -1701,13 +1634,6 @@ SUBROUTINE slurb_canyon_model
     LOGICAL ::  runge_l  !< flag for timestep scheme to allow vectorization
     real :: rhocp_i, rholv_i
 
-    ! IF ( debug_output_timestep )  THEN
-    !    WRITE( debug_string, * ) 'slurb_urban_aggregation_model'
-    !    CALL debug_message( debug_string, 'start' )
-    ! ENDIF
-
-    ! runge_l = ( timestep_scheme(1:5) == 'runge' )
-    runge_l = .true.
 
     do j=2,j1
       do i=2,i1
@@ -1762,11 +1688,6 @@ SUBROUTINE slurb_canyon_model
 
       enddo
     enddo
-
-    ! IF ( debug_output_timestep )  THEN
-    !    WRITE( debug_string, * ) 'slurb_urban_aggregation_model'
-    !    CALL debug_message( debug_string, 'end' )
-    ! ENDIF
 
  CONTAINS
 
@@ -1892,9 +1813,6 @@ SUBROUTINE slurb_canyon_model
                             psi_h( ( slurb_tile%z_mo(i,j) + slurb_tile%h_bld(i,j) ) / slurb_tile%ol_urb(i,j) )             &
                           ) + slurb_tile%pt1(i,j) * exnf(k_atm)
     ENDIF
-
-
-
 
 
  END SUBROUTINE calc_urban_aggregated_temperatures

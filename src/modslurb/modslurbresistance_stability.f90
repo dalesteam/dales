@@ -416,7 +416,6 @@ module modslurb_resistance_stability
                 ol_l = ol_m - 0.001_field_r * ol_m
                 ol_u = ol_m + 0.001_field_r * ol_m
 
-                IF ( ibc_pt_b /= 1 )  THEN
     !
     !--             Calculate f = Ri - [...]/[...]^2 = 0.
                 f = rib - ( z_mo / ol_m ) * ( ln_z_z0h - psi_h( z_mo / ol_m )          &
@@ -434,20 +433,6 @@ module modslurb_resistance_stability
                                                 / ( ln_z_z0  - psi_m( z_mo / ol_l )          &
                                                                 + psi_m( z0   / ol_l ) )**2     &
                             ) / ( ol_u - ol_l )
-                ELSE
-    !
-    !--             Calculate f = Ri - 1 /[...]^3 = 0.
-                f = rib - ( z_mo / ol_m ) /                                                  &
-                                ( ln_z_z0 - psi_m( z_mo / ol_m ) + psi_m( z0 / ol_m ) )**3
-
-    !
-    !--             Calculate df/dL.
-                f_d_ol = ( - ( z_mo / ol_u ) / ( ln_z_z0 - psi_m( z_mo / ol_u )           &
-                                                                + psi_m( z0   / ol_u ) )**3      &
-                            + ( z_mo / ol_l ) / ( ln_z_z0 - psi_m( z_mo / ol_l )           &
-                                                                + psi_m( z0   / ol_l ) )**3      &
-                            ) / ( ol_u - ol_l )
-                ENDIF
     !
     !--          Calculate new L.
                 ol = ol_m - f / f_d_ol

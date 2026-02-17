@@ -1484,7 +1484,7 @@ subroutine integrate_theta_soil
     use modglobal, only : rk3step, rdt, i1, j1, rhow, rlv
     use modsurfdata, only : phiw, phiwm, lambdash, gammash
     use modmpi, only : myidx, myidy
-    use modchecksim, only : check_array
+    use modchecksim, only : check_array, lstop
     implicit none
     integer :: i, j, k
     real :: tend, rk3coef, flux_top, fac
@@ -1543,7 +1543,7 @@ subroutine integrate_theta_soil
     ! Range check of phiw
     !$acc update host(phiw) wait(1)
     !$acc wait(1)
-    call check_array(phiw, "phiw", "integrate_theta_soil", [0.0, 1.0])
+    call check_array(phiw, "phiw", "integrate_theta_soil", [0.0, 1.0],stop_if_invalid=lstop, dump_if_invalid=.false.)
 
 end subroutine integrate_theta_soil
 
@@ -1628,6 +1628,9 @@ subroutine initlsm
 
         ! Calculate root fractions soil (low and high veg)
         call calc_root_fractions
+
+        ! Check if any values are invalid
+        call check_value_validity
 
     end if
 
@@ -2786,7 +2789,27 @@ subroutine init_heterogeneous_nc
     ! !call flush()
 
 end subroutine init_heterogeneous_nc
+!
+! Check if the rougness lengths are smaller than the first vertical grid level. If they are larger, MOST is not valid and the model will likely crash.
+!
+subroutine check_value_validity
+    use modglobal, only : zf
+    use modchecksim, only: check_array
+    implicit none
+    integer i, j, k
+    integer, parameter :: rkind = kind(tile(ilu)%z0h)
+    character(len=*), parameter :: routine = modname//'/check_value_validity'
 
+    do ilu=1,nlu-1
+      if (tile(ilu)%laqu) then
+        cycle
+      else
+        call check_array(tile(ilu)%z0h, 'tile('//tile(ilu)%lushort//')%z0h', routine,[real(0, kind=rkind), real(zf(1),kind=rkind)], stop_if_invalid=.true.)
+        call check_array(tile(ilu)%z0m, 'tile('//tile(ilu)%lushort//')%z0m', routine,[real(0, kind=rkind), real(zf(1),kind=rkind)], stop_if_invalid=.true.)
+      end if
+    end do
+    
+end subroutine check_value_validity
 !
 ! Read the input table with the (van Genuchten) soil parameters
 !
