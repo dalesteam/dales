@@ -61,9 +61,12 @@
 
 
 module modsurface
+  use iso_fortran_env, only: real64
   use modtimer
   use modsurfdata
-  use modglobal,  only: ifnamopt, checknamelisterror
+  use modfields,  only: u0, v0, thl0, qt0, u0av, v0av, thl0av, qt0av
+  use modglobal,  only: ifnamopt, checknamelisterror, zf, i1, j1, i2, j2, &
+                        grav, cu, cv, rd, rv
   use modmpi,     only: d_mpi_bcast, commwrld, myid
   use modlogging, only: finish
   use fortran_support, only: nnml_output
@@ -172,6 +175,8 @@ contains
     call D_MPI_BCAST(expemis2                   ,            1, 0, commwrld, istat)
     call D_MPI_BCAST(ltskininp                  ,            1, 0, commwrld, istat)
     call D_MPI_BCAST(min_horv                   ,            1, 0, commwrld, istat)
+
+    !$acc update device(min_horv)
 
   end subroutine surface_read_namelist
 
@@ -800,7 +805,7 @@ contains
     select case (isurf)
       case (1) ! Interactive land surface model
         call calc_mean_wind
-        call getobl
+        call get_obl
         call calc_drag_coefficients
         call calc_aerodynamic_resistance
         call do_lsm
@@ -809,7 +814,7 @@ contains
         call calc_surface_gradients
       case (2) ! Forced surface temperature, fluxes calculated
         call calc_mean_wind
-        call getobl
+        call get_obl
         call calc_drag_coefficients
         call calc_aerodynamic_resistance
         call presc_skin_temperature
@@ -820,7 +825,7 @@ contains
       case (3) ! Forced fluxes, surface temperature calculated
         call calc_mean_wind
         call calc_drag_coefficients
-        call getobl
+        call get_obl
         call presc_friction_velocity
         call presc_surface_flux
         call calc_surface_gradients
@@ -828,7 +833,7 @@ contains
       case (4) ! Forced moisture and heat flux, u_star and surface temperature calculated
         call calc_mean_wind
         call calc_drag_coefficients
-        call getobl
+        call get_obl
         call calc_friction_velocity
         call presc_surface_flux
         call calc_surface_gradients
@@ -1346,6 +1351,146 @@ contains
 
   end subroutine qtsurf
 
+  !> Calculate the Obukhov length.
+  subroutine get_obl()
+
+    character(len=*), parameter :: routine = modname//'/get_obl'
+
+    integer :: i, j
+
+    real(field_r) :: upcu !< U-velocity interpolated to cell centers [m/s]
+    real(field_r) :: vpcv !< V-velocity interpolated to cell centers [m/s]
+    integer       :: retval
+
+    if (lneutral) then
+      !$acc parallel loop collapse(2) default(present)
+      do j = 1, j2
+        do i = 1, i2
+          obl(i,j) = -1.e10
+        end do
+      end do
+      oblav = -1.e10
+    else 
+      !$acc serial default(present) copy(oblav)
+      retval = calc_obl_iter(thl0av(1), qt0av(1), thls, qts, zf(1), z0mav, &
+                             z0hav, u0av(1), v0av(1), oblav)
+      !$acc end serial
+
+      if (lmostlocal) then
+        !$acc parallel loop collapse(2) default(present)
+        do j = 2, j1
+          do i = 2, i1
+            upcu = 0.5_real64 * (u0(i,j,1) + u0(i+1,j,1)) + cu 
+            vpcv = 0.5_real64 * (v0(i,j,1) + v0(i,j+1,1)) + cv
+            retval = calc_obl_iter(thl0(i,j,1), qt0(i,j,1), real(tskin(i,j)), &
+                                   real(qskin(i,j)), zf(1), z0m(i,j), &
+                                   z0h(i,j), upcu, vpcv, obl(i,j))
+          end do
+        end do
+      else
+        !$acc parallel loop collapse(2) default(present)
+        do j = 1, j2
+          do i = 1, i2
+            obl(i,j) = oblav
+          end do
+        end do
+      end if
+    end if
+
+  end subroutine get_obl
+
+  !> Calculate the Obukhov length iteratively.
+  function calc_obl_iter(thl, qt, tskin, qskin, z, z0m, z0h, u, v, L) &
+    result(retval)
+
+    !$acc routine seq
+    real(field_r), intent(in) :: thl   !< Liquid potential temperature [K]
+    real(field_r), intent(in) :: qt    !< Specific humidity [kg/kg]
+    real(real64),  intent(in) :: tskin !< Skin temperature [K]
+    real(real64),  intent(in) :: qskin !< Skin specific humidity [kg/kg]
+    real(field_r), intent(in) :: z     !< Height [m]
+    real(real64),  intent(in) :: z0m   !< Roughness length for momentum [m]
+    real(real64),  intent(in) :: z0h   !< Roughness length for heat [m]
+    real(field_r), intent(in) :: u     !< U wind component at first model level [m/s]
+    real(field_r), intent(in) :: v     !< V wind component at first model level [m/s]
+
+    real(real64), intent(inout) :: L   !< Obukhov length [m]
+
+    real(real64) :: horv2  !< Horizontal wind velocity, squared [m2/s2]
+    real(real64) :: Rib    !< Bulk Richardson number
+    real(real64) :: thv    !< Virtual potential temperature [K]
+    real(real64) :: thvsl  !< Skin virtual potential temperature [K]
+    integer       :: retval !< Return value (0 = ok, 1 = not converged)
+
+    ! Variables for iteration
+    integer       :: iter
+    real(real64) :: fx, fxdif
+    real(real64) :: Lend, Lold, Lstart
+
+    thv = thl * (1 + (rv/rd - 1) * qt)
+    thvsl = tskin * (1 + (rv/rd - 1) * qskin)
+    horv2 = max(u**2 + v**2, min_horv**2)
+
+    Rib = grav / thvsl * z * (thv - thvsl) / horv2
+
+    if (Rib == 0.0_real64) then
+      L = 1E6
+    else
+      iter = 0
+      Lold = 0
+
+      if (Rib * L < 0. .or. abs(L) == 1e5) then
+        if (Rib > 0) L = 0.01
+        if (Rib < 0) L = -0.01
+      end if
+
+      do while (abs((L - Lold) / L) > 1E-4 .and. iter < 1000)
+        iter = iter + 1
+
+        Lold = L
+        Lstart = L - 0.001 * L
+        Lend = L + 0.001 * L
+
+        fx = Rib - calc_rib_from_obl(z, L, z0h, z0m)
+        
+        fxdif = (- calc_rib_from_obl(z, Lstart, z0h, z0m) &
+                + calc_rib_from_obl(z, Lend, z0h, z0m)) / (Lstart - Lend)
+
+        L = L - fx / fxdif
+
+        if (Rib * L < 0. .or. abs(L) == 1e5) then
+          if (Rib > 0) L = 0.01
+          if (Rib < 0) L = -0.01
+        end if
+
+        if (abs(L) > 1E6) L = sign(1E6, L)
+
+        ! TODO: convergence check?
+      end do
+    end if
+
+    retval = 0
+
+  end function calc_obl_iter
+
+  !> Calculate the bulk Richardson number from the Obukhov length.
+  !!
+  !! See Heus et al. (2010) equation 28.
+  elemental function calc_rib_from_obl(z, L, z0h, z0m) result(fac)
+    
+    real(field_r), intent(in) :: z   !< Height [m]
+    real(real64),  intent(in) :: L   !< Obukhov length [m]
+    real(real64),  intent(in) :: z0h !< Roughness length for heat [m]
+    real(real64),  intent(in) :: z0m !< Roughness length for momentum [m]
+
+    real(real64) :: fac !< Factor relating bulk Richardson number to Obukhov length
+
+    fac = z / L &
+          * (log(z / z0h) - psih(z / L) + psih(z0h / L)) &
+          / (log(z / z0m) - psim(z / L) + psim(z0m / L))**2
+
+  end function calc_rib_from_obl
+
 !> Calculates the Obukhov length iteratively.
   subroutine getobl
     use modglobal, only : zf, rv, rd, grav, i1, j1, i2, j2, cu, cv
@@ -1370,7 +1515,6 @@ contains
 
 
     if (lneutral) then
-      !$acc parallel loop collapse(2) default(present)
       do i=1,i2
         do j=1,j2
           obl(i,j) = -1.e10
@@ -1384,7 +1528,6 @@ contains
 
       oblavl = 0.
 
-      !$acc parallel loop collapse(2) default(present)
       do i=2,i1
         do j=2,j1
           thv     =   thl0(i,j,1)  * (1. + (rv/rd - 1.) * qt0(i,j,1))
@@ -1535,10 +1678,8 @@ contains
     endif ! if lhetero
 
     !CvH also do a global evaluation if lmostlocal = .true. to get an appropriate local mean
-    !$acc update self(thl0av(1), qt0av(1))
     thv    = thl0av(1) * (1. + (rv/rd - 1.) * qt0av(1))
 
-    !$acc update self(u0av(1), v0av(1))
     horv2 = u0av(1)**2. + v0av(1)**2.
     horv2 = max(horv2, min_horv**2)
 
@@ -1580,7 +1721,6 @@ contains
        if (abs(L)>1e6) L = sign(1.0e6,L)
        if(.not. lmostlocal) then
           if(.not. lhetero) then
-            !$acc parallel loop collapse(2) default(present)
             do j = 1, j2
               do i = 1, i2
                 obl(i,j) = L

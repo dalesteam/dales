@@ -131,5 +131,10 @@ endif()
 # Find the fortran-support library (included).
 include ( dales_add_fortran_support )
 
+# Set the compiler flags for the selected compiler
 include( dales_compile_options )
+
+# Add RRTMGP
+include( dales_add_rrtmgp )
+
 add_subdirectory( src )

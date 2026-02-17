@@ -114,7 +114,7 @@ program DALES
   use modforces,         only : forces, coriolis, lstend
   use modradiation,      only : radiation
   use modpois,           only : poisson
-  use tstep,             only : tstep_update,  tstep_integrate
+  use tstep,             only : tstep_update,  tstep_integrate, reset_tendencies
   use modlogging,        only : initlogging, exitlogging
   !use modedgecold,       only : coldedge
 
@@ -166,6 +166,11 @@ program DALES
   use modstat_profiles, only: init_profiles, sample_profiles, write_profiles, exit_profiles
   use modibm,          only : applyibm, zerowallvelocity
   use modibmdata,      only : lpoislast
+  use modlatsponge,    only : lateral_sponge
+  use modspraying,     only : spraying
+  use modprecursor,    only : init_precursor, precursor_nudge_boundary, &
+                              swap_fields, exit_precursor, &
+                              lprecursor, Nsim, statid, turid, refid
 !----------------------------------------------------------------
 !     0.2     USE STATEMENTS FOR TIMER MODULE
 !----------------------------------------------------------------
@@ -179,11 +184,11 @@ program DALES
 #if defined(_OPENACC)
   use modgpu, only: update_gpu, host_is_updated
 #endif
-  use modspraying,     only : lateralsponge
 
   implicit none
 
   integer :: istep
+  integer :: simid !< Simulation ID, used for precursor simulations
 
   ! Select CPU for execution of startup routines
 !----------------------------------------------------------------
@@ -231,6 +236,7 @@ program DALES
   call initcape
 
   call init_profiles
+  call init_precursor
 
 #if defined(_OPENACC)
   call update_gpu
@@ -241,156 +247,171 @@ program DALES
 !------------------------------------------------------
   call testwctime
   istep = 1
-  do while (timeleft>0 .or. rk3step < 3)
-    call timer_tic('program/timestep', istep)
+  do while (timeleft > 0)
+    do simid = 1, Nsim
 
+      if (simid == refid) call tstep_update
 
-    ! Calculate new timestep, and reset tendencies to 0.
-    call tstep_update
-    call timedep
-    call scalarpulse
-    call samptend(tend_start,firstterm=.true.)
-    call datetime
+      do rk3step = 1, 3
+        call timer_tic('program/timestep', istep)
+    
+    
+        ! Calculate new timestep, and reset tendencies to 0.
+        call timedep
+        call scalarpulse
+        call samptend(tend_start,firstterm=.true.)
+        call datetime
+    
+        ! Check if we have to sample profiles this time step
+        call sample_profiles
+    
+        call datetime
+    
+    !-----------------------------------------------------
+    !   3.1   Openboundaries
+    !-----------------------------------------------------
+        if(lopenbc) then
+          call openboundary_turb
+          call openboundary_ghost
+          call openboundary_tend
+        endif
+    
+    !-----------------------------------------------------
+    !   3.2   RADIATION
+    !-----------------------------------------------------
+        call radiation !radiation scheme
+        call samptend(tend_rad)
+    
+    !-----------------------------------------------------
+    !   3.3   THE SURFACE LAYER / LAND-SURFACE
+    !-----------------------------------------------------
+        call lsm
+        call drydep
+        call surface
+    
+    !-----------------------------------------------------
+    !   3.4   ADVECTION AND DIFFUSION
+    !-----------------------------------------------------
+        call advection
+        call subgrid
+        call canopy
+        call samptend(tend_subg)
+    
+    !-----------------------------------------------------
+    !   3.5   REMAINING TERMS
+    !-----------------------------------------------------
+        call coriolis !remaining terms of ns equation
+        call samptend(tend_coriolis)
+        call forces !remaining terms of ns equation
+        call samptend(tend_force)
+    
+        call lstend !large scale forcings
+        call samptend(tend_ls)
+        call microphysics
+        call samptend(tend_micro)
+        call emission
+    
+    !------------------------------------------------------
+    !   3.6   EXECUTE ADD ONS
+    !------------------------------------------------------
+        call nudge
+        call nudgeboundary
+        call testbednudge
+        if (simid == turid) call spraying
+    !    call dospecs
+    !    call tiltedgravity
+    
+        call samptend(tend_addon)
+    
+        if (lprecursor .and. simid == turid) call precursor_nudge_boundary
+    
+    !-----------------------------------------------------------------------
+    !   3.7  PRESSURE FLUCTUATIONS, TIME INTEGRATION AND BOUNDARY CONDITIONS
+    !-----------------------------------------------------------------------
+        call grwdamp !damping at top of the model
+    !JvdD    call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
+        call samptend(tend_topbound)
+    
+        ! either apply ibm before or after poisson solver
+        if (lpoislast .eqv.  .true.) call applyibm
+        if (lpoislast .eqv. .false.) call zerowallvelocity ! put wall velocities to zero before Poisson
+        call poisson
+    
+        if (lpoislast .eqv. .false.) call applyibm ! then only apply IBM after Poisson
+    
+        call samptend(tend_pois,lastterm=.true.)
+        if(lopenbc) call openboundary_phasevelocity()
+    
+        call lateral_sponge
+    
+        call tstep_integrate                        ! Apply tendencies to all variables
+    
+        call msebudg1
+        ! NOTE: the tendencies are not zeroed yet, but kept for analysis and statistcis
+        !       Do not change them below this point.
+        if(lopenbc) then
+          call openboundary_ghost
+        else
+          call boundary
+        endif
+    
+    
+        !call tiltedboundary
+    !-----------------------------------------------------
+    !   3.8   LIQUID WATER CONTENT AND DIAGNOSTIC FIELDS
+    !-----------------------------------------------------
+        call thermodynamics
+        call leibniztend
+        call writesamptend
+    !-----------------------------------------------------
+    !   3.9  WRITE RESTARTFILES AND DO STATISTICS
+    !------------------------------------------------------
+        if (simid == statid) then
+          call twostep
+          !call coldedge
+          call checksim
+          call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
+          call genstat  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
+          call write_profiles
+          call radstat
+          call lsmstat
+          !call depstat
+          call sampling
+          call quadrant
+          call crosssection
+          call AGScross
+          call lsmcrosssection
+          call depcrosssection
+          !call tanhfilter
+          call docape
+          !call projection
+          call cloudfield
+          call fielddump
+          call radfield
+          !call particles
+    
+          call budgetstat
+          call varbudget
+          call msebudg2
+          !call stressbudgetstat
+          call heterostats
+    
+          call testwctime
+          call writerestartfiles
+        end if
 
-    ! Check if we have to sample profiles this time step
-    call sample_profiles
+        call reset_tendencies
 
-    call datetime
-
-!-----------------------------------------------------
-!   3.1   Openboundaries
-!-----------------------------------------------------
-    if(lopenbc) then
-      call openboundary_turb
-      call openboundary_ghost
-      call openboundary_tend
-    endif
-
-!-----------------------------------------------------
-!   3.2   RADIATION
-!-----------------------------------------------------
-    call radiation !radiation scheme
-    call samptend(tend_rad)
-
-!-----------------------------------------------------
-!   3.3   THE SURFACE LAYER / LAND-SURFACE
-!-----------------------------------------------------
-    call lsm
-    call drydep
-    call surface
-
-!-----------------------------------------------------
-!   3.4   ADVECTION AND DIFFUSION
-!-----------------------------------------------------
-    call advection
-    call subgrid
-    call canopy
-    call samptend(tend_subg)
-
-!-----------------------------------------------------
-!   3.5   REMAINING TERMS
-!-----------------------------------------------------
-    call coriolis !remaining terms of ns equation
-    call samptend(tend_coriolis)
-    call forces !remaining terms of ns equation
-    call samptend(tend_force)
-
-    call lstend !large scale forcings
-    call samptend(tend_ls)
-    call microphysics
-    call samptend(tend_micro)
-    call emission
-
-!------------------------------------------------------
-!   3.6   EXECUTE ADD ONS
-!------------------------------------------------------
-    call nudge
-    call nudgeboundary
-    call testbednudge
-!    call dospecs
-!    call tiltedgravity
-
-    call samptend(tend_addon)
-
-
-!-----------------------------------------------------------------------
-!   3.7  PRESSURE FLUCTUATIONS, TIME INTEGRATION AND BOUNDARY CONDITIONS
-!-----------------------------------------------------------------------
-    call grwdamp !damping at top of the model
-!JvdD    call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
-    call samptend(tend_topbound)
-
-    ! either apply ibm before or after poisson solver
-    if (lpoislast .eqv.  .true.) call applyibm
-    if (lpoislast .eqv. .false.) call zerowallvelocity ! put wall velocities to zero before Poisson
-    call poisson
-
-    if (lpoislast .eqv. .false.) call applyibm ! then only apply IBM after Poisson
-
-    call samptend(tend_pois,lastterm=.true.)
-    if(lopenbc) call openboundary_phasevelocity()
-
-    call lateralsponge                          ! optional lateral sponge layer for scalars
-
-    call tstep_integrate                        ! Apply tendencies to all variables
-
-    call msebudg1
-    ! NOTE: the tendencies are not zeroed yet, but kept for analysis and statistcis
-    !       Do not change them below this point.
-    if(lopenbc) then
-      call openboundary_ghost
-    else
-      call boundary
-    endif
-
-
-    !call tiltedboundary
-!-----------------------------------------------------
-!   3.8   LIQUID WATER CONTENT AND DIAGNOSTIC FIELDS
-!-----------------------------------------------------
-    call thermodynamics
-    call leibniztend
-    call writesamptend
-!-----------------------------------------------------
-!   3.9  WRITE RESTARTFILES AND DO STATISTICS
-!------------------------------------------------------
-    call twostep
-    !call coldedge
-    call checksim
-    call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
-    call genstat  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
-    call write_profiles
-    call radstat
-    call lsmstat
-    !call depstat
-    call sampling
-    call quadrant
-    call crosssection
-    call AGScross
-    call lsmcrosssection
-    call depcrosssection
-    !call tanhfilter
-    call docape
-    !call projection
-    call cloudfield
-    call fielddump
-    call radfield
-    !call particles
-
-    call budgetstat
-    call varbudget
-    call msebudg2
-    !call stressbudgetstat
-    call heterostats
-
-    call testwctime
-    call writerestartfiles
 #if defined(_OPENACC)
-    host_is_updated = .false.
+        host_is_updated = .false.
 #endif
-    call timer_toc('program/timestep')
+        call timer_toc('program/timestep')
+      end do ! rk3step
+
+      if (lprecursor) call swap_fields
+    end do ! simid
     istep = istep + 1
-  end do
+  end do ! time loop
 
 !-------------------------------------------------------
 !             END OF TIME LOOP

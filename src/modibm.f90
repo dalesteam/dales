@@ -29,14 +29,15 @@
 !
 
 module modibm
-  use modglobal,    only : rd, rv, grav, ijtot, iinput, input_netcdf
-  use modprecision, only : field_r
-  use modsurface,   only : psim, psih
-  use modibmdata,   only : lapply_ibm,lpoislast, lwallheat, &
+  use iso_fortran_env, only : real64
+  use modglobal,       only : rd, rv, grav, ijtot, iinput, input_netcdf
+  use modprecision,    only : field_r
+  use modsurface,      only : psim, psih, calc_obl_iter
+  use modibmdata,      only : lapply_ibm,lpoislast, lwallheat, &
                             thlwall, thlroof, qtroof, thlibm, qtibm, &
                             z0m_wall, z0h_wall
   use modtimer
-  use modlogging, only : finish, warning, message
+  use modlogging,      only : finish, warning, message
 
   
   implicit none
@@ -151,6 +152,7 @@ contains
     call D_MPI_BCAST(thlibm             ,    1, 0, comm3d, mpierr)
     call D_MPI_BCAST(qtibm              ,    1, 0, comm3d, mpierr)
     call D_MPI_BCAST(thlroof            ,    1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(qtroof             ,    1, 0, comm3d, mpierr)
     call D_MPI_BCAST(lpoislast          ,    1, 0, comm3d, mpierr)
     call D_MPI_BCAST(z0m_wall           ,    1, 0, comm3d, mpierr)
     call D_MPI_BCAST(z0h_wall           ,    1, 0, comm3d, mpierr)
@@ -416,13 +418,13 @@ contains
 
     implicit none
 
-    integer           :: i, j, k, nn, nc
+    integer           :: i, j, k, nn, nc, retval
     real(field_r)     :: rk3coef, rk3coefi
     real(field_r)     :: emmo, empo, emom, emop, eomm
     real(field_r)     :: u_at_v_min, u_at_v_plus, v_at_u_min, v_at_u_plus
     real(field_r)     :: w_at_v_min, w_at_v_plus, w_at_u_min, w_at_u_plus
     real(field_r)     :: u_at_w_min, u_at_w_plus, v_at_w_min, v_at_w_plus
-    real(field_r)     :: uspeed, z_MO
+    real(field_r)     :: uspeed, ucc, vcc, z_MO
     real(field_r)     :: tau_vu_plus, tau_vu_min, tau_wu_min, tau_wu_plus, tau_uv_min, tau_uv_plus, tau_wv_min, tau_wv_plus
     real              :: Lob
     
@@ -509,18 +511,20 @@ contains
       vp(i,j+1,k) = vp(i,j+1,k) + 0.5_field_r * rhobh(k)/rhobf(k) * eomm * ( (v0(i,j+1,k)-v0(i,j+1,k-1)) * dzhi(k)) * dzfi(k)
 
       !> Include correct Monin-Obukhov wall drag (with stability correction)
-      uspeed  = 0.5_field_r * sqrt( ( u0(i,j,k) + u0(i+1,j,k) )**2 + ( v0(i,j,k) + v0(i,j+1,k) )**2 )
-      z_MO    = zf(k) - zh(k)
+      ucc    = 0.5_real64 * (u0(i,j,k) + u0(i+1,j,k))
+      vcc    = 0.5_real64 * (v0(i,j,k) + v0(i,j+1,k))
+      uspeed = 0.5_field_r * sqrt( ( u0(i,j,k) + u0(i+1,j,k) )**2 + ( v0(i,j,k) + v0(i,j+1,k) )**2 )
+      z_MO   = zf(k) - zh(k)
+      Lob    = -1.e10
 
-      !> If locally no wind, automatically no flux, so default drag coefficient to zero REWORK THIS!!!
-      if (uspeed < 0.01) then
-        Cm_zwall = 0
-        Cd_zwall = 0
-      else if (lneutral) then
+      if (lneutral) then
         Cm_zwall = fkar**2 / (log(z_MO / z0m_wall))** 2
         Cd_zwall = fkar**2 / (log(z_MO / z0m_wall)) / (log(z_MO / z0h_wall))
       else
-        Lob      = getobl_local(uspeed, thl0(i,j,k), qt0(i,j,k), thlroof, qtroof, z_MO, z0m_wall, z0h_wall)
+        retval = calc_obl_iter(thl0(i,j,k), qt0(i,j,k), real(thlroof), &
+                               real(qtroof), z_MO, real(z0m_wall), real(z0h_wall), & 
+                               ucc, vcc, Lob)
+
         Cm_zwall = fkar**2 / (log(z_MO / z0m_wall) - psim(z_MO / Lob) + psim(z0m_wall / Lob))** 2
         Cd_zwall = fkar**2 / (log(z_MO / z0m_wall) - psim(z_MO / Lob) + psim(z0m_wall / Lob)) / (log(z_MO / z0h_wall) - psih(z_MO / Lob) + psih(z0h_wall / Lob))
       end if
@@ -858,68 +862,6 @@ contains
     call excjs( w0  , 2,i1,2,j1,1,k1,ih,jh)
     return
   end subroutine zerowallvelocity
-
-  !> Calculates the Obukhov length iteratively (modified from modsurface.f90 implementation)
-  function getobl_local(uspeed,thl,qt,thlroof,qtroof,z_MO,z0m_wall,z0h_wall) result (Lob)
-    character(len=*), parameter :: routine = modname//'/getobl_local'
-    !$acc routine seq
-    real(field_r), intent(in) :: uspeed, thl, qt, thlroof, qtroof, z_MO, z0m_wall, z0h_wall
-
-    real                :: Lob
-
-    ! local internal variables
-    integer             :: i, j, iter
-    real                :: Rib, fx, fxdif, Lold, Lstart, Lend, thv, thvsl, thvroof, horv2
-
-    thv   = thl * (1. + (rv/rd - 1.) * qt)
-    thvsl = thlroof * (1. + (rv/rd - 1.) * qtroof)
-    horv2 = max(uspeed**2, 0.01)
-
-    Rib = grav / thvsl * z_MO * (thv - thvsl) / horv2
-
-    if (Rib == 0) then
-        ! Rib can be 0 if there is no surface flux
-        ! L is capped at 1e6 below, so use the same cap here
-        Lob = 1e6
-        write(*,*) 'Obukhov length: Rib = 0 -> setting Lob=1e6'
-    else
-        iter = 0
-        ! L = obl(i,j) ! previous value is best guess for new value, yet we don't have that saved currently.. consider saving later..
-
-        if(Rib > 0) Lob = 0.01
-        if(Rib < 0) Lob = -0.01
-
-        do while (.true.)
-          iter    = iter + 1
-          Lold    = Lob
-
-          fx     = Rib - z_MO / Lob * (log(z_MO / z0m_wall) - psih(z_MO / Lob) + psih(z0m_wall / Lob)) / &
-                    (log(z_MO / z0m_wall) - psim(z_MO / Lob) + psim(z0m_wall / Lob))**2.
-          Lstart = Lob - 0.001*Lob
-          Lend   = Lob + 0.001*Lob
-
-          fxdif  = ( (- z_MO / Lstart * (log(z_MO / z0m_wall) - psih(z_MO / Lstart) + psih(z0m_wall / Lstart)) /&
-                  (log(z_MO / z0m_wall) - psim(z_MO / Lstart) + psim(z0m_wall / Lstart)) ** 2.) - (-z_MO / Lend * &
-                  (log(z_MO / z0m_wall) - psih(z_MO / Lend) + psih(z0m_wall / Lend)) / (log(z_MO / z0m_wall) - psim(z_MO / Lend)&
-                  + psim(z0m_wall / Lend)) ** 2.) ) / (Lstart - Lend)
-
-          Lob = Lob - fx / fxdif
-          if(Rib * Lob < 0. .or. abs(Lob) == 1e5) then
-              if(Rib > 0) Lob = 0.01
-              if(Rib < 0) Lob = -0.01
-          end if
-          if(abs((Lob - Lold)/Lob) < 1e-4) exit
-          if(iter > 1000) then
-            print *, 'Obukhov length calculation does not converge in IBM!'
-          end if
-        end do
-
-        if (abs(Lob)>1e6) Lob = sign(1.0e6,Lob)
-    end if
-
-    return
-
-  end function getobl_local
 
   function log_wallaw(u1,u2,Cm_hor_wall) result(tau)
     !$acc routine seq
