@@ -1404,6 +1404,7 @@ contains
   function calc_obl_iter(thl, qt, tskin, qskin, z, z0m, z0h, u, v, L) &
     result(retval)
 
+    !$acc routine seq
     real(field_r), intent(in) :: thl   !< Liquid potential temperature [K]
     real(field_r), intent(in) :: qt    !< Specific humidity [kg/kg]
     real(real64),  intent(in) :: tskin !< Skin temperature [K]
@@ -1414,7 +1415,7 @@ contains
     real(field_r), intent(in) :: u     !< U wind component at first model level [m/s]
     real(field_r), intent(in) :: v     !< V wind component at first model level [m/s]
 
-    real(real64), intent(inout) :: L !< Obukhov length [-]
+    real(real64), intent(inout) :: L   !< Obukhov length [m]
 
     real(real64) :: horv2  !< Horizontal wind velocity, squared [m2/s2]
     real(real64) :: Rib    !< Bulk Richardson number
