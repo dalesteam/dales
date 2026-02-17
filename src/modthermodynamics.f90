@@ -937,14 +937,14 @@ contains
           end do
         end do
       end do
-
-      !$acc parallel loop collapse(2) default(present) async(stream)
-      do j = 2, j1
-        do i = 2, i1
-          phi_half(i,j,1) = phi_surf
-        end do
-      end do
     end if
+
+    !$acc parallel loop collapse(2) default(present) async(stream)
+    do j = 2, j1
+      do i = 2, i1
+        phi_half(i,j,1) = phi_surf
+      end do
+    end do
 
   end subroutine calc_halflev
 
