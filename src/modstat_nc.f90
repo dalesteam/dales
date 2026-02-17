@@ -942,6 +942,42 @@ contains
 
   end subroutine read_nc_field_3D_int
 
+    integer :: varid
+    integer :: ierr
+    integer :: start_(2), count_(2)
+
+    ierr = nf90_inq_varid(ncid, varname, varid)
+
+    if (present(start)) then 
+      start_(1) = start(1)
+      start_(2) = start(2)
+    else
+      start_(1) = 1
+      start_(2) = 1
+    end if
+
+    if (present(count)) then
+      count_(1) = count(1)
+      count_(2) = count(2)
+    else
+      count_(1) = size(array,1)
+      count_(2) = size(array,2)
+    end if
+
+    select case (ierr)
+      case (NF90_ENOTVAR)
+        if (present(fillvalue)) then
+          array(:,:) = fillvalue
+        else
+          call nchandle_error(ierr)
+        end if
+      case (NF90_NOERR)
+        ierr = nf90_get_var(ncid, varid, array, start=start_, count=count_)
+      case default
+        call nchandle_error(ierr)
+    end select
+
+  end subroutine read_nc_field_2D
   subroutine read_nc_attribute_char(ncid, varid, attname, value, default)
     integer,      intent(in)           :: ncid
     integer,      intent(in)           :: varid
@@ -1066,6 +1102,250 @@ contains
     iret = nf90_sync(ncid)
     call nchandle_error(iret)
   end subroutine sync_nc
+
+  !> Print a human-readable summary of the contents of an open NetCDF file.
+  !!
+  !! Given an ncid, this routine prints:
+  !!  - basic file status (number of dimensions, variables, global attributes,
+  !!    and the unlimited dimension, if any)
+  !!  - all dimensions with their IDs and lengths
+  !!  - all variables with their IDs and dimensions
+  !!  - all global attributes and variable-specific attributes (names and
+  !!    simple values where possible)
+  subroutine print_netcdf_info(ncid)
+    implicit none
+
+    integer, intent(in) :: ncid
+
+    integer :: ierr
+    integer :: ndims, nvars, ngatts, unlimdimid
+    integer :: dimid, varid, attid
+    integer :: vndims, vnatts
+    integer :: dimlen
+    integer :: xtype, attlen
+    integer :: i
+    integer :: nhead, ntail, idx
+    integer :: startv(1), countv(1)
+    integer :: dimids(NF90_MAX_VAR_DIMS)
+    character(len=NF90_MAX_NAME) :: dimname, varname, attname
+    character(len=256)           :: att_char
+    real(8)                      :: dimvals(6)
+    integer                      :: ival
+    real(4)                      :: rval4
+    real(8)                      :: rval8
+
+    ! Inquire basic file information
+    ierr = nf90_inquire(ncid, ndims, nvars, ngatts, unlimdimid)
+    call nchandle_error(ierr)
+
+    write(*,*) '------------------------------------------------------------'
+    write(*,'(a,i0,a)') ' NetCDF file info (ncid=', ncid, '):'
+    write(*,'(2x,a,i0)') 'Number of dimensions : ', ndims
+    write(*,'(2x,a,i0)') 'Number of variables  : ', nvars
+    write(*,'(2x,a,i0)') 'Number of glob. atts : ', ngatts
+
+    if (unlimdimid >= 0) then
+      ierr = nf90_inquire_dimension(ncid, unlimdimid, dimname)
+      call nchandle_error(ierr)
+      write(*,'(2x,a,i0,a,a)') 'Unlimited dimension  : ID=', unlimdimid, ', name="', trim(dimname)//'"'
+    else
+      write(*,'(2x,a)') 'Unlimited dimension  : (none)'
+    end if
+
+    ! List all dimensions
+    write(*,*)
+    write(*,'(a)') ' Dimensions:'
+    do dimid = 1, ndims
+      ierr = nf90_inquire_dimension(ncid, dimid, dimname, dimlen)
+      call nchandle_error(ierr)
+
+      if (dimid == unlimdimid) then
+        write(*,'(2x,i3,2x,a,2x,a,i0,a)') dimid, trim(dimname), 'len=', dimlen, ' (UNLIMITED)'
+      else
+        write(*,'(2x,i3,2x,a,2x,a,i0)')   dimid, trim(dimname), 'len=', dimlen
+      end if
+
+      ! Try to print a small summary of dimension coordinate values
+      ierr = nf90_inq_varid(ncid, trim(dimname), varid)
+      if (ierr == NF90_NOERR .and. dimlen > 0) then
+        ierr = nf90_inquire_variable(ncid, varid, xtype=xtype)
+        call nchandle_error(ierr)
+
+        select case (xtype)
+        case (NF90_FLOAT, NF90_DOUBLE, NF90_INT, NF90_SHORT, NF90_BYTE)
+          nhead = min(3, dimlen)
+          ntail = 0
+          if (dimlen > nhead) ntail = min(3, dimlen - nhead)
+
+          ! Read first nhead values
+          startv(1) = 1
+          countv(1) = nhead
+          ierr = nf90_get_var(ncid, varid, dimvals(1:nhead), start=startv, count=countv)
+          call nchandle_error(ierr)
+
+          ! Read last ntail values, if any
+          if (ntail > 0) then
+            startv(1) = dimlen - ntail + 1
+            countv(1) = ntail
+            ierr = nf90_get_var(ncid, varid, dimvals(nhead+1:nhead+ntail), start=startv, count=countv)
+            call nchandle_error(ierr)
+          end if
+
+          write(*,'(8x,a)', advance='no') 'values: '
+          do idx = 1, nhead
+            write(*,'(f12.4)', advance='no') dimvals(idx)
+            if (idx < nhead .or. ntail > 0) write(*,'(a)', advance='no') ', '
+          end do
+          if (ntail > 0) then
+            write(*,'(a)', advance='no') '... '
+            do idx = 1, ntail
+              write(*,'(f12.4)', advance='no') dimvals(nhead+idx)
+              if (idx < ntail) write(*,'(a)', advance='no') ', '
+            end do
+          end if
+          write(*,*)
+        case default
+          write(*,'(8x,a)') 'values: (non-numeric type, omitted)'
+        end select
+
+      else if (ierr /= NF90_ENOTVAR) then
+        ! Only treat real errors; missing coordinate variable is fine
+        call nchandle_error(ierr)
+      end if
+    end do
+
+    ! List all global attributes
+    write(*,*)
+    write(*,'(a)') ' Global attributes:'
+    if (ngatts == 0) then
+      write(*,'(2x,a)') '(none)'
+    else
+      do attid = 1, ngatts
+        ierr = nf90_inq_attname(ncid, NF90_GLOBAL, attid, attname)
+        call nchandle_error(ierr)
+        ierr = nf90_inquire_attribute(ncid, NF90_GLOBAL, attname, xtype, attlen)
+        call nchandle_error(ierr)
+
+        select case (xtype)
+        case (NF90_CHAR)
+          if (attlen <= len(att_char)) then
+            ierr = nf90_get_att(ncid, NF90_GLOBAL, attname, att_char)
+            call nchandle_error(ierr)
+            write(*,'(2x,i3,2x,a,2x,a,1x,a)') attid, trim(attname), '(char) =', trim(att_char(1:attlen))
+          else
+            write(*,'(2x,i3,2x,a,2x,a,i0,a)') attid, trim(attname), '(char, len=', attlen, ', value omitted)'
+          end if
+        case (NF90_INT)
+          if (attlen == 1) then
+            ierr = nf90_get_att(ncid, NF90_GLOBAL, attname, ival)
+            call nchandle_error(ierr)
+            write(*,'(2x,i3,2x,a,2x,a,i0)') attid, trim(attname), '(int) =', ival
+          else
+            write(*,'(2x,i3,2x,a,2x,a,i0,a)') attid, trim(attname), '(int, len=', attlen, ', values omitted)'
+          end if
+        case (NF90_FLOAT)
+          if (attlen == 1) then
+            ierr = nf90_get_att(ncid, NF90_GLOBAL, attname, rval4)
+            call nchandle_error(ierr)
+            write(*,'(2x,i3,2x,a,2x,a,f12.4)') attid, trim(attname), '(float) =', rval4
+          else
+            write(*,'(2x,i3,2x,a,2x,a,i0,a)') attid, trim(attname), '(float, len=', attlen, ', values omitted)'
+          end if
+        case (NF90_DOUBLE)
+          if (attlen == 1) then
+            ierr = nf90_get_att(ncid, NF90_GLOBAL, attname, rval8)
+            call nchandle_error(ierr)
+            write(*,'(2x,i3,2x,a,2x,a,f12.4)') attid, trim(attname), '(double) =', rval8
+          else
+            write(*,'(2x,i3,2x,a,2x,a,i0,a)') attid, trim(attname), '(double, len=', attlen, ', values omitted)'
+          end if
+        case default
+          write(*,'(2x,i3,2x,a,2x,a,i0,a,i0,a)') attid, trim(attname), '(type=', xtype, ', len=', attlen, ')'
+        end select
+      end do
+    end if
+
+    ! List variables with their dimensions and attributes
+    write(*,*)
+    write(*,'(a)') ' Variables:'
+    do varid = 1, nvars
+      ierr = nf90_inquire_variable(ncid, varid, varname, ndims=vndims, dimids=dimids, natts=vnatts)
+      call nchandle_error(ierr)
+
+      write(*,'(2x,a,i3,a,a,a,a,i0,a,i0)') 'Variable ID ', varid, ' ("', trim(varname), '"):', &
+                                         ' ndims=', vndims, ', natts=', vnatts
+
+      ! Variable dimensions
+      if (vndims > 0) then
+        write(*,'(4x,a)') 'Dimensions:'
+        do i = 1, vndims
+          dimid = dimids(i)
+          ierr = nf90_inquire_dimension(ncid, dimid, dimname, dimlen)
+          call nchandle_error(ierr)
+          if (dimid == unlimdimid) then
+            write(*,'(6x,i3,2x,a,2x,a,i0,a)') dimid, trim(dimname), 'len=', dimlen, ' (UNLIMITED)'
+          else
+            write(*,'(6x,i3,2x,a,2x,a,i0)')   dimid, trim(dimname), 'len=', dimlen
+          end if
+        end do
+      else
+        write(*,'(4x,a)') 'Dimensions: (none)'
+      end if
+
+      ! Variable attributes
+      if (vnatts > 0) then
+        write(*,'(4x,a)') 'Attributes:'
+        do attid = 1, vnatts
+          ierr = nf90_inq_attname(ncid, varid, attid, attname)
+          call nchandle_error(ierr)
+          ierr = nf90_inquire_attribute(ncid, varid, attname, xtype, attlen)
+          call nchandle_error(ierr)
+
+          select case (xtype)
+          case (NF90_CHAR)
+            if (attlen <= len(att_char)) then
+              ierr = nf90_get_att(ncid, varid, attname, att_char)
+              call nchandle_error(ierr)
+              write(*,'(6x,i3,2x,a,2x,a,1x,a)') attid, trim(attname), '(char) =', trim(att_char(1:attlen))
+            else
+              write(*,'(6x,i3,2x,a,2x,a,i0,a)') attid, trim(attname), '(char, len=', attlen, ', value omitted)'
+            end if
+          case (NF90_INT)
+            if (attlen == 1) then
+              ierr = nf90_get_att(ncid, varid, attname, ival)
+              call nchandle_error(ierr)
+              write(*,'(6x,i3,2x,a,2x,a,i0)') attid, trim(attname), '(int) =', ival
+            else
+              write(*,'(6x,i3,2x,a,2x,a,i0,a)') attid, trim(attname), '(int, len=', attlen, ', values omitted)'
+            end if
+          case (NF90_FLOAT)
+            if (attlen == 1) then
+              ierr = nf90_get_att(ncid, varid, attname, rval4)
+              call nchandle_error(ierr)
+              write(*,'(6x,i3,2x,a,2x,a,f12.4)') attid, trim(attname), '(float) =', rval4
+            else
+              write(*,'(6x,i3,2x,a,2x,a,i0,a)') attid, trim(attname), '(float, len=', attlen, ', values omitted)'
+            end if
+          case (NF90_DOUBLE)
+            if (attlen == 1) then
+              ierr = nf90_get_att(ncid, varid, attname, rval8)
+              call nchandle_error(ierr)
+              write(*,'(6x,i3,2x,a,2x,a,f12.4)') attid, trim(attname), '(double) =', rval8
+            else
+              write(*,'(6x,i3,2x,a,2x,a,i0,a)') attid, trim(attname), '(double, len=', attlen, ', values omitted)'
+            end if
+          case default
+            write(*,'(6x,i3,2x,a,2x,a,i0,a,i0,a)') attid, trim(attname), '(type=', xtype, ', len=', attlen, ')'
+          end select
+        end do
+      else
+        write(*,'(4x,a)') 'Attributes: (none)'
+      end if
+    end do
+
+    write(*,*) '------------------------------------------------------------'
+
+  end subroutine print_netcdf_info
 
   subroutine nctiminfo(info)
     use modglobal, only: xyear, xday, xtime
