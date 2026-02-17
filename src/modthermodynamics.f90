@@ -100,7 +100,8 @@ contains
 
     integer :: ierr
 
-    namelist /thermodynamics/ lmoist, chi_half, lconstexner, lbaseexner, lnoclouds
+    namelist /thermodynamics/ lmoist, chi_half, lconstexner, lbaseexner, &
+                              lnoclouds, lqlnr
 
     if (myid == 0) then
       open(ifnamopt, file=nml_filename, status='old', action='read', &
