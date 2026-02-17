@@ -99,6 +99,7 @@ contains
     character(len=*), intent(in) :: nml_filename
 
     integer :: ierr
+    logical :: lqlnr
 
     namelist /thermodynamics/ lmoist, chi_half, lconstexner, lbaseexner, &
                               lnoclouds, lqlnr
