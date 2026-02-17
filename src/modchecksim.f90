@@ -372,8 +372,8 @@ contains
 
     do i = 1, size(array, dim=1)
       val = array(i)
-      cval = number2string(val)
       if ((val < threshold(1) .or. val > threshold(2))) then
+        cval = number2string(val)
         call print_warning_out_of_range(name, step, [i], cval, &
                 [number2string(threshold(1)), number2string(threshold(2))])
       else
@@ -408,11 +408,12 @@ contains
 
     do i = 1, size(array, dim=1)
       val = array(i)
-      cval = number2string(val)
       if (.not. ieee_is_finite(val)) then
+        cval = number2string(val)
         call print_warning_non_finite(name, step, [i], cval)
       else if (present(threshold)) then
         if (val < threshold(1) .or. val > threshold(2)) then
+          cval = number2string(val)
           call print_warning_out_of_range(name, step, [i], cval, &
                   [number2string(threshold(1)), number2string(threshold(2))])
           else
@@ -450,11 +451,12 @@ contains
 
     do i = 1, size(array, dim=1)
       val = array(i)
-      cval = number2string(val)
       if (.not. ieee_is_finite(val)) then
+        cval = number2string(val)
         call print_warning_non_finite(name, step, [i], cval)
       else if (present(threshold)) then
         if (val < threshold(1) .or. val > threshold(2)) then
+          cval = number2string(val)
           call print_warning_out_of_range(name, step, [i], cval, &
                   [number2string(threshold(1)), number2string(threshold(2))])
           else
@@ -492,8 +494,8 @@ contains
     do j = 1, size(array, dim=2)
       do i = 1, size(array, dim=1)
         val = array(i,j)
-        cval = number2string(val)
         if ((val < threshold(1) .or. val > threshold(2))) then
+          cval = number2string(val)
           call print_warning_out_of_range(name, step, [i, j], cval, &
                   [number2string(threshold(1)), number2string(threshold(2))])
         else
@@ -530,11 +532,12 @@ contains
     do j = 1, size(array, dim=2)
       do i = 1, size(array, dim=1)
         val = array(i,j)
-        cval = number2string(val)
         if (.not. ieee_is_finite(val)) then
+          cval = number2string(val)
           call print_warning_non_finite(name, step, [i, j], cval)
         else if (present(threshold)) then
           if (val < threshold(1) .or. val > threshold(2)) then
+            cval = number2string(val)
             call print_warning_out_of_range(name, step, [i, j], cval, &
                     [number2string(threshold(1)), number2string(threshold(2))])
           else
@@ -574,11 +577,12 @@ contains
     do j = 1, size(array, dim=2)
       do i = 1, size(array, dim=1)
         val = array(i,j)
-        cval = number2string(val)
         if (.not. ieee_is_finite(val)) then
+          cval = number2string(val)
           call print_warning_non_finite(name, step, [i, j], cval)
         else if (present(threshold)) then
           if (val < threshold(1) .or. val > threshold(2)) then
+            cval = number2string(val)
             call print_warning_out_of_range(name, step, [i, j], cval, &
                     [number2string(threshold(1)), number2string(threshold(2))])
           else
@@ -622,8 +626,8 @@ contains
       do j = 1, size(array, dim=2)
         do i = 1, size(array, dim=1)
           val = array(i,j,k)
-          cval = number2string(val)
           if ((val < threshold(1) .or. val > threshold(2))) then
+            cval = number2string(val)
             call print_warning_out_of_range(name, step, [i, j, k], cval, &
                     [number2string(threshold(1)), number2string(threshold(2))])
           else
@@ -669,11 +673,12 @@ contains
       do j = 1, size(array, dim=2)
         do i = 1, size(array, dim=1)
           val = array(i,j,k)
-          cval = number2string(val)
           if (.not. ieee_is_finite(val)) then
+            cval = number2string(val)
             call print_warning_non_finite(name, step, [i, j, k], cval)
           else if (present(threshold)) then
             if (val < threshold(1) .or. val > threshold(2)) then
+              cval = number2string(val)
               call print_warning_out_of_range(name, step, [i, j, k], cval, &
                       [number2string(threshold(1)), number2string(threshold(2))])
             else
@@ -722,11 +727,12 @@ contains
       do j = 1, size(array, dim=2)
         do i = 1, size(array, dim=1)
           val = array(i,j,k)
-          cval = number2string(val)
           if (.not. ieee_is_finite(val)) then
+            cval = number2string(val)
             call print_warning_non_finite(name, step, [i, j, k], cval)
           else if (present(threshold)) then
             if (val < threshold(1) .or. val > threshold(2)) then
+              cval = number2string(val)
               call print_warning_out_of_range(name, step, [i, j, k], cval, &
                       [number2string(threshold(1)), number2string(threshold(2))])
             else
