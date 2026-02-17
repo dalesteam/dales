@@ -79,6 +79,7 @@ contains
     use modglobal, only :cexpnr,k1,kmax,ifinput,runtime,zf,ntimedep,lcoriol
     use modsurfdata,only :ps,qts,wqsurf,wtsurf,thls, Qnetav
     use modtimedepsv, only : inittimedepsv
+    use modstartup,  only : init_timedep_from_netcdf
 
     use modtestbed,        only : ltestbed,ntnudge,&
                                   tb_time,tb_ps,tb_qts,tb_thls,tb_wqs,tb_wts,&
@@ -199,17 +200,27 @@ contains
         end do
 
       else
+        if (iinput == 2) then
+        call init_timedep_from_netcdf('forcings.'//cexpnr//'.nc', height, timeflux, wqsurft,wtsurft,thlst,qtst,pst,Qnetavt,ugt,vgt,dpdxlt,dpdylt,wflst,dqtdxlst,dqtdylst,dqtdtlst,dthldtlst,dudtlst,dvdtlst,thlpcart,kflux,kmax)
+        if (size(timeflux,dim=1) < ntimedep) then
+          call finish(routine, "Number of time points in forcings."//cexpnr//".nc is smaller than ntimedep = ", ntimedep)
+        end if
+        if(timeflux(1)>runtime) then
+          call warning(routine,'Time dependent forcings do not change before end of simulation. Disabling time dependent large scale forcings and surface fluxes')
+          ltimedepsurf=.false.
+          ltimedepz=.false.
+          endif
+        else
+          open(ifinput,file='ls_flux.inp.'//cexpnr)
+          read(ifinput,'(a80)') chmess
+          write(6,*) chmess
+          read(ifinput,'(a80)') chmess
+          write(6,*) chmess
+          read(ifinput,'(a80)') chmess
+          write(6,*) chmess
 
-        open(ifinput,file='ls_flux.inp.'//cexpnr)
-        read(ifinput,'(a80)') chmess
-        write(6,*) chmess
-        read(ifinput,'(a80)') chmess
-        write(6,*) chmess
-        read(ifinput,'(a80)') chmess
-        write(6,*) chmess
-
-        timeflux = 0
-        timels   = 0
+          timeflux = 0
+          timels   = 0
 
 
         !--- load fluxes---
@@ -300,10 +311,11 @@ contains
             end if
 
 
-          end if
-        end do
+            end if
+          end do
 
-        close(ifinput)
+          close(ifinput)
+        end if
 
       end if   !ltestbed
 
