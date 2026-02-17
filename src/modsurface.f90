@@ -1372,8 +1372,8 @@ contains
       oblav = -1.e10
     else 
       !$acc serial default(present) copy(oblav)
-      retval = calc_obl_iter(thl0av(1), qt0av(1), thls, qts, zf(1), z0mav, &
-                             z0hav, u0av(1), v0av(1), oblav)
+      retval = calc_obl_iter(thl0av(1), qt0av(1), real(thls), real(qts), &
+                             zf(1), z0mav, z0hav, u0av(1), v0av(1), oblav)
       !$acc end serial
 
       if (lmostlocal) then
