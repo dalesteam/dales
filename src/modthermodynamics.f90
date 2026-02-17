@@ -185,7 +185,7 @@ contains
       !$acc parallel loop collapse(3) default(present) async(1) private(T) &
       !$acc firstprivate(too_cold, too_hot)
       do k = 1, k1
-        do j = 2 , j1
+        do j = 2, j1
           do i = 2, i1
             T = thl0(i,j,k) * exnf(k)
             if (T < 150) then
@@ -939,7 +939,7 @@ contains
       !$acc parallel loop collapse(2) default(present) async(stream)
       do j = 2, j1
         do i = 2, i1
-          qt0h(i,j,1) = qts
+          phi_half(i,j,1) = phi_surf
         end do
       end do
     end if
