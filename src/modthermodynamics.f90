@@ -674,14 +674,13 @@ contains
     !$acc routine seq
     real(field_r), intent(in) :: T
     integer :: tlonr
-    real(field_r) :: tlo, thi, es
+    real(field_r) :: es, interp_w
 
     ! interpolated ice-liquid saturation vapor pressure from table
     ! note if imicto==imicro_bulk3, the table is for liquid only
-    tlonr=int((T-150)*5)
-    tlo = 150 + 0.2_field_r*tlonr
-    thi = tlo + 0.2_field_r
-    es = (thi-T)*5*esatmtab(tlonr)+(T-tlo)*5*esatmtab(tlonr+1)
+    interp_w = (T - 150) * 5
+    tlonr = int(interp_w)
+    es = (1 - interp_w) * esatmtab(tlonr) + interp_w * esatmtab(tlonr+1)
   end function esat_tab
 
   !> Computes the saturation specific humidity via table lookup.
@@ -691,12 +690,11 @@ contains
     real(field_r), intent(in) :: T, p
     real(field_r) :: qsat
     integer :: tlonr
-    real(field_r) :: tlo, thi, es
+    real(field_r) :: es, interp_w
 
-    tlonr=int((T-150)*5)
-    tlo = 150 + 0.2_field_r*tlonr
-    thi = tlo + 0.2_field_r
-    es = (thi-T)*5*esatmtab(tlonr)+(T-tlo)*5*esatmtab(tlonr+1)
+    interp_w = (T - 150) * 5
+    tlonr = int(interp_w)
+    es = (1 - interp_w) * esatmtab(tlonr) + interp_w * esatmtab(tlonr+1)
 
     ! convert saturation vapor pressure to saturation humidity
     qsat = (rd/rv) * es / (p - (1-rd/rv)*es)
