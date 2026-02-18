@@ -937,7 +937,6 @@ contains
 
     integer :: i, j
     integer :: patchx, patchy
-    real :: thlsl, qtsl
     real :: lthls_patch(xpatches, ypatches)
     real :: lqts_patch(xpatches, ypatches)
     integer :: Npatch(xpatches, ypatches), SNpatch(xpatches, ypatches)
@@ -951,18 +950,18 @@ contains
       end do
     end do
 
-    thlsl = 0.0
-    qtsl = 0.0
-    !$acc parallel loop collapse(2) default(present) reduction(+: thlsl, qtsl)
+    thls = 0.0
+    qts = 0.0
+    !$acc parallel loop collapse(2) default(present) reduction(+: thls, qts)
     do j = 2, j1
       do i = 2, i1
-        thlsl = thlsl + tskin(i,j)
-        qtsl = qtsl + qskin(i,j)
+        thls = thls + tskin(i,j)
+        qts = qts + qskin(i,j)
       end do
     end do
 
-    call D_MPI_ALLREDUCE(thlsl, thls, 1, MPI_SUM, comm3d, mpierr)
-    call D_MPI_ALLREDUCE(qtsl, qts, 1, MPI_SUM, comm3d, mpierr)
+    call D_MPI_ALLREDUCE(thls, 1, MPI_SUM, comm3d, mpierr)
+    call D_MPI_ALLREDUCE(qts, 1, MPI_SUM, comm3d, mpierr)
 
     thls = thls / ijtot
     qts = qts / ijtot
@@ -1294,7 +1293,7 @@ contains
     use modmpi,      only : mpierr,comm3d,mpi_sum, D_MPI_ALLREDUCE
 
     implicit none
-    real       :: exner, tsurf, qsatsurf, surfwet, es, qtsl
+    real       :: exner, tsurf, qsatsurf, surfwet, es
     integer    :: i,j, patchx, patchy
     integer    :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
     real       :: lqts_patch(xpatches,ypatches)
@@ -1303,8 +1302,8 @@ contains
     patchy = 0
 
     if(isurf <= 2) then
-      qtsl = 0.
-      !$acc parallel loop collapse(2) default(present) reduction(+: qtsl)
+      qts = 0.
+      !$acc parallel loop collapse(2) default(present) reduction(+: qts)
       do j = 2, j1
         do i = 2, i1
           exner      = (ps / pref0)**(rd/cp)
@@ -1313,11 +1312,11 @@ contains
           qsatsurf   = rd / rv * es / ps
           surfwet    = ra(i,j) / (ra(i,j) + rs(i,j))
           qskin(i,j) = surfwet * qsatsurf + (1. - surfwet) * qt0(i,j,1)
-          qtsl       = qtsl + qskin(i,j)
+          qts        = qts + qskin(i,j)
         end do
       end do
 
-      call D_MPI_ALLREDUCE(qtsl, qts, 1,  MPI_SUM, comm3d,mpierr)
+      call D_MPI_ALLREDUCE(qts, 1,  MPI_SUM, comm3d,mpierr)
       qts  = qts / ijtot
       thvs = thls * (1. + (rv/rd - 1.) * qts)
 
@@ -1373,8 +1372,8 @@ contains
       oblav = -1.e10
     else 
       !$acc serial default(present) copy(oblav)
-      retval = calc_obl_iter(thl0av(1), qt0av(1), thls, qts, zf(1), z0mav, &
-                             z0hav, u0av(1), v0av(1), oblav)
+      retval = calc_obl_iter(thl0av(1), qt0av(1), real(thls), real(qts), &
+                             zf(1), z0mav, z0hav, u0av(1), v0av(1), oblav)
       !$acc end serial
 
       if (lmostlocal) then
@@ -2111,7 +2110,7 @@ contains
       end do
     end do
 
-    thlsl = 0.0
+    thls = 0.0
     if(lhetero) then
       lthls_patch = 0.0
       Npatch      = 0
@@ -2532,7 +2531,7 @@ contains
           Wl(i,j)       =  Wlm(i,j) - rk3coef * (LEliq / (rhow * rlv))
         end if
 
-        thlsl = thlsl + tskin(i,j)
+        thls = thls + tskin(i,j)
         if (lhetero) then
           lthls_patch(patchx,patchy) = lthls_patch(patchx,patchy) + tskin(i,j)
           Npatch(patchx,patchy)      = Npatch(patchx,patchy)      + 1
@@ -2617,7 +2616,7 @@ contains
     Respav = Respav/ijtot
 
 
-    call D_MPI_ALLREDUCE(thlsl, thls, 1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(thls, 1, MPI_SUM, comm3d,mpierr)
     thls = thls / ijtot
     if (lhetero) then
       call D_MPI_ALLREDUCE(lthls_patch(1:xpatches,1:ypatches), thls_patch(1:xpatches,1:ypatches),&
