@@ -239,4 +239,39 @@ contains
     end if
   end function zenith
 
+  !< Calculation of the cosine of the zenith angle
+!< \param time UTC Time of the simulation
+!< \param xday Day at the start of the simulation
+!< \param xlat Latitude of the domain
+!< \param xlon Longitude of the domain
+  subroutine zenith_lon_lat(time, xday, xlat,xlon, res_zenith, sun_dir_lon, sun_dir_lat)
+    use modglobal, only : pi
+!     implicit none
+    real, intent(in) :: time, xday, xlat, xlon
+    real, intent(out) :: res_zenith, sun_dir_lat, sun_dir_lon
+    real :: phi,el,obliq,xlam,declin,hora
+    real :: day,daytime
+      day    = xday + floor(time/86400.)
+      daytime= mod(time,86400.)
+
+      phi    = xlat * pi/180.
+      el     = xlon * pi/180.
+      obliq  = 23.45 * pi/180.
+      xlam   = 4.88 + 0.0172 * day
+      declin = asin(sin(obliq)*sin(xlam))
+      hora   = el-pi + 2.*pi*(daytime/86400.)
+      res_zenith = max(0.,sin(declin)*sin(phi)+cos(declin)*cos(phi)* &
+                                                         cos(hora))
+
+
+
+      !
+      !--    Direction in longitudes equals to sin(solar_azimuth) * sin(zenith)
+       sun_dir_lon = - SIN( hora ) * COS( declin )
+
+      !
+      !--    Direction in latitues equals to cos(solar_azimuth) * sin(zenith)
+       sun_dir_lat = SIN( declin ) * COS( xlat ) - COS( hora ) * COS( declin ) *    &
+                     SIN( xlat )
+  end subroutine zenith_lon_lat
 end module modraddata

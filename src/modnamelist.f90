@@ -10,6 +10,7 @@ module modnamelist
   use modspraying,       only: spraying_read_namelist
   use modsurface,        only: surface_read_namelist
   use modthermodynamics, only: thermodynamics_read_namelist
+  use modslurb,          only: slurb_read_namelist
 
   implicit none
 
@@ -29,6 +30,8 @@ contains
     call surface_read_namelist(nml_filename)
     call poisson_solver_read_namelist(nml_filename)
     call checksim_read_namelist(nml_filename)
+
+    call slurb_read_namelist(nml_filename)
 
     ! Add-on modules
     call aerosol_read_namelist(nml_filename)

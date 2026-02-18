@@ -93,6 +93,8 @@ module modlsmdata
       real, allocatable :: root_frac(:,:,:)
       ! Root fraction weighted mean soil water content
       real, allocatable :: phiw_mean(:,:)
+      ! Tile net radiation
+      real, allocatable :: Qnet(:,:)
 
   ! LU dependent deposition parameters
       ! In-canopy resistance parameters

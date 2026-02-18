@@ -58,6 +58,7 @@ module modchecksim
   public :: checktend
   public :: check_array
   public :: lchecktend
+  public :: lstop
 
   interface check_array !< Check array for invalid values and/or values outside of a given range.
     module procedure :: check_array_1d_int
@@ -345,12 +346,13 @@ contains
 
     character(len=*), intent(in) :: step
 
-    call check_array(qtp, "qtp", step, [-0.01_field_r, 0.01_field_r])
-    call check_array(thlp, "thlp", step, [-20.0_field_r, 20.0_field_r])
+    call check_array(qtp, "qtp", step, [-0.01_field_r, 0.01_field_r], stop_if_invalid=lstop, dump_if_invalid=.true.)
+    call check_array(thlp, "thlp", step, [-20.0_field_r, 20.0_field_r], stop_if_invalid=lstop, dump_if_invalid=.true.)
   
   end subroutine checktend
 
-  subroutine check_array_1d_int(array, name, step, threshold, lacc)
+  subroutine check_array_1d_int(array, name, step, threshold, lacc, stop_if_invalid)
+    character(len=*), parameter :: routine = modname//'/check_array_1d_int'
 
     integer,          intent(in) :: array(:), threshold(2)
     character(len=*), intent(in) :: name
@@ -358,23 +360,34 @@ contains
 
     logical, intent(in), optional :: lacc
 
+    logical, intent(in), optional :: stop_if_invalid
+    logical :: stop_if_invalid_ = .false. !< default value which is actually used in the code, if stop_if_invalid is present, override this value.
+
     integer           :: i
     integer           :: val
     character(len=32) :: cloc
     character(len=11) :: cval
 
+    if (present(stop_if_invalid)) stop_if_invalid_ = stop_if_invalid
+
     do i = 1, size(array, dim=1)
       val = array(i)
-      cval = number2string(val)
       if ((val < threshold(1) .or. val > threshold(2))) then
+        cval = number2string(val)
         call print_warning_out_of_range(name, step, [i], cval, &
                 [number2string(threshold(1)), number2string(threshold(2))])
+      else
+        cycle
+      end if
+      if (stop_if_invalid_) then
+        call finish(routine//"/"//step, "Stopped due to incorrect value in array.")
       end if
     end do
 
   end subroutine check_array_1d_int
 
-  subroutine check_array_1d_r4(array, name, step, threshold, lacc)
+  subroutine check_array_1d_r4(array, name, step, threshold, lacc, stop_if_invalid)
+    character(len=*), parameter :: routine = modname//'/check_array_1d_r4'
 
     real(real32),     intent(in) :: array(:)
     character(len=*), intent(in) :: name
@@ -383,27 +396,41 @@ contains
     real(real32), intent(in), optional :: threshold(2)
     logical,      intent(in), optional :: lacc
 
+    logical, intent(in), optional :: stop_if_invalid
+    logical :: stop_if_invalid_ = .false. !< default value which is actually used in the code, if stop_if_invalid is present, override this value.
+
     integer           :: i
     real(real32)      :: val
     character(len=32) :: cloc
     character(len=11) :: cval
 
+    if (present(stop_if_invalid)) stop_if_invalid_ = stop_if_invalid
+
     do i = 1, size(array, dim=1)
       val = array(i)
-      cval = number2string(val)
       if (.not. ieee_is_finite(val)) then
+        cval = number2string(val)
         call print_warning_non_finite(name, step, [i], cval)
       else if (present(threshold)) then
         if (val < threshold(1) .or. val > threshold(2)) then
+          cval = number2string(val)
           call print_warning_out_of_range(name, step, [i], cval, &
                   [number2string(threshold(1)), number2string(threshold(2))])
+          else
+            cycle
+          end if
+        else
+          cycle
         end if
-      end if
+        if (stop_if_invalid_) then
+          call finish(routine//"/"//step, "Stopped due to incorrect value in array.")
+        end if
     end do
 
   end subroutine check_array_1d_r4
 
-  subroutine check_array_1d_r8(array, name, step, threshold, lacc)
+  subroutine check_array_1d_r8(array, name, step, threshold, lacc, stop_if_invalid)
+    character(len=*), parameter :: routine = modname//'/check_array_1d_r8'
 
     real(real64),     intent(in) :: array(:)
     character(len=*), intent(in) :: name
@@ -412,27 +439,41 @@ contains
     real(real64), intent(in), optional :: threshold(2)
     logical,      intent(in), optional :: lacc
 
+    logical, intent(in), optional :: stop_if_invalid
+    logical :: stop_if_invalid_ = .false. !< default value which is actually used in the code, if stop_if_invalid is present, override this value.
+
     integer           :: i
     real(real64)      :: val
     character(len=32) :: cloc
     character(len=11) :: cval
 
+    if (present(stop_if_invalid)) stop_if_invalid_ = stop_if_invalid
+
     do i = 1, size(array, dim=1)
       val = array(i)
-      cval = number2string(val)
       if (.not. ieee_is_finite(val)) then
+        cval = number2string(val)
         call print_warning_non_finite(name, step, [i], cval)
       else if (present(threshold)) then
         if (val < threshold(1) .or. val > threshold(2)) then
+          cval = number2string(val)
           call print_warning_out_of_range(name, step, [i], cval, &
                   [number2string(threshold(1)), number2string(threshold(2))])
+          else
+            cycle
+          end if
+        else
+          cycle
         end if
-      end if
+        if (stop_if_invalid_) then
+          call finish(routine//"/"//step, "Stopped due to incorrect value in array.")
+        end if
     end do
 
   end subroutine check_array_1d_r8
 
-  subroutine check_array_2d_int(array, name, step, threshold, lacc)
+  subroutine check_array_2d_int(array, name, step, threshold, lacc, stop_if_invalid)
+    character(len=*), parameter :: routine = modname//'/check_array_2d_int'
 
     integer,          intent(in) :: array(:,:), threshold(2)
     character(len=*), intent(in) :: name
@@ -440,25 +481,36 @@ contains
 
     logical, intent(in), optional :: lacc
 
+    logical, intent(in), optional :: stop_if_invalid
+    logical :: stop_if_invalid_ = .false. !< default value which is actually used in the code, if stop_if_invalid is present, override this value.
+
     integer           :: i, j
     integer           :: val
     character(len=32) :: cloc
     character(len=11) :: cval
 
+    if (present(stop_if_invalid)) stop_if_invalid_ = stop_if_invalid
+
     do j = 1, size(array, dim=2)
       do i = 1, size(array, dim=1)
         val = array(i,j)
-        cval = number2string(val)
         if ((val < threshold(1) .or. val > threshold(2))) then
+          cval = number2string(val)
           call print_warning_out_of_range(name, step, [i, j], cval, &
                   [number2string(threshold(1)), number2string(threshold(2))])
+        else
+          cycle
+        end if
+        if (stop_if_invalid_) then
+          call finish(routine//"/"//step, "Stopped due to incorrect value in array.")
         end if
       end do
     end do
 
   end subroutine check_array_2d_int
 
-  subroutine check_array_2d_r4(array, name, step, threshold, lacc)
+  subroutine check_array_2d_r4(array, name, step, threshold, lacc, stop_if_invalid)
+    character(len=*), parameter :: routine = modname//'/check_array_2d_r4'
 
     real(real32),     intent(in) :: array(:,:)
     character(len=*), intent(in) :: name
@@ -467,29 +519,43 @@ contains
     real(real32), intent(in), optional :: threshold(2)
     logical,      intent(in), optional :: lacc
 
+    logical, intent(in), optional :: stop_if_invalid
+    logical :: stop_if_invalid_ = .false. !< default value which is actually used in the code, if stop_if_invalid is present, override this value.
+
     integer           :: i, j
     real(real32)      :: val
     character(len=32) :: cloc
     character(len=11) :: cval
 
+    if (present(stop_if_invalid)) stop_if_invalid_ = stop_if_invalid
+  
     do j = 1, size(array, dim=2)
       do i = 1, size(array, dim=1)
         val = array(i,j)
-        cval = number2string(val)
         if (.not. ieee_is_finite(val)) then
+          cval = number2string(val)
           call print_warning_non_finite(name, step, [i, j], cval)
         else if (present(threshold)) then
           if (val < threshold(1) .or. val > threshold(2)) then
+            cval = number2string(val)
             call print_warning_out_of_range(name, step, [i, j], cval, &
                     [number2string(threshold(1)), number2string(threshold(2))])
+          else
+            cycle
           end if
+        else
+          cycle
+        end if
+        if (stop_if_invalid_) then
+          call finish(routine//"/"//step, "Stopped due to incorrect value in array.")
         end if
       end do
     end do
 
   end subroutine check_array_2d_r4
 
-  subroutine check_array_2d_r8(array, name, step, threshold, lacc)
+  subroutine check_array_2d_r8(array, name, step, threshold, lacc, stop_if_invalid)
+    character(len=*), parameter :: routine = modname//'/check_array_2d_r8'
 
     real(real64),     intent(in) :: array(:,:)
     character(len=*), intent(in) :: name
@@ -498,29 +564,42 @@ contains
     real(real64), intent(in), optional :: threshold(2)
     logical,      intent(in), optional :: lacc
 
+    logical, intent(in), optional :: stop_if_invalid
+    logical :: stop_if_invalid_ = .false. !< default value which is actually used in the code, if stop_if_invalid is present, override this value.
+
     integer           :: i, j
     real(real64)      :: val
     character(len=32) :: cloc
     character(len=11) :: cval
 
+    if (present(stop_if_invalid)) stop_if_invalid_ = stop_if_invalid
+
     do j = 1, size(array, dim=2)
       do i = 1, size(array, dim=1)
         val = array(i,j)
-        cval = number2string(val)
         if (.not. ieee_is_finite(val)) then
+          cval = number2string(val)
           call print_warning_non_finite(name, step, [i, j], cval)
         else if (present(threshold)) then
           if (val < threshold(1) .or. val > threshold(2)) then
+            cval = number2string(val)
             call print_warning_out_of_range(name, step, [i, j], cval, &
                     [number2string(threshold(1)), number2string(threshold(2))])
+          else
+            cycle
           end if
+        else
+          cycle
+        end if
+        if (stop_if_invalid_) then
+          call finish(routine//"/"//step, "Stopped due to incorrect value in array.")
         end if
       end do
     end do
 
   end subroutine check_array_2d_r8
 
-  subroutine check_array_3d_int(array, name, step, threshold, lacc)
+  subroutine check_array_3d_int(array, name, step, threshold, lacc, stop_if_invalid, dump_if_invalid)
 
     character(len=*), parameter :: routine = modname//'/check_array_3d_int'
 
@@ -530,25 +609,35 @@ contains
 
     logical, intent(in), optional :: lacc
 
+    logical, intent(in), optional :: stop_if_invalid
+    logical, intent(in), optional :: dump_if_invalid
+    logical :: stop_if_invalid_ = .false. !< default value which is actually used in the code, if stop_if_invalid is present, override this value.
+    logical :: dump_if_invalid_ = .false. !< default value which is actually used in the code, if dump_if_invalid is present, override this value.
+
     integer           :: i, j, k
     integer           :: val
     character(len=32) :: cloc
     character(len=11) :: cval
 
+    if (present(stop_if_invalid)) stop_if_invalid_ = stop_if_invalid
+    if (present(dump_if_invalid)) dump_if_invalid_ = dump_if_invalid
+
     do k = 1, size(array, dim=3)
       do j = 1, size(array, dim=2)
         do i = 1, size(array, dim=1)
           val = array(i,j,k)
-          cval = number2string(val)
           if ((val < threshold(1) .or. val > threshold(2))) then
+            cval = number2string(val)
             call print_warning_out_of_range(name, step, [i, j, k], cval, &
                     [number2string(threshold(1)), number2string(threshold(2))])
           else
             cycle
           end if
-          if (lstop) then
-            call dump_state([i,j,k])
-            call finish(routine, "Stopped due to CHECKSIM parameter lstop")
+          if (stop_if_invalid_) then
+            if (dump_if_invalid_) then
+              call dump_state([i-ih+1,j-jh+1,k])
+            end if
+            call finish(routine//"/"//step, "Stopped due to incorrect value in array.")
           end if
         end do
       end do
@@ -556,7 +645,7 @@ contains
 
   end subroutine check_array_3d_int
 
-  subroutine check_array_3d_r4(array, name, step, threshold, lacc)
+  subroutine check_array_3d_r4(array, name, step, threshold, lacc, stop_if_invalid, dump_if_invalid)
 
     character(len=*), parameter :: routine = modname//'/check_array_3d_r4'
 
@@ -567,20 +656,29 @@ contains
     real(real32), intent(in), optional :: threshold(2)
     logical,      intent(in), optional :: lacc
 
+    logical, intent(in), optional :: stop_if_invalid
+    logical, intent(in), optional :: dump_if_invalid
+    logical :: stop_if_invalid_ = .false. !< default value which is actually used in the code, if stop_if_invalid is present, override this value.
+    logical :: dump_if_invalid_ = .false. !< default value which is actually used in the code, if dump_if_invalid is present, override this value.
+
     integer           :: i, j, k
     real(real32)      :: val
     character(len=32) :: cloc
     character(len=11) :: cval
 
+    if (present(stop_if_invalid)) stop_if_invalid_ = stop_if_invalid
+    if (present(dump_if_invalid)) dump_if_invalid_ = dump_if_invalid
+
     do k = 1, size(array, dim=3)
       do j = 1, size(array, dim=2)
         do i = 1, size(array, dim=1)
           val = array(i,j,k)
-          cval = number2string(val)
           if (.not. ieee_is_finite(val)) then
+            cval = number2string(val)
             call print_warning_non_finite(name, step, [i, j, k], cval)
           else if (present(threshold)) then
             if (val < threshold(1) .or. val > threshold(2)) then
+              cval = number2string(val)
               call print_warning_out_of_range(name, step, [i, j, k], cval, &
                       [number2string(threshold(1)), number2string(threshold(2))])
             else
@@ -589,9 +687,11 @@ contains
           else
             cycle
           end if
-          if (lstop) then
-            call dump_state([i-ih+1,j-jh+1,k])
-            call finish(routine, "Stopped due to CHECKSIM parameter lstop")
+          if (stop_if_invalid_) then
+            if (dump_if_invalid_) then
+              call dump_state([i-ih+1,j-jh+1,k])
+            end if
+            call finish(routine//"/"//step, "Stopped due to incorrect value in array.")
           end if
         end do
       end do
@@ -599,7 +699,7 @@ contains
 
   end subroutine check_array_3d_r4
 
-  subroutine check_array_3d_r8(array, name, step, threshold, lacc)
+  subroutine check_array_3d_r8(array, name, step, threshold, lacc, stop_if_invalid, dump_if_invalid)
     
     character(len=*), parameter :: routine = modname//'/check_array_3d_r8'
 
@@ -610,20 +710,29 @@ contains
     real(real64), intent(in), optional :: threshold(2)
     logical,      intent(in), optional :: lacc
 
+    logical, intent(in), optional :: stop_if_invalid
+    logical, intent(in), optional :: dump_if_invalid
+    logical :: stop_if_invalid_ = .false. !< default value which is actually used in the code, if stop_if_invalid is present, override this value.
+    logical :: dump_if_invalid_ = .false. !< default value which is actually used in the code, if dump_if_invalid is present, override this value.
+
     integer      :: i, j, k
     real(real64) :: val
     character(len=32) :: cloc
     character(len=11) :: cval
 
+    if (present(stop_if_invalid)) stop_if_invalid_ = stop_if_invalid
+    if (present(dump_if_invalid)) dump_if_invalid_ = dump_if_invalid
+
     do k = 1, size(array, dim=3)
       do j = 1, size(array, dim=2)
         do i = 1, size(array, dim=1)
           val = array(i,j,k)
-          cval = number2string(val)
           if (.not. ieee_is_finite(val)) then
+            cval = number2string(val)
             call print_warning_non_finite(name, step, [i, j, k], cval)
           else if (present(threshold)) then
             if (val < threshold(1) .or. val > threshold(2)) then
+              cval = number2string(val)
               call print_warning_out_of_range(name, step, [i, j, k], cval, &
                       [number2string(threshold(1)), number2string(threshold(2))])
             else
@@ -632,9 +741,11 @@ contains
           else
             cycle
           end if
-          if (lstop) then
-            call dump_state([i-ih+1,j-jh+1,k])
-            call finish(routine, "Stopped due to CHECKSIM parameter lstop")
+          if (stop_if_invalid_) then
+            if (dump_if_invalid_) then
+              call dump_state([i-ih+1,j-jh+1,k])
+            end if
+            call finish(routine//"/"//step, "Stopped due to incorrect value in array.")
           end if
         end do
       end do
