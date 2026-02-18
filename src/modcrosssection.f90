@@ -79,7 +79,7 @@ contains
       use modmpi,   only :myid,mpierr,comm3d,cmyid,cmyidx,cmyidy,myidx,myidy,D_MPI_BCAST
       use modglobal,only :imax,jmax,itot,jtot,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,&
                                     tres,btime,checknamelisterror,output_prefix,x0,y0,dx,dy,zf,zh,itot,jtot
-      use modstat_nc,only : lnetcdf,open_nc, define_nc,redefine_nc,ncinfo,nctiminfo,writestat_dims_nc,print_netcdf_info
+      use modstat_nc,only : lnetcdf,open_nc, define_nc,redefine_nc,ncinfo,nctiminfo,writestat_dims_nc
     use fortran_support, only: nnml_output
 
    implicit none
@@ -191,7 +191,6 @@ contains
                    call define_nc(ncid1(cross), 1, tncname1)
                    call writestat_dims_nc(ncid1(cross))
                    call redefine_nc(ncid1(cross))
-                  !  call print_netcdf_info(ncid1(cross))
                    iret = nf90_def_dim(ncid1(cross),'yt',1,dim_slice_yt)
                    if (iret /= nf90_noerr) then
                       call finish(routine, 'Error defining dimension yt in netcdf file: '//trim(fname1))
@@ -227,7 +226,6 @@ contains
                    if (iret /= nf90_noerr) then
                       call finish(routine, 'Error writing variable ym in netcdf file: '//trim(fname1))
                    end if
-                  !  call print_netcdf_info(ncid1(cross))
                 end if
                 call define_nc(ncid1(cross), nvar, ncname1)
              end if

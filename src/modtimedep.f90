@@ -31,8 +31,8 @@
 
 module modtimedep
 
-  use modlogging, only: finish
-
+  use modlogging, only: finish, warning
+  use modprecision, only: field_r
 
 implicit none
 character(len=*), parameter :: modname = 'modtimedep'
@@ -48,38 +48,36 @@ save
   integer    :: kflux
   integer    :: kls
 
-  real, allocatable     :: timeflux (:)
-  real, allocatable     :: wqsurft  (:)
-  real, allocatable     :: wtsurft  (:)
-  real, allocatable     :: thlst    (:)
-  real, allocatable     :: qtst     (:)
-  real, allocatable     :: pst      (:)
-  real, allocatable     :: Qnetavt  (:)
-
-  real, allocatable     :: timels  (:)
-  real, allocatable     :: ugt     (:,:)
-  real, allocatable     :: vgt     (:,:)
-  real, allocatable     :: dpdxlt  (:,:)
-  real, allocatable     :: dpdylt  (:,:)
-  real, allocatable     :: wflst   (:,:)
-  real, allocatable     :: dqtdxlst(:,:)
-  real, allocatable     :: dqtdylst(:,:)
-  real, allocatable     :: dqtdtlst(:,:)
-  real, allocatable     :: dthldtlst(:,:)
-  real, allocatable     :: thlpcart(:,:)
-  real, allocatable     :: dudtlst (:,:)
-  real, allocatable     :: dvdtlst (:,:)
-  real, allocatable     :: thlproft(:,:)
-  real, allocatable     :: qtproft (:,:)
+  real, allocatable     :: timeflux (:)   !< time points for surface fluxes [s]
+  real, allocatable     :: wqsurft  (:)   !< time dependent kinematic moisture flux [kg/kg m/s]
+  real, allocatable     :: wtsurft  (:)   !< time dependent kinematic temperature flux [K m/s]
+  real, allocatable     :: thlst    (:)   !< time dependent surface thl [K]
+  real, allocatable     :: qtst     (:)   !< time dependent surface qt [kg/kg]
+  real, allocatable     :: pst      (:)   !< time dependent surface pressure [Pa]
+  real, allocatable     :: Qnetavt  (:)   !< time dependent average net surface radiative energy flux [W/m^2]
+  real, allocatable     :: timels  (:)    !< time points for large scale forcings (are the same for netcdf input as timeflux) [s]
+  real, allocatable     :: ugt     (:,:)  !< time dependent geostrophic eastward wind [m/s]
+  real, allocatable     :: vgt     (:,:)  !< time dependent geostrophic northward wind [m/s]
+  real, allocatable     :: dpdxlt  (:,:)  !< time dependent large-scale eastward pressure gradient [Pa/m]
+  real, allocatable     :: dpdylt  (:,:)  !< time dependent large-scale northward pressure gradient [Pa/m]
+  real, allocatable     :: wflst   (:,:)  !< time dependent large-scale subsidence [m/s]
+  real, allocatable     :: dqtdxlst(:,:)  !< time dependent eastward gradient of the qt due to large-scale forcing [kg/kg/m]
+  real, allocatable     :: dqtdylst(:,:)  !< time dependent northward gradient of the qt due to large-scale forcing [kg/kg/m]
+  real, allocatable     :: dqtdtlst(:,:)  !< time dependent tendency of the total water mixing ratio due to large-scale forcing [kg/kg/s]
+  real, allocatable     :: dthldtlst(:,:) !< time dependent tendency of the liquid water potential temperature due to large-scale forcing [K/s]
+  real, allocatable     :: thlpcart(:,:)  !< time dependent tendency of the liquid water potential temperature due to radiative forcing [K/s]
+  real, allocatable     :: dudtlst (:,:)  !< time dependent tendency of the eastward velocity due to large-scale forcing [m/s^2]
+  real, allocatable     :: dvdtlst (:,:)  !< time dependent tendency of the northward velocity due to large-scale forcing [m/s^2]
+  real, allocatable     :: thlproft(:,:)  !< time dependent profile of the liquid water potential temperature [K]
+  real, allocatable     :: qtproft (:,:)  !< time dependent profile of the total water mixing ratio [kg/kg]
 
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine inittimedep
     use modmpi,    only :myid,mpierr,comm3d,D_MPI_BCAST
-    use modglobal, only :cexpnr,k1,kmax,ifinput,runtime,zf,ntimedep,lcoriol
+    use modglobal, only :cexpnr,k1,kmax,ifinput,runtime,zf,ntimedep,lcoriol,iinput
     use modsurfdata,only :ps,qts,wqsurf,wtsurf,thls, Qnetav
     use modtimedepsv, only : inittimedepsv
-    use modstartup,  only : init_timedep_from_netcdf
 
     use modtestbed,        only : ltestbed,ntnudge,&
                                   tb_time,tb_ps,tb_qts,tb_thls,tb_wqs,tb_wts,&
@@ -201,7 +199,7 @@ contains
 
       else
         if (iinput == 2) then
-        call init_timedep_from_netcdf('forcings.'//cexpnr//'.nc', height, timeflux, wqsurft,wtsurft,thlst,qtst,pst,Qnetavt,ugt,vgt,dpdxlt,dpdylt,wflst,dqtdxlst,dqtdylst,dqtdtlst,dthldtlst,dudtlst,dvdtlst,thlpcart,kflux,kmax)
+        call init_timedep_from_netcdf('forcings.'//cexpnr//'.nc', height, timeflux,kflux,kmax)
         if (size(timeflux,dim=1) < ntimedep) then
           call finish(routine, "Number of time points in forcings."//cexpnr//".nc is smaller than ntimedep = ", ntimedep)
         end if
@@ -532,4 +530,65 @@ contains
 
   end subroutine
 
+
+  !> \brief Read initial profiles from forcings.XXX.nc
+  subroutine init_timedep_from_netcdf(filename, height, time,ntimedep,kmax)
+    use modstat_nc, only : read_nc_field, nchandle_error
+    use netcdf, only : NF90_NOWRITE, nf90_open, nf90_close
+    implicit none
+    character(*),   intent(in)  :: filename !< Path to the netCDF file to read from.
+    real(field_r),  intent(out) :: height(:) !< Vertical levels.
+    real(field_r),  intent(out) :: time(:) !< Time steps.
+    integer,        intent(in)  :: ntimedep !< Number of time steps for which time-dependent forcings are provided.
+    integer,        intent(in)  :: kmax !< Index of highest vertical level.
+
+    integer :: ncid
+
+    call nchandle_error(nf90_open(filename, NF90_NOWRITE, ncid))
+
+    ! "Regular" prognostic fields
+    call read_nc_field(ncid, "zh", height, start=1, count=kmax)
+    call read_nc_field(ncid, "time", time, start=1, count=ntimedep)
+
+    ! Large-scale forcings
+    call read_nc_field(ncid, "ug_timedep", ugt, start=(/1,1/), count=(/ntimedep,kmax/), &
+                       requirefill=.false.)
+    call read_nc_field(ncid, "vg_timedep", vgt, start=(/1,1/), count=(/ntimedep,kmax/), &
+                       requirefill=.false.)
+    call read_nc_field(ncid, "dpdx_ls_timedep", dpdxlt, start=(/1,1/), count=(/ntimedep,kmax/), &
+                       requirefill=.false.)
+    call read_nc_field(ncid, "dpdy_ls_timedep", dpdylt, start=(/1,1/), count=(/ntimedep,kmax/), &
+                       requirefill=.false.)
+    call read_nc_field(ncid, "wf_ls_timedep", wflst, start=(/1,1/), count=(/ntimedep,kmax/), &
+                       requirefill=.false.)
+    call read_nc_field(ncid, "dqtdx_ls_timedep", dqtdxlst, start=(/1,1/), count=(/ntimedep,kmax/), &
+                       requirefill=.false.)
+    call read_nc_field(ncid, "dqtdy_ls_timedep", dqtdylst, start=(/1,1/), count=(/ntimedep,kmax/), &
+                       requirefill=.false.)
+    call read_nc_field(ncid, "dqtdt_ls_timedep", dqtdtlst, start=(/1,1/), count=(/ntimedep,kmax/), &
+                       requirefill=.false.)
+    call read_nc_field(ncid, "dthldt_ls_timedep", dthldtlst, start=(/1,1/), count=(/ntimedep,kmax/), &
+                       requirefill=.false.)
+    call read_nc_field(ncid, "dudt_ls_timedep", dudtlst, start=(/1,1/), count=(/ntimedep,kmax/), &
+                       requirefill=.false.)
+    call read_nc_field(ncid, "dvdt_ls_timedep", dvdtlst, start=(/1,1/), count=(/ntimedep,kmax/), &
+                       requirefill=.false.)
+    call read_nc_field(ncid, "dthl_rad_timedep", thlpcart, start=(/1,1/), count=(/ntimedep,kmax/), &
+                       requirefill=.false.)
+    call read_nc_field(ncid, "wtsurf_timedep", wtsurft, start=1, count=ntimedep, &
+                       requirefill=.false.)
+    call read_nc_field(ncid, "wqsurf_timedep", wqsurft, start=1, count=ntimedep, &
+                       requirefill=.false.)
+    call read_nc_field(ncid, "thlsurf_timedep", thlst, start=1, count=ntimedep, &
+                       requirefill=.false.)
+    call read_nc_field(ncid, "qtsurf_timedep", qtst, start=1, count=ntimedep, &
+                       requirefill=.false.)
+    call read_nc_field(ncid, "psurf_timedep", pst, start=1, count=ntimedep, &
+                       requirefill=.false.)
+    call read_nc_field(ncid, "qnetavsurf_timedep", Qnetavt, start=1, count=ntimedep, &
+                       requirefill=.false.)
+
+    call nchandle_error(nf90_close(ncid))
+
+  end subroutine init_timedep_from_netcdf
 end module modtimedep
