@@ -191,7 +191,7 @@ contains
     end if
 
 #if defined(_OPENACC)
-    if(iradiation/=irad_none .and. iradiation/=irad_rte_rrtmgp) then
+    if(iradiation/=irad_none .and. iradiation/=irad_rte_rrtmgp .and. iradiation/=irad_user) then
       call finish(routine, "Please select the RTE-RRTMGP radiation scheme when running on GPU.")
     endif
 #endif
