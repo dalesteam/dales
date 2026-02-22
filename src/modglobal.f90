@@ -303,8 +303,8 @@ contains
       jh = 2
       kh = 1
     elseif (any(advarr==iadv_cd2).or.iadv_sv==iadv_cd2) then
-      ih = 1
-      jh = 1
+      ih = 2 !1 ! SvdL, changed for IBM
+      jh = 2 !1
       kh = 1
     end if
 

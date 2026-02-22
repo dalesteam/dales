@@ -1,0 +1,123 @@
+&RUN
+iexpnr     = 001
+lwarmstart = .false.
+startfile  = 'initstart'
+runtime    = 14400
+trestart   = 3600
+dtmax      = 1
+ladaptive  = .true.
+irandom    = 43
+randthl    = 0.2
+randqt     = 0.
+nsv        = 0
+nprocy     = 4
+nprocx     = 4
+/
+
+&DOMAIN
+itot       =  128 
+jtot       =  128
+kmax       =  128
+xsize      =  5120.
+ysize      =  5120.
+xlat       =  43.45
+xlon       =  0.
+/
+
+&PHYSICS
+ltimedep   =  .false.
+isurf      = 4
+ps         =  100000.00
+thls       =  300.
+lmoist     =  .false.
+lcoriol    =  .true.
+iradiation = 0
+z0         = 0.1
+/
+
+&NAMSURFACE
+isurf      = 4
+ps         = 100000.0
+z0mav      = 0.1
+z0hav      = 0.1
+wtsurf     = 0.24
+wqsurf     = 0.0
+lmostlocal = .true.
+/
+
+&DYNAMICS
+lqlnr      =  .false.
+cu         =  0
+cv         =  0.
+iadv_mom    =  2
+iadv_tke    =  2
+iadv_thl    =  2
+iadv_qt     =  2
+iadv_sv     =  2
+ibas_prf    = 2
+/
+
+&NAMSUBGRID
+ldelta      = .false.
+lmason      = .false.
+lsmagorinsky = .false.
+sgs_surface_fix = .true.
+/
+
+&NAMCHECKSIM
+tcheck      = 60
+/
+
+&NAMTIMESTAT
+ltimestat   = .true.
+dtav        = 30
+/
+
+&NAMGENSTAT
+lstat       = .true.
+dtav        = 30
+timeav      = 300
+/
+
+&NAMBUDGET
+lbudget     = .true.
+dtav        = 30
+timeav      = 300
+/
+
+&NAMSAMPLING
+dtav = 30
+timeav = 300
+lsampibm = .true.
+/
+
+&NAMSTATTEND
+dtav        = 30
+timeav      = 300
+ltend       = .false.
+/
+
+&NAMFIELDDUMP
+dtav        =  10
+lfielddump  = .false.
+lbinary     = .false.
+/
+
+&NAMCROSSSECTION
+lcross  = .true.
+dtav    = 1800 
+crossheight = 1 2 4 8 9 12
+crossplane = 32 64
+lbinary = .true.
+/
+
+&NAMIBM
+lapply_ibm = .true.
+lreadfile_obstacles = .true.
+lwallheat = .false.
+thlibm = 300
+thlwall = 300
+thlroof = 300
+qtibm   = 0.000
+z0m_wall = 0.03
+/
