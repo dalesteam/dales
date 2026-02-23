@@ -37,10 +37,10 @@ module modthermodynamics
   use modfields,       only: qt0, thl0, qt0h, thl0h, ql0, presf, exnf, thvh, &
                              thv0h, qt0av, ql0av, thvf, rhof, ql0h, presh, exnh, &
                              u0, v0, sv0, u0av, v0av, thl0av, ql0av, sv0av, &
-                             tmp0, dthvdz, thl0h, qt0h
+                             tmp0, dthvdz, thl0h, qt0h, esl, qvsl, qvsi
   use modsurfdata,     only: qts, thls, ps, dthldz, dqtdz
   use modmpi,          only: myid, d_mpi_bcast, commwrld, slabsum
-  use modmicrodata,    only: imicro, imicro_bulk3
+  use modmicrodata,    only: imicro, imicro_bulk3, imicro_none
   use modibm,          only: fluid_mask
   use modibmdata,      only: lapply_ibm
   use modslabaverage,  only: slabavg
@@ -214,7 +214,6 @@ contains
       call saturation_adjustment(qt0, thl0, presf, exnf, ql0, opt_stream=1)
 #endif
 
-
       call diagfld
 
       ! Interpolate thl and qt to the half levels
@@ -227,6 +226,11 @@ contains
 #else
       call saturation_adjustment(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1)
 #endif
+
+      if (imicro /= imicro_none) then
+        call calc_saturation_humidities(qt0, ql0, thl0, presf, exnf, esl, &
+                                        qvsl, qvsi)
+      end if
     else
       call calc_dry_tmp ! tmp0 is used in statistics
                          ! can consider calculating it only when needed
@@ -673,14 +677,15 @@ contains
     
     !$acc routine seq
     real(field_r), intent(in) :: T
-    integer :: tlonr
+    integer :: tlo
     real(field_r) :: es, interp_w
 
     ! interpolated ice-liquid saturation vapor pressure from table
     ! note if imicto==imicro_bulk3, the table is for liquid only
     interp_w = (T - 150) * 5
-    tlonr = int(interp_w)
-    es = (1 - interp_w) * esatmtab(tlonr) + interp_w * esatmtab(tlonr+1)
+    tlo = int(interp_w)
+    interp_w = interp_w - tlo
+    es = (1 - interp_w) * esatmtab(tlo) + interp_w * esatmtab(tlo+1)
   end function esat_tab
 
   !> Computes the saturation specific humidity via table lookup.
@@ -689,12 +694,13 @@ contains
     !$acc routine seq
     real(field_r), intent(in) :: T, p
     real(field_r) :: qsat
-    integer :: tlonr
+    integer :: tlo
     real(field_r) :: es, interp_w
 
     interp_w = (T - 150) * 5
-    tlonr = int(interp_w)
-    es = (1 - interp_w) * esatmtab(tlonr) + interp_w * esatmtab(tlonr+1)
+    tlo = int(interp_w)
+    interp_w = interp_w - tlo
+    es = (1 - interp_w) * esatmtab(tlo) + interp_w * esatmtab(tlo+1)
 
     ! convert saturation vapor pressure to saturation humidity
     qsat = (rd/rv) * es / (p - (1-rd/rv)*es)
@@ -867,33 +873,33 @@ contains
 
     integer :: i, j, k
 
-    real(field_r) :: esi   !< Saturation vapor pressure for ice (not stored) [Pa]
-    real(field_r) :: qsat  !< Saturation specific humidity [kg/kg]
-    real(field_r) :: T     !< Temperature [K]
-    real(field_r) :: thi   !< Upper bound temperature for interpolation [K]
-    real(field_r) :: tlo   !< Lower bound temperature for interpolation [K]
-    real(field_r) :: tlonr !< Index of temperature in esat lookuptable
+    real(field_r) :: esi      !< Saturation vapor pressure for ice (not stored) [Pa]
+    real(field_r) :: qsat     !< Saturation specific humidity [kg/kg]
+    real(field_r) :: T        !< Temperature [K]
+    real(field_r) :: interp_w !< Interpolation temperature [K]
+    integer       :: tlo      !< Index of temperature in esat lookuptable
 
     !$acc parallel loop collapse(3) default(present) async(1) &
-    !$acc private(T, tlonr, tlo, thi, esi)
+    !$acc private(qsat, T, interp_w, tlo, esi)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
           qsat = max(qt(i,j,k) - ql(i,j,k), 1.0_field_r)
           T = exn(k) * thl(i,j,k) + (rlv / cp) * ql(i,j,k)
-          tlonr = int((T - 150) * 5)
-          tlo = 150 + 0.2_field_r * tlonr
-          thi = tlo + 0.2_field_r
+
+          interp_w = (T - 150) * 5
+          tlo = int(interp_w)
+          interp_w = interp_w - tlo
 
           ! Liquid
-          esl(i,j,k) = (thi - T) * 5 * esatltab(tlonr) &
-                       + (T - tlo) * 5 * esatltab(tlonr + 1)
+          esl(i,j,k) = (1 - interp_w) * esatltab(tlo) &
+                       + interp_w * esatltab(tlo + 1)
           qvsl(i,j,k) = rd / rv * esl(i,j,k) &
                         / (pres(k) - (1 - rd / rv) * esl(i,j,k))
 
           ! Ice
-          esi = (thi - T) * 5 * esatitab(tlonr) &
-                + (T - tlo) * 5 * esatitab(tlonr + 1)
+          esi = (1 - interp_w) * esatitab(tlo) &
+                + interp_w * esatitab(tlo + 1)
           qvsi(i,j,k) = rd / rv * esi / (pres(k) - (1 - rd / rv) * esi)
         end do
       end do
