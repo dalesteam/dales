@@ -873,12 +873,11 @@ contains
 
     integer :: i, j, k
 
-    real(field_r) :: esi   !< Saturation vapor pressure for ice (not stored) [Pa]
-    real(field_r) :: qsat  !< Saturation specific humidity [kg/kg]
-    real(field_r) :: T     !< Temperature [K]
-    real(field_r) :: thi   !< Upper bound temperature for interpolation [K]
-    real(field_r) :: tlo   !< Lower bound temperature for interpolation [K]
-    real(field_r) :: tlonr !< Index of temperature in esat lookuptable
+    real(field_r) :: esi      !< Saturation vapor pressure for ice (not stored) [Pa]
+    real(field_r) :: qsat     !< Saturation specific humidity [kg/kg]
+    real(field_r) :: T        !< Temperature [K]
+    real(field_r) :: interp_w !< Interpolation temperature [K]
+    integer       :: tlo      !< Index of temperature in esat lookuptable
 
     !$acc parallel loop collapse(3) default(present) async(1) &
     !$acc private(T, tlonr, tlo, thi, esi)
@@ -887,19 +886,20 @@ contains
         do i = 2, i1
           qsat = max(qt(i,j,k) - ql(i,j,k), 1.0_field_r)
           T = exn(k) * thl(i,j,k) + (rlv / cp) * ql(i,j,k)
-          tlonr = int((T - 150) * 5)
-          tlo = 150 + 0.2_field_r * tlonr
-          thi = tlo + 0.2_field_r
+
+          interp_w = (T - 150) * 5
+          tlo = int(interp_w)
+          interp_w = interp_w - tlo
 
           ! Liquid
-          esl(i,j,k) = (thi - T) * 5 * esatltab(tlonr) &
-                       + (T - tlo) * 5 * esatltab(tlonr + 1)
+          esl(i,j,k) = (1 - interp_w) * esatltab(tlo) &
+                       + interp_w * esatltab(tlo + 1)
           qvsl(i,j,k) = rd / rv * esl(i,j,k) &
                         / (pres(k) - (1 - rd / rv) * esl(i,j,k))
 
           ! Ice
-          esi = (thi - T) * 5 * esatitab(tlonr) &
-                + (T - tlo) * 5 * esatitab(tlonr + 1)
+          esi = (1 - interp_w) * esatitab(tlo) &
+                + interp_w * esatitab(tlo + 1)
           qvsi(i,j,k) = rd / rv * esi / (pres(k) - (1 - rd / rv) * esi)
         end do
       end do
