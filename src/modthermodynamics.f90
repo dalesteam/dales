@@ -684,6 +684,7 @@ contains
     ! note if imicto==imicro_bulk3, the table is for liquid only
     interp_w = (T - 150) * 5
     tlonr = int(interp_w)
+    interp_w = interp_w - tlonr
     es = (1 - interp_w) * esatmtab(tlonr) + interp_w * esatmtab(tlonr+1)
   end function esat_tab
 
@@ -698,6 +699,7 @@ contains
 
     interp_w = (T - 150) * 5
     tlonr = int(interp_w)
+    interp_w = interp_w - tlonr
     es = (1 - interp_w) * esatmtab(tlonr) + interp_w * esatmtab(tlonr+1)
 
     ! convert saturation vapor pressure to saturation humidity
