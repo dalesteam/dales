@@ -880,7 +880,7 @@ contains
     integer       :: tlo      !< Index of temperature in esat lookuptable
 
     !$acc parallel loop collapse(3) default(present) async(1) &
-    !$acc private(T, tlonr, tlo, thi, esi)
+    !$acc private(qsat, T, interp_w, tlo, esi)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
