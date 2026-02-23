@@ -37,10 +37,10 @@ module modthermodynamics
   use modfields,       only: qt0, thl0, qt0h, thl0h, ql0, presf, exnf, thvh, &
                              thv0h, qt0av, ql0av, thvf, rhof, ql0h, presh, exnh, &
                              u0, v0, sv0, u0av, v0av, thl0av, ql0av, sv0av, &
-                             tmp0, dthvdz, thl0h, qt0h
+                             tmp0, dthvdz, thl0h, qt0h, esl, qvsl, qvsi
   use modsurfdata,     only: qts, thls, ps, dthldz, dqtdz
   use modmpi,          only: myid, d_mpi_bcast, commwrld, slabsum
-  use modmicrodata,    only: imicro, imicro_bulk3
+  use modmicrodata,    only: imicro, imicro_bulk3, imicro_none
   use modibm,          only: fluid_mask
   use modibmdata,      only: lapply_ibm
   use modslabaverage,  only: slabavg
@@ -214,7 +214,6 @@ contains
       call saturation_adjustment(qt0, thl0, presf, exnf, ql0, opt_stream=1)
 #endif
 
-
       call diagfld
 
       ! Interpolate thl and qt to the half levels
@@ -227,6 +226,11 @@ contains
 #else
       call saturation_adjustment(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1)
 #endif
+
+      if (imicro /= imicro_none) then
+        call calc_saturation_humidities(qt0, ql0, thl0, presf, exnf, esl, &
+                                        qvsl, qvsi)
+      end if
     else
       call calc_dry_tmp ! tmp0 is used in statistics
                          ! can consider calculating it only when needed
