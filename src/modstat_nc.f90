@@ -28,6 +28,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module modstat_nc
+    use, intrinsic :: iso_fortran_env
     use netcdf
     use modglobal,    only: imax, jmax
     use modprecision, only: field_r
@@ -49,6 +50,7 @@ module modstat_nc
       module procedure writestat_time_nc
       module procedure writestat_1D_nc
       module procedure writestat_2D_nc
+      module procedure writestat_2D_nc_float
       module procedure writestat_3D_nc
       module procedure writestat_3D_short_nc
     end interface writestat_nc
@@ -606,6 +608,20 @@ contains
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_2D_nc
+  subroutine writestat_2D_nc_float(ncid,nvar,ncname,vars,nrec,dim1,dim2)
+    implicit none
+    integer, intent(in)                      :: ncid,nvar,dim1,dim2
+    integer, intent(in)                      :: nrec
+    real(real32),dimension(:,:,:),intent(in)         :: vars
+    character(*), dimension(:,:),intent(in)  :: ncname
+
+    integer :: n,varid
+    do n=1,nvar
+       call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
+       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,n),(/1,1,nrec/),(/dim1,dim2,1/)))
+    end do
+    if (lsync) call sync_nc(ncid)
+  end subroutine writestat_2D_nc_float
   subroutine writestat_3D_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2,dim3,lparallel)
     implicit none
     integer, intent(in)                      :: ncid,nvar,dim1,dim2,dim3

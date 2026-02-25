@@ -8,6 +8,7 @@ module modnamelist
   use modpois,           only: poisson_solver_read_namelist
   use modprecursor,      only: precursor_read_namelist
   use modspraying,       only: spraying_read_namelist
+  use modstat_2d,        only: stat_2d_read_namelist
   use modsurface,        only: surface_read_namelist
   use modthermodynamics, only: thermodynamics_read_namelist
   use modslurb,          only: slurb_read_namelist
@@ -39,6 +40,9 @@ contains
     call microphysics_read_namelist(nml_filename)
     call precursor_read_namelist(nml_filename)
     call spraying_read_namelist(nml_filename)
+
+    ! Statistical modules
+    call stat_2d_read_namelist(nml_filename)
   
   end subroutine read_namelists
 

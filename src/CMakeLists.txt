@@ -34,6 +34,7 @@ set( dales_srcs
 	modchecksim.f90
 	modchem.f90
 	modcloudfield.f90
+	modcloudstat.f90
 	modcrosssection.f90
 	modcufft.f90
 	moddatetime.f90
@@ -103,6 +104,7 @@ set( dales_srcs
 	modspraying.f90
 	modsprayingdata.f90
 	modstartup.f90
+	modstat_2d.f90
 	modstat_nc.f90
 	modstat_profiles.f90
 	modstattend.f90
