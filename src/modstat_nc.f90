@@ -29,8 +29,9 @@
 !
 module modstat_nc
     use netcdf
+    use modglobal,    only: imax, jmax
     use modprecision, only: field_r
-    use modmpi,       only: myid
+    use modmpi,       only: myid, comm3d, myidx, myidy, mpi_info_null
     use modlogging, only: finish
     implicit none
 
@@ -115,20 +116,31 @@ contains
 ! ----------------------------------------------------------------------
 !> Subroutine Open_NC: Opens a NetCDF File and identifies starting record
 !
-  subroutine open_nc (fname, ncid,nrec,n1, n2, n3, ns,nq)
+  subroutine open_nc (fname, ncid,nrec,n1, n2, n3, ns,nq, lparallel)
     use modglobal, only : author,version,rtimee
     use modversion, only : git_version
     implicit none
     integer, intent (out) :: ncid,nrec
     integer, optional, intent (in) :: n1, n2, n3, ns, nq
     character (len=40), intent (in) :: fname
+    logical, intent(in), optional :: lparallel
+
+    character(len=*), parameter :: routine = modname//'/open_nc'
 
     character (len=12):: date='',time=''
     integer :: iret,varid,ncall,RecordDimID
     real, allocatable :: xtimes(:)
     logical :: exans
+    logical :: open_parallel = .false.
 
     inquire(file=trim(fname),exist=exans)
+
+    if (present(lparallel)) open_parallel = lparallel 
+    
+    if (open_parallel .and. lclassic) then
+      call finish(routine, 'NetCDF classic format is incompatible with' &
+                           // 'parallel output, please disable lclassic')
+    end if
 
     ncall = 0
     if (.not.exans) then
@@ -136,8 +148,13 @@ contains
       if (lclassic) then
          call nchandle_error(nf90_create(fname,NF90_CLASSIC_MODEL,ncid))
       else
-         call nchandle_error(nf90_create(fname,NF90_NETCDF4,ncid))
+        if (open_parallel) then
+          call nchandle_error(nf90_create(fname, NF90_NETCDF4, ncid, &
+                                          comm=comm3d%MPI_VAL, info=MPI_INFO_NULL%MPI_VAL))
+          call nchandle_error(nf90_create(fname,NF90_NETCDF4,ncid))
+        end if
       end if
+
       call nchandle_error(nf90_put_att(ncid,NF90_GLOBAL,'title',fname))
       call nchandle_error(nf90_put_att(ncid,NF90_GLOBAL,'history','Created on '//trim(date)//' at '//trim(time)))
       call nchandle_error(nf90_put_att(ncid, NF90_GLOBAL, 'Source',trim(version)//' git: '//trim(git_version)))
@@ -152,6 +169,10 @@ contains
          call nchandle_error(nf90_def_var(ncID,'xm',NF90_FLOAT,xmID,VarID))
          call nchandle_error(nf90_put_att(ncID,VarID,'long_name','West-East displacement of cell edges'))
          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+         if (open_parallel) then
+           call nchandle_error(nf90_var_par_access(ncid, xtID, NF90_COLLECTIVE))
+           call nchandle_error(nf90_var_par_access(ncid, xmID, NF90_COLLECTIVE))
+         end if
       end if
       if (present(n2)) then
          call nchandle_error(nf90_def_dim(ncID, 'yt', n2, ytID))
@@ -162,6 +183,10 @@ contains
          call nchandle_error(nf90_def_var(ncID,'ym',NF90_FLOAT,ymID,VarID))
          call nchandle_error(nf90_put_att(ncID,VarID,'long_name','South-North displacement of cell edges'))
          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+         if (open_parallel) then
+           call nchandle_error(nf90_var_par_access(ncid, ytID, NF90_COLLECTIVE))
+           call nchandle_error(nf90_var_par_access(ncid, ymID, NF90_COLLECTIVE))
+         end if
       end if
       if (present(n3)) then
          call nchandle_error(nf90_def_dim(ncID, 'zt', n3, ztID))
@@ -381,7 +406,7 @@ contains
    call nchandle_error(status)
  end subroutine exitstat_nc
 
- subroutine writestat_dims_nc(ncid, ncoarse, klow, proc)
+ subroutine writestat_dims_nc(ncid, ncoarse, klow, proc, lparallel)
     ! optional arguments ncoarse (coarsegraining in the horizontal directions)
     !                    klow    (lower bound for z. Upper bound is taken from the size of the dimension)
     !                    proc    (if present and length on horizontal cooridinates is 1 include processor starting edges and center)
@@ -393,9 +418,14 @@ contains
     integer, intent(in) :: ncid
     integer, optional, intent(in) :: ncoarse, klow
     logical, optional, intent(in) :: proc
+    logical, optional, intent(in) :: lparallel
     integer             :: i=0,iret,length,varid, nc
     integer             :: kl
     logical             :: lproc
+    logical             :: do_parallel = .false.
+    integer             :: xstart(1), ystart(1)
+
+
     lproc = .false.
     if (present(ncoarse)) then
       nc = ncoarse
@@ -411,20 +441,31 @@ contains
       lproc = .true.
     end if
 
+    if (present(lparallel)) do_parallel = lparallel
+
+    if (do_parallel) then
+      xstart = [myidx*imax + 1]
+      ystart = [myidx*jmax + 1]
+    else
+      xstart = [1]
+      ystart = [1]
+
+    end if
+
     if (.not. lproc) then
       iret = nf90_inq_varid(ncid, 'xt', VarID)
       if (iret==0) iret=nf90_inquire_dimension(ncid, xtID, len=length)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*(0.5+nc*i)+myidx*imax*dx,i=0,length-1)/),(/1/))
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*(0.5+nc*i)+myidx*imax*dx,i=0,length-1)/),xstart)
       iret = nf90_inq_varid(ncid, 'xm', VarID)
       if (iret==0) iret=nf90_inquire_dimension(ncid, xmID, len=length)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*nc*i+myidx*imax*dx,i=0,length-1)/),(/1/))
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*nc*i+myidx*imax*dx,i=0,length-1)/),xstart)
 
       iret = nf90_inq_varid(ncid, 'yt', VarID)
       if (iret==0) iret=nf90_inquire_dimension(ncid, ytID, len=length)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*(0.5+nc*i)+myidy*jmax*dy,i=0,length-1)/),(/1/))
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*(0.5+nc*i)+myidy*jmax*dy,i=0,length-1)/),ystart)
       iret = nf90_inq_varid(ncid, 'ym', VarID)
       if (iret==0) iret=nf90_inquire_dimension(ncid, ymID, len=length)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*nc*i+myidy*jmax*dy,i=0,length-1)/),(/1/))
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*nc*i+myidy*jmax*dy,i=0,length-1)/),ystart)
     else
       iret = nf90_inq_varid(ncid, 'xt', VarID)
       if (iret==0) iret = nf90_put_var(ncid, varID, (/(0.5*dx*imax+myidx*imax*dx)/),(/1/))
@@ -539,31 +580,55 @@ contains
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_1D_nc
 
-  subroutine writestat_2D_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2)
+  subroutine writestat_2D_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2,lparallel)
     implicit none
     integer, intent(in)                      :: ncid,nvar,dim1,dim2
     integer, intent(in)                      :: nrec
     real,dimension(:,:,:),intent(in)         :: vars
     character(*), dimension(:,:),intent(in)  :: ncname
+    logical, intent(in), optional            :: lparallel
 
+    logical :: do_parallel = .false.
     integer :: n,varid
+    integer :: start(3)
+
+    if (present(lparallel)) do_parallel = lparallel
+
+    if (do_parallel) then
+      start = [myidx * imax + 1, myidy * jmax + 1, nrec]
+    else
+      start = [1, 1, nrec]
+    end if
+
     do n=1,nvar
        call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
-       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,n),(/1,1,nrec/),(/dim1,dim2,1/)))
+       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,n),start,(/dim1,dim2,1/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_2D_nc
-  subroutine writestat_3D_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2,dim3)
+  subroutine writestat_3D_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2,dim3,lparallel)
     implicit none
     integer, intent(in)                      :: ncid,nvar,dim1,dim2,dim3
     integer, intent(in)                      :: nrec
     real,dimension(dim1,dim2,dim3,nvar),intent(in)       :: vars
     character(*), dimension(:,:),intent(in)  :: ncname
+    logical, intent(in), optional            :: lparallel
 
+    logical :: do_parallel = .false.
     integer :: n,varid
+    integer :: start(4)
+
+    if (present(lparallel)) do_parallel = lparallel
+
+    if (do_parallel) then
+      start = [myidx * imax + 1, myidy * jmax + 1, 1, nrec]
+    else
+      start = [1, 1, 1, nrec]
+    end if
+
     do n=1,nvar
        call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
-       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),(/1,1,1,nrec/),(/dim1,dim2,dim3,1/)))
+       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),start,(/dim1,dim2,dim3,1/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_3D_nc
