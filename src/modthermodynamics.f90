@@ -1,11 +1,5 @@
 !>\file modthermodynamics.f90
 !! Do the thermodynamics
-
-!>
-!! Do the thermodynamics
-!>
-!! Timeseries of the most relevant parameters. Written to tmser1.expnr and tmsurf.expnr
-!! If netcdf is true, this module leads the tmser.expnr.nc output
 !!  \author Pier Siebesma, K.N.M.I.
 !!  \author Stephan de Roode,TU Delft
 !!  \author Thijs Heus,MPI-M
@@ -201,6 +195,7 @@ contains
         end do
       end do
 
+      !$acc wait
       if (too_cold) then
         call finish(routine, 'temperature below 150 K encountered!')
       else if (too_hot) then
@@ -539,7 +534,7 @@ contains
     end do
 
     if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
-      !$acc parallel loop gang(static:1) default(present)
+      !$acc parallel loop gang(static:1) default(present) async(1)
       do k = 1, k1
         exnf(k) = (presf(k) / pref0)**(rd / cp)
       end do
@@ -557,7 +552,7 @@ contains
       exnf(1) = (presf(1)/pref0)**(rd/cp)
       !$acc end serial
 
-      !$acc parallel loop default(present) async(2)
+      !$acc parallel loop default(present) async(1)
       do k=2,k1
         exnf(k) = (presf(k)/pref0)**(rd/cp)
         exnh(k) = (presh(k)/pref0)**(rd/cp)
@@ -598,7 +593,8 @@ contains
     ! Calculate pressures at full levels
     ! Do this on the CPU for now; these loops are serial so GPU is very slow!
 
-    !$acc update self(thetah, qth, qlh, th0av, qt0av, ql0av)
+    !$acc update self(thetah, qth, qlh, th0av, qt0av, ql0av) async(1)
+    !$acc wait
 
     thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
     presf(1) = ps**rdocp - grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
