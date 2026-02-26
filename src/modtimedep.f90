@@ -542,8 +542,8 @@ contains
     use netcdf, only : NF90_NOWRITE, nf90_open, nf90_close
     implicit none
     character(*),   intent(in)  :: filename !< Path to the netCDF file to read from.
-    real(field_r),  intent(out) :: height(:) !< Vertical levels.
-    real(field_r),  intent(out) :: time(:) !< Time steps.
+    real,           intent(out) :: height(:) !< Vertical levels.
+    real,           intent(out) :: time(:) !< Time steps.
     integer,        intent(in)  :: ntimedep !< Number of time steps for which time-dependent forcings are provided.
     integer,        intent(in)  :: kmax !< Index of highest vertical level.
 
