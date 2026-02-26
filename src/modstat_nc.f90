@@ -381,7 +381,7 @@ contains
    call nchandle_error(status)
  end subroutine exitstat_nc
 
- subroutine writestat_dims_nc(ncid, ncoarse, klow, proc)
+ subroutine writestat_dims_nc(ncid, ncoarse, klow, proc, write_slice_coordinate, slice_index, slice_coordinate)
     ! optional arguments ncoarse (coarsegraining in the horizontal directions)
     !                    klow    (lower bound for z. Upper bound is taken from the size of the dimension)
     !                    proc    (if present and length on horizontal cooridinates is 1 include processor starting edges and center)
@@ -392,11 +392,18 @@ contains
     implicit none
     integer, intent(in) :: ncid
     integer, optional, intent(in) :: ncoarse, klow
-    logical, optional, intent(in) :: proc
+    logical, optional, intent(in) :: proc, write_slice_coordinate
+    integer, optional, intent(in) :: slice_index
+    character(len=1), optional, intent(in) :: slice_coordinate
     integer             :: i=0,iret,length,varid, nc
     integer             :: kl
     logical             :: lproc
+    logical             :: write_slice_coordinate_
+    character(len=1)   :: slice_coordinate_
+
+    character(len=*), parameter :: routine = modname//'/writestat_dims_nc'
     lproc = .false.
+    write_slice_coordinate_ = .false.
     if (present(ncoarse)) then
       nc = ncoarse
     else
@@ -410,22 +417,22 @@ contains
     if (present(proc)) then
       lproc = .true.
     end if
-
-    if (.not. lproc) then
-      iret = nf90_inq_varid(ncid, 'xt', VarID)
-      if (iret==0) iret=nf90_inquire_dimension(ncid, xtID, len=length)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(x0+dx*(0.5+nc*i)+myidx*imax*dx,i=0,length-1)/),(/1/))
-      iret = nf90_inq_varid(ncid, 'xm', VarID)
-      if (iret==0) iret=nf90_inquire_dimension(ncid, xmID, len=length)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(x0+dx*nc*i+myidx*imax*dx,i=0,length-1)/),(/1/))
-
-      iret = nf90_inq_varid(ncid, 'yt', VarID)
-      if (iret==0) iret=nf90_inquire_dimension(ncid, ytID, len=length)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(y0+dy*(0.5+nc*i)+myidy*jmax*dy,i=0,length-1)/),(/1/))
-      iret = nf90_inq_varid(ncid, 'ym', VarID)
-      if (iret==0) iret=nf90_inquire_dimension(ncid, ymID, len=length)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(y0+dy*nc*i+myidy*jmax*dy,i=0,length-1)/),(/1/))
+    if (present(write_slice_coordinate)) then
+      write_slice_coordinate_ = write_slice_coordinate
+    end if
+    if (present(slice_coordinate)) then
+      slice_coordinate_ = slice_coordinate
     else
+      slice_coordinate_ = ' '
+    end if
+
+    ! not lproc and not write_slice_coordinate: write full coordinates, including processor edges and centers (default)
+    ! lproc and not write_slice_coordinate: write full coordinates, but only for the slice of the current processor
+    ! write_slice_coordinate: write coordinates for the slice defined by slice_index and slice_coordinate. lproc is ignored.
+    if ((.not. lproc).and.(.not. write_slice_coordinate_)) then
+      call write_x_coordinates
+      call write_y_coordinates
+    else if ((lproc).and.(.not. write_slice_coordinate_)) then
       iret = nf90_inq_varid(ncid, 'xt', VarID)
       if (iret==0) iret = nf90_put_var(ncid, varID, (/(x0+0.5*dx*imax+myidx*imax*dx)/),(/1/))
       iret = nf90_inq_varid(ncid, 'xm', VarID)
@@ -435,6 +442,36 @@ contains
       if (iret==0) iret = nf90_put_var(ncid, varID, (/(y0+0.5*dy*jmax+myidy*jmax*dy)/),(/1/))
       iret = nf90_inq_varid(ncid, 'ym', VarID)
       if (iret==0) iret = nf90_put_var(ncid, varID, (/(y0+myidy*jmax*dy)/),(/1/))
+    else
+      ! write only the slice coordinates for the slice defined by slice_index and slice_coordinate. lproc is ignored.
+      select case (slice_coordinate_)
+        case ('x')
+          iret = nf90_inq_varid(ncid, 'xt', VarID)
+          if (iret==0) iret = nf90_inquire_dimension(ncid, xtID, len=length)
+          if ((iret==0).and.(length == 1)) iret = nf90_put_var(ncid, varID, (/(x0+dx*(0.5+slice_index)+myidx*imax*dx)/),(/1/))
+          iret = nf90_inq_varid(ncid, 'xm', VarID)
+          if (iret==0) iret = nf90_inquire_dimension(ncid, xmID, len=length)
+          if ((iret==0).and.(length == 1)) iret = nf90_put_var(ncid, varID, (/(x0+dx*slice_index+myidx*imax*dx)/),(/1/))
+
+          ! write the full coordinates for yt/ym
+          call write_y_coordinates
+        case ('y')
+
+          iret = nf90_inq_varid(ncid, 'yt', VarID)
+          if (iret==0) iret = nf90_inquire_dimension(ncid, ytID, len=length)
+          if ((iret==0).and.(length == 1)) iret = nf90_put_var(ncid, varID, (/(y0+dy*(0.5+slice_index)+myidy*jmax*dy)/),(/1/))
+          iret = nf90_inq_varid(ncid, 'ym', VarID)
+          if (iret==0) iret = nf90_inquire_dimension(ncid, ymID, len=length)
+          if ((iret==0).and.(length == 1)) iret = nf90_put_var(ncid, varID, (/(y0+dy*slice_index+myidy*jmax*dy)/),(/1/))
+
+          ! write the full coordinates for xt/xm
+          call write_x_coordinates
+        case default
+          call finish(routine, 'Bad slice_coordinate argument: '//slice_coordinate_)
+      end select
+
+
+
     end if
 
     iret = nf90_inq_varid(ncid, 'zt', VarID)
@@ -443,6 +480,7 @@ contains
     iret = nf90_inq_varid(ncid, 'zm', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid, zmID, len=length)
     if (iret==0) iret = nf90_put_var(ncid, varID, zh(kl:kl+length-1),(/1/))
+
     if (isurf==1) then
       iret = nf90_inq_varid(ncid, 'zts', VarID)
       if (iret==0) iret = nf90_inquire_dimension(ncid, ztsID, len=length)
@@ -452,6 +490,27 @@ contains
       if (iret==0) iret = nf90_inquire_dimension(ncid, ztsID, len=length)
       if (iret==0) iret = nf90_put_var(ncid, varID, z_soil(1:length),(/1/))
     end if
+
+    contains
+    subroutine write_x_coordinates
+      implicit none
+      iret = nf90_inq_varid(ncid, 'xt', VarID)
+      if (iret==0) iret=nf90_inquire_dimension(ncid, xtID, len=length)
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(x0+dx*(0.5+nc*i)+myidx*imax*dx,i=0,length-1)/),(/1/))
+      iret = nf90_inq_varid(ncid, 'xm', VarID)
+      if (iret==0) iret=nf90_inquire_dimension(ncid, xmID, len=length)
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(x0+dx*nc*i+myidx*imax*dx,i=0,length-1)/),(/1/))
+    end subroutine write_x_coordinates
+
+    subroutine write_y_coordinates
+      implicit none
+      iret = nf90_inq_varid(ncid, 'yt', VarID)
+      if (iret==0) iret=nf90_inquire_dimension(ncid, ytID, len=length)
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(y0+dy*(0.5+nc*i)+myidy*jmax*dy,i=0,length-1)/),(/1/))
+      iret = nf90_inq_varid(ncid, 'ym', VarID)
+      if (iret==0) iret=nf90_inquire_dimension(ncid, ymID, len=length)
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(y0+dy*nc*i+myidy*jmax*dy,i=0,length-1)/),(/1/))
+    end subroutine write_y_coordinates
 
   end subroutine writestat_dims_nc
 

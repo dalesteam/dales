@@ -250,6 +250,7 @@ contains
     call D_MPI_BCAST(uvdamprate  ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lforce_user ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lmomsubs    ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(ntimedep    ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(ltimedep    ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(ltimedepuv  ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(ltimedepsv  ,1,0,commwrld,mpierr)
@@ -353,7 +354,6 @@ contains
     call initlsm
     call initdrydep
     call initsubgrid
-
 
     if (loutdirs) then
        output_prefix(1:3) = cmyidy

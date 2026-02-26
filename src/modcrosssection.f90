@@ -186,46 +186,11 @@ contains
                 do n = 1,nsv
                   call ncinfo(ncname1(9+n,:), trim(tracer_prop(n)%tracname), trim(tracer_prop(n)%traclong), trim(tracer_prop(n)%unit), 't0tt')
                 enddo
-                call open_nc(trim(output_prefix)//fname1,ncid1(cross),nrec1(cross),n1=imax,n3=kmax)
+                call open_nc(trim(output_prefix)//fname1,ncid1(cross),nrec1(cross),n1=imax,n2=1,n3=kmax)
                 if (nrec1(cross) == 0) then
                    call define_nc(ncid1(cross), 1, tncname1)
-                   call writestat_dims_nc(ncid1(cross))
+                   call writestat_dims_nc(ncid1(cross), write_slice_coordinate=.true., slice_index=crossplane(cross)+myidy*jmax, slice_coordinate="y")
                    call redefine_nc(ncid1(cross))
-                   iret = nf90_def_dim(ncid1(cross),'yt',1,dim_slice_yt)
-                   if (iret /= nf90_noerr) then
-                      call finish(routine, 'Error defining dimension yt in netcdf file: '//trim(fname1))
-                   end if
-                   iret = nf90_def_dim(ncid1(cross),'ym',1,dim_slice_ym)
-                   if (iret /= nf90_noerr) then
-                      call finish(routine, 'Error defining dimension ym in netcdf file: '//trim(fname1))
-                   end if
-                   iret = nf90_def_var(ncid1(cross),'yt',NF90_FLOAT,(/dim_slice_yt/),var_slice1)
-                   if (iret /= nf90_noerr) then
-                      call finish(routine, 'Error defining variable yt in netcdf file: '//trim(fname1))
-                   end if
-                   iret = nf90_def_var(ncid1(cross),'ym',NF90_FLOAT,(/dim_slice_ym/),var_slice2)
-                   if (iret /= nf90_noerr) then
-                      call finish(routine, 'Error defining variable ym in netcdf file: '//trim(fname1))
-                   end if
-                   iret = nf90_enddef(ncid1(cross))
-                   if (iret /= nf90_noerr) then
-                      call finish(routine, 'Error ending definition of netcdf file: '//trim(fname1))
-                   end if
-
-                  ! if (myid == 0) then
-                  write(*,'(A,4F12.4,3I6)') 'DEBUG crossxz: ', &
-                        y0, dy, yt(crossplane(cross)+myidy*jmax), ym(crossplane(cross)+myidy*jmax), &
-                        myidy, jmax, crossplane(cross)+myidy*jmax
-                  ! end if
-
-                   iret = nf90_put_var(ncid1(cross),var_slice1,real(yt(crossplane(cross)-1+myidy*jmax),kind=4))
-                   if (iret /= nf90_noerr) then
-                      call finish(routine, 'Error writing variable yt in netcdf file: '//trim(fname1))
-                   end if
-                   iret = nf90_put_var(ncid1(cross),var_slice2,real(ym(crossplane(cross)-1+myidy*jmax),kind=4))
-                   if (iret /= nf90_noerr) then
-                      call finish(routine, 'Error writing variable ym in netcdf file: '//trim(fname1))
-                   end if
                 end if
                 call define_nc(ncid1(cross), nvar, ncname1)
              end if
@@ -251,18 +216,11 @@ contains
               do n = 1,nsv
                 call ncinfo(ncname2(9+n,:), trim(tracer_prop(n)%tracname), trim(tracer_prop(n)%traclong), trim(tracer_prop(n)%unit), 'tt0t')
               enddo
-            call open_nc(trim(output_prefix)//fname2,ncid2(cross),nrec2(cross),n1=imax,n2=jmax)
+            call open_nc(trim(output_prefix)//fname2,ncid2(cross),nrec2(cross),n1=imax,n2=jmax,n3=1)
               if (nrec2(cross)==0) then
                  call define_nc(ncid2(cross), 1, tncname2)
-                 call writestat_dims_nc(ncid2(cross))
+                 call writestat_dims_nc(ncid2(cross), klow=crossheight(cross))
                  call redefine_nc(ncid2(cross))
-                 iret = nf90_def_dim(ncid2(cross),'zt',1,dim_slice_zt)
-                 iret = nf90_def_dim(ncid2(cross),'zm',1,dim_slice_zm)
-                 iret = nf90_def_var(ncid2(cross),'zt',NF90_FLOAT,(/dim_slice_zt/),var_slice1)
-                 iret = nf90_def_var(ncid2(cross),'zm',NF90_FLOAT,(/dim_slice_zm/),var_slice2)
-                 iret = nf90_enddef(ncid2(cross))
-                 iret = nf90_put_var(ncid2(cross),var_slice1,real(zf(crossheight(cross)),kind=4))
-                 iret = nf90_put_var(ncid2(cross),var_slice2,real(zh(crossheight(cross)),kind=4))
               end if
               call define_nc(ncid2(cross), nvar, ncname2)
            end do
@@ -289,18 +247,11 @@ contains
                  do n = 1,nsv
                     call ncinfo(ncname3(9+n,:), trim(tracer_prop(n)%tracname), trim(tracer_prop(n)%traclong), trim(tracer_prop(n)%unit), '0ttt')
                  enddo
-                 call open_nc(trim(output_prefix)//fname3,  ncid3(cross),nrec3(cross),n2=jmax,n3=kmax)
+                 call open_nc(trim(output_prefix)//fname3,  ncid3(cross),nrec3(cross),n1=1,n2=jmax,n3=kmax)
                  if (nrec3(cross)==0) then
                     call define_nc(ncid3(cross), 1, tncname3)
-                    call writestat_dims_nc(ncid3(cross))
+                    call writestat_dims_nc(ncid3(cross), write_slice_coordinate=.true., slice_index=crossortho(cross)+myidx*imax, slice_coordinate="x")
                     call redefine_nc(ncid3(cross))
-                    iret = nf90_def_dim(ncid3(cross),'xt',1,dim_slice_xt)
-                    iret = nf90_def_dim(ncid3(cross),'xm',1,dim_slice_xm)
-                    iret = nf90_def_var(ncid3(cross),'xt',NF90_FLOAT,(/dim_slice_xt/),var_slice1)
-                    iret = nf90_def_var(ncid3(cross),'xm',NF90_FLOAT,(/dim_slice_xm/),var_slice2)
-                    iret = nf90_enddef(ncid3(cross))
-                    iret = nf90_put_var(ncid3(cross),var_slice1,real(xt(crossortho(cross)-1+myidx*imax),kind=4))
-                    iret = nf90_put_var(ncid3(cross),var_slice2,real(xm(crossortho(cross)-1+myidx*imax),kind=4))
                  end if
                  call define_nc(ncid3(cross), nvar, ncname3)
               end if
