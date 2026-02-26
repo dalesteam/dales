@@ -84,18 +84,12 @@ contains
 
    implicit none
     character(len=*), parameter :: routine = modname//'/initcrosssection'
-    integer :: ierr,i,k,n,iret,dim_slice_zt,dim_slice_zm,dim_slice_xt,dim_slice_xm,dim_slice_yt,dim_slice_ym,var_slice1,var_slice2
-    real(real64), dimension(itot) :: xt,xm
-    real(real64), dimension(jtot) :: yt,ym
+    integer :: ierr,k,n
 
     namelist/NAMCROSSSECTION/ &
     lcross, lbinary, dtav, crossheight, crossplane, crossortho, lxy, lxz, lyz
 
     nvar = nvar + nsv
-    xt = (/(x0 + dx*(0.5+i) ,i=0,itot-1)/) !xt
-    xm = (/(x0 + dx*i ,i=0,itot-1)/) !xm
-    yt = (/(y0 + dy*(0.5+i),i=0,jtot-1)/) !yt
-    ym = (/(y0 + dy*i ,i=0,jtot-1)/) !ym
 
     allocate(ncname1(nvar,4), ncname2(nvar,4), ncname3(nvar,4))
 
