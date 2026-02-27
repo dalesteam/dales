@@ -87,11 +87,19 @@ contains
       end if
     end do
 
-    ! Finally, open the file
+    ! Finally, open the file and define the dimensions
     call open_nc(trim(this%filename)//'.nc', this%ncid, &
                  this%nrec, dimension_lengths(1), &
                  dimension_lengths(2), dimension_lengths(3), &
                  dimension_lengths(4), dimension_lengths(5), comm)
+
+    call nctiminfo(this%timeinfo)
+
+    if (this%nrec == 0) then
+      call define_nc(this%ncid, 1, this%timeinfo)
+      call writestat_dims_nc(this%ncid, offset_x=offsets(1), &
+                             offset_y=offsets(2))
+    end if
 
   end function netcdf_file_open
 
@@ -166,13 +174,7 @@ contains
       case default
     end select
 
-    call nctiminfo(this%timeinfo)
-
-    if (this%nrec == 0) then
-      call define_nc(this%ncid, 1, this%timeinfo)
-      call writestat_dims_nc(this%ncid, offsets=this%offsets)
-    end if
-
+    ! Define the variables. Note: this also ends the definition stage
     call define_nc(this%ncid, this%nvar, this%names)
 
   end subroutine netcdf_file_init

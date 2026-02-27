@@ -421,7 +421,7 @@ contains
    call nchandle_error(status)
  end subroutine exitstat_nc
 
- subroutine writestat_dims_nc(ncid, ncoarse, klow, proc, offsets)
+ subroutine writestat_dims_nc(ncid, ncoarse, klow, proc, offset_x, offset_y)
     ! optional arguments ncoarse (coarsegraining in the horizontal directions)
     !                    klow    (lower bound for z. Upper bound is taken from the size of the dimension)
     !                    proc    (if present and length on horizontal cooridinates is 1 include processor starting edges and center)
@@ -433,7 +433,8 @@ contains
     integer, intent(in) :: ncid
     integer, optional, intent(in) :: ncoarse, klow
     logical, optional, intent(in) :: proc
-    integer, optional, intent(in) :: offsets(5)
+    integer, optional, intent(in) :: offset_x
+    integer, optional, intent(in) :: offset_y
     integer             :: i=0,iret,length,varid, nc
     integer             :: kl
     logical             :: lproc
@@ -455,15 +456,15 @@ contains
     if (present(proc)) then
       lproc = .true.
     end if
-
-
-    if (do_parallel) then
-      xstart = [myidx*imax + 1]
-      ystart = [myidy*jmax + 1]
+    if (present(offset_x)) then
+      xstart = offset_x
     else
-      xstart = [1]
-      ystart = [1]
-
+      xstart = 1
+    end if
+    if (present(offset_y)) then
+      ystart = offset_y
+    else
+      ystart = 1
     end if
 
     if (.not. lproc) then
