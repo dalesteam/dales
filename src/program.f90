@@ -171,8 +171,8 @@ program DALES
   use modprecursor,    only : init_precursor, precursor_nudge_boundary, &
                               swap_fields, exit_precursor, &
                               lprecursor, Nsim, statid, turid, refid
-  use modstat_2d,      only : init_stat_2d, write_2d, sample_2d
-  use modcloudstat,    only : init_cloudstat, do_cloudstat
+  use modcloudstat,    only: init_cloudstat, do_cloudstat
+  use modstat_nc_files, only: stats_limit_timestep, write_nc_files, init_nc_files
 !----------------------------------------------------------------
 !     0.2     USE STATEMENTS FOR TIMER MODULE
 !----------------------------------------------------------------
@@ -239,12 +239,14 @@ program DALES
   call init_cloudstat
 
   call init_profiles
-  call init_stat_2d
   call init_precursor
 
 #if defined(_OPENACC)
   call update_gpu
 #endif
+
+  ! Initialize IO
+  call init_nc_files
 
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
@@ -268,7 +270,6 @@ program DALES
     
         ! Check if we have to sample profiles this time step
         call sample_profiles
-        call sample_2d
     
         call datetime
     
@@ -372,14 +373,13 @@ program DALES
     !   3.9  WRITE RESTARTFILES AND DO STATISTICS
     !------------------------------------------------------
         if (simid == statid) then
-          call do_cloudstat
+          call stats_limit_timestep
           call twostep
           !call coldedge
           call checksim
           call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
           call genstat  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
           call write_profiles
-          call write_2d
           call radstat
           call lsmstat
           !call depstat
@@ -396,6 +396,8 @@ program DALES
           call fielddump
           call radfield
           !call particles
+
+          call do_cloudstat
     
           call budgetstat
           call varbudget
@@ -405,6 +407,8 @@ program DALES
     
           call testwctime
           call writerestartfiles
+
+          call write_nc_files
         end if
 
         call reset_tendencies

@@ -105,7 +105,6 @@ set( dales_srcs
 	modspraying.f90
 	modsprayingdata.f90
 	modstartup.f90
-	modstat_2d.f90
 	modstat_nc.f90
 	modstat_nc_files.f90
 	modstat_profiles.f90
