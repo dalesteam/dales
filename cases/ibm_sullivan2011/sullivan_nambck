@@ -111,7 +111,7 @@ crossplane = 32 64
 lbinary = .true.
 /
 
-&NAMIBM
+&IBM
 lapply_ibm = .true.
 lreadfile_obstacles = .true.
 lwallheat = .false.

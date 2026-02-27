@@ -794,7 +794,7 @@ contains
                 w0 (i,j,k:k+1)  = 0.
                 e12m(i,j,k)     = e12min
                 e120(i,j,k)     = e12min
-                if (nsv > 0) then !TODO: check this here..
+                if (nsv > 0) then
                   do n=1,nsv
                     sv0(i,j,k,n) = 0.
                     svm(i,j,k,n) = 0.

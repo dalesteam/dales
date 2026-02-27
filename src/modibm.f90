@@ -57,17 +57,17 @@ contains
 
   subroutine initibm
 
-    use modglobal,      only : zh, zf, itot, jtot, ih, i1, i2, jh, j1, j2, k1, imax, jmax, kmax, cexpnr, ifnamopt, ifinput, &
-                               fname_options, nsv, cu, cv, ijtot, &
-                               iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,iadv_cd2, &
-                               ibas_prf, &
-                               dx,dy,fkar,&
-                               checknamelisterror
-    use modmpi,         only : myid, comm3d, mpierr, myidx, myidy, d_mpi_bcast, excjs, D_MPI_ALLREDUCE, &
-                               mpi_max, mpi_sum
-    use modsurface,     only : lmostlocal
-    use modsubgriddata, only : lanisotrop, lsmagorinsky
-    use fortran_support, only: nnml_output
+    use modglobal,        only : zh, zf, itot, jtot, ih, i1, i2, jh, j1, j2, k1, imax, jmax, kmax, cexpnr, ifnamopt, ifinput, &
+                                fname_options, nsv, cu, cv, ijtot, &
+                                iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,iadv_cd2, &
+                                ibas_prf, &
+                                dx,dy,fkar,&
+                                checknamelisterror
+    use modmpi,           only : myid, comm3d, mpierr, myidx, myidy, d_mpi_bcast, excjs, D_MPI_ALLREDUCE, &
+                                mpi_max, mpi_sum
+    use modsurface,       only : lmostlocal
+    use modsubgriddata,   only : lanisotrop, lsmagorinsky
+    use fortran_support,  only : nnml_output
 
     implicit none
 
@@ -78,11 +78,11 @@ contains
     character(len=*), parameter :: routine = modname//'/initibm'
 
     ! Temporary fields and profiles for the processing of the IBM input
-    real(field_r), allocatable :: bc_height(:,:)                                                                !< Height of immersed boundary at cell center i,j
-    integer,       allocatable :: tiobst(:,:), tixw_p(:,:), tixw_m(:,:), tiyw_p(:,:), tiyw_m(:,:), tizw_p(:,:)!, izw_m(:,:)  !< Indices of walls oriented p/n x,y,z
+    real(field_r), allocatable :: bc_height(:,:)                                                                            !< Height of immersed boundary at cell center i,j
+    integer,       allocatable :: tiobst(:,:), tixw_p(:,:), tixw_m(:,:), tiyw_p(:,:), tiyw_m(:,:), tizw_p(:,:)!, izw_m(:,:) !< Indices of walls oriented p/n x,y,z
 
     ! Read in NAMOPTIONS parameters related to IBM
-    namelist/NAMIBM/ &
+    namelist/IBM/ &
       lapply_ibm, lwallheat, thlwall, thlibm, thlroof, qtibm, lpoislast, z0m_wall, z0h_wall
 
     call timer_tic('modibm/initibm',0)
@@ -90,9 +90,9 @@ contains
     if( myid==0 ) then
 
       open (ifnamopt, file=fname_options, status='old', iostat=ierr)
-      read (ifnamopt, NAMIBM, iostat=ierr)
-      call checknamelisterror(ierr, ifnamopt, 'NAMIBM')
-      write (nnml_output, NAMIBM)
+      read (ifnamopt, IBM, iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'IBM')
+      write (nnml_output, IBM)
       close (ifnamopt)
 
       ! Do some checks for conflicting settings and warn/stop further execution
@@ -209,7 +209,7 @@ contains
       end if
     end if 
 
-    call D_MPI_BCAST(bc_height, (itot+1)*(jtot+1), 0, comm3d, mpierr)
+    call d_mpi_bcast(bc_height, (itot+1)*(jtot+1), 0, comm3d, mpierr)
 
     ! Determine obstacle cells. Checks if obstacle height is above midpoint of vertical cell (= full levels). Corresponds to >50% of cell being filled.
     Nobst = 0
@@ -239,19 +239,19 @@ contains
     !! xwall min yes/no     :   F     T     F     F     F
     !! xwall plus yes/no    :   F     F     F     F     T
 
-    ! Preset (temporary) arrays for internal buildings and wall indices (Nobst [+i2 (or j2)*k1] provides upper bound)
-    allocate(tiobst(Nobst+4*ih*k1,3))                                                                                    ! for internal building points
-    allocate(tixw_p(Nobst+i2*k1,3), tixw_m(Nobst+i2*k1,3), tiyw_p(Nobst+j2*k1,3), tiyw_m(Nobst+j2*k1,3), tizw_p(Nobst,3)) ! for x- and y-walls in positive and negative directions
+    ! Preset (temporary) arrays for internal buildings and wall indices [Nobst+2*ih*k1+2*jh*k1+4*ih*jh] provides upper bound)
+    allocate(tiobst(Nobst+2*ih*k1+2*jh*k1+4*ih*jh,3))                                                                           ! for internal building points
+    allocate(tixw_p(Nobst+i2*k1,3), tixw_m(Nobst+i2*k1,3), tiyw_p(Nobst+j2*k1,3), tiyw_m(Nobst+j2*k1,3), tizw_p(Nobst+j2*k1,3)) ! for x- and y-walls in positive and negative directions
 
     Nxwalls_plus = 0; Nxwalls_min = 0; Nywalls_plus = 0; Nywalls_min = 0; Nzwalls_plus = 0
 
     Nobst_wide = 0;
     do k=1,kmax
       do j=1,j2
-        do i=1,i2   ! DO STILL REWORK INDICES IN THE CORRECTIONS APPLYIBM BELOW!! OR REPLACE THIS WITH OLD VERSION AGAIN
+        do i=1,i2
 
           if ( .not.(fluid_mask(i,j,k)) ) then                    ! check if internal obstable point
-            Nobst_wide           = Nobst_wide + 1                                 ! local counter for obstacle points
+            Nobst_wide           = Nobst_wide + 1                 ! local counter for obstacle points
             tiobst(Nobst_wide,1) = i
             tiobst(Nobst_wide,2) = j
             tiobst(Nobst_wide,3) = k
@@ -309,12 +309,6 @@ contains
         end do
       end do
     end do
-
-    ! Due to extension of scan over halo cells, this check will fail
-    ! if (no /= Nobst) then
-    !   call finish(routine, &
-    !       'ERROR: Number of identified obstacle points during wall determination and prior stage do not match!')  
-    ! end if
 
     allocate(iobst(Nobst_wide  ,3))
     allocate(ixw_p(Nxwalls_plus,3))
@@ -407,8 +401,7 @@ contains
 
   subroutine applyibm
 
-    use modfields,      only : um, vm, wm, thlm, qtm, e12m, svm, &
-                               u0, v0, w0, thl0, qt0, e120, sv0, &
+    use modfields,      only : u0, v0, w0, thl0, qt0, e120, sv0, &
                                up, vp, wp, thlp, qtp, e12p, svp, &
                                thl0av, qt0av, rhobf, rhobh
     use modglobal,      only : rk3step, kmax, i1, j1, k1, ih, jh, rdt, timee, dx, dy, dx2i, dy2i, dzh, dzhi, dzf, dzfi, zf, zh, nsv, e12min, fkar
@@ -437,22 +430,6 @@ contains
     rk3coef = rdt / (4. - dble(rk3step))
     rk3coefi = 1. / rk3coef
 
-    ! ! Enforce cyclic boundary conditions for tendencies 
-    ! call excjs( up    , 2,i1,2,j1,1,k1,ih,jh)
-    ! call excjs( vp    , 2,i1,2,j1,1,k1,ih,jh)
-    ! call excjs( wp    , 2,i1,2,j1,1,k1,ih,jh)
-    ! call excjs( e12p  , 2,i1,2,j1,1,k1,ih,jh)
-    ! call excjs( thlp  , 2,i1,2,j1,1,k1,ih,jh)
-    ! call excjs( qtp   , 2,i1,2,j1,1,k1,ih,jh)
- 
-    ! ! SvdL, test related to Nobst_wide
-    ! call excjs( u0    , 2,i1,2,j1,1,k1,ih,jh)
-    ! call excjs( v0    , 2,i1,2,j1,1,k1,ih,jh)
-    ! call excjs( w0    , 2,i1,2,j1,1,k1,ih,jh)
-    ! call excjs( e120  , 2,i1,2,j1,1,k1,ih,jh)
-    ! call excjs( thl0  , 2,i1,2,j1,1,k1,ih,jh)
-    ! call excjs( qt0   , 2,i1,2,j1,1,k1,ih,jh)
-
     ! Set tendencies inside obstacles (i.e., correct for any drift from previous integration step)
     !$acc parallel loop gang vector default(present)
     do nn = 1,Nobst_wide  !1!< Svdldit werkt niet..
@@ -461,7 +438,6 @@ contains
       k = iobst(nn,3)
 
       ! Correction of velocities also corrects walls w. normals in negative x,y-directions (due to staggered grid arrangement)
-      ! still do these again later for consistency with respect to positive x,y-directions
       up(i,j,k)   = -u0(i,j,k)*rk3coefi
       vp(i,j,k)   = -v0(i,j,k)*rk3coefi
       wp(i,j,k)   = -w0(i,j,k)*rk3coefi
@@ -476,7 +452,9 @@ contains
     end do
 
     ! All corrections consist of 2 parts: cancel the "wrong" diffusion imposed by modsubgrid at fluid points at the wall, and add wall friction/flux.
-    ! In this framework, we assume no correction for advection is needed, as velocities at walls should already be close to zero (may better enforce later)
+    ! In this framework, we assume no correction for advection is needed, as velocities at walls should already be close to zero 
+    ! TODO: 1. do explicitly remove advective tendencies over walls (mainly for improvement of conservations of scalars)
+    !       2. apply IBM conditions explicitly to e12 as well
 
     ! Correct tendencies for walls in positive z-direction (only works when k>1, which should be the case for vertical walls [see initibm])
     !$acc parallel loop gang vector default(present)
@@ -537,26 +515,23 @@ contains
       vp(i,j  ,k) = vp(i,j  ,k) - 0.25_field_r * rhobh(k)/rhobf(k) * Cm_zwall * ( v0(i,j,k) + v0(i,j+1,k) ) * uspeed * dzfi(k)
       vp(i,j+1,k) = vp(i,j+1,k) - 0.25_field_r * rhobh(k)/rhobf(k) * Cm_zwall * ( v0(i,j,k) + v0(i,j+1,k) ) * uspeed * dzfi(k)
 
-      ! SvdL: tentative fix for vertical diffusion of temperature over z-walls. Do theck later. Also here, 0.5 comes from interpolation of ekm. - REWORKED
+      ! tentative fix for vertical diffusion of temperature over z-walls. Also here, 0.5 comes from interpolation of ekm.
       thlp(i,j,k) = thlp(i,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * ( ( ( dzf(k-1) * ekm(i,j,k) ) + ( dzf(k ) * ekm(i,j,k-1)) )* dzhi(k)  ) * ( thl0(i,j,k) - thl0(i,j,k-1) ) * dzhi(k) * dzfi(k)
       qtp (i,j,k) = qtp (i,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * ( ( ( dzf(k-1) * ekm(i,j,k) ) + ( dzf(k ) * ekm(i,j,k-1)) )* dzhi(k)  ) * ( qt0 (i,j,k) - qt0 (i,j,k-1) ) * dzhi(k) * dzfi(k)
 
-      ! not sure yet how to properly include zero flux conditions (... copy relevant isurf parts from modsurface.f90 here)
-      ! if flux = constant, it is just the flux to feed into here. Yet, roof temperatures should still be diagnosed somehow (requiring energy balance)
+      ! zero/constant flux of heat/moisture currently not implemented. Implies roof temperatures become diagnostic (requiring energy balance)
       ! doubting whether rhobh(k)/rhobf(k) are truly correct here, i.e., at right positions..
       thlp(i,j,k) = thlp(i,j,k) - rhobh(k)/rhobf(k) * Cd_zwall * ( thl0(i,j,k) - thlroof ) * uspeed * dzfi(k)
       qtp (i,j,k) = qtp (i,j,k) - rhobh(k)/rhobf(k) * Cd_zwall * (  qt0(i,j,k) - qtroof  ) * uspeed * dzfi(k)
       ! no flux of e12 from wall into flow
 
-      ! not sure how to include constant, i.e., fixed emission fluxes for tracers yet (... confer with Caspar)
+      ! currently only for zero flux of scalars from walls (i.e., no emission at walls). To be extended later
       do nc=1,nsv
         svp(i,j,k,nc) = svp(i,j,k,nc) - 0 !rhobh(k)/rhobf(k) * Cd_zwall * ( sv0(i,j,k,nc) -svroof(nc) ) * uspeed * dzfi(k) !< currently set to zero
       end do
 
     end do
 
-    ! call message(routine, 'i1 is', i1)
-    ! call message(routine, 'j1 is', j1)
     ! Correct tendencies for walls in positive x-direction
     !$acc parallel loop gang vector default(present)
     do nn = 1,Nxwalls_plus
@@ -564,20 +539,20 @@ contains
       j = ixw_p(nn,2)
       k = ixw_p(nn,3)
 
-      ! call message(routine, 'i is', i) 
-      ! call message(routine, 'j is', j) 
-      ! call message(routine, 'k is', k) 
-      ! ! First set the normal velocity at the wall (correct for any drift) >> SvdL: already taken care of in loop over inside
-      ! up(i,j,k)   = -u0(i,j,k)*rk3coefi
+      ! First set the normal velocity at the wall (correct for any drift)
+      up(i,j,k)   = -u0(i,j,k)*rk3coefi
 
-      ! Remove "wrong" diffusive tendencies and replace with wall drag
+      ! Remove "wrong" diffusive tendencies and replace with wall drag:
+      ! essentially every wall facet is split up in two parts, where half the correction goes into v(i,j,k) and half into v(i,j+1,k)
+      ! if the x-plane next to the current one is not a wall, no partial correction to v(i,j+1,k) occurs (but a partial contribution of diffusion does)
+      ! if this x-plane is also a wall, the total correction on a momentum component will therefore be split over two entries in the wall list. 
+
       ! for v(i,j,k):
       emmo = 0.25_field_r * ( ekm(i,j,k) + ekm(i,j-1,k) + ekm(i-1,j,k) + ekm(i-1,j-1,k) )
       w_at_v_plus = 0.25_field_r * ( w0(i,j,k) + w0(i,j,k+1) + w0(i,j-1,k) + w0(i,j-1,k+1) )  !at v(i,j,k)
       tau_vu_plus = log_wallaw(v0(i,j,k), w_at_v_plus, Cm_xwall)
 
       vp(i,j  ,k) = vp(i,j  ,k) + 0.5_field_r * emmo * ( (v0(i,j,k) - v0(i-1,j,k) ) / dx) / dx - 0.5_field_r * tau_vu_plus / dx ! factor 0.5 originates to avoid double correction
-      ! NOTE: if x-plane next to current one is also a wall, part will be corrected via v(i,j+1,k) in that plane. if plane is not a wall, we do want to allow for partial contribution to diffusive flux
 
       ! for v(i,j+1,k):
       empo = 0.25_field_r * ( ekm(i,j,k) + ekm(i,j+1,k) + ekm(i-1,j,k) + ekm(i-1,j+1,k) )
@@ -634,7 +609,7 @@ contains
       k = ixw_m(nn,3)
 
       ! First set the normal velocity at the wall (correct for any drift)
-      ! note: these should actually already be corrected in loop over iobst (due to staggered grid arrangement)
+      ! note: these should actually already be corrected for in loop over iobst (due to staggered grid arrangement)
       up(i+1,j,k)   = -u0(i+1,j,k)*rk3coefi
 
       ! Remove "wrong" diffusive tendencies and replace with wall drag
@@ -683,14 +658,12 @@ contains
         svp(i,j,k,nc) = svp(i,j,k,nc) - 0.5_field_r * ( ekh(i+1,j,k) + ekh(i,j,k) ) * ( sv0(i+1,j,k,nc) - sv0(i,j,k,nc) ) * dx2i
       end do
 
-      !> Finally, set correct heat flux from wall to fluid
+      ! Finally, set correct heat flux from wall to fluid
       uspeed = 0.5_field_r * ( ( v0(i,j,k) + v0(i,j+1,k) )**2 + ( w0(i,j,k) + w0(i,j,k+1) )**2 )**0.5_field_r
       thlp(i,j,k) = thlp(i,j,k) + Cd_xwall * uspeed * (thlwall - thl0(i,j,k)) / dx
       qtp (i,j,k) = qtp (i,j,k) + Cd_xwall * uspeed * ( qtwall -  qt0(i,j,k)) / dx ! check this one..
 
     end do
-
-    ! CHECK DEZE
 
     ! Correct tendencies for walls in positive y-direction
     !$acc parallel loop gang vector default(present)
@@ -699,9 +672,8 @@ contains
       j = iyw_p(nn,2)
       k = iyw_p(nn,3)
 
-      ! Already taken care of in inside loop
-      ! ! First set the normal velocity at the wall (correct for any drift)
-      ! vp(i,j,k)   = -v0(i,j,k)*rk3coefi
+      ! First set the normal velocity at the wall (correct for any drift)
+      vp(i,j,k)   = -v0(i,j,k)*rk3coefi
 
       ! Remove "wrong" diffusive tendencies and replace with wall drag
       ! for u(i,j,k):
@@ -766,7 +738,7 @@ contains
       k = iyw_m(nn,3)
 
       ! First set the normal velocity at the wall (correct for any drift)
-      ! note: these should actually already be corrected in loop over iobst (due to staggered grid arrangement)
+      ! note: these should actually already be corrected for in loop over iobst (due to staggered grid arrangement)
       vp(i,j+1,k)   = -v0(i,j+1,k)*rk3coefi
 
       ! Remove "wrong" diffusive tendencies and replace with wall drag
@@ -825,9 +797,9 @@ contains
     return
   end subroutine applyibm
 
-  subroutine zerowallvelocity !<- MK: Force velocity at the immersed boundaries to 0 for a better interaction with the poissonsolver
+  subroutine zerowallvelocity ! Force velocity at the immersed boundaries to 0 for a better interaction with the poisson solver
 
-    use modfields,      only : um, vm, wm, up, vp, wp, u0, v0, w0
+    use modfields,      only : up, vp, wp, u0, v0, w0
     use modglobal,      only : rk3step, kmax, i1, j1, k1, ih, jh, rdt
     use modmpi,         only : excjs
 
@@ -856,12 +828,6 @@ contains
 
     end do
 
-    ! ! call excjs( up  , 2,i1,2,j1,1,k1,ih,jh)
-    ! ! call excjs( vp  , 2,i1,2,j1,1,k1,ih,jh)
-    ! ! call excjs( wp  , 2,i1,2,j1,1,k1,ih,jh)
-    ! call excjs( u0  , 2,i1,2,j1,1,k1,ih,jh)
-    ! call excjs( v0  , 2,i1,2,j1,1,k1,ih,jh)
-    ! call excjs( w0  , 2,i1,2,j1,1,k1,ih,jh)
     return
   end subroutine zerowallvelocity
 
@@ -876,8 +842,8 @@ contains
                                                     
   end function log_wallaw
 
-  ! SvdL: wall corection for e12 currenly neglected. To be tested in detail later.
-  ! So, we now allow for diffusive flux of e12 over the walls, while e12 and ekm/ekh should be insignificant inside buildings. Just outside ekm is probably too large to accurately determine such flux at all -> so we should consider proper cancellation.
+  ! TODO: wall corection for e12 currenly neglected. To be tested in detail later.
+  ! This allows for diffusive flux of e12 over the walls, while e12 and ekm/ekh should be insignificant inside buildings. Just outside ekm is probably too large to accurately determine such flux at all -> so we should consider proper cancellation.
 
   ! subroutine xwalle12(i,j,k)
 
@@ -1058,18 +1024,5 @@ contains
   !     end if
   !   end if
   ! end subroutine ywalle12
-
-  ! subroutine bulk_wall_temp(uspeed,thl,Cd,dx,thlp)
-  !   implicit none
-
-  !   real(field_r),intent(in) :: uspeed
-  !   real,intent(in) :: Cd,dx
-  !   real(field_r),intent(in) :: thl
-  !   real(field_r),intent(out) :: thlp
-
-  !   thlp = Cd * uspeed * (thlwall - thl) / dx
-
-  !   return
-  ! end subroutine bulk_wall_temp
 
 end module modibm

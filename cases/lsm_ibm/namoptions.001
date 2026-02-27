@@ -95,7 +95,7 @@
     lsync = .true.
 /
 
-&namibm
+&ibm
     lapply_ibm = .true.
     lwallheat = .false.
     thlibm = 301
