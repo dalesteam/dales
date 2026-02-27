@@ -583,7 +583,7 @@ contains
     implicit none
     integer, intent(in)                      :: ncid,nvar
     integer, intent(inout)                   :: nrec
-    real(field_r),dimension(nvar),intent(in)          :: vars
+    real(real32),dimension(nvar),intent(in)          :: vars
     character(*), dimension(:,:),intent(in)  :: ncname
     logical, intent(in)                      :: lraise
 
