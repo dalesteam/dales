@@ -32,11 +32,17 @@ module modstat_nc
     use netcdf
     use modglobal,    only: imax, jmax
     use modprecision, only: field_r
-    use modmpi,       only: myid, comm3d, myidx, myidy, mpi_info_null
+    use modmpi,       only: myid, comm3d, myidx, myidy, mpi_info_null, mpi_comm
     use modlogging, only: finish
     implicit none
 
     character(len=*), parameter :: modname = 'modstat_nc'
+
+#if defined(NC_HAVE_PARALLEL)
+    logical, parameter :: NC_HAVE_PARALLEL = .true.
+#else
+    logical, parameter :: NC_HAVE_PARALLEL = .false.
+#endif
 
     logical :: lnetcdf = .true.
     logical :: lsync   = .false.     ! Sync NetCDF file after each writestat_*_nc
@@ -48,11 +54,14 @@ module modstat_nc
 !> The only interface necessary to write data to netcdf, regardless of the dimensions.
     interface writestat_nc
       module procedure writestat_time_nc
+      module procedure writestat_time_nc_float
       module procedure writestat_1D_nc
+      module procedure writestat_1D_nc_float
       module procedure writestat_2D_nc
       module procedure writestat_2D_nc_float
       module procedure writestat_3D_nc
       module procedure writestat_3D_short_nc
+      module procedure writestat_3D_nc_float
     end interface writestat_nc
 
     !> Read a field from a netCDF file by its name
@@ -85,6 +94,7 @@ module modstat_nc
     private :: read_nc_attribute_logical
 
     private :: modname
+    private :: finish
 
 contains
 
@@ -118,14 +128,14 @@ contains
 ! ----------------------------------------------------------------------
 !> Subroutine Open_NC: Opens a NetCDF File and identifies starting record
 !
-  subroutine open_nc (fname, ncid,nrec,n1, n2, n3, ns,nq, lparallel)
+  subroutine open_nc (fname, ncid,nrec,n1, n2, n3, ns,nq, comm)
     use modglobal, only : author,version,rtimee
     use modversion, only : git_version
     implicit none
     integer, intent (out) :: ncid,nrec
     integer, optional, intent (in) :: n1, n2, n3, ns, nq
     character (len=40), intent (in) :: fname
-    logical, intent(in), optional :: lparallel
+    type(mpi_comm), intent(in), optional :: comm
 
     character(len=*), parameter :: routine = modname//'/open_nc'
 
@@ -137,7 +147,7 @@ contains
 
     inquire(file=trim(fname),exist=exans)
 
-    if (present(lparallel)) open_parallel = lparallel 
+    if (present(comm)) open_parallel = .true. 
     
     if (open_parallel .and. lclassic) then
       call finish(routine, 'NetCDF classic format is incompatible with' &
@@ -152,7 +162,8 @@ contains
       else
         if (open_parallel) then
           call nchandle_error(nf90_create(fname, NF90_NETCDF4, ncid, &
-                                          comm=comm3d%MPI_VAL, info=MPI_INFO_NULL%MPI_VAL))
+                                          comm=comm%mpi_val, info=mpi_info_null%mpi_val))
+        else
           call nchandle_error(nf90_create(fname,NF90_NETCDF4,ncid))
         end if
       end if
@@ -163,54 +174,56 @@ contains
       call nchandle_error(nf90_put_att(ncid, NF90_GLOBAL, 'Author',trim(author)))
       call nchandle_error(nf90_def_dim(ncID, 'time', NF90_UNLIMITED, timeID))
       if (present(n1)) then
-         call nchandle_error(nf90_def_dim(ncID, 'xt', n1, xtID))
-         call nchandle_error(nf90_def_dim(ncID, 'xm', n1, xmID))
-         call nchandle_error(nf90_def_var(ncID,'xt',NF90_FLOAT,xtID ,VarID))
-         call nchandle_error(nf90_put_att(ncID,VarID,'long_name','West-East displacement of cell centers'))
-         call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
-         call nchandle_error(nf90_def_var(ncID,'xm',NF90_FLOAT,xmID,VarID))
-         call nchandle_error(nf90_put_att(ncID,VarID,'long_name','West-East displacement of cell edges'))
-         call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
-         if (open_parallel) then
-           call nchandle_error(nf90_var_par_access(ncid, xtID, NF90_COLLECTIVE))
-           call nchandle_error(nf90_var_par_access(ncid, xmID, NF90_COLLECTIVE))
-         end if
+        if (n1 > 0) then
+          call nchandle_error(nf90_def_dim(ncID, 'xt', n1, xtID))
+          call nchandle_error(nf90_def_dim(ncID, 'xm', n1, xmID))
+          call nchandle_error(nf90_def_var(ncID,'xt',NF90_FLOAT,xtID ,VarID))
+          call nchandle_error(nf90_put_att(ncID,VarID,'long_name','West-East displacement of cell centers'))
+          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+          call nchandle_error(nf90_def_var(ncID,'xm',NF90_FLOAT,xmID,VarID))
+          call nchandle_error(nf90_put_att(ncID,VarID,'long_name','West-East displacement of cell edges'))
+          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+        end if
       end if
       if (present(n2)) then
-         call nchandle_error(nf90_def_dim(ncID, 'yt', n2, ytID))
-         call nchandle_error(nf90_def_dim(ncID, 'ym', n2, ymID))
-         call nchandle_error(nf90_def_var(ncID,'yt',NF90_FLOAT,ytID ,VarID))
-         call nchandle_error(nf90_put_att(ncID,VarID,'long_name','South-North displacement of cell centers'))
-         call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
-         call nchandle_error(nf90_def_var(ncID,'ym',NF90_FLOAT,ymID,VarID))
-         call nchandle_error(nf90_put_att(ncID,VarID,'long_name','South-North displacement of cell edges'))
-         call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
-         if (open_parallel) then
-           call nchandle_error(nf90_var_par_access(ncid, ytID, NF90_COLLECTIVE))
-           call nchandle_error(nf90_var_par_access(ncid, ymID, NF90_COLLECTIVE))
-         end if
+        if (n2 > 0) then
+          call nchandle_error(nf90_def_dim(ncID, 'yt', n2, ytID))
+          call nchandle_error(nf90_def_dim(ncID, 'ym', n2, ymID))
+          call nchandle_error(nf90_def_var(ncID,'yt',NF90_FLOAT,ytID ,VarID))
+          call nchandle_error(nf90_put_att(ncID,VarID,'long_name','South-North displacement of cell centers'))
+          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+          call nchandle_error(nf90_def_var(ncID,'ym',NF90_FLOAT,ymID,VarID))
+          call nchandle_error(nf90_put_att(ncID,VarID,'long_name','South-North displacement of cell edges'))
+          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+        end if
       end if
       if (present(n3)) then
-         call nchandle_error(nf90_def_dim(ncID, 'zt', n3, ztID))
-         call nchandle_error(nf90_def_dim(ncID, 'zm', n3, zmID))
-         call nchandle_error(nf90_def_var(ncID,'zt',NF90_FLOAT,(/ztID/) ,VarID))
-         call nchandle_error(nf90_put_att(ncID,VarID,'long_name','Vertical displacement of cell centers'))
-         call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
-         call nchandle_error(nf90_def_var(ncID,'zm',NF90_FLOAT,(/zmID/),VarID))
-         call nchandle_error(nf90_put_att(ncID,VarID,'long_name','Vertical displacement of cell edges'))
-         call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+        if (n3 > 0) then
+          call nchandle_error(nf90_def_dim(ncID, 'zt', n3, ztID))
+          call nchandle_error(nf90_def_dim(ncID, 'zm', n3, zmID))
+          call nchandle_error(nf90_def_var(ncID,'zt',NF90_FLOAT,(/ztID/) ,VarID))
+          call nchandle_error(nf90_put_att(ncID,VarID,'long_name','Vertical displacement of cell centers'))
+          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+          call nchandle_error(nf90_def_var(ncID,'zm',NF90_FLOAT,(/zmID/),VarID))
+          call nchandle_error(nf90_put_att(ncID,VarID,'long_name','Vertical displacement of cell edges'))
+          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+        end if
       end if
       if (present(ns)) then
-         call nchandle_error(nf90_def_dim(ncID, 'zts', ns, ztsID))
-         call nchandle_error(nf90_def_var(ncID,'zts',NF90_FLOAT,(/ztsID/) ,VarID))
-         call nchandle_error(nf90_put_att(ncID,VarID,'long_name','Soil level depth of cell centers'))
-         call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+        if (ns > 0) then
+          call nchandle_error(nf90_def_dim(ncID, 'zts', ns, ztsID))
+          call nchandle_error(nf90_def_var(ncID,'zts',NF90_FLOAT,(/ztsID/) ,VarID))
+          call nchandle_error(nf90_put_att(ncID,VarID,'long_name','Soil level depth of cell centers'))
+          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+        end if
       end if
       if (present(nq)) then
-         call nchandle_error(nf90_def_dim(ncID, 'zq', nq, zqID))
-         call nchandle_error(nf90_def_var(ncID,'zq',NF90_FLOAT,(/zqID/) ,VarID))
-         call nchandle_error(nf90_put_att(ncID,VarID,'long_name','Heights of interface levels'))
-         call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+        if (nq > 0) then
+          call nchandle_error(nf90_def_dim(ncID, 'zq', nq, zqID))
+          call nchandle_error(nf90_def_var(ncID,'zq',NF90_FLOAT,(/zqID/) ,VarID))
+          call nchandle_error(nf90_put_att(ncID,VarID,'long_name','Heights of interface levels'))
+          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+        end if
       end if
 
     else
@@ -408,7 +421,7 @@ contains
    call nchandle_error(status)
  end subroutine exitstat_nc
 
- subroutine writestat_dims_nc(ncid, ncoarse, klow, proc, lparallel)
+ subroutine writestat_dims_nc(ncid, ncoarse, klow, proc, offsets)
     ! optional arguments ncoarse (coarsegraining in the horizontal directions)
     !                    klow    (lower bound for z. Upper bound is taken from the size of the dimension)
     !                    proc    (if present and length on horizontal cooridinates is 1 include processor starting edges and center)
@@ -420,7 +433,7 @@ contains
     integer, intent(in) :: ncid
     integer, optional, intent(in) :: ncoarse, klow
     logical, optional, intent(in) :: proc
-    logical, optional, intent(in) :: lparallel
+    integer, optional, intent(in) :: offsets(5)
     integer             :: i=0,iret,length,varid, nc
     integer             :: kl
     logical             :: lproc
@@ -443,11 +456,10 @@ contains
       lproc = .true.
     end if
 
-    if (present(lparallel)) do_parallel = lparallel
 
     if (do_parallel) then
       xstart = [myidx*imax + 1]
-      ystart = [myidx*jmax + 1]
+      ystart = [myidy*jmax + 1]
     else
       xstart = [1]
       ystart = [1]
@@ -567,6 +579,25 @@ contains
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_time_nc
 
+  subroutine writestat_time_nc_float(ncid,nvar,ncname,vars,nrec,lraise)
+    implicit none
+    integer, intent(in)                      :: ncid,nvar
+    integer, intent(inout)                   :: nrec
+    real(field_r),dimension(nvar),intent(in)          :: vars
+    character(*), dimension(:,:),intent(in)  :: ncname
+    logical, intent(in)                      :: lraise
+
+    integer :: n,varid
+    if(lraise) then
+      nrec = nrec+1
+    end if
+    do n=1,nvar
+       call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
+       call nchandle_error(nf90_put_var(ncid, VarID, vars(n), start=(/nrec/)))
+    end do
+    if (lsync) call sync_nc(ncid)
+  end subroutine writestat_time_nc_float
+
   subroutine writestat_1D_nc(ncid,nvar,ncname,vars,nrec,dim1)
     implicit none
     integer, intent(in)                      :: ncid,nvar,dim1
@@ -582,25 +613,39 @@ contains
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_1D_nc
 
-  subroutine writestat_2D_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2,lparallel)
+  subroutine writestat_1D_nc_float(ncid,nvar,ncname,vars,nrec,dim1)
+    implicit none
+    integer, intent(in)                      :: ncid,nvar,dim1
+    integer, intent(in)                      :: nrec
+    real(real32),dimension(dim1,nvar),intent(in)     :: vars
+    character(*), dimension(:,:),intent(in)  :: ncname
+
+    integer :: n,varid
+    do n=1,nvar
+       call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
+       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,n),(/1,nrec/),(/dim1,1/)))
+    end do
+    if (lsync) call sync_nc(ncid)
+  end subroutine writestat_1D_nc_float
+
+  subroutine writestat_2D_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2,offsets)
     implicit none
     integer, intent(in)                      :: ncid,nvar,dim1,dim2
     integer, intent(in)                      :: nrec
     real,dimension(:,:,:),intent(in)         :: vars
     character(*), dimension(:,:),intent(in)  :: ncname
-    logical, intent(in), optional            :: lparallel
+    integer, intent(in), optional            :: offsets(2)
 
-    logical :: do_parallel = .false.
     integer :: n,varid
     integer :: start(3)
 
-    if (present(lparallel)) do_parallel = lparallel
-
-    if (do_parallel) then
-      start = [myidx * imax + 1, myidy * jmax + 1, nrec]
+    if (present(offsets)) then
+      start(1:2) = offsets(:)
     else
-      start = [1, 1, nrec]
+      start(:) = 1
     end if
+
+    start(3) = nrec
 
     do n=1,nvar
        call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
@@ -608,39 +653,49 @@ contains
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_2D_nc
-  subroutine writestat_2D_nc_float(ncid,nvar,ncname,vars,nrec,dim1,dim2)
+  subroutine writestat_2D_nc_float(ncid,nvar,ncname,vars,nrec,dim1,dim2,offsets)
     implicit none
     integer, intent(in)                      :: ncid,nvar,dim1,dim2
     integer, intent(in)                      :: nrec
     real(real32),dimension(:,:,:),intent(in)         :: vars
     character(*), dimension(:,:),intent(in)  :: ncname
+    integer, intent(in), optional            :: offsets(2)
 
     integer :: n,varid
+    integer :: start(3)
+
+    if (present(offsets)) then
+      start(1:2) = offsets(:)
+    else
+      start(1:2) = 1
+    end if
+
+    start(3) = nrec
+
     do n=1,nvar
        call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
-       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,n),(/1,1,nrec/),(/dim1,dim2,1/)))
+       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,n),start,(/dim1,dim2,1/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_2D_nc_float
-  subroutine writestat_3D_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2,dim3,lparallel)
+  subroutine writestat_3D_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2,dim3,offsets)
     implicit none
     integer, intent(in)                      :: ncid,nvar,dim1,dim2,dim3
     integer, intent(in)                      :: nrec
     real,dimension(dim1,dim2,dim3,nvar),intent(in)       :: vars
     character(*), dimension(:,:),intent(in)  :: ncname
-    logical, intent(in), optional            :: lparallel
+    integer, intent(in), optional            :: offsets(3)
 
-    logical :: do_parallel = .false.
     integer :: n,varid
     integer :: start(4)
 
-    if (present(lparallel)) do_parallel = lparallel
-
-    if (do_parallel) then
-      start = [myidx * imax + 1, myidy * jmax + 1, 1, nrec]
+    if (present(offsets)) then
+      start(1:3) = offsets(:)
     else
-      start = [1, 1, 1, nrec]
+      start(1:3) = 1
     end if
+
+    start(4) = nrec
 
     do n=1,nvar
        call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
@@ -648,6 +703,31 @@ contains
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_3D_nc
+  subroutine writestat_3D_nc_float(ncid,nvar,ncname,vars,nrec,dim1,dim2,dim3,offsets)
+    implicit none
+    integer, intent(in)                      :: ncid,nvar,dim1,dim2,dim3
+    integer, intent(in)                      :: nrec
+    real(real32),dimension(dim1,dim2,dim3,nvar),intent(in)       :: vars
+    character(*), dimension(:,:),intent(in)  :: ncname
+    integer, intent(in), optional            :: offsets(3)
+
+    integer :: n,varid
+    integer :: start(4)
+
+    if (present(offsets)) then
+      start(1:3) = offsets(:)
+    else
+      start(1:3) = 1
+    end if
+
+    start(4) = nrec
+
+    do n=1,nvar
+       call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
+       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),start,(/dim1,dim2,dim3,1/)))
+    end do
+    if (lsync) call sync_nc(ncid)
+  end subroutine writestat_3D_nc_float
   subroutine writestat_3D_short_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2,dim3)
     implicit none
     integer, intent(in)                      :: ncid,nvar,dim1,dim2,dim3
