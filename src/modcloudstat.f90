@@ -1,13 +1,18 @@
 !> Computes various cloud statistics.
 module modcloudstat
 
-  use modglobal,         only: i1, j1, kmax, dzf, zf
+  use fortran_support,   only: nnml_output
+  use modglobal,         only: i1, j1, kmax, dzf, zf, imax, jmax, itot, jtot, &
+                               ifnamopt, checknamelisterror
   use modfields,         only: ql0, qt0, sv0, rhobf, ql0av, exnf, thvf, w0, thl0
-  use modstat_2d,        only: add_slice, get_slice, do_stats
   use modprecision,      only: field_r
   use modthermodynamics, only: calc_virt_pot_temp
   use modtimer,          only: timer_tic, timer_toc
   use modtracers,        only: get_tracer_index
+  use modstat_nc_files,  only: make_netcdf_file, add_variable, get_pointer, &
+                               is_sampling_timestep
+  use modmpi,            only: cmyidy, cmyidx, myidx, myidy, nprocx, nprocy, &
+                               comm3d, d_mpi_bcast, myid
 
   implicit none
 
@@ -15,33 +20,69 @@ module modcloudstat
 
   character(len=*), parameter :: modname = 'modcloudstat'
 
+  public :: cloudstat_read_namelist
   public :: init_cloudstat
   public :: do_cloudstat
 
+  logical :: lcloudstat
+  real    :: dtav = 60
+
   integer :: iqr
+  integer :: fileid
 
 contains
 
+  !> Read cloudstat namelist.
+  subroutine cloudstat_read_namelist(nml_filename)
+
+    character(len=*), intent(in) :: nml_filename
+
+    integer :: ierr
+
+    namelist /cloudstat/ lcloudstat, dtav
+
+    if (myid == 0) then
+      open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
+      read(ifnamopt, cloudstat, iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'cloudstat')
+      write(nnml_output, cloudstat)
+      close(ifnamopt)
+    end if
+
+    call d_mpi_bcast(lcloudstat, 1, 0, comm3d, ierr)
+    call d_mpi_bcast(dtav, 1, 0, comm3d, ierr)
+
+  end subroutine cloudstat_read_namelist
+
   subroutine init_cloudstat
 
-    call add_slice('lwp', 'liquid water path', 'kg/m2', 'tt0t')
-    call add_slice('twp', 'total water path', 'kg/m2', 'tt0t')
+    ! Make a new NetCDF file
+    fileid = make_netcdf_file( &
+      'cloudstat', &
+      [itot, jtot, 0, 0, 0], &
+      dtav, &
+      nprocs=[nprocx, nprocy, 0, 0, 0], &
+      ranks=[myidx, myidy, 0, 0, 0] &
+    )
+
+    call add_variable(fileid, 'lwp', 'liquid water path', 'kg/m2', 'tt0t')
+    call add_variable(fileid,'twp', 'total water path', 'kg/m2', 'tt0t')
 
     ! Check if we have rain
     iqr = get_tracer_index('qr')
-    if(iqr > 0) call add_slice('rwp', 'rain water path', 'kg/m2', 'tt0t')
+    if(iqr > 0) call add_variable(fileid,'rwp', 'rain water path', 'kg/m2', 'tt0t')
 
-    call add_slice('thlcb', 'thl at cloudbase', 'K', 'tt0t')
-    call add_slice('buoycb', 'buoyancy at cloudbase', 'K', 'tt0t')
-    call add_slice('qtcb', 'qt at cloudbase', 'kg/kg', 'tt0t')
-    call add_slice('qlcb', 'ql at cloudbase', 'kg/kg', 'tt0t')
-    call add_slice('wcb', 'w at cloudbase', 'm/s', 'tt0t')
-    call add_slice('hw2cb', '1/2 W^2 at the top of the subcloud layer', &
-                   'm^2/s^2', 'tt0t')
-    call add_slice('cldtop', 'cloud top height', 'm', 'tt0t')
-    call add_slice('buoymax', 'maximum buoyancy', 'K', 'tt0t')
-    call add_slice('hw2max', 'highest 1/2 W^2 at the top of the subcloud layer', &
-                   'm^2/s^2', 'tt0t')
+    call add_variable(fileid,'thlcb', 'thl at cloudbase', 'K', 'tt0t')
+    call add_variable(fileid,'buoycb', 'buoyancy at cloudbase', 'K', 'tt0t')
+    call add_variable(fileid,'qtcb', 'qt at cloudbase', 'kg/kg', 'tt0t')
+    call add_variable(fileid,'qlcb', 'ql at cloudbase', 'kg/kg', 'tt0t')
+    call add_variable(fileid,'wcb', 'w at cloudbase', 'm/s', 'tt0t')
+    call add_variable(fileid,'hw2cb', '1/2 W^2 at the top of the subcloud layer', &
+                      'm^2/s^2', 'tt0t')
+    call add_variable(fileid,'cldtop', 'cloud top height', 'm', 'tt0t')
+    call add_variable(fileid,'buoymax', 'maximum buoyancy', 'K', 'tt0t')
+    call add_variable(fileid,'hw2max', 'highest 1/2 W^2 at the top of the subcloud layer', &
+                      'm^2/s^2', 'tt0t')
 
   end subroutine init_cloudstat
 
@@ -73,7 +114,7 @@ contains
     real(field_r), pointer :: buoymax(:,:)
     real(field_r), pointer :: hw2max(:,:)
 
-    if (do_stats) then
+    if (is_sampling_timestep(fileid)) then
 
       call timer_tic(routine)
 
@@ -81,8 +122,8 @@ contains
       ! Liquid, total and rain water paths
       ! ------------------------------------------------------------------------
 
-      lwp => get_slice('lwp')
-      twp => get_slice('twp')
+      call get_pointer(fileid, 'lwp', lwp, [2, 2])
+      call get_pointer(fileid, 'twp', twp, [2, 2])
 
       !$acc parallel loop collapse(3) default(present)
       do k = 1, kmax
@@ -97,7 +138,7 @@ contains
       end do
 
       if (iqr > 0) then
-        rwp => get_slice('rwp')
+        call get_pointer(fileid, 'rwp', rwp, [2, 2])
 
         !$acc parallel loop collapse(3) default(present)
         do k = 1, kmax
@@ -127,10 +168,10 @@ contains
       ! Variables at cloud-base
       ! ------------------------------------------------------------------------
 
-      thlcb => get_slice('thlcb')
-      buoycb => get_slice('buoycb')
-      qtcb => get_slice('qtcb')
-      qlcb => get_slice('qlcb')
+      call get_pointer(fileid, 'thlcb', thlcb, [2, 2])
+      call get_pointer(fileid, 'buoycb', buoycb, [2, 2])
+      call get_pointer(fileid, 'qtcb', qtcb, [2, 2])
+      call get_pointer(fileid, 'qlcb', qlcb, [2, 2])
 
       !$acc parallel loop collapse(2) default(present) &
       !$acc private(thl_at_cb, ql_at_cb, thv_at_cb)
@@ -148,8 +189,8 @@ contains
         end do
       end do
 
-      wcb => get_slice('wcb')
-      hw2cb => get_slice('hw2cb')
+      call get_pointer(fileid, 'wcb', wcb, [2, 2])
+      call get_pointer(fileid, 'hw2cb', hw2cb, [2, 2])
 
       !$acc parallel loop collapse(2) default(present) &
       !$acc private(w_at_cb)
@@ -165,8 +206,8 @@ contains
       ! Max values
       ! ------------------------------------------------------------------------
 
-      cldtop => get_slice('cldtop')
-      buoymax => get_slice('buoymax')
+      call get_pointer(fileid, 'cldtop', cldtop, [2, 2])
+      call get_pointer(fileid, 'buoymax', buoymax, [2, 2])
 
       !$acc parallel loop seq default(present)
       do k = 1, kmax
@@ -181,7 +222,7 @@ contains
         end do
       end do
 
-      hw2max => get_slice('hw2max')
+      call get_pointer(fileid, 'hw2max', hw2max, [2, 2])
 
       !$acc parallel loop seq default(present)
       do k = 1, kmax

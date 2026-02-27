@@ -3,12 +3,12 @@ module modnamelist
 
   use modaerosol,        only: aerosol_read_namelist
   use modchecksim,       only: checksim_read_namelist
+  use modcloudstat,      only: cloudstat_read_namelist
   use modlatsponge,      only: lateral_sponge_read_namelist
   use modmicrophysics,   only: microphysics_read_namelist
   use modpois,           only: poisson_solver_read_namelist
   use modprecursor,      only: precursor_read_namelist
   use modspraying,       only: spraying_read_namelist
-  use modstat_2d,        only: stat_2d_read_namelist
   use modsurface,        only: surface_read_namelist
   use modthermodynamics, only: thermodynamics_read_namelist
   use modslurb,          only: slurb_read_namelist
@@ -42,7 +42,7 @@ contains
     call spraying_read_namelist(nml_filename)
 
     ! Statistical modules
-    call stat_2d_read_namelist(nml_filename)
+    call cloudstat_read_namelist(nml_filename)
   
   end subroutine read_namelists
 
