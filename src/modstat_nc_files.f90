@@ -65,7 +65,7 @@ contains
     if (present(nprocs)) then
       ! Multiple processes write to this file
       if (any(nprocs > 1)) then
-        if (present(comm) .and. NC_HAVE_PARALLEL) then
+        if (present(comm) .and. NC_HAVE_PARALLEL .and. present(ranks)) then
           ! All ranks write to the same file
           do idim = 1, size(dimension_lengths)
             if (dimension_lengths(idim) > 0) then
@@ -92,7 +92,15 @@ contains
             suffix = cmyid
           end do
         end if
+      else
+        my_dim_lengths(:) = dimension_lengths(:)
+        offsets(:) = 1
+        nvals(:) = dimension_lengths(:)
       end if
+    else
+      my_dim_lengths(:) = dimension_lengths(:)
+      offsets(:) = 1
+      nvals(:) = dimension_lengths(:)
     end if
 
     file_list(id) = netcdf_file_t(filename//trim(suffix), my_dim_lengths, &
