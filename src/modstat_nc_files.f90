@@ -183,13 +183,15 @@ contains
     integer(longint) :: dtw       !< Delta t for writing
     integer(longint) :: time_left !< Time left before sampling or writing needs to be done
 
-    do ifile = 1, nfiles
-      dts = sampling_dts(ifile)
-      dtw = writing_dts(ifile)
-      time_left = min(dts - (mod(timee, dts) - dts), &
-                      dtw - (mod(timee, dtw) - dtw))
-      dt_lim = min(dt_lim, time_left)
-    end do
+    if (rk3step == 3) then
+      do ifile = 1, nfiles
+        dts = sampling_dts(ifile)
+        dtw = writing_dts(ifile)
+        time_left = min(dts - mod(timee, dts), &
+                        dtw - mod(timee, dtw))
+        dt_lim = min(dt_lim, time_left)
+      end do
+    end if
 
   end subroutine stats_limit_timestep
 
