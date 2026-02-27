@@ -76,6 +76,7 @@ set( dales_srcs
 	modmsebudg.f90
 	modnamelist.f90
 	modnetcdf.f90
+	modnetcdf_file_t.f90
 	modnudge.f90
 	modnudgeboundary.f90
 	modnvtx.f90
@@ -106,6 +107,7 @@ set( dales_srcs
 	modstartup.f90
 	modstat_2d.f90
 	modstat_nc.f90
+	modstat_nc_files.f90
 	modstat_profiles.f90
 	modstattend.f90
 	modstringutils.f90
