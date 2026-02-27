@@ -57,7 +57,7 @@ contains
     integer           :: offsets(5)        !< Offset in each dimension
     integer           :: nvals(5)          !< Number of values per dim that each rank will write
     integer           :: my_dim_lengths(5) !< Actual dimension lengths
-    character(len=80) :: suffix            !< File suffix: <filename>.<suffix>.nc
+    character(len=80) :: suffix = ''       !< File suffix: <filename>.<suffix>.nc
 
     nfiles = nfiles + 1
     id = nfiles
@@ -95,8 +95,8 @@ contains
       end if
     end if
 
-    file_list(id) = netcdf_file_t(filename, my_dim_lengths, nvals, &
-                                  offsets, comm, suffix)
+    file_list(id) = netcdf_file_t(filename//trim(suffix), my_dim_lengths, &
+                                  nvals, offsets, comm)
 
     sampling_dts(id) = int(dt_sample / tres, kind=longint)
 

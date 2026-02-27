@@ -22,7 +22,6 @@ module modnetcdf_file_t
   type :: netcdf_file_t
     ! Metadata
     character(len=80) :: filename = '' !< File name
-    character(len=80) :: suffix = ''   !< File suffix: <filename>.<suffix>.nc
     integer           :: ncid = -1     !< NCID
     integer           :: nrec = -1     !< Number of records (= time steps)
     integer           :: nvar = 0      !< Number of variables
@@ -48,8 +47,8 @@ module modnetcdf_file_t
 contains
 
   !> Open a new NetCDF file.
-  function netcdf_file_open(filename, dimension_lengths, nvals, offsets, comm, &
-                            suffix) result(this)
+  function netcdf_file_open(filename, dimension_lengths, nvals, offsets, comm) &
+    result(this)
 
     character(len=*), intent(in) :: filename             !< File name
     integer,          intent(in) :: dimension_lengths(5) !< Lengths of the dimensions [n1, n2, n3, ns, nq].
@@ -57,7 +56,6 @@ contains
     integer,          intent(in), optional :: nvals(5)   !< How much values will be written per dimension. 
     integer,          intent(in), optional :: offsets(5) !< Starting indices in each dimension.
     type(mpi_comm),   intent(in), optional :: comm       !< MPI communicator containing all ranks that write to this file.
-    character(len=*), intent(in), optional :: suffix     !< File suffix
 
     type(netcdf_file_t) :: this !< New NetCDF file object
 
@@ -71,10 +69,6 @@ contains
     ndims = count(dimension_lengths > 0, dim=1)
     this%ndims = ndims
     allocate(this%offsets(ndims), this%nvals(ndims))
-
-    if (present(suffix)) then
-      this%suffix = '.'//trim(suffix)
-    end if
 
     ! Set offsets and number of values for this process
     do idim = 1, 5
@@ -94,7 +88,7 @@ contains
     end do
 
     ! Finally, open the file
-    call open_nc(trim(this%filename)//trim(this%suffix)//'.nc', this%ncid, &
+    call open_nc(trim(this%filename)//'.nc', this%ncid, &
                  this%nrec, dimension_lengths(1), &
                  dimension_lengths(2), dimension_lengths(3), &
                  dimension_lengths(4), dimension_lengths(5), comm)
@@ -176,7 +170,7 @@ contains
 
     if (this%nrec == 0) then
       call define_nc(this%ncid, 1, this%timeinfo)
-      call writestat_dims_nc(this%ncid)
+      call writestat_dims_nc(this%ncid, offsets=this%offsets)
     end if
 
     call define_nc(this%ncid, this%nvar, this%names)
