@@ -143,16 +143,8 @@ contains
     integer :: iret,varid,ncall,RecordDimID
     real, allocatable :: xtimes(:)
     logical :: exans
-    logical :: open_parallel = .false.
 
     inquire(file=trim(fname),exist=exans)
-
-    if (present(comm)) open_parallel = .true. 
-    
-    if (open_parallel .and. lclassic) then
-      call finish(routine, 'NetCDF classic format is incompatible with' &
-                           // 'parallel output, please disable lclassic')
-    end if
 
     ncall = 0
     if (.not.exans) then
@@ -160,7 +152,7 @@ contains
       if (lclassic) then
          call nchandle_error(nf90_create(fname,NF90_CLASSIC_MODEL,ncid))
       else
-        if (open_parallel) then
+        if (present(comm) .and. NC_HAVE_PARALLEL) then
           call nchandle_error(nf90_create(fname, NF90_NETCDF4, ncid, &
                                           comm=comm%mpi_val, info=mpi_info_null%mpi_val))
         else
