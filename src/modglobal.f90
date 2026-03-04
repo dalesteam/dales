@@ -252,6 +252,7 @@ contains
     use modmpi, only : nprocx, nprocy, myid,comm3d, mpierr, D_MPI_BCAST
     use modnetcdf, only: check
     use modlogging, only : profile_output, warning
+    use modibmdata, only : lapply_ibm
     implicit none
 
     character(len=*), parameter :: routine = modname//'/initglobal'
@@ -303,8 +304,13 @@ contains
       jh = 2
       kh = 1
     elseif (any(advarr==iadv_cd2).or.iadv_sv==iadv_cd2) then
-      ih = 2 !1 ! SvdL, changed for IBM
-      jh = 2 !1
+      if( .not. lapply_ibm ) then ! special case when using ibm
+        ih = 1
+        jh = 1
+      else
+        ih = 2 
+        jh = 2 
+      end if
       kh = 1
     end if
 
