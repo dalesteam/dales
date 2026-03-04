@@ -27,8 +27,10 @@
 module modibm
 
   use iso_fortran_env, only : real64
-  use modglobal,       only : rd, rv, grav, ijtot, iinput, input_netcdf
+  use modglobal,       only : rd, rv, grav, ijtot, iinput, input_netcdf, ifnamopt, checknamelisterror, fname_options
   use modprecision,    only : field_r
+  use modmpi,          only : myid, comm3d, mpierr, myidx, myidy, d_mpi_bcast, excjs, d_mpi_allreduce, &
+                            mpi_max, mpi_sum
   use modsurface,      only : psim, psih, calc_obl_iter
   use modibmdata,      only : lapply_ibm,lpoislast, lwallheat, &
                             thlwall, qtwall, thlroof, qtroof, thlibm, qtibm, &
@@ -51,20 +53,55 @@ module modibm
   
   real(field_r) :: dx_half, dy_half, Cm_xwall, Cm_ywall, Cd_xwall, Cd_ywall, Cm_zwall, Cd_zwall, z_MO !< Additional variables/parameters
 
-  public :: initibm, exitibm, applyibm, zerowallvelocity, fluid_mask
+  public :: ibm_read_namelist, initibm, exitibm, applyibm, zerowallvelocity, fluid_mask
 
 contains
 
+  !> Read ibm namelist entries and broadcast settings.
+  subroutine ibm_read_namelist(nml_filename)
+    use fortran_support, only: nnml_output
+    
+    character(len=*), intent(in) :: nml_filename
+    
+    character(len=*), parameter :: routine = modname//'/ibm_read_namelist'
+
+    integer :: ierr
+
+    ! Read in NAMOPTIONS parameters related to IBM
+    namelist/IBM/ &
+      lapply_ibm, lwallheat, thlwall, thlibm, thlroof, qtibm, lpoislast, z0m_wall, z0h_wall
+
+    if (myid == 0) then
+
+      open (ifnamopt, file=fname_options, status='old', iostat=ierr)
+      read (ifnamopt, IBM, iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'IBM')
+      write (nnml_output, IBM)
+      close (ifnamopt)
+
+    end if
+
+    call d_mpi_bcast(lapply_ibm         ,    1, 0, comm3d, mpierr)
+    call d_mpi_bcast(lwallheat          ,    1, 0, comm3d, mpierr)
+    call d_mpi_bcast(thlwall            ,    1, 0, comm3d, mpierr)
+    call d_mpi_bcast(thlibm             ,    1, 0, comm3d, mpierr)
+    call d_mpi_bcast(qtibm              ,    1, 0, comm3d, mpierr)
+    call d_mpi_bcast(thlroof            ,    1, 0, comm3d, mpierr)
+    call d_mpi_bcast(qtroof             ,    1, 0, comm3d, mpierr)
+    call d_mpi_bcast(lpoislast          ,    1, 0, comm3d, mpierr)
+    call d_mpi_bcast(z0m_wall           ,    1, 0, comm3d, mpierr)
+    call d_mpi_bcast(z0h_wall           ,    1, 0, comm3d, mpierr)
+
+  end subroutine
+
+  !> Initializes the immersed boundary method by reading obstacles and placing them on the grid.
   subroutine initibm
 
-    use modglobal,        only : zh, zf, itot, jtot, ih, i1, i2, jh, j1, j2, k1, imax, jmax, kmax, cexpnr, ifnamopt, ifinput, &
-                                fname_options, nsv, cu, cv, ijtot, &
+    use modglobal,        only : zh, zf, itot, jtot, ih, i1, i2, jh, j1, j2, k1, imax, jmax, kmax, cexpnr, ifinput, &
+                                nsv, cu, cv, ijtot, &
                                 iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,iadv_cd2, &
                                 ibas_prf, &
-                                dx,dy,fkar,&
-                                checknamelisterror
-    use modmpi,           only : myid, comm3d, mpierr, myidx, myidy, d_mpi_bcast, excjs, D_MPI_ALLREDUCE, &
-                                mpi_max, mpi_sum
+                                dx,dy,fkar
     use modsurface,       only : lmostlocal
     use modsubgriddata,   only : lanisotrop, lsmagorinsky
     use fortran_support,  only : nnml_output
@@ -81,19 +118,9 @@ contains
     real(field_r), allocatable :: bc_height(:,:)                                                                            !< Height of immersed boundary at cell center i,j
     integer,       allocatable :: tiobst(:,:), tixw_p(:,:), tixw_m(:,:), tiyw_p(:,:), tiyw_m(:,:), tizw_p(:,:)!, izw_m(:,:) !< Indices of walls oriented p/n x,y,z
 
-    ! Read in NAMOPTIONS parameters related to IBM
-    namelist/IBM/ &
-      lapply_ibm, lwallheat, thlwall, thlibm, thlroof, qtibm, lpoislast, z0m_wall, z0h_wall
-
     call timer_tic('modibm/initibm',0)
 
     if( myid==0 ) then
-
-      open (ifnamopt, file=fname_options, status='old', iostat=ierr)
-      read (ifnamopt, IBM, iostat=ierr)
-      call checknamelisterror(ierr, ifnamopt, 'IBM')
-      write (nnml_output, IBM)
-      close (ifnamopt)
 
       ! Do some checks for conflicting settings and warn/stop further execution
       if ( lapply_ibm ) then
@@ -140,17 +167,6 @@ contains
       end if
 
     end if
-
-    call D_MPI_BCAST(lapply_ibm         ,    1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(lwallheat          ,    1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(thlwall            ,    1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(thlibm             ,    1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(qtibm              ,    1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(thlroof            ,    1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(qtroof             ,    1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(lpoislast          ,    1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(z0m_wall           ,    1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(z0h_wall           ,    1, 0, comm3d, mpierr)
 
     ! Step out of further subroutine when IBM is switched off
     if (.not. (lapply_ibm)) then
@@ -335,6 +351,7 @@ contains
     return
   end subroutine initibm
 
+  !> Clears the memory for the immersed boundary method.
   subroutine exitibm
 
     if (.not. (lapply_ibm)) return
@@ -353,6 +370,7 @@ contains
     return
   end subroutine exitibm
 
+  !> Helper function to read obstacles from NetCDF.
   subroutine init_ibm_from_nc(bc_height)
 
     use netcdf
@@ -398,7 +416,8 @@ contains
     call message(routine, 'Succesfully read netCDF inputfile in modibm')
 
   end subroutine init_ibm_from_nc
-
+  
+  !> Applies the immersed boundary through forcings.
   subroutine applyibm
 
     use modfields,      only : u0, v0, w0, thl0, qt0, e120, sv0, &
@@ -797,7 +816,8 @@ contains
     return
   end subroutine applyibm
 
-  subroutine zerowallvelocity ! Force velocity at the immersed boundaries to 0 for a better interaction with the poisson solver
+  !> Force velocity at the boundaries to 0 for a better interaction with the poisson solver
+  subroutine zerowallvelocity
 
     use modfields,      only : up, vp, wp, u0, v0, w0
     use modglobal,      only : rk3step, kmax, i1, j1, k1, ih, jh, rdt
@@ -831,6 +851,7 @@ contains
     return
   end subroutine zerowallvelocity
 
+  !> Calculate drag using logarithmic law-of-wall.
   function log_wallaw(u1,u2,Cm_hor_wall) result(tau)
 
     !$acc routine seq
