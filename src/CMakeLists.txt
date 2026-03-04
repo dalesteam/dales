@@ -54,11 +54,18 @@ set( dales_srcs
 	modhypre.f90
 	modibm.f90
 	modibmdata.f90
+	modlatsponge.f90
 	modlogging.f90
 	modlsm.f90
 	modlsmcrosssection.f90
 	modlsmdata.f90
 	modlsmstat.f90
+	modslurb/modslurb.f90
+	modslurb/modslurbdata.f90
+	modslurb/modslurb_energybalance.f90
+	modslurb/modslurb_radiationmodel.f90
+	modslurb/modslurbhelpers.f90
+	modslurb/modslurbresistance_stability.f90
 	modmicrodata.f90
 	modmicrodata3.f90
 	modmicrophysics.f90
@@ -75,6 +82,7 @@ set( dales_srcs
 	modpois_data.f90
 	modpois.f90
 	modprecision.f90
+	modprecursor.f90
 	modquadrant.f90
 	modraddata.f90
 	modradfield.f90

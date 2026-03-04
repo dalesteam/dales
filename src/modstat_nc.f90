@@ -54,7 +54,12 @@ module modstat_nc
 
     !> Read a field from a netCDF file by its name
     interface read_nc_field
-        module procedure read_nc_field_1D
+        module procedure read_nc_field_1D_real
+        module procedure read_nc_field_1D_int
+        module procedure read_nc_field_2D_real
+        module procedure read_nc_field_2D_int
+        module procedure read_nc_field_3D_real
+        module procedure read_nc_field_3D_int
     end interface read_nc_field
 
     interface read_nc_attribute
@@ -64,7 +69,12 @@ module modstat_nc
       module procedure read_nc_attribute_logical
     end interface read_nc_attribute
 
-    private :: read_nc_field_1D
+    private :: read_nc_field_1D_real
+    private :: read_nc_field_1D_int
+    private :: read_nc_field_2D_real
+    private :: read_nc_field_2D_int
+    private :: read_nc_field_3D_real
+    private :: read_nc_field_3D_int
 
     private :: read_nc_attribute_char
     private :: read_nc_attribute_r4
@@ -237,7 +247,7 @@ contains
     integer, save ::  dim_mttt(4) = 0, dim_tmtt(4) = 0, dim_ttmt(4) = 0, dim_tttt(4) = 0, &
                       dim_tt(2)= 0, dim_mt(2)= 0,dim_t0tt(3)=0,dim_m0tt(3)=0,dim_t0mt(3)=0,dim_tt0t(3)=0, &
                       dim_mt0t(3)=0,dim_tm0t(3)=0,dim_0ttt(3)=0,dim_0mtt(3)=0,dim_0tmt(3)=0,&
-                      dim_tts(2)=0,dim_t0tts(3)=0,dim_0ttts(3)=0,dim_tttts(4)=0,dim_qt(2)=0
+                      dim_tts(2)=0,dim_t0tts(3)=0,dim_0ttts(3)=0,dim_tttts(4)=0,dim_qt(2)=0,dim_tttts_slurb(4)=0
 
     integer :: iret, n, VarID
     ! These calls are allowed to fail - not all files have all dimensions
@@ -273,6 +283,7 @@ contains
     dim_t0tts= (/xtID,ztsID,timeId/)! thermo soil point
     dim_0ttts= (/ytID,ztsID,timeId/)! thermo point
     dim_tttts= (/xtID,ytID,ztsID,timeId/)! thermo point
+    dim_tttts_slurb= (/ztsID,xtID,ytID,timeId/)! thermo point
 
     dim_qt = (/zqId,timeId/)
 
@@ -323,6 +334,8 @@ contains
           iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0ttts,VarID)
         case ('tttts')
           iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tttts,VarID)
+        case ('tttts_slurb')
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tttts_slurb,VarID)
 
 !Quadrant analysis fields
         case('qt')
@@ -568,27 +581,32 @@ contains
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_3D_short_nc
-
-  !> Read a 1D field from a netCDF by its name.
+  !> Read a 1D integer field from a netCDF by its name.
   !!
   !! Optionally, a fill value can be provided, which the is used in case the
-  !! requested variable is not found in the netCDF file.
+  !! requested variable is not found in the netCDF file. If optionally requirefill is set to false, the array is left as-is
   !! @param ncid ID of the opened netCDF file.
   !! @param varname Name of the variable to read.
   !! @param array Array to fill.
   !! @param fillvalue Default value to fill array with in case the variable
   !! is not found.
-  subroutine read_nc_field_1D(ncid, varname, array, start, count, fillvalue)
+  !! @param requirefill Set to false to allow the array to left unfilled if the variable is missing.
+  !! Use for arrays that are pre-initialized, which you want to replace with some user input.
+  subroutine read_nc_field_1D_int(ncid, varname, array, start, count, fillvalue, requirefill)
     integer,       intent(in)           :: ncid
     character(*),  intent(in)           :: varname
-    real(field_r), intent(out)          :: array(:)
+    integer,       intent(inout)        :: array(:)
     integer,       intent(in), optional :: start
     integer,       intent(in), optional :: count
-    real(field_r), intent(in), optional :: fillvalue
+    integer,       intent(in), optional :: fillvalue
+    logical,       intent(in), optional :: requirefill
 
     integer :: varid
     integer :: ierr
     integer :: start_(1), count_(1)
+    logical :: requirefill_ = .true. !< default value which is actually used in the code, if requirefill is present, override this value.
+
+    if (present(requirefill)) requirefill_ = requirefill
 
     ierr = nf90_inq_varid(ncid, varname, varid)
 
@@ -606,18 +624,323 @@ contains
 
     select case (ierr)
       case (NF90_ENOTVAR)
-        if (present(fillvalue)) then
-          array(:) = fillvalue
+        if (requirefill_) then
+          if (present(fillvalue)) then
+            array(:) = fillvalue
+          else
+            call nchandle_error(ierr)
+          end if
         else
-          call nchandle_error(ierr)
-        end if
+          return
+        endif
       case (NF90_NOERR)
-        ierr = nf90_get_var(ncid, varid, array, start=start_, count=count_)
+        call nchandle_error(nf90_get_var(ncid, varid, array, start=start_, count=count_))
       case default
         call nchandle_error(ierr)
     end select
 
-  end subroutine read_nc_field_1D
+  end subroutine read_nc_field_1D_int
+  !> Read a 1D real field from a netCDF by its name.
+  !!
+  !! Optionally, a fill value can be provided, which the is used in case the
+  !! requested variable is not found in the netCDF file.
+  !! @param ncid ID of the opened netCDF file.
+  !! @param varname Name of the variable to read.
+  !! @param array Array to fill.
+  !! @param fillvalue Default value to fill array with in case the variable
+  !! is not found.
+  !! @param requirefill Set to false to allow the array to left unfilled if the variable is missing.
+  !! Use for arrays that are pre-initialized, which you want to replace with some user input.
+  subroutine read_nc_field_1D_real(ncid, varname, array, start, count, fillvalue, requirefill)
+    integer,       intent(in)           :: ncid
+    character(*),  intent(in)           :: varname
+    real(field_r), intent(inout)        :: array(:)
+    integer,       intent(in), optional :: start
+    integer,       intent(in), optional :: count
+    real(field_r), intent(in), optional :: fillvalue
+    logical,       intent(in), optional :: requirefill
+
+    integer :: varid
+    integer :: ierr
+    integer :: start_(1), count_(1)
+    logical :: requirefill_ = .true. !< default value which is actually used in the code, if requirefill is present, override this value.
+
+    if (present(requirefill)) requirefill_ = requirefill
+
+    ierr = nf90_inq_varid(ncid, varname, varid)
+
+    if (present(start)) then 
+      start_(1) = start
+    else
+      start_(1) = 1
+    end if
+
+    if (present(count)) then
+      count_(1) = count
+    else
+      count_(1) = size(array)
+    end if
+
+    select case (ierr)
+      case (NF90_ENOTVAR)
+        if (requirefill_) then
+          if (present(fillvalue)) then
+            array(:) = fillvalue
+          else
+            call nchandle_error(ierr)
+          end if
+        else
+          return
+        endif
+      case (NF90_NOERR)
+        call nchandle_error(nf90_get_var(ncid, varid, array, start=start_, count=count_))
+      case default
+        call nchandle_error(ierr)
+    end select
+
+  end subroutine read_nc_field_1D_real
+
+  !> Read a 2D real field from a netCDF by its name.
+  !!
+  !! Optionally, a fill value can be provided, which the is used in case the
+  !! requested variable is not found in the netCDF file.
+  !! @param ncid ID of the opened netCDF file.
+  !! @param varname Name of the variable to read.
+  !! @param array Array to fill.
+  !! @param fillvalue Default value to fill array with in case the variable
+  !! is not found.
+  !! @param requirefill Set to false to allow the array to left unfilled if the variable is missing.
+  !! Use for arrays that are pre-initialized, which you want to replace with some user input.
+  subroutine read_nc_field_2D_real(ncid, varname, array, start, count, fillvalue, requirefill)
+    integer,       intent(in)           :: ncid
+    character(*),  intent(in)           :: varname
+    real(field_r), intent(inout)        :: array(:,:)
+    integer,       intent(in), optional :: start(2)
+    integer,       intent(in), optional :: count(2)
+    real(field_r), intent(in), optional :: fillvalue
+    logical,       intent(in), optional :: requirefill
+
+    integer :: varid
+    integer :: ierr
+    integer :: start_(2), count_(2)
+    logical :: requirefill_ = .true. !< default value which is actually used in the code, if requirefill is present, override this value.
+
+    if (present(requirefill)) requirefill_ = requirefill
+
+    ierr = nf90_inq_varid(ncid, varname, varid)
+
+    if (present(start)) then 
+      start_(:) = start(:)
+    else
+      start_(:) = 1
+    end if
+
+    if (present(count)) then
+      count_(:) = count(:)
+    else
+      count_(:) = shape(array)
+    end if
+
+    select case (ierr)
+      case (NF90_ENOTVAR)
+        if (requirefill_) then
+          if (present(fillvalue)) then
+            array(:,:) = fillvalue
+          else
+            call nchandle_error(ierr)
+          end if
+        else
+          return
+        endif
+      case (NF90_NOERR)
+        call nchandle_error(nf90_get_var(ncid, varid, array, start=start_, count=count_))
+      case default
+        call nchandle_error(ierr)
+    end select
+
+  end subroutine read_nc_field_2D_real
+
+
+  !> Read a 2D integer field from a netCDF by its name.
+  !!
+  !! Optionally, a fill value can be provided, which the is used in case the
+  !! requested variable is not found in the netCDF file.
+  !! @param ncid ID of the opened netCDF file.
+  !! @param varname Name of the variable to read.
+  !! @param array Array to fill.
+  !! @param fillvalue Default value to fill array with in case the variable
+  !! is not found.
+  !! @param requirefill Set to false to allow the array to left unfilled if the variable is missing.
+  !! Use for arrays that are pre-initialized, which you want to replace with some user input.
+  subroutine read_nc_field_2D_int(ncid, varname, array, start, count, fillvalue, requirefill)
+    integer,       intent(in)           :: ncid
+    character(*),  intent(in)           :: varname
+    integer,       intent(inout)        :: array(:,:)
+    integer,       intent(in), optional :: start(2)
+    integer,       intent(in), optional :: count(2)
+    integer,       intent(in), optional :: fillvalue
+    logical,       intent(in), optional :: requirefill
+
+    integer :: varid
+    integer :: ierr
+    integer :: start_(2), count_(2)
+    logical :: requirefill_ = .true. !< default value which is actually used in the code, if requirefill is present, override this value.
+
+    if (present(requirefill)) requirefill_ = requirefill
+
+    ierr = nf90_inq_varid(ncid, varname, varid)
+
+    if (present(start)) then 
+      start_(:) = start(:)
+    else
+      start_(:) = 1
+    end if
+
+    if (present(count)) then
+      count_(:) = count(:)
+    else
+      count_(:) = shape(array)
+    end if
+
+    select case (ierr)
+      case (NF90_ENOTVAR)
+        if (requirefill_) then
+          if (present(fillvalue)) then
+            array(:,:) = fillvalue
+          else
+            call nchandle_error(ierr)
+          end if
+        else
+          return
+        endif
+      case (NF90_NOERR)
+        call nchandle_error(nf90_get_var(ncid, varid, array, start=start_, count=count_))
+      case default
+        call nchandle_error(ierr)
+    end select
+
+  end subroutine read_nc_field_2D_int
+
+  !> Read a 3D real field from a netCDF by its name.
+  !!
+  !! Optionally, a fill value can be provided, which the is used in case the
+  !! requested variable is not found in the netCDF file.
+  !! @param ncid ID of the opened netCDF file.
+  !! @param varname Name of the variable to read.
+  !! @param array Array to fill.
+  !! @param fillvalue Default value to fill array with in case the variable
+  !! is not found.
+  !! @param requirefill Set to false to allow the array to left unfilled if the variable is missing.
+  !! Use for arrays that are pre-initialized, which you want to replace with some user input.
+  subroutine read_nc_field_3D_real(ncid, varname, array, start, count, fillvalue, requirefill)
+    integer,       intent(in)           :: ncid
+    character(*),  intent(in)           :: varname
+    real(field_r), intent(inout)        :: array(:,:,:)
+    integer,       intent(in), optional :: start(3)
+    integer,       intent(in), optional :: count(3)
+    real(field_r), intent(in), optional :: fillvalue
+    logical,       intent(in), optional :: requirefill
+
+    integer :: varid
+    integer :: ierr
+    integer :: start_(3), count_(3)
+    logical :: requirefill_ = .true. !< default value which is actually used in the code, if requirefill is present, override this value.
+
+    if (present(requirefill)) requirefill_ = requirefill
+
+    ierr = nf90_inq_varid(ncid, varname, varid)
+
+    if (present(start)) then 
+      start_(:) = start(:)
+    else
+      start_(:) = 1
+    end if
+
+    if (present(count)) then
+      count_(:) = count(:)
+    else
+      count_(:) = shape(array)
+    end if
+
+    select case (ierr)
+      case (NF90_ENOTVAR)
+        if (requirefill_) then
+          if (present(fillvalue)) then
+            array(:,:,:) = fillvalue
+          else
+            call nchandle_error(ierr)
+          end if
+        else
+          return
+        endif
+      case (NF90_NOERR)
+        call nchandle_error(nf90_get_var(ncid, varid, array, start=start_, count=count_))
+      case default
+        call nchandle_error(ierr)
+    end select
+
+  end subroutine read_nc_field_3D_real
+
+
+  !> Read a 3D integer field from a netCDF by its name.
+  !!
+  !! Optionally, a fill value can be provided, which the is used in case the
+  !! requested variable is not found in the netCDF file.
+  !! @param ncid ID of the opened netCDF file.
+  !! @param varname Name of the variable to read.
+  !! @param array Array to fill.
+  !! @param fillvalue Default value to fill array with in case the variable
+  !! is not found.
+  !! @param requirefill Set to false to allow the array to left unfilled if the variable is missing.
+  !! Use for arrays that are pre-initialized, which you want to replace with some user input.
+  subroutine read_nc_field_3D_int(ncid, varname, array, start, count, fillvalue, requirefill)
+    integer,       intent(in)           :: ncid
+    character(*),  intent(in)           :: varname
+    integer,       intent(inout)        :: array(:,:,:)
+    integer,       intent(in), optional :: start(3)
+    integer,       intent(in), optional :: count(3)
+    integer,       intent(in), optional :: fillvalue
+    logical,       intent(in), optional :: requirefill
+
+    integer :: varid
+    integer :: ierr
+    integer :: start_(3), count_(3)
+    logical :: requirefill_ = .true. !< default value which is actually used in the code, if requirefill is present, override this value.
+
+    if (present(requirefill)) requirefill_ = requirefill
+
+    ierr = nf90_inq_varid(ncid, varname, varid)
+
+    if (present(start)) then 
+      start_(:) = start(:)
+    else
+      start_(:) = 1
+    end if
+
+    if (present(count)) then
+      count_(:) = count(:)
+    else
+      count_(:) = shape(array)
+    end if
+
+    select case (ierr)
+      case (NF90_ENOTVAR)
+        if (requirefill_) then
+          if (present(fillvalue)) then
+            array(:,:,:) = fillvalue
+          else
+            call nchandle_error(ierr)
+          end if
+        else
+          return
+        endif
+      case (NF90_NOERR)
+        call nchandle_error(nf90_get_var(ncid, varid, array, start=start_, count=count_))
+      case default
+        call nchandle_error(ierr)
+    end select
+
+  end subroutine read_nc_field_3D_int
 
   subroutine read_nc_attribute_char(ncid, varid, attname, value, default)
     integer,      intent(in)           :: ncid

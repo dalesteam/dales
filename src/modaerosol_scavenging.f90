@@ -163,17 +163,19 @@ contains
         do i = 2, i1
           sed_qr = calc_sed_qr_sb(qr(i,j,k), nr(i,j,k), rho(k)) * 3600
           if (qr(i,j,k) > qrmin .and. sed_qr > 0.01) then
-            sed_qr = min(max(sed_qr, 0.01001_field_r), 99.999_field_r)
+            sed_qr = log(sed_qr)
+            sed_qr = min(max(sed_qr, -4.60517_field_r), 4.60517_field_r)
 
             rm = calc_median_diameter(f_mode%n(i,j,k), f_mode%q(:,i,j,k), &
                                       f_mode%rho, f_mode%sig_g) * 0.5 * 1E6
-            rm = min(max(1.5E-3_field_r, rm), 0.9999E3_field_r)
+            rm = log(rm)
+            rm = min(max(rm, -6.907755_field_r), 6.907755_field_r)
 
             gamma_n = interpolate_lut(gamma_blc_n, log_rr, log_rp_blc, &
-                                      [log(sed_qr), log(rm)])
+                                      [sed_qr, rm])
 
             gamma_m = interpolate_lut(gamma_blc_m, log_rr, log_rp_blc, &
-                                      [log(sed_qr), log(rm)])
+                                      [sed_qr, rm])
 
             f_mode%np(i,j,k) = f_mode%np(i,j,k) - gamma_n * f_mode%n(i,j,k)
 
@@ -237,17 +239,19 @@ contains
           if (qc(i,j,k) > qcmin) then
             rc = 1E6 * (3 * qc(i,j,k) * rho(k) &
                   / (4 * pi * nc(i,j,k) * rhow + 1E-16))**(1.0_field_r / 3)
-            rc = min(max(rc, 5.001), 49.999)
+            rc = log(rc)
+            rc = min(max(rc, 1.609438_field_r), 3.912023_field_r)
 
             rm = calc_median_diameter(f_mode%n(i,j,k), f_mode%q(:,i,j,k), &
                                       f_mode%rho, f_mode%sig_g) * 0.5 * 100
-            rm = min(max(rm, 1.0E-8), 8.0E-3)
+            rm = log(rm)
+            rm = min(max(rm, -18.42068_field_r), -4.788786_field_r)
 
             gamma_n = interpolate_lut(gamma_inc_n, log_rc, log_rp_inc, &
-                                      [log(rc), log(rm)]) * nc(i,j,k) * 1E-6
+                                      [rc, rm]) * nc(i,j,k) * 1E-6
 
             gamma_m = interpolate_lut(gamma_inc_m, log_rc, log_rp_inc, &
-                                      [log(rc), log(rm)]) * nc(i,j,k) * 1E-6
+                                      [rc, rm]) * nc(i,j,k) * 1E-6
 
             limit = gamma_n * delt > 1.0_field_r &
                     .or. gamma_m * delt > 1.0_field_r
@@ -283,19 +287,25 @@ contains
 
     left = 1
     right = size(array)
-    idx = right / 2
+    idx = (right + left) / 2
 
-    do while (left <= right)
-      if (value >= array(idx) .and. value < array(idx + 1)) then
-        exit
-      else if (value < array(idx)) then
-        right = idx
-        idx = (right + left) / 2
-      else if (value > array(idx + 1)) then
-        left = idx
-        idx = (right + left) / 2
-      end if
-    end do
+    if (value <= array(left)) then
+      idx = left
+    else if (value >= array(right)) then
+      idx = right
+    else
+      do while (left <= right)
+        if (value >= array(idx) .and. value <= array(idx + 1)) then
+          exit
+        else if (value < array(idx)) then
+          right = idx
+          idx = (right + left) / 2
+        else if (value > array(idx + 1)) then
+          left = idx
+          idx = (right + left) / 2
+        end if
+      end do
+    end if
 
   end function binary_search
 

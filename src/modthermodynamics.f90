@@ -1,11 +1,5 @@
 !>\file modthermodynamics.f90
 !! Do the thermodynamics
-
-!>
-!! Do the thermodynamics
-!>
-!! Timeseries of the most relevant parameters. Written to tmser1.expnr and tmsurf.expnr
-!! If netcdf is true, this module leads the tmser.expnr.nc output
 !!  \author Pier Siebesma, K.N.M.I.
 !!  \author Stephan de Roode,TU Delft
 !!  \author Thijs Heus,MPI-M
@@ -28,28 +22,40 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 
+!> Module for thermodynamics calculations.
 module modthermodynamics
-  use modglobal,    only: checknamelisterror, ifnamopt
-  use modmpi,       only: myid, d_mpi_bcast, commwrld
-  use modprecision, only : field_r
-  use modtimer
-  use modlogging, only: finish
-  use fortran_support, only: nnml_output
+  use modglobal,       only: checknamelisterror, ifnamopt, i1, j1, k1, ih, jh, &
+                             rv, rlv, cp, rd, dzf, dzhi, iadv_kappa, iadv_qt, &
+                             iadv_thl, tdn, tup, timee, ijtot, kmax, zf, dzh, &
+                             eps1, cu, cv, grav, pref0, nsv, zh
+  use modfields,       only: qt0, thl0, qt0h, thl0h, ql0, presf, exnf, thvh, &
+                             thv0h, qt0av, ql0av, thvf, rhof, ql0h, presh, exnh, &
+                             u0, v0, sv0, u0av, v0av, thl0av, ql0av, sv0av, &
+                             tmp0, dthvdz, thl0h, qt0h, esl, qvsl, qvsi
+  use modsurfdata,     only: qts, thls, ps, dthldz, dqtdz
+  use modmpi,          only: myid, d_mpi_bcast, commwrld, slabsum
+  use modmicrodata,    only: imicro, imicro_bulk3, imicro_none
+  use modibm,          only: fluid_mask
+  use modibmdata,      only: lapply_ibm
+  use modslabaverage,  only: slabavg
+  use advec_kappa,     only: halflev_kappa
+  use modprecision,    only: field_r
+  use modtimer,        only: timer_tic, timer_toc
+  use fortran_support, only: nnml_output, finish
   implicit none
   character(len=*), parameter :: modname = 'modthermodynamics'
 !   private
-  public :: thermodynamics,calc_halflev
-  public :: lqlnr
+  public :: thermodynamics
   public :: ttab
   public :: esatltab
   public :: esatitab
   public :: esatmtab
+  public :: calc_qsat
   public :: thermodynamics_read_namelist
+  public :: calc_halflev
 
-  logical :: lqlnr = .true.        !< Switch for ql calc. with Newton-Raphson (on/off).
   logical :: lmoist = .true.       !< Switch to calculate moisture fields.
   logical :: lnoclouds = .false.   !< Switch to enable/disable thl calculations.
-  logical :: lfast_thermo = .true. !< Switch to enable faster icethermo scheme.
   logical :: lconstexner = .false. !< Switch to use the initial pressure profile in the exner function.
   logical :: lbaseexner = .false.  !< Switch to use the base pressure profile in the exner function.
 
@@ -67,15 +73,30 @@ module modthermodynamics
 
 contains
 
+  !> Calculate the virtual potential temperature.
+  elemental function calc_virt_pot_temp(thl, qt, ql, exn) result(thv)
+
+    real(field_r), intent(in) :: thl  !< Liquid water potential temperature [K]
+    real(field_r), intent(in) :: qt   !< Total water specific humidity [kg/kg]
+    real(field_r), intent(in) :: ql   !< Liquid water specific humidity [kg/kg]
+    real(field_r), intent(in) :: exn  !< Exner function [-]
+
+    real(field_r) :: thv !< Virtual potential temperature [K]
+
+    thv = (thl + rlv * ql / (cp * exn)) * (1 + (rv / rd - 1) * qt - rv / rd * ql)
+
+  end function calc_virt_pot_temp
+
   !> Read thermodynamics namelist.
   subroutine thermodynamics_read_namelist(nml_filename)
 
     character(len=*), intent(in) :: nml_filename
 
     integer :: ierr
+    logical :: lqlnr
 
-    namelist /thermodynamics/ lmoist, chi_half, lfast_thermo, lconstexner, &
-      lbaseexner, lqlnr, lnoclouds
+    namelist /thermodynamics/ lmoist, chi_half, lconstexner, lbaseexner, &
+                              lnoclouds, lqlnr
 
     if (myid == 0) then
       open(ifnamopt, file=nml_filename, status='old', action='read', &
@@ -88,18 +109,13 @@ contains
 
     call d_mpi_bcast(lmoist, 1, 0, commwrld, ierr)
     call d_mpi_bcast(chi_half, 1, 0, commwrld, ierr)
-    call d_mpi_bcast(lfast_thermo, 1, 0, commwrld, ierr)
     call d_mpi_bcast(lconstexner, 1, 0, commwrld, ierr)
     call d_mpi_bcast(lbaseexner, 1, 0, commwrld, ierr)
-    call d_mpi_bcast(lqlnr, 1, 0, commwrld, ierr)
 
   end subroutine thermodynamics_read_namelist
 
-!> Allocate and initialize arrays
+  !> Allocate and initialize arrays
   subroutine initthermodynamics
-    use modglobal, only : ih,i1,jh,j1,k1,tdn,tup
-    use modmicrodata, only: imicro,imicro_bulk3
-    implicit none
     real :: ilratio
     integer :: m
 
@@ -136,87 +152,123 @@ contains
 
   end subroutine initthermodynamics
 
-!> Do moist thermodynamics.
-!! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure,
-!! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
+  !> Main thermodynamics subroutine.
+  !!
+  !! Calculates liquid water content, mean hydrostatic pressure and virtual 
+  !! potential temperature.
   subroutine thermodynamics
-    use modglobal,  only : timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv
-    use modfields,  only : thl0, qt0, ql0, presf, exnf, thvh, thv0h, qt0av, ql0av, thvf, rhof
-    use modmpi,     only : slabsum
-    use modibm,     only : fluid_mask
-    use modibmdata, only : lapply_ibm
-    use modslabaverage, only : slabavg
-    implicit none
+    character(len=*), parameter :: routine = modname//'/thermodynamics'
+
     integer:: i, j, k
 
-    call timer_tic('modthermodynamics/thermodynamics', 0)
+    real(field_r) :: T
+    logical :: too_hot, too_cold
+
+    call timer_tic(routine, 0)
 
     if (timee < 0.01) then
       call diagfld
     end if
     if (lmoist .and. (.not. lnoclouds)) then
-       if (lfast_thermo) then
-#if defined (DALES_GPU)
-          call icethermo0_fast_gpu
+
+      ! Before we do the saturation adjustment, check if 150 K < T < 550 K
+      ! If this is not the case, we will read outside of the bounds of
+      ! esatmtab
+
+      too_cold = .false.
+      too_hot = .false.
+
+      !$acc parallel loop collapse(3) default(present) async(1) private(T) &
+      !$acc firstprivate(too_cold, too_hot)
+      do k = 1, k1
+        do j = 2, j1
+          do i = 2, i1
+            T = thl0(i,j,k) * exnf(k)
+            if (T < 150) then
+              !$acc atomic write
+              too_cold = .true.
+            else if (T > 550) then
+              !$acc atomic write
+              too_hot = .true.
+            end if
+          end do
+        end do
+      end do
+
+      !$acc wait
+      if (too_cold) then
+        call finish(routine, 'temperature below 150 K encountered!')
+      else if (too_hot) then
+        call finish(routine, 'temperature above 550 K encountered!')
+      end if
+
+      ! Do the saturation adjustment on the full levels
+#if defined(DALES_GPU)
+      call saturation_adjustment_gpu(qt0, thl0, presf, exnf, ql0, opt_stream=1)
 #else
-          call icethermo0_fast
+      call saturation_adjustment(qt0, thl0, presf, exnf, ql0, opt_stream=1)
 #endif
-       else
-          call icethermo0
-       end if
+
+      call diagfld
+
+      ! Interpolate thl and qt to the half levels
+      call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
+      call calc_halflev(qt0, dzf, dzhi, qts, iadv_qt == iadv_kappa, qt0h)
+
+      ! Do saturation adjustment again on the half levels
+#if defined(DALES_GPU)
+      call saturation_adjustment_gpu(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1)
+#else
+      call saturation_adjustment(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1)
+#endif
+
+      if (imicro /= imicro_none) then
+        call calc_saturation_humidities(qt0, ql0, thl0, presf, exnf, esl, &
+                                        qvsl, qvsi)
+      end if
     else
-       call calc_dry_tmp ! tmp0 is used in statistics
+      call calc_dry_tmp ! tmp0 is used in statistics
                          ! can consider calculating it only when needed
-    end if
-    call diagfld
+      call diagfld
 
-    call calc_halflev !calculate halflevel values of qt0 and thl0
-
-    if (lmoist .and. (.not. lnoclouds)) then
-       if (lfast_thermo) then
-#if defined (DALES_GPU)
-          call icethermoh_fast_gpu
-#else
-          call icethermoh_fast
-#endif
-       else
-          call icethermoh
-       end if
     end if
 
     ! recalculate thv and rho on the basis of results
     call calthv
 
-    !$acc parallel loop collapse(3) default(present) async(2)
+    !$acc parallel loop collapse(3) default(present) async(1)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
-          thv0(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
-                      * (1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
+          thv0(i,j,k) = calc_virt_pot_temp(thl0(i,j,k), qt0(i,j,k), &
+                                           ql0(i,j,k), exnf(k))
         end do
       end do
     end do
 
-    !$acc kernels default(present)
-    thvh(:) = 0.0
-    thvf(:) = 0.0
-    !$acc end kernels
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
+    do k = 1, k1
+      thvh(k) = 0.0_field_r
+    end do
+
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
+    do k = 1, k1
+      thvf(k) = 0.0_field_r
+    end do
+
+    !$acc wait
 
     if (.not. lapply_ibm) then
-      call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.) ! redefine halflevel thv using calculated thv
-      call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
+      call slabavg(thv0h, ih, thvh)
+      call slabavg(thv0, ih, thvf)
     else
       call slabavg(thv0h,fluid_mask,ih,thvh)
       call slabavg(thv0,fluid_mask,ih,thvf)
     end if
 
-    !$acc kernels default(present) async(1)
-    if (.not. lapply_ibm) then
-      thvh(:) = thvh(:)/ijtot
-      thvf(:) = thvf(:)/ijtot
-    end if
-    thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
-    !$acc end kernels
+    !$acc serial default(present) async(1)
+    thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
+    !$acc end serial
 
     !$acc parallel loop default(present) async(1)
     do k = 1, k1
@@ -224,26 +276,22 @@ contains
     end do
 
     !$acc wait
-    call timer_toc('modthermodynamics/thermodynamics')
+
+    call timer_toc(routine)
+
   end subroutine thermodynamics
 
-!> Cleans up after the run
+  !> Cleans up after the run
   subroutine exitthermodynamics
-    implicit none
     !$acc exit data delete(th0av, thv0, thetah, qth, qlh)
     deallocate(th0av, thv0, thetah, qth, qlh)
   end subroutine exitthermodynamics
 
   !> Calculate real temperature tmp0 from thl0, for the dry case i.e. ql=0
   subroutine calc_dry_tmp
-    use modglobal, only : i1,j1,k1
-    use modfields, only : thl0,exnf
-    use modfields, only : tmp0
-
-    implicit none
     integer :: i, j, k
 
-    !$acc parallel loop collapse(3) default(present) async
+    !$acc parallel loop collapse(3) default(present) async(1)
     do k = 1,k1
        do j = 2,j1
           do i = 2,i1
@@ -254,12 +302,10 @@ contains
 
   end subroutine calc_dry_tmp
 
-!> Calculate thetav and dthvdz
+  !> Calculate thetav and dthvdz
   subroutine calthv
-    use modglobal, only : i1,j1,k1,kmax,zf,dzh,rlv,rd,rv,cp,eps1
-    use modfields, only : thl0,thl0h,ql0,ql0h,qt0,qt0h,exnf,exnh,thv0h,dthvdz
-    use modsurfdata,only : dthldz,dqtdz
-    implicit none
+
+    character(len=*), parameter :: routine = modname//'/calthv'
 
     integer i, j, k
     real(field_r)    qs
@@ -267,7 +313,7 @@ contains
     real(field_r)    a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, chi_sat, chi
     real(field_r)    del_thv_sat, del_thv_dry
 
-    call timer_tic('modthermodynamics/calthv', 1)
+    call timer_tic(routine, 1)
 
     dthvdz = 0
 
@@ -276,16 +322,17 @@ contains
       do k = 2, k1
         do j = 2, j1
           do i = 2, i1
-            thv0h(i,j,k) = (thl0h(i,j,k)+rlv*ql0h(i,j,k)/(cp*exnh(k))) &
-                          *(1+(rv/rd-1)*qt0h(i,j,k)-rv/rd*ql0h(i,j,k))
+            thv0h(i,j,k) = calc_virt_pot_temp(thl0h(i,j,k), qt0h(i,j,k), &
+                                              ql0h(i,j,k), exnh(k))
           end do
         end do
       end do
 
       !TODO: fix the branching in this loop
       !$acc parallel loop collapse(3) default(present) &
-      !$acc& private(a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, chi_sat, chi, dthv, del_thv_dry, del_thv_sat, temp, qs, dq, dth) &
-      !$acc& async(2)
+      !$acc private(a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, &
+      !$acc         chi_sat, chi, dthv, del_thv_dry, del_thv_sat, temp, qs, dq, dth) &
+      !$acc async(1)
       do k = 2, kmax
         do j = 2 , j1
           do i = 2, i1
@@ -330,7 +377,7 @@ contains
         end do
       end do
 
-      !$acc parallel loop collapse(2) default(present) private(temp, qs, a_surf, b_surf) async(3)
+      !$acc parallel loop collapse(2) default(present) private(temp, qs, a_surf, b_surf) async(1)
       do j=2,j1
         do i=2,i1
           if(ql0(i,j,1)>0) then
@@ -350,7 +397,7 @@ contains
       end do
 
     else
-      !$acc parallel loop collapse(3) default(present)
+      !$acc parallel loop collapse(3) default(present) async(1)
       do k = 2, k1
         do j = 2, j1
           do i = 2, i1
@@ -359,7 +406,7 @@ contains
         end do
       end do
 
-      !$acc parallel loop collapse(3) default(present)
+      !$acc parallel loop collapse(3) default(present) async(1)
       do k = 2, kmax
         do j = 2, j1
           do i = 2, i1
@@ -368,7 +415,7 @@ contains
         end do
       end do
 
-      !$acc parallel loop collapse(2) default(present)
+      !$acc parallel loop collapse(2) default(present) async(1)
       do j = 2, j1
         do i = 2, i1
           dthvdz(i,j,1) = dthldz(i,j)
@@ -376,7 +423,7 @@ contains
       end do
     end if
 
-    !$acc parallel loop collapse(3) default(present) async wait(2, 3)
+    !$acc parallel loop collapse(3) default(present) async(1)
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
@@ -387,299 +434,202 @@ contains
       end do
     end do
 
-    !$acc wait
-
-    call timer_toc('modthermodynamics/calthv')
+    call timer_toc(routine)
 
   end subroutine calthv
-!> Calculate diagnostic slab averaged fields.
-!!     Calculates slab averaged fields assuming
-!!     hydrostatic equilibrium for: u,v,theta_l,theta_v,
-!!     qt,ql,exner,pressure and the density
-!! \author      Pier Siebesma   K.N.M.I.     06/01/1995
+
+  !> Diagnones slab averaged fields assuming hydrostatic equilibrium.
   subroutine diagfld
-  use modglobal,  only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0,timee
-  use modfields,  only : u0,v0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
-                        presf,presh,exnf,exnh,rhof,thvf
-  use modsurfdata,only : thls,ps
-  use modmpi,     only : slabsum
-  use modibm,     only : fluid_mask
-  use modibmdata, only : lapply_ibm
-  use modslabaverage, only : slabavg
-  implicit none
 
-  integer :: k,n
+    character(len=*), parameter :: routine = modname//'/diagfld'
 
-  call timer_tic('modthermodynamics/diagfld', 1)
+    integer :: k,n
 
+    call timer_tic(routine, 1)
 
-!*********************************************************
-!  1.0   calculate average profiles of u,v,thl,qt and ql *
-!        assuming hydrostatic equilibrium                *
-!*********************************************************
+    ! 1. Compute slab averaged fields
 
-! initialise local MPI arrays
-
-  !$acc kernels default(present)
-  u0av = 0.0
-  v0av = 0.0
-  thl0av = 0.0
-  th0av  = 0.0
-  qt0av  = 0.0
-  ql0av  = 0.0
-  sv0av = 0.
-  !$acc end kernels
-
-  !CvH changed momentum array dimensions to same value as scalars!
-  if (.not. lapply_ibm) then
-    call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
-    call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
-    call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
-    call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
-    call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
-    do n=1,nsv
-      call slabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, on_gpu=.true.)
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
+    do k = 1, k1
+      u0av(k) = 0.0_field_r
     end do
-  else
-    call slabavg(u0,fluid_mask,ih,u0av)
-    call slabavg(v0,fluid_mask,ih,v0av)
-    call slabavg(thl0,fluid_mask,ih,thl0av)
-    call slabavg(qt0,fluid_mask,ih,qt0av)
-    call slabavg(ql0,fluid_mask,ih,ql0av)
-    do n=1,nsv
-      call slabavg(sv0(:,:,:,n),fluid_mask,ih,sv0av(:,n))
+
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
+    do k = 1, k1
+      v0av(k) = 0.0_field_r
     end do
-  end if
 
-  if (.not. lapply_ibm) then
-    !$acc kernels default(present)
-    u0av   = u0av  /ijtot + cu
-    v0av   = v0av  /ijtot + cv
-    thl0av = thl0av/ijtot
-    qt0av  = qt0av /ijtot
-    ql0av  = ql0av /ijtot
-    sv0av  = sv0av /ijtot
-    !$acc end kernels
-  end if
-  if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
-    !$acc kernels default(present)
-    exnf   = 1-grav*zf/(cp*thls)
-    exnh   = 1-grav*zh/(cp*thls)
-    !$acc end kernels
-  endif
-  !$acc kernels default(present)
-  th0av  = thl0av+ (rlv/cp)*ql0av/exnf
-  !$acc end kernels
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
+    do k = 1, k1
+      thl0av(k) = 0.0_field_r
+    end do
 
-!***********************************************************
-!  2.0   calculate average profile of pressure at full and *
-!        half levels, assuming hydrostatic equilibrium.    *
-!***********************************************************
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
+    do k = 1, k1
+      th0av(k) = 0.0_field_r
+    end do
 
-!    2.1 Use first guess of theta, then recalculate theta
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
+    do k = 1, k1
+      qt0av(k) = 0.0_field_r
+    end do
 
-   call fromztop
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
+    do k = 1, k1
+      ql0av(k) = 0.0_field_r
+    end do
 
-   !$acc kernels default(present)
-   th0av = thl0av + (rlv/cp)*ql0av/exnf
-   if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
-      exnf = (presf/pref0)**(rd/cp)
-   endif
-   !$acc end kernels
+    !$acc parallel loop gang vector collapse(2) default(present) async wait(1)
+    do k = 1, k1
+      do n = 1, nsv
+        sv0av(k,n) = 0.0_field_r
+      end do
+    end do
 
-!    2.2 Use new updated value of theta for determination of pressure
+    !$acc wait
 
-   call fromztop
-
-!***********************************************************
-!  3.0   Construct density profiles and exner function     *
-!       for further use in the program                     *
-!***********************************************************
-
-!  3.1 determine exner
-   if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
-     !$acc serial default(present) async(1)
-     exnh(1) = (ps/pref0)**(rd/cp)
-     exnf(1) = (presf(1)/pref0)**(rd/cp)
-     !$acc end serial
-
-     !$acc parallel loop default(present) async(2)
-     do k=2,k1
-       exnf(k) = (presf(k)/pref0)**(rd/cp)
-       exnh(k) = (presh(k)/pref0)**(rd/cp)
-     end do
-   endif
-
-!  3.2 determine rho
-   !$acc parallel loop default(present) async wait(1, 2)
-   do k=1,k1
-     thvf(k) = th0av(k)*exnf(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
-     rhof(k) = presf(k)/(rd*thvf(k))
-   end do
-   !$acc wait
-
-   call timer_toc('modthermodynamics/diagfld')
-
-   return
-  end subroutine diagfld
-
-!> Calculates slab averaged pressure
-!!      Input :  zf,zh,theta and qt profile
-!!      Output:  pressure profile at full and
-!!               half levels
-!!
-!!      Method: Using hydrostatic equilibrium
-!!
-!!                              -g*pref0**(rd/cp)
-!! =====>       dp**(rd/cp)/dz = --------------
-!!                                 cp*thetav
-!! \author Pier Siebesma   K.N.M.I.     06/01/1995
-  subroutine fromztop
-
-  use modglobal, only : k1,dzf,dzh,rv,rd,cp,zf,grav,pref0
-  use modfields, only : qt0av,ql0av,presf,presh,thvh,thvf
-  use modsurfdata,only : ps
-  implicit none
-
-  integer   k
-  real(field_r)  rdocp
-
-  call timer_tic('modthermodynamics/fromztop', 1)
-
-  rdocp = rd/cp
-
-!**************************************************
-!    1.0 Determine theta and qt at half levels    *
-!**************************************************
-
-  !$acc parallel loop default(present)
-  do k=2,k1
-    thetah(k) = (th0av(k)*dzf(k-1) + th0av(k-1)*dzf(k))/(2*dzh(k))
-    qth   (k) = (qt0av(k)*dzf(k-1) + qt0av(k-1)*dzf(k))/(2*dzh(k))
-    qlh   (k) = (ql0av(k)*dzf(k-1) + ql0av(k-1)*dzf(k))/(2*dzh(k))
-  end do
-
-!**************************************************
-!     2.1  calculate pressures at full levels     *
-!          assuming hydrostatic equilibrium       *
-!**************************************************
-
-!     1: lowest level: use first level value for safety!
-
-  !$acc update self(thetah, qth, qlh, th0av, qt0av, ql0av)
-
-  thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
-  presf(1) = ps**rdocp - grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
-  presf(1) = presf(1)**(1/rdocp)
-
-!     2: higher levels
-
-  do k=2,k1
-    thvh(k)  = thetah(k)*(1+(rv/rd-1)*qth(k)-rv/rd*qlh(k))
-    presf(k) = presf(k-1)**rdocp - &
-                   grav*(pref0**rdocp)*dzh(k) /(cp*thvh(k))
-    presf(k) = presf(k)**(1/rdocp)
-  end do
-
-!**************************************************
-!     2.2   calculate pressures at half levels    *
-!           assuming hydrostatic equilibrium      *
-!**************************************************
-
-  presh(1) = ps
-  thvf(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
-
-  do k=2,k1
-    thvf(k)  = th0av(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
-    presh(k) = presh(k-1)**rdocp - &
-                   grav*(pref0**rdocp)*dzf(k-1) / (cp*thvf(k-1))
-    presh(k) = presh(k)**(1/rdocp)
-  end do
-
-  !$acc update device(thvh, presf, thvf, presh)
-  call timer_toc('modthermodynamics/fromztop')
-
-  return
-  end subroutine fromztop
-
-!> Calculates liquid water content.
-!!     Given theta_l and q_tot the liquid water content
-!!     is calculated, making an "all-or-nothing" assumption.
-!!     if lfull=true   ==> ql at full levels on output
-!!     if lfull=false  ==> ql at half levels on output
-!!
-!! \author Hans Cuijpers   I.M.A.U.
-!! \author Pier Siebesma   K.N.M.I.     06/01/1995
-  subroutine thermo (thl,qt,ql,pressure,exner)
-
-
-
-  use modglobal, only : ih,jh,i1,j1,k1,es0,at,bt,rd,rv,rlv,cp,tmelt
-  implicit none
-
-  integer i, j, k
-  real tl, es, qs, qsl, b1
-  real, intent(in)  :: qt(2-ih:i1+ih,2-jh:j1+jh,k1),thl(2-ih:i1+ih,2-jh:j1+jh,k1),exner(k1),pressure(k1)
-  real, intent(out) :: ql(2-ih:i1+ih,2-jh:j1+jh,k1)
-  real :: Tnr,qsatur,Tnr_old
-  integer :: niter,nitert
-    if (lqlnr) then
-
-!mc      calculation of T with Newton-Raphson method
-!mc      first guess is Tnr=tl
-!mc
-      nitert = 0
-      do k=1,k1
-        do j=2,j1
-          do i=2,i1
-
-            tl  = thl(i,j,k)*exner(k)
-            Tnr=tl
-            Tnr_old=0
-            do while (abs(Tnr-Tnr_old)/Tnr>1e-5)
-              niter = niter+1
-              Tnr_old = Tnr
-              es    = es0*exp(at*(Tnr-tmelt)/(Tnr-bt))
-              qsatur= rd/rv*es/(pressure(k)-(1-rd/rv)*es)
-              Tnr = Tnr - (Tnr+(rlv/cp)*qsatur-tl- &
-                      (rlv/cp)*qt(i,j,k))/(1+(rlv**2*qsatur)/ &
-                      (rv*cp*Tnr**2))
-            end do
-            nitert =max(nitert,niter)
-            niter = 0
-
-            ql(i,j,k) = dim(qt(i,j,k)-qsatur,0.)
-
-          end do
-        end do
+    ! If the IBM is enabled, exclude the building cells from the averages
+    if (.not. lapply_ibm) then
+      call slabavg(u0,ih,u0av)
+      call slabavg(v0,ih,v0av)
+      call slabavg(thl0,ih,thl0av)
+      call slabavg(qt0,ih,qt0av)
+      call slabavg(ql0,ih,ql0av)
+      do n=1,nsv
+        call slabavg(sv0(:,:,:,n),ih,sv0av(:,n))
       end do
     else
-
-
-      do k=1,k1
-        do j=2,j1
-          do i=2,i1
-            tl  = thl(i,j,k)*exner(k)
-            es  = es0*exp(at*(tl-tmelt)/(tl-bt))
-            qsl = rd/rv*es/(pressure(k)-(1-rd/rv)*es)
-            b1  = rlv**2/(tl**2*cp*rv)
-            qs  = qsl*(1+b1*qt(i,j,k))/(1.+b1*qsl)
-            ql(i,j,k) = dim(qt(i,j,k)-qs,0.)
-          end do
-        end do
+      call slabavg(u0,fluid_mask,ih,u0av)
+      call slabavg(v0,fluid_mask,ih,v0av)
+      call slabavg(thl0,fluid_mask,ih,thl0av)
+      call slabavg(qt0,fluid_mask,ih,qt0av)
+      call slabavg(ql0,fluid_mask,ih,ql0av)
+      do n=1,nsv
+        call slabavg(sv0(:,:,:,n),fluid_mask,ih,sv0av(:,n))
       end do
     end if
 
-  return
-  end subroutine thermo
+    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
+      !$acc parallel loop gang(static:1) default(present)
+      do k = 1, k1
+        exnf(k) = 1 - grav * zf(k) / (cp * thls)
+        exnh(k) = 1 - grav * zh(k) / (cp * thls)
+      end do
+    endif
 
-!!!!!!!!! new thermo
-!> Magnus formulas for q_sat over liquid and ice
-!> from Huang 2018 https://doi.org/10.1175/JAMC-D-17-0334.
-!> Warning: for performance, check that rd/rv etc are pre-computed
+    !$acc parallel loop gang(static:1) default(present) async(1)
+    do k = 1, k1
+      th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
+    end do
+
+    ! 2. Calculate the pressure profiles assuming hydrostatic equilibrium.
+
+    ! 2.1 Use first guess of theta, then recalculate theta
+
+    call fromztop
+
+    !$acc parallel loop gang(static:1) default(present) async(1)
+    do k = 1, k1
+      th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
+    end do
+
+    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
+      !$acc parallel loop gang(static:1) default(present) async(1)
+      do k = 1, k1
+        exnf(k) = (presf(k) / pref0)**(rd / cp)
+      end do
+    end if
+
+    ! 2.2 Use new updated value of theta for determination of pressure
+
+    call fromztop
+
+    ! 3. Construct density profiles and exner function
+
+    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
+      !$acc serial default(present) async(1)
+      exnh(1) = (ps/pref0)**(rd/cp)
+      exnf(1) = (presf(1)/pref0)**(rd/cp)
+      !$acc end serial
+
+      !$acc parallel loop default(present) async(1)
+      do k=2,k1
+        exnf(k) = (presf(k)/pref0)**(rd/cp)
+        exnh(k) = (presh(k)/pref0)**(rd/cp)
+      end do
+    endif
+
+    !$acc parallel loop default(present) async(1)
+    do k=1,k1
+      thvf(k) = th0av(k)*exnf(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
+      rhof(k) = presf(k)/(rd*thvf(k))
+    end do
+
+    call timer_toc(routine)
+
+  end subroutine diagfld
+
+  !> Calculates slab averaged pressure.
+  subroutine fromztop
+
+    character(len=*), parameter :: routine = modname//'/fromztop'
+
+    integer   k
+    real(field_r)  rdocp
+
+    call timer_tic(routine, 2)
+
+    rdocp = rd/cp
+
+    ! Interpolate theta and qt to half levels
+
+    !$acc parallel loop default(present) async(1)
+    do k=2,k1
+      thetah(k) = (th0av(k)*dzf(k-1) + th0av(k-1)*dzf(k))/(2*dzh(k))
+      qth   (k) = (qt0av(k)*dzf(k-1) + qt0av(k-1)*dzf(k))/(2*dzh(k))
+      qlh   (k) = (ql0av(k)*dzf(k-1) + ql0av(k-1)*dzf(k))/(2*dzh(k))
+    end do
+
+    ! Calculate pressures at full levels
+    ! Do this on the CPU for now; these loops are serial so GPU is very slow!
+
+    !$acc update self(thetah, qth, qlh, th0av, qt0av, ql0av) async(1)
+    !$acc wait
+
+    thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
+    presf(1) = ps**rdocp - grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
+    presf(1) = presf(1)**(1/rdocp)
+
+    do k=2,k1
+      thvh(k)  = thetah(k)*(1+(rv/rd-1)*qth(k)-rv/rd*qlh(k))
+      presf(k) = presf(k-1)**rdocp - &
+                     grav*(pref0**rdocp)*dzh(k) /(cp*thvh(k))
+      presf(k) = presf(k)**(1/rdocp)
+    end do
+
+    ! Calculate pressures at half levels
+
+    presh(1) = ps
+    thvf(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
+
+    do k=2,k1
+      thvf(k)  = th0av(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
+      presh(k) = presh(k-1)**rdocp - &
+                     grav*(pref0**rdocp)*dzf(k-1) / (cp*thvf(k-1))
+      presh(k) = presh(k)**(1/rdocp)
+    end do
+
+    !$acc update device(thvh, presf, thvf, presh) async(1)
+
+    call timer_toc(routine)
+
+  end subroutine fromztop
+
+  !> Magnus formulas for q_sat over liquid and ice.
+  !!
+  !! from Huang 2018 https://doi.org/10.1175/JAMC-D-17-0334.
+  !! Warning: for performance, check that rd/rv etc are pre-computed
   pure function qsat_magnus(T, p) result(qsat)
-    use modglobal, only : rd,rv,tup,tdn
-    implicit none
     real(field_r), intent(in) :: T, p
     real :: qsat
     real ilratio, TC, esl, esi, es
@@ -696,13 +646,12 @@ contains
     qsat = (rd/rv) * es / (p - (1-rd/rv)*es)
   end function qsat_magnus
 
-!> Huang's formulas for q_sat over liquid and ice
-!> from Huang 2018 https://doi.org/10.1175/JAMC-D-17-0334.
-!> should be more accurate than Magnus, at the cost of more divisions
-!> Warning: for performance, check that rd/rv etc are pre-computed
+  !> Huang's formulas for q_sat over liquid and ice.
+  !!
+  !! from Huang 2018 https://doi.org/10.1175/JAMC-D-17-0334.
+  !! should be more accurate than Magnus, at the cost of more divisions
+  !! Warning: for performance, check that rd/rv etc are pre-computed
   pure function qsat_huang(T, p) result(qsat)
-    use modglobal, only : rd,rv,tup,tdn
-    implicit none
     real(field_r), intent(in) :: T, p
     real :: qsat
     real ilratio, TC, esl, esi, es
@@ -719,698 +668,284 @@ contains
     qsat = (rd/rv) * es / (p - (1-rd/rv)*es)
   end function qsat_huang
 
-  ! return esat for ice-liquid mix using table
+  !> Compute the saturation vapor pressure via table lookup.
   pure function esat_tab(T) result(es)
-
-    implicit none
+    
     !$acc routine seq
     real(field_r), intent(in) :: T
-    integer :: tlonr
-    real(field_r) :: tlo, thi, es
+    integer :: tlo
+    real(field_r) :: es, interp_w
 
     ! interpolated ice-liquid saturation vapor pressure from table
     ! note if imicto==imicro_bulk3, the table is for liquid only
-    tlonr=int((T-150)*5)
-    tlo = 150 + 0.2_field_r*tlonr
-    thi = tlo + 0.2_field_r
-    es = (thi-T)*5*esatmtab(tlonr)+(T-tlo)*5*esatmtab(tlonr+1)
+    interp_w = (T - 150) * 5
+    tlo = int(interp_w)
+    interp_w = interp_w - tlo
+    es = (1 - interp_w) * esatmtab(tlo) + interp_w * esatmtab(tlo+1)
   end function esat_tab
 
-!> q_sat over liquid and ice, using interpolation in a table created in modglobal.
-!> seems to be faster than the Magnus formula (on CPU)
+  !> Computes the saturation specific humidity via table lookup.
   pure function qsat_tab(T, p) result(qsat)
-    use modglobal, only : rd,rv
-
-    implicit none
+    
     !$acc routine seq
     real(field_r), intent(in) :: T, p
     real(field_r) :: qsat
-    integer :: tlonr
-    real(field_r) :: tlo, thi, es
+    integer :: tlo
+    real(field_r) :: es, interp_w
 
-    ! interpolated ice-liquid saturation vapor pressure from table
-    tlonr=int((T-150)*5)
-    tlo = 150 + 0.2_field_r*tlonr
-    thi = tlo + 0.2_field_r
-    es = (thi-T)*5*esatmtab(tlonr)+(T-tlo)*5*esatmtab(tlonr+1)
+    interp_w = (T - 150) * 5
+    tlo = int(interp_w)
+    interp_w = interp_w - tlo
+    es = (1 - interp_w) * esatmtab(tlo) + interp_w * esatmtab(tlo+1)
 
     ! convert saturation vapor pressure to saturation humidity
     qsat = (rd/rv) * es / (p - (1-rd/rv)*es)
   end function qsat_tab
 
-  subroutine icethermo0_fast
-    !> Calculates liquid water content ql from thl0 and qt0.
-    !> Using 2 iterations of Eq. (59) in the Heus 2010 article
-    !> and e_sat interpolated between liquid and ice expressions.
-    !>
-    !> Given thl0 and qt0, we search for T such that
-    !> (1) ql = qt - qsat(T)     (definition of ql, instant condensation if above saturation)
-    !> (2) ql = cp/L * (T - Tl)  (definition of Tl)
-    !> hold simultaneously, and solve for qsat(T).
-    !> Tl is thl0/exnf(k) .
-    !>
-    !> Steps of the derivation:
-    !> - 1st order Taylor expansion of qsat(T) around T = Tl
-    !> - insert (1) and (2)
-    !> - solve for qsat(T)
-    !> - use the Clausius-Clapeyron relation for the T-derivative of qsat
-    !>
-    !> 2 iterations gives a good accuracy, 1 iteration is not
-    !> sufficient.  Fixing the number of iterations makes the code
-    !> vectorize, a variable number of iterations prevents
-    !> vectorization.
-    !>
-    !> The procedure works also when qsat(T) is a linear interoplation
-    !> between qsat_liquid and qsat_ice, with slightly reduced
-    !> accuracy in the interpolation region.
-    !>
-    !> qsat (T) can be calculated in different ways, with different
-    !> accuracy vs computing cost.  The fastest so far is to use a
-    !> lookup table for esat(T), and interpolate linearly in it.
-    !>
-    !> \author Fredrik Jansson, Jisk Attema, Pier Siebesma
+  !> Compute the saturation specific humidity
+  !!
+  !! This is just a wrapper around qsat_tab, but that can be changed to any of
+  !! the other qsat functions if needed.
+  pure function calc_qsat(T, p) result(qsat)
 
-    use modglobal, only : i1,j1,k1,rv,rlv,cp,rd
-    use modfields, only : qt0,thl0,exnf,presf,ql0
-    use modfields, only : tmp0, qsat, esl, qvsl, qvsi          ! consider not storing these
+    real(field_r), intent(in) :: T !< Temperature [K]
+    real(field_r), intent(in) :: p !< Pressure [Pa]
 
-    implicit none
+    real(field_r) :: qsat !< Saturation specific humidity [kg/kg]
 
-    character(len=*), parameter :: routine = modname//'/icethermo0_fast'
+    qsat = qsat_tab(T, p)
+
+  end function calc_qsat
+
+  !> Compute the cloud water content via the saturation adjustment method.
+  subroutine saturation_adjustment(qt, thl, pres, exn, ql, opt_stream)
+
+    real(field_r), intent(in) :: qt(2-ih:,2-jh:,:)  !< Total water specific humidity [kg/kg]
+    real(field_r), intent(in) :: thl(2-ih:,2-jh:,:) !< Liquid water potential temperature [K]
+    real(field_r), intent(in) :: pres(:)            !< Pressure [Pa]
+    real(field_r), intent(in) :: exn(:)             !< Exner function [-]
+
+    real(field_r), intent(inout) :: ql(2-ih:,2-jh:,:) !< Liquid water specific humidity [kg/kg].
+
+    integer, optional, intent(in) :: opt_stream !< (Optional) OpenACC stream ID.
+
+    character(len=*), parameter :: routine = modname//'saturation_adjustment'
 
     integer :: i, j, k
-    real(field_r) :: Tl, qsat_, qt, ql, b, T
-    real(field_r) :: Tl_min, Tl_max, qt_max
-    real(field_r) :: esi1, tlo, thi
-    integer       :: tlonr
-    do k=1,k1
-       ! Optimization: if the whole horizontal slab at k is unsaturated,
-       ! the calculation of this slab can be skipped.
-       ! Find highest qt and lowest thl in the slab.
-       ! If they in combination are not saturated, the whole slab is below saturation.
-       ! Also do range checks of Tl here. Tl must be within the range of the table,
-       ! and below the boiling point of water at this level.
-       ! Setting the limit at 5K below the boiling point here. Crossing the boiling point
-       ! is detected by esat > presf(k)
-       Tl_min = minval(thl0(2:i1,2:j1,k)) * exnf(k)
-       Tl_max = maxval(thl0(2:i1,2:j1,k)) * exnf(k)
-       qt_max = maxval(qt0(2:i1,2:j1,k))
-       if (Tl_min < 150) call finish(routine, 'icethermo0_fast: Tl_min below limit 150K')
-       if (esat_tab(Tl_max + 5) > presf(k)) call finish(routine, 'icethermo0_fast: Tl_max too close to boiling point')
+    integer :: stream = 1 !< OpenACC stream ID.
 
-       qsat_ = qsat_tab(Tl_min, presf(k)) ! lowest possible qsat in this slab
-       if (qt_max > qsat_) then
-          do j=2,j1
-             do i=2,i1
-                Tl = exnf(k)*thl0(i,j,k)
-                qt = qt0(i,j,k)
+    real(field_r) :: b      !< Factor in the equation for saturation specific humidity [-]
+    real(field_r) :: qli    !< Intermediate value of liquid water specific humidity [kg/kg]
+    real(field_r) :: qsat   !< Saturation specific humidity [kg/kg]
+    real(field_r) :: qti    !< Intermediate value of total water specific humditiy [kg/kg]
+    real(field_r) :: Tl     !< Liquid water temperature [K]
+    real(field_r) :: Tl_min !< Minimum value of the liquid water temperature [K]
+    real(field_r) :: qt_max !< Maximum value of the total water specific humidity [kg/kg]
 
-                ! first step
-                qsat_ = qsat_tab(Tl, presf(k))
-                b = rlv**2 / (rv * cp * Tl**2)
-                qsat_ = qsat_ * (1 + b * qt) / (1 + b * qsat_)
+    if (present(opt_stream)) stream = opt_stream
 
-                ql = max(qt0(i,j,k) - qsat_, 0._field_r)
+    call timer_tic(routine, 1)
 
-                ! update the starting point
-                Tl = Tl + (rlv/cp) * ql
-                qt = qt - ql
+    !$acc parallel loop gang default(present) async(stream) &
+    !$acc private(b, qli, qsat, qti, Tl)
+    do k = 1, k1
+      ! Find lowest thl and highest qt in the slab.
+      ! If they in combination are not saturated, the whole slab is below saturation.
+      !
+      ! TODO: on GPU, test if it's cheaper to just do the computation instead.
+      TL_min = minval(thl(2:i1,2:j1,k)) * exn(k)
+      qt_max = maxval(qt(2:i1,2:j1,k))
+      qsat = qsat_tab(TL_min, pres(k))
+      if (qt_max > qsat) then
+        !$acc loop vector collapse(2)
+        do j = 2, j1
+          do i = 2, i1
+            qti = qt(i,j,k)
 
-                ! second step
-                qsat_ = qsat_tab(Tl, presf(k))
-                b = rlv**2 / (rv * cp * Tl**2)
-                qsat_ = qsat_ * (1 + b * qt) / (1 + b * qsat_)
+            ! First step
+            Tl = exn(k) * thl(i,j,k)
+            qsat = qsat_tab(Tl, pres(k))
+            b = rlv**2 / (rv * cp * Tl**2)
+            qsat = qsat * (1 + b * qti) / (1 + b * qsat)
 
-                ! save results
-                ql = max(qt0(i,j,k) - qsat_, 0._field_r)
-                ql0(i,j,k) = ql
+            ! Update the starting point
+            qli = max(qti - qsat, 0.0_field_r)
+            Tl = Tl + (rlv / cp) * qli
+            qti = qti - qli
 
-                !!!!!!!!!!!!!!!!!
-                ! The following could
-                ! be done on the fly to save
-                ! precious memory
+            ! Second step
+            qsat = qsat_tab(Tl, pres(k))
+            b = rlv**2 / (rv * cp * Tl**2)
+            qsat = qsat * (1 + b * qti) / (1 + b * qsat)
 
-                !qsat(i,j,k) = qsat_ ! qsat_ is not a good approximation when not saturated
-                                     ! but ql is still good in that case.
-                T = exnf(k)*thl0(i,j,k) + (rlv/cp) * ql
-                tmp0(i,j,k) = T
-
-                ! use the separate e_sat tables for liquid and ice to calculate and store esl, qvsl, qvsi
-                tlonr=int((T-150)*5)
-                tlo = 150 + 0.2_field_r*tlonr
-                thi = tlo + 0.2_field_r
-                esl(i,j,k) = (thi-T)*5*esatltab(tlonr)+(T-tlo)*5*esatltab(tlonr+1) ! saturation vapor pressure liquid
-                esi1       = (thi-T)*5*esatitab(tlonr)+(T-tlo)*5*esatitab(tlonr+1) ! saturation vapor pressure ice
-                qvsl(i,j,k)=rd/rv*esl(i,j,k)/(presf(k)-(1-rd/rv)*esl(i,j,k))        ! saturation humidity liquid
-                qvsi(i,j,k)=rd/rv*esi1      /(presf(k)-(1-rd/rv)*esi1)              ! saturation humidity ice
-                !!!!!!!!!!!
-             end do
+            ql(i,j,k) = max(qt(i,j,k) - qsat, 0.0_field_r)
           end do
-       else
-          ! possibly faster option when the whole layer is below saturation
-          ! If many of the els, qsvl, qsvi are stored in arrays, they still need to be saved here
-          ql0(2:i1,2:j1,k) = 0
-          do j=2,j1
-             do i=2,i1
-                T = exnf(k)*thl0(i,j,k) ! + (rlv/cp) * ql omitted because ql is 0
-                tmp0(i,j,k) = T
-                qsat(i,j,k) = qsat_tab(T, presf(k))
-
-                ! use the separate e_sat tables for liquid and ice to calculate and store esl, qvsl, qvsi
-                tlonr=int((T-150)*5)
-                tlo = 150 + 0.2_field_r*tlonr
-                thi = tlo + 0.2_field_r
-                esl(i,j,k) = (thi-T)*5*esatltab(tlonr)+(T-tlo)*5*esatltab(tlonr+1) ! saturation vapor pressure liquid
-                esi1       = (thi-T)*5*esatitab(tlonr)+(T-tlo)*5*esatitab(tlonr+1) ! saturation vapor pressure ice
-                qvsl(i,j,k)=rd/rv*esl(i,j,k)/(presf(k)-(1-rd/rv)*esl(i,j,k))        ! saturation humidity liquid
-                qvsi(i,j,k)=rd/rv*esi1      /(presf(k)-(1-rd/rv)*esi1)              ! saturation humidity ice
-             end do
-          end do
-       end if
+        end do
+      end if
     end do
-  end subroutine icethermo0_fast
 
-  subroutine icethermo0_fast_gpu
-    !> Calculates liquid water content ql from thl0 and qt0.
-    !> Using 2 iterations of Eq. (59) in the Heus 2010 article
-    !> and e_sat interpolated between liquid and ice expressions.
-    !>
-    !> Given thl0 and qt0, we search for T such that
-    !> (1) ql = qt - qsat(T)     (definition of ql, instant condensation if above saturation)
-    !> (2) ql = cp/L * (T - Tl)  (definition of Tl)
-    !> hold simultaneously, and solve for qsat(T).
-    !> Tl is thl0/exnf(k) .
-    !>
-    !> Steps of the derivation:
-    !> - 1st order Taylor expansion of qsat(T) around T = Tl
-    !> - insert (1) and (2)
-    !> - solve for qsat(T)
-    !> - use the Clausius-Clapeyron relation for the T-derivative of qsat
-    !>
-    !> 2 iterations gives a good accuracy, 1 iteration is not
-    !> sufficient.  Fixing the number of iterations makes the code
-    !> vectorize, a variable number of iterations prevents
-    !> vectorization.
-    !>
-    !> The procedure works also when qsat(T) is a linear interoplation
-    !> between qsat_liquid and qsat_ice, with slightly reduced
-    !> accuracy in the interpolation region.
-    !>
-    !> qsat (T) can be calculated in different ways, with different
-    !> accuracy vs computing cost.  The fastest so far is to use a
-    !> lookup table for esat(T), and interpolate linearly in it.
-    !>
-    !> C. Jungbacker: This version is faster on GPU than the original
-    !> because it does not check for each slab.
-    !> \author Fredrik Jansson, Jisk Attema, Pier Siebesma
+    call timer_toc(routine)
 
-    use modglobal, only : i1,j1,k1,rv,rlv,cp,rd
-    use modfields, only : qt0,thl0,exnf,presf,ql0
-    use modfields, only : tmp0, qsat, esl, qvsl, qvsi          ! consider not storing these
+  end subroutine saturation_adjustment
 
-    implicit none
+#if defined(DALES_GPU)
+  !> Compute the cloud water content via the saturation adjustment method.
+  subroutine saturation_adjustment_gpu(qt, thl, pres, exn, ql, opt_stream)
 
-    character(len=*), parameter :: routine = modname//'/icethermo0_fast_gpu'
+    real(field_r), intent(in) :: qt(2-ih:,2-jh:,:)  !< Total water specific humidity [kg/kg]
+    real(field_r), intent(in) :: thl(2-ih:,2-jh:,:) !< Liquid water potential temperature [K]
+    real(field_r), intent(in) :: pres(:)            !< Pressure [Pa]
+    real(field_r), intent(in) :: exn(:)             !< Exner function [-]
+
+    real(field_r), intent(inout) :: ql(2-ih:,2-jh:,:) !< Liquid water specific humidity [kg/kg].
+
+    integer, optional, intent(in) :: opt_stream !< (Optional) OpenACC stream ID.
+
+    character(len=*), parameter :: routine = modname//'saturation_adjustment'
 
     integer :: i, j, k
-    real(field_r) :: Tl, qsat_, qt, ql, b, T
-    real(field_r) :: Tl_min, PrDiff_min
-    real(field_r) :: esi1, tlo, thi
-    integer       :: tlonr
+    integer :: stream = 1 !< OpenACC stream ID.
 
-    call timer_tic('modthermodynamics/icethermo0_fast', 1)
+    real(field_r) :: b      !< Factor in the equation for saturation specific humidity [-]
+    real(field_r) :: qli    !< Intermediate value of liquid water specific humidity [kg/kg]
+    real(field_r) :: qsat   !< Saturation specific humidity [kg/kg]
+    real(field_r) :: qti    !< Intermediate value of total water specific humditiy [kg/kg]
+    real(field_r) :: Tl     !< Liquid water temperature [K]
+    real(field_r) :: Tl_min !< Minimum value of the liquid water temperature [K]
+    real(field_r) :: qt_max !< Maximum value of the total water specific humidity [kg/kg]
 
-    ! Sanity checks
-    Tl_min = 400
-    PrDiff_min = 100
-    !$acc parallel loop collapse(3) reduction(min:Tl_min, PrDiff_min)
+    if (present(opt_stream)) stream = opt_stream
+
+    call timer_tic(routine, 1)
+
+    !$acc parallel loop gang vector collapse(3) default(present) async(stream) &
+    !$acc private(b, qli, qsat, qti, Tl)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
-          Tl_min = min(Tl_min,thl0(i,j,k)*exnf(k))
-          PrDiff_min = min(PrDiff_min, presf(k) - esat_tab(thl0(i,j,k)*exnf(k) + 5.0_field_r))
+          qti = qt(i,j,k)
+
+          ! First step
+          Tl = exn(k) * thl(i,j,k)
+          qsat = qsat_tab(Tl, pres(k))
+          b = rlv**2 / (rv * cp * Tl**2)
+          qsat = qsat * (1 + b * qti) / (1 + b * qsat)
+
+          ! Update the starting point
+          qli = max(qti - qsat, 0.0_field_r)
+          Tl = Tl + (rlv / cp) * qli
+          qti = qti - qli
+
+          ! Second step
+          qsat = qsat_tab(Tl, pres(k))
+          b = rlv**2 / (rv * cp * Tl**2)
+          qsat = qsat * (1 + b * qti) / (1 + b * qsat)
+
+          ql(i,j,k) = max(qt(i,j,k) - qsat, 0.0_field_r)
         end do
       end do
     end do
-    if (Tl_min < 150) call finish(routine, 'icethermo0_fast: Tl_min below limit 150K')
-    if (PrDiff_min < 0) call finish(routine, 'icethermo0_fast: Tl_max too close to boiling point')
 
-    !$acc parallel loop collapse(3) private(Tl, qsat_, qt, ql, b, T, esi1, tlo, thi, tlonr) default(present)
-    do k = 1, k1
-      do j = 2, j1
-        do i = 2, i1
-          qsat_ = qsat_tab(Tl_min, presf(k))
-          Tl = exnf(k)*thl0(i,j,k)
-          qt = qt0(i,j,k)
+    call timer_toc(routine)
 
-          ! first step
-          qsat_ = qsat_tab(Tl, presf(k))
-          b = rlv**2 / (rv * cp * Tl**2)
-          qsat_ = qsat_ * (1 + b * qt) / (1 + b * qsat_)
+  end subroutine saturation_adjustment_gpu
+#endif
 
-          ql = max(qt0(i,j,k) - qsat_, 0._field_r)
+  !> Diagnose saturation specific humidities over liquid and ice.
+  subroutine calc_saturation_humidities(qt, ql, thl, pres, exn, esl, qvsl, qvsi)
 
-          ! update the starting point
-          Tl = Tl + (rlv/cp) * ql
-          qt = qt - ql
+    real(field_r), intent(in) :: qt(2-ih:,2-jh:,:)  !< Total water specific humidity [kg/kg]
+    real(field_r), intent(in) :: ql(2-ih:,2-jh:,:)  !< Liquid water specific humidity [kg/kg]
+    real(field_r), intent(in) :: thl(2-ih:,2-jh:,:) !< Liquid water potential temperature [K]
+    real(field_r), intent(in) :: pres(:)            !< Pressure [Pa]
+    real(field_r), intent(in) :: exn(:)             !< Exner function [-]
 
-          ! second step
-          qsat_ = qsat_tab(Tl, presf(k))
-          b = rlv**2 / (rv * cp * Tl**2)
-          qsat_ = qsat_ * (1 + b * qt) / (1 + b * qsat_)
+    real(field_r), intent(out) :: esl(2-ih:,2-jh:,:)  !< Liquid water saturation pressure [Pa]
+    real(field_r), intent(out) :: qvsl(2-ih:,2-jh:,:) !< Liquid water saturation humidity [kg/kg]
+    real(field_r), intent(out) :: qvsi(2-ih:,2-jh:,:) !< Ice saturation humidity [kg/kg]
 
-          ! save results
-          ql = max(qt0(i,j,k) - qsat_, 0._field_r)
-          ql0(i,j,k) = ql
-
-          !!!!!!!!!!!!!!!!!
-          ! The following could
-          ! be done on the fly to save
-          ! precious memory
-          qsat(i,j,k) = qsat_
-          T = exnf(k)*thl0(i,j,k) + (rlv/cp) * ql
-          tmp0(i,j,k) = T
-
-          ! use the separate e_sat tables for liquid and ice to calculate and store esl, qvsl, qvsi
-          tlonr=int((T-150)*5)
-          tlo = 150 + 0.2_field_r*tlonr
-          thi = tlo + 0.2_field_r
-          esl(i,j,k) = (thi-T)*5*esatltab(tlonr)+(T-tlo)*5*esatltab(tlonr+1) ! saturation vapor pressure liquid
-          esi1       = (thi-T)*5*esatitab(tlonr)+(T-tlo)*5*esatitab(tlonr+1) ! saturation vapor pressure ice
-          qvsl(i,j,k)=rd/rv*esl(i,j,k)/(presf(k)-(1-rd/rv)*esl(i,j,k))        ! saturation humidity liquid
-          qvsi(i,j,k)=rd/rv*esi1      /(presf(k)-(1-rd/rv)*esi1)              ! saturation humidity ice
-          !!!!!!!!!!!
-        end do
-      end do
-    end do
-    call timer_toc('modthermodynamics/icethermo0_fast')
-  end subroutine icethermo0_fast_gpu
-
-  subroutine icethermoh_fast
-    !> Calculates liquid water content ql for halflevels
-    !> Using 2 iterations of Eq. (59) in the Heus 2010 article
-    !> and e_sat interpolated between liquid and ice expressions.
-    !> See comments in icethermo0_fast above for more details.
-    !>
-    !> \author Fredrik Jansson, Jisk Attema, Pier Siebesma
-    !> this could be merged with icethermo0
-    !> and input and output fields are given as parameters.
-    !> in: thl, qt, exner,
-    !> out: ql
-    !>
-    !> alternatively merge with calc_halflev and calthv
-    !> to eliminate qt0h, thl0h, ql0h fields
-
-    use modglobal, only : i1,j1,k1,rv,rlv,cp
-    use modfields, only : qt0h,thl0h,exnh,presh,ql0h
-
-    implicit none
-    character(len=*), parameter :: routine = modname//'/icethermoh_fast'
-    integer :: i, j, k
-    real(field_r) :: Tl, qsat, qt, ql, b
-    real(field_r) :: Tl_min, Tl_max, qt_max
-
-    do k=1,k1
-       ! find highest qt and lowest thl in the slab.
-       ! if they in combination are not saturated, the whole slab is below saturation
-       Tl_min = minval(thl0h(2:i1,2:j1,k)) * exnh(k)
-       Tl_max = maxval(thl0h(2:i1,2:j1,k)) * exnh(k)
-       if (Tl_min < 150) call finish(routine, 'icethermoh_fast: Tl_min below limit 150K')
-       if (esat_tab(Tl_max + 5) > presh(k)) call finish(routine, 'icethermoh_fast: Tl_max too close to boiling point')
-       qt_max = maxval(qt0h(2:i1,2:j1,k))
-       qsat = qsat_tab(Tl_min, presh(k))
-       if (qt_max > qsat) then
-          do j=2,j1
-             do i=2,i1
-                Tl = exnh(k)*thl0h(i,j,k)
-                qt = qt0h(i,j,k)
-
-                ! first step
-                qsat = qsat_tab(Tl, presh(k))
-                b = rlv**2 / (rv * cp * Tl**2)
-                qsat = qsat * (1 + b * qt) / (1 + b * qsat)
-
-                ql = max(qt0h(i,j,k) - qsat, 0._field_r)
-
-                ! update the starting point
-                Tl = Tl + (rlv/cp) * ql
-                qt = qt - ql
-
-                ! second step
-                qsat = qsat_tab(Tl, presh(k))
-                b = rlv**2 / (rv * cp * Tl**2)
-                qsat = qsat * (1 + b * qt) / (1 + b * qsat)
-
-                ! save results
-                ql = max(qt0h(i,j,k) - qsat, 0._field_r)
-                ql0h(i,j,k) = ql
-             end do
-          end do
-       else
-          ql0h(2:i1,2:j1,k) = 0
-       end if
-    end do
-  end subroutine icethermoh_fast
-
-  subroutine icethermoh_fast_gpu
-    !> Calculates liquid water content ql for halflevels
-    !> Using 2 iterations of Eq. (59) in the Heus 2010 article
-    !> and e_sat interpolated between liquid and ice expressions.
-    !> See comments in icethermo0_fast above for more details.
-    !>
-    !> C. Jungbacker: This version is faster on GPU than the original
-    !> because it does not check for each slab.
-    !> \author Fredrik Jansson, Jisk Attema, Pier Siebesma
-    !>
-    !> this could be merged with icethermo0
-    !> and input and output fields are given as parameters.
-    !> in: thl, qt, exner,
-    !> out: ql
-    !>
-    !> alternatively merge with calc_halflev and calthv
-    !> to eliminate qt0h, thl0h, ql0h fields
-
-    use modglobal, only : i1, j1, k1, rv, rlv, cp
-    use modfields, only : qt0h, thl0h, exnh, presh, ql0h
-
-    implicit none
-    character(len=*), parameter :: routine = modname//'/icethermoh_fast_gpu'
-    integer :: i, j, k
-    real(field_r) :: Tl, qsat, qt, ql, b
-    real(field_r) :: Tl_min, PrDiff_min
-
-    call timer_tic('modthermodynamics/icethermoh_fast', 1)
-
-    Tl_min = 400
-    PrDiff_min = 100
-    !$acc parallel loop collapse(3) reduction(min:Tl_min, PrDiff_min)
-    do k = 1, k1
-      do j = 2, j1
-        do i = 2, i1
-          Tl_min = min(Tl_min,thl0h(i,j,k)*exnh(k))
-          PrDiff_min = min(PrDiff_min, presh(k) - esat_tab(thl0h(i,j,k)*exnh(k) + 5.0_field_r))
-        end do
-      end do
-    end do
-    if (Tl_min < 150) call finish(routine, 'icethermoh_fast: Tl_min below limit 150K')
-    if (PrDiff_min < 0.0) call finish(routine, 'icethermoh_fast: Tl_max too close to boiling point')
-
-    !$acc parallel loop collapse(3) default(present) private(Tl, qt, qsat, b, ql)
-    do k = 1, k1
-      do j = 2, j1
-        do i = 2, i1
-          Tl = exnh(k)*thl0h(i,j,k)
-          qt = qt0h(i,j,k)
-
-          ! first step
-          qsat = qsat_tab(Tl, presh(k))
-          b = rlv**2 / (rv * cp * Tl**2)
-          qsat = qsat * (1 + b * qt) / (1 + b * qsat)
-
-          ql = max(qt0h(i,j,k) - qsat, 0._field_r)
-
-          ! update the starting point
-          Tl = Tl + (rlv/cp) * ql
-          qt = qt - ql
-
-          ! second step
-          qsat = qsat_tab(Tl, presh(k))
-          b = rlv**2 / (rv * cp * Tl**2)
-          qsat = qsat * (1 + b * qt) / (1 + b * qsat)
-
-          ! save results
-          ql = max(qt0h(i,j,k) - qsat, 0._field_r)
-          ql0h(i,j,k) = ql
-        end do
-      end do
-    end do
-    call timer_toc('modthermodynamics/icethermoh_fast')
-  end subroutine icethermoh_fast_gpu
-!!!!!!!!! new thermo
-
-  subroutine icethermo0
-!> Calculates liquid water content.and temperature
-!! \author Steef B\"oing
-
-  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp
-  use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl,qsat
-  implicit none
-
-  integer i, j, k
-  real :: ilratio, esl1,esi1,qvsl1,qvsi1,qsatur, thlguess, thlguessmin,tlo,thi,ttry
-  real :: Tnr,Tnr_old
-  integer :: niter,nitert,tlonr,thinr
-
-!     calculation of T with Newton-Raphson method
-!     first guess is Tnr=tl
-      nitert = 0
-      niter = 0
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
-            ! first guess for temperature
-            Tnr=exnf(k)*thl0(i,j,k)
-            ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-            tlonr=int((Tnr-150.)*5.)
-            thinr=tlonr+1
-            tlo=ttab(tlonr)
-            thi=ttab(thinr)
-            esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
-            esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-            qvsl1=(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)
-            qvsi1=(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
-            qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
-            if(qt0(i,j,k)>qsatur) then
-              Tnr_old=0.
-              niter = 0
-              thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
-              ttry=Tnr-0.002
-              ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
-              tlonr=int((ttry-150.)*5.)
-              thinr=tlonr+1
-              tlo=ttab(tlonr)
-              thi=ttab(thinr)
-              esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
-              esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
-              qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
-              thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
-
-              Tnr = Tnr - (thlguess-thl0(i,j,k))/((thlguess-thlguessmin)*500.)
-              do while ((abs(Tnr-Tnr_old) > 0.002).and.(niter<100))
-                niter = niter+1
-                Tnr_old=Tnr
-                ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-                tlonr=int((Tnr-150.)*5.)
-                if(tlonr<1 .or.tlonr>1999) then
-                  write(*,*) 'thermo crash: i,j,k,niter,thl0(i,j,k),qt0(i,j,k)'
-                  write(*,*) i,j,k,niter,thl0(i,j,k),qt0(i,j,k)
-                endif
-                thinr=tlonr+1
-                tlo=ttab(tlonr)
-                thi=ttab(thinr)
-                esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
-                esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-                qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
-                thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
-
-                ttry=Tnr-0.002
-                ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
-                tlonr=int((ttry-150.)*5.)
-                thinr=tlonr+1
-                tlo=ttab(tlonr)
-                thi=ttab(thinr)
-                esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
-                esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
-                qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
-                thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
-
-                Tnr = Tnr - (thlguess-thl0(i,j,k))/((thlguess-thlguessmin)*500.)
-              enddo
-              nitert =max(nitert,niter)
-              tmp0(i,j,k)= Tnr
-              ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-              tlonr=int((Tnr-150.)*5.)
-              thinr=tlonr+1
-              tlo=ttab(tlonr)
-              thi=ttab(thinr)
-              esl(i,j,k)=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
-              esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-              qvsl(i,j,k)=rd/rv*esl(i,j,k)/(presf(k)-(1.-rd/rv)*esl(i,j,k))
-              qvsi(i,j,k)=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
-              qsatur = ilratio*qvsl(i,j,k)+(1.-ilratio)*qvsi(i,j,k)
-            else
-              tmp0(i,j,k)= Tnr
-              esl(i,j,k)=esl1
-              esi1=esi1
-              qvsl(i,j,k)=qvsl1
-              qvsi(i,j,k)=qvsi1
-            endif
-            ql0(i,j,k) = max(qt0(i,j,k)-qsatur,0.)
-            qsat(i,j,k) = qsatur
-      end do
-      end do
-      end do
-      if(nitert>99) then
-        write(*,*) 'thermowarning'
-      endif
-
-  end subroutine icethermo0
-
-  subroutine icethermoh
-!> Calculates liquid water content.and temperature
-!! \author Steef B\"oing
-
-  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp
-  use modfields, only : qt0h,thl0h,exnh,presh,ql0h
-  implicit none
-
-  integer i, j, k
-  real :: ilratio, esl1, esi1, qvsl1,qvsi1, qsatur, thlguess, thlguessmin,tlo,thi,ttry
-  real :: Tnr,Tnr_old
-  integer :: niter,nitert,tlonr,thinr
-
-!     calculation of T with Newton-Raphson method
-!     first guess is Tnr=tl
-      nitert = 0
-      niter = 0
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
-            ! first guess for temperature
-            Tnr=exnh(k)*thl0h(i,j,k)
-            ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-            tlonr=int((Tnr-150.)*5.)
-            thinr=tlonr+1
-            tlo=ttab(tlonr)
-            thi=ttab(thinr)
-            esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
-            esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-            qvsl1=(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)
-            qvsi1=(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
-            qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
-            if(qt0h(i,j,k)>qsatur) then
-              Tnr_old=0.
-              niter = 0
-              thlguess = Tnr/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
-              ttry=Tnr-0.002
-              ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
-              tlonr=int((ttry-150.)*5.)
-              thinr=tlonr+1
-              tlo=ttab(tlonr)
-              thi=ttab(thinr)
-              esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
-              esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
-              qsatur = ilratio*(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
-              thlguessmin = ttry/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
-
-              Tnr = Tnr - (thlguess-thl0h(i,j,k))/((thlguess-thlguessmin)*500.)
-              do while ((abs(Tnr-Tnr_old) > 0.002).and.(niter<100))
-                niter = niter+1
-                Tnr_old=Tnr
-                ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-                tlonr=int((Tnr-150.)*5.)
-                if(tlonr<1 .or.tlonr>1999) then
-                  write(*,*) 'thermo crash: i,j,k,niter,thl0h(i,j,k),qt0h(i,j,k)'
-                  write(*,*) i,j,k,niter,thl0h(i,j,k),qt0h(i,j,k)
-                endif
-                thinr=tlonr+1
-                tlo=ttab(tlonr)
-                thi=ttab(thinr)
-                esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
-                esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-                qsatur = ilratio*(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
-                thlguess = Tnr/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
-
-                ttry=Tnr-0.002
-                ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
-                tlonr=int((ttry-150.)*5.)
-                thinr=tlonr+1
-                tlo=ttab(tlonr)
-                thi=ttab(thinr)
-                esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
-                esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
-                qsatur = ilratio*(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
-                thlguessmin = ttry/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
-
-                Tnr = Tnr - (thlguess-thl0h(i,j,k))/((thlguess-thlguessmin)*500.)
-              enddo
-              nitert =max(nitert,niter)
-              ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-              tlonr=int((Tnr-150.)*5.)
-              thinr=tlonr+1
-              tlo=ttab(tlonr)
-              thi=ttab(thinr)
-              esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
-              esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-              qvsl1=rd/rv*esl1/(presh(k)-(1.-rd/rv)*esl1)
-              qvsi1=rd/rv*esi1/(presh(k)-(1.-rd/rv)*esi1)
-              qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
-            endif
-            ql0h(i,j,k) = max(qt0h(i,j,k)-qsatur,0.)
-      end do
-      end do
-      end do
-      if(nitert>99) then
-        write(*,*) 'thermowarning'
-      endif
-
-  end subroutine icethermoh
-
-!> Calculates the scalars at half levels.
-!! If the kappa advection scheme is active, interpolation needs to be done consistently.
-  subroutine calc_halflev
-    use modglobal, only : i1, j1, k1, dzf, dzhi, iadv_thl, iadv_qt, iadv_kappa
-    use modfields, only : thl0, thl0h, qt0, qt0h
-    use modsurfdata,only: qts, thls
-    use advec_kappa,only: halflev_kappa
-    implicit none
+    character(len=*), parameter :: routine = &
+      modname//'calc_saturation_humidities'
 
     integer :: i, j, k
 
-    call timer_tic('modthermodynamics/calc_halflev', 1)
+    real(field_r) :: esi      !< Saturation vapor pressure for ice (not stored) [Pa]
+    real(field_r) :: qsat     !< Saturation specific humidity [kg/kg]
+    real(field_r) :: T        !< Temperature [K]
+    real(field_r) :: interp_w !< Interpolation temperature [K]
+    integer       :: tlo      !< Index of temperature in esat lookuptable
 
-    if (iadv_thl==iadv_kappa) then
-      call halflev_kappa(thl0,thl0h)
+    !$acc parallel loop collapse(3) default(present) async(1) &
+    !$acc private(qsat, T, interp_w, tlo, esi)
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
+          qsat = max(qt(i,j,k) - ql(i,j,k), 1.0_field_r)
+          T = exn(k) * thl(i,j,k) + (rlv / cp) * ql(i,j,k)
+
+          interp_w = (T - 150) * 5
+          tlo = int(interp_w)
+          interp_w = interp_w - tlo
+
+          ! Liquid
+          esl(i,j,k) = (1 - interp_w) * esatltab(tlo) &
+                       + interp_w * esatltab(tlo + 1)
+          qvsl(i,j,k) = rd / rv * esl(i,j,k) &
+                        / (pres(k) - (1 - rd / rv) * esl(i,j,k))
+
+          ! Ice
+          esi = (1 - interp_w) * esatitab(tlo) &
+                + interp_w * esatitab(tlo + 1)
+          qvsi(i,j,k) = rd / rv * esi / (pres(k) - (1 - rd / rv) * esi)
+        end do
+      end do
+    end do
+
+  end subroutine calc_saturation_humidities
+
+  !> Interpolate a scalar field to the half levels.
+  !!
+  !! CJ: this is a very general subroutine which could be in its own module.
+  !!     It's used only here and in modstartup, so I'll leave it here for now.
+  subroutine calc_halflev(phi, dzf, dzhi, phi_surf, lkappa, phi_half, &
+                          opt_stream)
+
+    real(field_r), intent(in) :: phi(2-ih:,2-jh:,:) !< Scalar field to interpolate [*]
+    real(field_r), intent(in) :: dzf(:)             !< Thickness of full model levels [m]
+    real(field_r), intent(in) :: dzhi(:)            !< Inverse of thickness of half model levels [m]
+    real(field_r), intent(in) :: phi_surf           !< Value to use at the surface level [*]
+    logical,       intent(in) :: lkappa             !< Interpolate using Kappa scheme
+
+    real(field_r), intent(out) :: phi_half(2-ih:,2-jh:,:) !< Scalar field on half levels [*]
+
+    integer, intent(in), optional :: opt_stream !< (Optional) OpenACC stream ID.
+
+    integer :: i, j, k
+    integer :: stream = 1
+
+    if (present(opt_stream)) stream = opt_stream
+
+    if (lkappa) then
+      call halflev_kappa(phi, phi_half)
     else
-      !$acc parallel loop collapse(3) default(present) async(1)
-      do k = 2, k1
-        do j = 2 ,j1
-          do i = 2 ,i1
-            thl0h(i,j,k) = (thl0(i,j,k)*dzf(k-1)+thl0(i,j,k-1)*dzf(k)) * (0.5_field_r * dzhi(k))
-          end do
-        end do
-      end do
-    end if
-
-    !$acc parallel loop collapse(2) default(present) async(1)
-    do j = 2, j1
-      do i = 2, i1
-        thl0h(i,j,1) = thls
-      end do
-    end do
-
-    if (iadv_qt==iadv_kappa) then
-      call halflev_kappa(qt0,qt0h)
-    else
-      !$acc parallel loop collapse(3) default(present) async(1)
+      !$acc parallel loop collapse(3) default(present) async(stream)
       do k = 2, k1
         do j = 2, j1
           do i = 2, i1
-            qt0h(i,j,k)  = (qt0(i,j,k)*dzf(k-1)+qt0(i,j,k-1)*dzf(k)) * (0.5_field_r * dzhi(k))
+            phi_half(i,j,k) = (phi(i,j,k) * dzf(k-1) + phi(i,j,k-1) * dzf(k)) &
+                              * (0.5_field_r * dzhi(k))
           end do
-        end do
-      end do
-
-      !$acc parallel loop collapse(2) default(present) async(1)
-      do j = 2, j1
-        do i = 2, i1
-          qt0h(i,j,1) = qts
         end do
       end do
     end if
 
-    !$acc wait(1)
-    call timer_toc('modthermodynamics/calc_halflev')
+    !$acc parallel loop collapse(2) default(present) async(stream)
+    do j = 2, j1
+      do i = 2, i1
+        phi_half(i,j,1) = phi_surf
+      end do
+    end do
+
   end subroutine calc_halflev
 
 end module modthermodynamics

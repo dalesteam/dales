@@ -37,23 +37,30 @@ save
 !NetCDF variables
   integer,parameter :: nvar=2
   integer :: nvar3
+  integer :: nvar4
+  integer :: nvars3d4
   integer :: ncid1 = 0
   integer :: ncid2 = 0
   integer :: ncid3 = 0
+  integer :: ncid4 = 0
   integer :: nrec1 = 0
   integer :: nrec2 = 0
   integer :: nrec3 = 0
+  integer :: nrec4 = 0
   integer :: crossheight
   character(4) :: cheight
   character(80) :: fname1 = 'lsmcrossxz.xxxxyxxx.xxx.nc'
   character(80) :: fname2 = 'lsmcrossxy.xxxx.xxxxyxxx.xxx.nc'
   character(80) :: fname3 = 'surfcross.xxxxyxxx.xxx.nc'
+  character(80) :: fname4 = 'slrbcross.xxxxyxxx.xxx.nc'
   character(80), dimension(nvar,4) :: ncname1
   character(80), dimension(1,4) :: tncname1
   character(80), dimension(nvar,4) :: ncname2
   character(80), dimension(1,4) :: tncname2
   character(80), allocatable, dimension(:,:) :: ncname3
+  character(80), allocatable, dimension(:,:) :: ncname4
   character(80), dimension(1,4) :: tncname3
+  character(80), dimension(1,4) :: tncname4
 
   real    :: dtav
   integer(kind=longint) :: idtav, tnext
@@ -70,6 +77,7 @@ contains
     use modstat_nc,  only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modsurfdata, only : isurf
     use modlsm,      only : lags
+    use modslurb,    only : enable_slurb
     use fortran_support, only: nnml_output
     implicit none
 
@@ -161,7 +169,7 @@ contains
          else if (isurf == 2) then
             nvar3 = 8
         else if (isurf == 11) then
-            nvar3 = 13
+            nvar3 = 14
             if (lags) nvar3 = nvar3 + 2
         end if
 
@@ -218,9 +226,10 @@ contains
             call ncinfo(ncname3(11,:),'rsveg', 'Vegetation resistance', 's/m', 'tt0t')
             call ncinfo(ncname3(12,:),'f1', 'f1(SWD) function vegetation resistance', 's/m', 'tt0t')
             call ncinfo(ncname3(13,:),'f2_b', 'f2(theta) function soil resistance', 's/m', 'tt0t')
+            call ncinfo(ncname3(14,:),'Qnet', 'Net radiation', 'W/m^2', 'tt0t')
             if (lags) then
-              call ncinfo(ncname3(14,:),'an_co2', 'Net CO2 assimilation', 'ppm m s-1', 'tt0t')
-              call ncinfo(ncname3(15,:),'resp_co2', 'CO2 respiration soil + plant', 'ppm m s-1', 'tt0t')
+              call ncinfo(ncname3(15,:),'an_co2', 'Net CO2 assimilation', 'ppm m s-1', 'tt0t')
+              call ncinfo(ncname3(16,:),'resp_co2', 'CO2 respiration soil + plant', 'ppm m s-1', 'tt0t')
             end if
 
             call open_nc(trim(output_prefix)//fname3,  ncid3,nrec3,n1=imax,n2=jmax)
@@ -230,7 +239,204 @@ contains
             end if
             call define_nc( ncid3, nvar3, ncname3)
         end if
+
+        if (enable_slurb) then
+        !
+        ! Surface values
+        fname4(11:18) = cmyid
+        fname4(20:22) = cexpnr
+        
+        nvar4 = 145
+        nvars3d4 = 21
+        nvar4 = nvar4 + nvars3d4
+        nrec4=0
+
+        allocate(ncname4(nvar4,4))
+
+        call nctiminfo(tncname4(1,:))
+        call ncinfo(ncname4( 1,:),'albedo_urb', 'effective urban albedo', '', 'tt0t')
+        call ncinfo(ncname4( 2,:),'emiss_urb', 'effective urban emissivity', '', 'tt0t')
+        call ncinfo(ncname4( 3,:),'ol_urb', 'urban Obukhov length', '', 'tt0t')
+        call ncinfo(ncname4( 4,:),'qsws_urb', 'total urban latent heat flux', '', 'tt0t')
+        call ncinfo(ncname4( 5,:),'rad_lw_in_urb', 'incoming longwave radiation', '', 'tt0t')
+        call ncinfo(ncname4( 6,:),'rad_lw_out_urb', 'outgoing longwave radiation', '', 'tt0t')
+        call ncinfo(ncname4( 7,:),'rad_sw_in_urb', 'incoming shortwave radiation', '', 'tt0t')
+        call ncinfo(ncname4( 8,:),'rad_sw_out_urb', 'outgoing shortwave radiation', '', 'tt0t')
+        call ncinfo(ncname4( 9,:),'ram_urb', 'urban aerodynamic resistance for momentum', '', 'tt0t')
+        call ncinfo(ncname4( 10,:),'rib_urb', 'urban bulk-Richardson number', '', 'tt0t')
+        call ncinfo(ncname4( 11,:),'shf_urb', 'total urban sensible heat flux', '', 'tt0t')
+        call ncinfo(ncname4( 12,:),'t_2m_urb', 'urban 2-metre temperature ', 'extrapolated) (K', 'tt0t')
+        call ncinfo(ncname4( 13,:),'t_c_urb', 'complete ', 'area-weighted) urban surface temperature (K', 'tt0t')
+        call ncinfo(ncname4( 14,:),'t_h_urb', 'effective urban surface temperature ', 'K', 'tt0t')
+        call ncinfo(ncname4( 15,:),'t_rad_urb', 'urban radiative surface temperature ', 'K', 'tt0t')
+        call ncinfo(ncname4( 16,:),'usws_urb', 'urban momentum flux ', 'u-component', 'tt0t')
+        call ncinfo(ncname4( 17,:),'vsws_urb', 'urban momentum flux ', 'v-component', 'tt0t')
+        call ncinfo(ncname4( 18,:),'thlskin', 'urban skin liquid water potential temperature', '', 'tt0t')
+        call ncinfo(ncname4( 19,:),'qtskin', 'urban skin specific humidity TODOSELF', '', 'tt0t')
+        call ncinfo(ncname4( 20,:),'m_liq_road_0', 'liquid water reservoir on roads', '', 'tt0t')
+        call ncinfo(ncname4( 21,:),'m_liq_road_m', 'prev. liquid water reservoir on roads', '', 'tt0t')
+        call ncinfo(ncname4( 22,:),'m_liq_roof_0', 'liquid water reservoir on roofs', '', 'tt0t')
+        call ncinfo(ncname4( 23,:),'m_liq_roof_m', 'prev. liquid water reservoir on roofs', '', 'tt0t')
+        call ncinfo(ncname4( 24,:),'q_can_0', 'canyon mixing ratio ', 'kg/kg', 'tt0t')
+        call ncinfo(ncname4( 25,:),'q_can_m', 'previous canyon mixing ratio ', 'kg/kg', 'tt0t')
+        call ncinfo(ncname4( 26,:),'t_can_0', 'canyon air temperature ', 'K', 'tt0t')
+        call ncinfo(ncname4( 27,:),'t_can_m', 'prev. canyon temperature ', 'K', 'tt0t')
+        call ncinfo(ncname4( 28,:),'tm_liq_road', 'road liquid water reservoir tendency', '', 'tt0t')
+        call ncinfo(ncname4( 29,:),'tm_liq_roof', 'roof liquid water reservoir tendency', '', 'tt0t')
+        call ncinfo(ncname4( 30,:),'tq_can', 'canyon mixing ratio tendency ', 'kg/kg/s', 'tt0t')
+        call ncinfo(ncname4( 31,:),'tt_can', 'canyon temperature tendency ', 'K/s', 'tt0t')
+        call ncinfo(ncname4( 32,:),'pt_road', 'road surface potential temperature', '', 'tt0t')
+        call ncinfo(ncname4( 33,:),'pt_roof', 'roof surface potential temperature', '', 'tt0t')
+        call ncinfo(ncname4( 34,:),'pt_wall_a', 'wall A surface potential temperature', '', 'tt0t')
+        call ncinfo(ncname4( 35,:),'pt_wall_b', 'wall B surface potential temperature', '', 'tt0t')
+        call ncinfo(ncname4( 36,:),'pt_win_a', 'window A surface potential temperature', '', 'tt0t')
+        call ncinfo(ncname4( 37,:),'pt_win_b', 'window A surface potential temperature', '', 'tt0t')
+        call ncinfo(ncname4( 38,:),'q_road', 'road surface mixing ratio', '', 'tt0t')
+        call ncinfo(ncname4( 39,:),'q_roof', 'roof surface mixing ratio', '', 'tt0t')
+        call ncinfo(ncname4( 40,:),'qs_road', 'road surface saturation mixing ratio', '', 'tt0t')
+        call ncinfo(ncname4( 41,:),'qs_roof', 'roof surface saturation mixing ratio', '', 'tt0t')
+        call ncinfo(ncname4( 42,:),'vpt_road', 'road surface virtual potential temperature', '', 'tt0t')
+        call ncinfo(ncname4( 43,:),'vpt_roof', 'roof surface virtual potential temperature', '', 'tt0t')
+        call ncinfo(ncname4( 43,:),'shf_can', 'sensible heat flux between the street canyon and the atmosphere', '', 'tt0t')
+        call ncinfo(ncname4( 44,:),'shf_external', 'sensible heat flux external to the model ', 'e.g. industry', 'tt0t')
+        call ncinfo(ncname4( 45,:),'shf_road', 'road surface sensible heat flux', '', 'tt0t')
+        call ncinfo(ncname4( 46,:),'shf_roof', 'roof surface sensible heat flux', '', 'tt0t')
+        call ncinfo(ncname4( 47,:),'shf_traffic', 'traffic sensible heat flux ', 'input-only', 'tt0t')
+        call ncinfo(ncname4( 48,:),'shf_wall_a', 'wall A sensible heat flux', '', 'tt0t')
+        call ncinfo(ncname4( 49,:),'shf_wall_b', 'wall B sensible heat flux', '', 'tt0t')
+        call ncinfo(ncname4( 50,:),'shf_win_a', 'window A sensible heat flux', '', 'tt0t')
+        call ncinfo(ncname4( 51,:),'shf_win_b', 'window B sensible heat flux', '', 'tt0t')
+        call ncinfo(ncname4( 52,:),'qsws_can', 'latent heat flux between the street canyon and the atmosphere', '', 'tt0t')
+        call ncinfo(ncname4( 53,:),'qsws_external', 'latent heat flux external to the model ', 'e.g. industry', 'tt0t')
+        call ncinfo(ncname4( 54,:),'qsws_liq_road', 'roof latent heat flux ', 'liquid incl. precipitation', 'tt0t')
+        call ncinfo(ncname4( 55,:),'qsws_liq_roof', 'roof latent heat flux ', 'liquid incl. precipitation', 'tt0t')
+        call ncinfo(ncname4( 56,:),'qsws_road', 'road latent heat flux', '', 'tt0t')
+        call ncinfo(ncname4( 57,:),'qsws_roof', 'roof latent heat flux', '', 'tt0t')
+        call ncinfo(ncname4( 58,:),'c_liq_road', 'liquid water coverage on road', '', 'tt0t')
+        call ncinfo(ncname4( 59,:),'c_liq_roof', 'liquid water coverage on roof', '', 'tt0t')
+        call ncinfo(ncname4( 60,:),'ghf_road', 'road ground heat flux', '', 'tt0t')
+        call ncinfo(ncname4( 61,:),'ghf_roof', 'roof indoor heat flux', '', 'tt0t')
+        call ncinfo(ncname4( 62,:),'ghf_wall_a', 'wall A indoor heat flux', '', 'tt0t')
+        call ncinfo(ncname4( 63,:),'ghf_wall_b', 'wall B indoor heat flux', '', 'tt0t')
+        call ncinfo(ncname4( 64,:),'ghf_win_a', 'window A indoor heat flux', '', 'tt0t')
+        call ncinfo(ncname4( 65,:),'ghf_win_b', 'window B indoor heat flux', '', 'tt0t')
+        call ncinfo(ncname4( 66,:),'rad_lw_net_can', 'net longwave radiative at canyon top ', 'downwards', 'tt0t')
+        call ncinfo(ncname4( 67,:),'rad_lw_net_road', 'net longtwave radiative flux on road', '', 'tt0t')
+        call ncinfo(ncname4( 68,:),'rad_lw_net_roof', 'net longwave radiative flux on roof', '', 'tt0t')
+        call ncinfo(ncname4( 69,:),'rad_lw_net_urb', 'urban aggegated net longwave radiative flux', '', 'tt0t')
+        call ncinfo(ncname4( 70,:),'rad_lw_net_wall_a', 'net longwave radiative flux on wall A', '', 'tt0t')
+        call ncinfo(ncname4( 71,:),'rad_lw_net_wall_b', 'net longwave radiative flux wall B', '', 'tt0t')
+        call ncinfo(ncname4( 72,:),'rad_lw_net_win_a', 'net longwave radiative flux on wall A', '', 'tt0t')
+        call ncinfo(ncname4( 73,:),'rad_lw_net_win_b', 'net longwave radiative flux window B', '', 'tt0t')
+        call ncinfo(ncname4( 74,:),'rad_sw_in_road', 'incoming shortwave radiative flux on road', '', 'tt0t')
+        call ncinfo(ncname4( 75,:),'rad_sw_in_win_a', 'incoming shortwave radiative flux on window A', '', 'tt0t')
+        call ncinfo(ncname4( 76,:),'rad_sw_in_win_b', 'incoming shortwave radiative flux on window B', '', 'tt0t')
+        call ncinfo(ncname4( 77,:),'rad_sw_net_road', 'net shortwave radiative flux on road', '', 'tt0t')
+        call ncinfo(ncname4( 78,:),'rad_sw_net_roof', 'net shortwave radiative flux on roof', '', 'tt0t')
+        call ncinfo(ncname4( 79,:),'rad_sw_net_urb', 'urban aggegated net shortwave radiative flux', '', 'tt0t')
+        call ncinfo(ncname4( 80,:),'rad_sw_net_wall_a', 'net shortwave radiative flux on wall A', '', 'tt0t')
+        call ncinfo(ncname4( 81,:),'rad_sw_net_wall_b', 'net shortwave radiative flux on wall B', '', 'tt0t')
+        call ncinfo(ncname4( 82,:),'rad_sw_net_win_a', 'net shortwave radiative flux on window A', '', 'tt0t')
+        call ncinfo(ncname4( 83,:),'rad_sw_net_win_b', 'net shortwave radiative flux on wall B', '', 'tt0t')
+        call ncinfo(ncname4( 84,:),'ol_can', 'canyon top Obukhov length', '', 'tt0t')
+        call ncinfo(ncname4( 85,:),'ol_road', 'road Obukhov length', '', 'tt0t')
+        call ncinfo(ncname4( 86,:),'ol_roof', 'rroof Obukhov length', '', 'tt0t')
+        call ncinfo(ncname4( 87,:),'pt_can', 'street canyon virtual potential temperature ', 'K', 'tt0t')
+        call ncinfo(ncname4( 88,:),'rib_can', 'canyon top bulk Richardson number', '', 'tt0t')
+        call ncinfo(ncname4( 89,:),'rib_road', 'road bulk Richardson number', '', 'tt0t')
+        call ncinfo(ncname4( 90,:),'rib_roof', 'roof bulk Richardson number', '', 'tt0t')
+        call ncinfo(ncname4( 91,:),'us_can', 'friction velocity for canyon resistance calculation', '', 'tt0t')
+        call ncinfo(ncname4( 92,:),'uv_abs_can', 'horizontal wind speed in street caynon at half-height', '', 'tt0t')
+        call ncinfo(ncname4( 93,:),'uv_eff_can', 'effective horizontal wind speed in street canyon at half-height', '', 'tt0t')
+        call ncinfo(ncname4( 94,:),'vpt_can', 'street canyon virtual potential temperature ', 'K', 'tt0t')
+        call ncinfo(ncname4( 95,:),'rah_can', 'street canyon air aerodynamic resistance for heat', '', 'tt0t')
+        call ncinfo(ncname4( 96,:),'rah_facade', 'wall and window aerodynamic resistance for heat ', 'combined', 'tt0t')
+        call ncinfo(ncname4( 97,:),'rah_road', 'road aerodynamic resistance for heat', '', 'tt0t')
+        call ncinfo(ncname4( 98,:),'rah_roof', 'roof aerodynamic resistance for heat', '', 'tt0t')
+        call ncinfo(ncname4( 99,:),'rah_wall_a', 'wall A aerodynamic resistance for heat', '', 'tt0t')
+        call ncinfo(ncname4( 100,:),'rah_wall_b', 'wall B aerodynamic resistance for heat', '', 'tt0t')
+        call ncinfo(ncname4( 101,:),'rah_win_a', 'wall A aerodynamic resistance for heat', '', 'tt0t')
+        call ncinfo(ncname4( 102,:),'rah_win_b', 'wall B aerodynamic resistance for heat', '', 'tt0t')
+        call ncinfo(ncname4( 103,:),'us_road', 'friction velocity for roads', '', 'tt0t')
+        call ncinfo(ncname4( 104,:),'us_roof', 'friction velocity for roofs', '', 'tt0t')
+        call ncinfo(ncname4( 105,:),'pt1', 'potential temperature', '', 'tt0t')
+        call ncinfo(ncname4( 106,:),'q1', 'specific humidity', '', 'tt0t')
+        call ncinfo(ncname4( 107,:),'us_urb', 'friction velocity', '', 'tt0t')
+        call ncinfo(ncname4( 108,:),'uv_abs1', 'horizontal wind speed', '', 'tt0t')
+        call ncinfo(ncname4( 109,:),'uv_eff1', 'effective horizontal wind speed', '', 'tt0t')
+        call ncinfo(ncname4( 110,:),'vpt1', 'virtual potential temperature', '', 'tt0t')
+        call ncinfo(ncname4( 111,:),'f_bld', 'fractional area occupied by buldings ', 'plan area fraction', 'tt0t')
+        call ncinfo(ncname4( 112,:),'f_bld_frn', 'frontal area fraction of buildings', '', 'tt0t')
+        call ncinfo(ncname4( 113,:),'f_win', 'window fraction', '', 'tt0t')
+        call ncinfo(ncname4( 114,:),'h_bld', 'building height', '', 'tt0t')
+        call ncinfo(ncname4( 115,:),'hw_can', 'canyon aspect ratio', '', 'tt0t')
+        call ncinfo(ncname4( 116,:),'svf_road', 'sky-view factor for road', '', 'tt0t')
+        call ncinfo(ncname4( 117,:),'svf_wall', 'sky-view-factor for walls', '', 'tt0t')
+        call ncinfo(ncname4( 118,:),'theta_can', 'canyon orientation / road direction in radians', '', 'tt0t')
+        call ncinfo(ncname4( 119,:),'z0_urb', 'aerodynamic roughness length of the urban surface', '', 'tt0t')
+        call ncinfo(ncname4( 120,:),'albedo_road', 'albedo of the road', '', 'tt0t')
+        call ncinfo(ncname4( 121,:),'albedo_roof', 'albedo of the roof', '', 'tt0t')
+        call ncinfo(ncname4( 122,:),'albedo_wall', 'albedo of the wall', '', 'tt0t')
+        call ncinfo(ncname4( 123,:),'albedo_wall_win', 'weighted average of wall and window albedos for reflections', '', 'tt0t')
+        call ncinfo(ncname4( 124,:),'albedo_win', 'albedo of the window', '', 'tt0t')
+        call ncinfo(ncname4( 125,:),'emiss_road', 'emissivity of the road', '', 'tt0t')
+        call ncinfo(ncname4( 126,:),'emiss_roof', 'emissivity of the roof', '', 'tt0t')
+        call ncinfo(ncname4( 127,:),'emiss_wall', 'emissivity of the wall', '', 'tt0t')
+        call ncinfo(ncname4( 128,:),'emiss_win', 'emissivity of the window', '', 'tt0t')
+        call ncinfo(ncname4( 129,:),'transmissivity_win', 'transmissivity of the window layers', '', 'tt0t')
+        call ncinfo(ncname4( 130,:),'z0_road', 'aerodynamic roughness length for momentum for roads', '', 'tt0t')
+        call ncinfo(ncname4( 131,:),'z0_roof', 'aerodynamic roughness length for momentum of roofs', '', 'tt0t')
+        call ncinfo(ncname4( 132,:),'z0_wall', 'aerodynamic roughness length for walls and windows', '', 'tt0t')
+        call ncinfo(ncname4( 133,:),'z0h_road', 'aerodynamic roughness length for heat for roads', '', 'tt0t')
+        call ncinfo(ncname4( 134,:),'z0h_roof', 'aerodynamic roughness length for heat for roofs', '', 'tt0t')
+        call ncinfo(ncname4( 135,:),'t_indoor', 'building indoor temperature ', 'K', 'tt0t')
+        call ncinfo(ncname4( 136,:),'t_soil', 'fixed soil top temperature ', 'K', 'tt0t')
+        call ncinfo(ncname4( 137,:),'sw_ref_denom', 'SW radiation reflection denominator', '', 'tt0t')
+        call ncinfo(ncname4( 138,:),'uv_abs_can_coef', 'coefficient for the canyon wind speed', '', 'tt0t')
+        call ncinfo(ncname4( 139,:),'wall_hor_a_ratio', 'wall-to-horizontal area ratio', '', 'tt0t')
+        call ncinfo(ncname4( 140,:),'z_mo', 'reference height for MOST for the atmosphere', '', 'tt0t')
+        call ncinfo(ncname4( 141,:),'z_mo_can', 'canyon reference height for MOST ', 'canyon half-height', 'tt0t')
+        call ncinfo(ncname4( 142,:),'tm_roof_runoff', 'tm_roof_runoff', 'm s^-1', 'tt0t')
+        call ncinfo(ncname4( 143,:),'tm_road_runoff', 'tm_road_runoff', 'm s^-1', 'tt0t')
+        call ncinfo(ncname4( 144,:),'tm_roof_precep', 'tm_roof_precep', 'm s^-1', 'tt0t')
+        call ncinfo(ncname4( 145,:),'tm_road_precep', 'tm_road_precep', 'm s^-1', 'tt0t')
+
+        call ncinfo(ncname4( nvar4-nvars3d4+1,:),'tt_wall_a', 'tendency wall a ', 'tt_wall_a', 'tttts_slurb')
+        call ncinfo(ncname4( nvar4-nvars3d4+2,:),'tt_wall_b', 'tendency wall b ', 'tt_wall_b', 'tttts_slurb')
+        call ncinfo(ncname4( nvar4-nvars3d4+3,:),'tt_roof', 'tendency roof a ', 'tt_roof', 'tttts_slurb')
+        ! call ncinfo(ncname4( 145,:),'tt_roof_b', 'tendency roof b ', 'tt_roof_b', 'tt0t')
+        call ncinfo(ncname4( nvar4-nvars3d4+4,:),'tt_win_a', 'tendency win a ', 'tt_win_a', 'tttts_slurb')
+        call ncinfo(ncname4( nvar4-nvars3d4+5,:),'tt_win_b', 'tendency win b ', 'tt_win_b', 'tttts_slurb')
+        call ncinfo(ncname4( nvar4-nvars3d4+6,:),'tt_road', 'tendency road a ', 'tt_road', 'tttts_slurb')
+        ! call ncinfo(ncname4( 149,:),'tt_road_b', 'tendency road b ', 'tt_road_b', 'tt0t')
+        call ncinfo(ncname4( nvar4-nvars3d4+7,:),'c_wall', 'c_wall ', 'c_wall', 'tttts_slurb')
+        call ncinfo(ncname4( nvar4-nvars3d4+8,:),'c_roof', 'c_roof ', 'c_roof', 'tttts_slurb')
+        call ncinfo(ncname4( nvar4-nvars3d4+9,:),'c_win', 'c_win ', 'c_win', 'tttts_slurb')
+        call ncinfo(ncname4( nvar4-nvars3d4+10,:),'c_road', 'c_road ', 'c_road', 'tttts_slurb')
+        call ncinfo(ncname4( nvar4-nvars3d4+11,:),'absorption_win', 'absorption_win ', 'absorption_win', 'tttts_slurb')
+        call ncinfo(ncname4( nvar4-nvars3d4+12,:),'dz_wall', 'dz_wall ', 'dz_wall', 'tttts_slurb')
+        call ncinfo(ncname4( nvar4-nvars3d4+13,:),'dz_roof', 'dz_roof ', 'dz_roof', 'tttts_slurb')
+        call ncinfo(ncname4( nvar4-nvars3d4+14,:),'dz_win', 'dz_win ', 'dz_win', 'tttts_slurb')
+        call ncinfo(ncname4( nvar4-nvars3d4+15,:),'dz_road', 'dz_road ', 'dz_road', 'tttts_slurb')
+        call ncinfo(ncname4( nvar4-nvars3d4+16,:),'t_wall_a', 'temperature wall a ', 't_wall_a', 'tttts_slurb')
+        call ncinfo(ncname4( nvar4-nvars3d4+17,:),'t_wall_b', 'temperature wall b ', 't_wall_b', 'tttts_slurb')
+        call ncinfo(ncname4( nvar4-nvars3d4+18,:),'t_roof', 'temperature roof a ', 't_roof', 'tttts_slurb')
+        ! call ncinfo(ncname4( 145,:),'tt_roof_b', 'tendency roof b ', 'tt_roof_b', 'tt0t')
+        call ncinfo(ncname4( nvar4-nvars3d4+19,:),'t_win_a', 'temperature win a ', 't_win_a', 'tttts_slurb')
+        call ncinfo(ncname4( nvar4-nvars3d4+20,:),'t_win_b', 'temperature win b ', 't_win_b', 'tttts_slurb')
+        call ncinfo(ncname4( nvar4-nvars3d4+21,:),'t_road', 'temperature road a ', 't_road', 'tttts_slurb')
+
+        
+
+
+        call open_nc(trim(output_prefix)//fname4,  ncid4,nrec4,n1=imax,n2=jmax,ns=4)
+        if (nrec4==0) then
+          call define_nc(ncid4, 1, tncname4)
+          call writestat_dims_nc(ncid4)
+        end if
+        call define_nc( ncid4, nvar4, ncname4)
     end if
+  end if
   end subroutine initlsmcrosssection
 !>Run lsmcrosssection. Mainly timekeeping
   subroutine lsmcrosssection
@@ -254,6 +460,7 @@ contains
     end if
     if (lcross) then
        call wrtsurf
+       call wrtslurb
     end if
   end subroutine lsmcrosssection
 
@@ -375,9 +582,10 @@ contains
             vars(:,:,11) = rsveg(2:i1,2:j1)
             vars(:,:,12) = f1(2:i1,2:j1)
             vars(:,:,13) = f2b(2:i1,2:j1)
+            vars(:,:,14) = Qnet(2:i1,2:j1)
             if (lags) then
-              vars(:,:,14) = an_co2(2:i1,2:j1)
-              vars(:,:,15) = resp_co2(2:i1,2:j1)
+              vars(:,:,15) = an_co2(2:i1,2:j1)
+              vars(:,:,16) = resp_co2(2:i1,2:j1)
             endif
         end if
 
@@ -389,10 +597,219 @@ contains
 
 
   end subroutine wrtsurf
+  
+  subroutine wrtslurb
+    use modglobal, only : imax,jmax,i1,j1,rtimee,rlv,cp
+    use modfields, only : rhof
+    use modslurbdata, only : slurb_tile, facade_rah_doe, enable_slurb
+    use modstat_nc, only : lnetcdf, writestat_nc
+    implicit none
+
+    ! LOCAL
+    real, allocatable :: vars(:,:,:)
+    real, allocatable :: vars3d(:,:,:,:)
+
+    if (lnetcdf.and.enable_slurb) then
+        allocate(vars(1:imax,1:jmax,nvar4-nvars3d4))
+        allocate(vars3d(4,1:imax,1:jmax,nvars3d4))
+
+        vars(:,:,1) = slurb_tile%albedo_urb(2:i1,2:j1)
+        vars(:,:,2) = slurb_tile%emiss_urb(2:i1,2:j1)
+        vars(:,:,3) = slurb_tile%ol_urb(2:i1,2:j1)
+        vars(:,:,4) = slurb_tile%qsws_urb(2:i1,2:j1)
+        vars(:,:,5) = slurb_tile%rad_lw_in_urb(2:i1,2:j1)
+        vars(:,:,6) = slurb_tile%rad_lw_out_urb(2:i1,2:j1)
+        vars(:,:,7) = slurb_tile%rad_sw_in_urb(2:i1,2:j1)
+        vars(:,:,8) = slurb_tile%rad_sw_out_urb(2:i1,2:j1)
+        vars(:,:,9) = slurb_tile%ram_urb(2:i1,2:j1)
+        vars(:,:,10) = slurb_tile%rib_urb(2:i1,2:j1)
+        vars(:,:,11) = slurb_tile%shf_urb(2:i1,2:j1)
+        vars(:,:,12) = slurb_tile%t_2m_urb(2:i1,2:j1)
+        vars(:,:,13) = slurb_tile%t_c_urb(2:i1,2:j1)
+        vars(:,:,14) = slurb_tile%t_h_urb(2:i1,2:j1)
+        vars(:,:,15) = slurb_tile%t_rad_urb(2:i1,2:j1)
+        vars(:,:,16) = slurb_tile%usws_urb(2:i1,2:j1)
+        vars(:,:,17) = slurb_tile%vsws_urb(2:i1,2:j1)
+        vars(:,:,18) = slurb_tile%thlskin(2:i1,2:j1)
+        vars(:,:,19) = slurb_tile%qtskin(2:i1,2:j1)
+        vars(:,:,20) = slurb_tile%m_liq_road_0(2:i1,2:j1)
+        vars(:,:,21) = slurb_tile%m_liq_road_m(2:i1,2:j1)
+        vars(:,:,22) = slurb_tile%m_liq_roof_0(2:i1,2:j1)
+        vars(:,:,23) = slurb_tile%m_liq_roof_m(2:i1,2:j1)
+        vars(:,:,24) = slurb_tile%q_can_0(2:i1,2:j1)
+        vars(:,:,25) = slurb_tile%q_can_m(2:i1,2:j1)
+        vars(:,:,26) = slurb_tile%t_can_0(2:i1,2:j1)
+        vars(:,:,27) = slurb_tile%t_can_m(2:i1,2:j1)
+        vars(:,:,28) = slurb_tile%tm_liq_road(2:i1,2:j1)
+        vars(:,:,29) = slurb_tile%tm_liq_roof(2:i1,2:j1)
+        vars(:,:,30) = slurb_tile%tq_can(2:i1,2:j1) * rhof(1)
+        ! K s^-1 * J K^-1 kg^-1 * kg m^-3
+        !  W m^-3
+        vars(:,:,31) = slurb_tile%tt_can(2:i1,2:j1) * cp * rhof(1)
+        vars(:,:,32) = slurb_tile%pt_road(2:i1,2:j1)
+        vars(:,:,33) = slurb_tile%pt_roof(2:i1,2:j1)
+        vars(:,:,34) = slurb_tile%pt_wall_a(2:i1,2:j1)
+        vars(:,:,35) = slurb_tile%pt_wall_b(2:i1,2:j1)
+        vars(:,:,36) = slurb_tile%pt_win_a(2:i1,2:j1)
+        vars(:,:,37) = slurb_tile%pt_win_b(2:i1,2:j1)
+        vars(:,:,38) = slurb_tile%q_road(2:i1,2:j1)
+        vars(:,:,39) = slurb_tile%q_roof(2:i1,2:j1)
+        vars(:,:,40) = slurb_tile%qs_road(2:i1,2:j1)
+        vars(:,:,41) = slurb_tile%qs_roof(2:i1,2:j1)
+        vars(:,:,42) = slurb_tile%vpt_road(2:i1,2:j1)
+        vars(:,:,43) = slurb_tile%vpt_roof(2:i1,2:j1)
+        vars(:,:,43) = slurb_tile%shf_can(2:i1,2:j1)
+        vars(:,:,44) = slurb_tile%shf_external(2:i1,2:j1)
+        vars(:,:,45) = slurb_tile%shf_road(2:i1,2:j1)
+        vars(:,:,46) = slurb_tile%shf_roof(2:i1,2:j1)
+        vars(:,:,47) = 0!slurb_tile%shf_traffic(2:i1,2:j1)
+        vars(:,:,48) = slurb_tile%shf_wall_a(2:i1,2:j1)
+        vars(:,:,49) = slurb_tile%shf_wall_b(2:i1,2:j1)
+        vars(:,:,50) = slurb_tile%shf_win_a(2:i1,2:j1)
+        vars(:,:,51) = slurb_tile%shf_win_b(2:i1,2:j1)
+        vars(:,:,52) = slurb_tile%qsws_can(2:i1,2:j1)
+        vars(:,:,53) = slurb_tile%qsws_external(2:i1,2:j1)
+        vars(:,:,54) = slurb_tile%qsws_liq_road(2:i1,2:j1)
+        vars(:,:,55) = slurb_tile%qsws_liq_roof(2:i1,2:j1)
+        vars(:,:,56) = slurb_tile%qsws_road(2:i1,2:j1)
+        vars(:,:,57) = slurb_tile%qsws_roof(2:i1,2:j1)
+        vars(:,:,58) = slurb_tile%c_liq_road(2:i1,2:j1)
+        vars(:,:,59) = slurb_tile%c_liq_roof(2:i1,2:j1)
+        vars(:,:,60) = slurb_tile%ghf_road(2:i1,2:j1)
+        vars(:,:,61) = slurb_tile%ghf_roof(2:i1,2:j1)
+        vars(:,:,62) = slurb_tile%ghf_wall_a(2:i1,2:j1)
+        vars(:,:,63) = slurb_tile%ghf_wall_b(2:i1,2:j1)
+        vars(:,:,64) = slurb_tile%ghf_win_a(2:i1,2:j1)
+        vars(:,:,65) = slurb_tile%ghf_win_b(2:i1,2:j1)
+        vars(:,:,66) = slurb_tile%rad_lw_net_can(2:i1,2:j1)
+        vars(:,:,67) = slurb_tile%rad_lw_net_road(2:i1,2:j1)
+        vars(:,:,68) = slurb_tile%rad_lw_net_roof(2:i1,2:j1)
+        vars(:,:,69) = slurb_tile%rad_lw_net_urb(2:i1,2:j1)
+        vars(:,:,70) = slurb_tile%rad_lw_net_wall_a(2:i1,2:j1)
+        vars(:,:,71) = slurb_tile%rad_lw_net_wall_b(2:i1,2:j1)
+        vars(:,:,72) = slurb_tile%rad_lw_net_win_a(2:i1,2:j1)
+        vars(:,:,73) = slurb_tile%rad_lw_net_win_b(2:i1,2:j1)
+        vars(:,:,74) = slurb_tile%rad_sw_in_road(2:i1,2:j1)
+        vars(:,:,75) = slurb_tile%rad_sw_in_win_a(2:i1,2:j1)
+        vars(:,:,76) = slurb_tile%rad_sw_in_win_b(2:i1,2:j1)
+        vars(:,:,77) = slurb_tile%rad_sw_net_road(2:i1,2:j1)
+        vars(:,:,78) = slurb_tile%rad_sw_net_roof(2:i1,2:j1)
+        vars(:,:,79) = slurb_tile%rad_sw_net_urb(2:i1,2:j1)
+        vars(:,:,80) = slurb_tile%rad_sw_net_wall_a(2:i1,2:j1)
+        vars(:,:,81) = slurb_tile%rad_sw_net_wall_b(2:i1,2:j1)
+        vars(:,:,82) = slurb_tile%rad_sw_net_win_a(2:i1,2:j1)
+        vars(:,:,83) = slurb_tile%rad_sw_net_win_b(2:i1,2:j1)
+        vars(:,:,84) = slurb_tile%ol_can(2:i1,2:j1)
+        vars(:,:,85) = slurb_tile%ol_road(2:i1,2:j1)
+        vars(:,:,86) = slurb_tile%ol_roof(2:i1,2:j1)
+        vars(:,:,87) = slurb_tile%pt_can(2:i1,2:j1)
+        vars(:,:,88) = slurb_tile%rib_can(2:i1,2:j1)
+        vars(:,:,89) = slurb_tile%rib_road(2:i1,2:j1)
+        vars(:,:,90) = slurb_tile%rib_roof(2:i1,2:j1)
+        vars(:,:,91) = slurb_tile%us_can(2:i1,2:j1)
+        vars(:,:,92) = slurb_tile%uv_abs_can(2:i1,2:j1)
+        vars(:,:,93) = slurb_tile%uv_eff_can(2:i1,2:j1)
+        vars(:,:,94) = slurb_tile%vpt_can(2:i1,2:j1)
+        vars(:,:,95) = slurb_tile%rah_can(2:i1,2:j1)
+        vars(:,:,97) = slurb_tile%rah_road(2:i1,2:j1)
+        vars(:,:,98) = slurb_tile%rah_roof(2:i1,2:j1)
+        if (facade_rah_doe) then
+          vars(:,:,96) = 0
+          vars(:,:,99) = slurb_tile%rah_wall_a(2:i1,2:j1)
+          vars(:,:,100) = slurb_tile%rah_wall_b(2:i1,2:j1)
+          vars(:,:,101) = slurb_tile%rah_win_a(2:i1,2:j1)
+          vars(:,:,102) = slurb_tile%rah_win_b(2:i1,2:j1)
+        else
+          vars(:,:,96) = slurb_tile%rah_facade(2:i1,2:j1)
+          vars(:,:,99) = 0
+          vars(:,:,100) = 0
+          vars(:,:,101) =0
+          vars(:,:,102) =0
+        endif
+        vars(:,:,103) = slurb_tile%us_road(2:i1,2:j1)
+        vars(:,:,104) = slurb_tile%us_roof(2:i1,2:j1)
+        vars(:,:,105) = slurb_tile%pt1(2:i1,2:j1)
+        vars(:,:,106) = slurb_tile%q1(2:i1,2:j1)
+        vars(:,:,107) = slurb_tile%us_urb(2:i1,2:j1)
+        vars(:,:,108) = slurb_tile%uv_abs1(2:i1,2:j1)
+        vars(:,:,109) = slurb_tile%uv_eff1(2:i1,2:j1)
+        vars(:,:,110) = slurb_tile%vpt1(2:i1,2:j1)
+        vars(:,:,111) = slurb_tile%f_bld(2:i1,2:j1)
+        vars(:,:,112) = slurb_tile%f_bld_frn(2:i1,2:j1)
+        vars(:,:,113) = slurb_tile%f_win(2:i1,2:j1)
+        vars(:,:,114) = slurb_tile%h_bld(2:i1,2:j1)
+        vars(:,:,115) = slurb_tile%hw_can(2:i1,2:j1)
+        vars(:,:,116) = slurb_tile%svf_road(2:i1,2:j1)
+        vars(:,:,117) = slurb_tile%svf_wall(2:i1,2:j1)
+        vars(:,:,118) = slurb_tile%theta_can(2:i1,2:j1)
+        vars(:,:,119) = slurb_tile%z0_urb(2:i1,2:j1)
+        vars(:,:,120) = slurb_tile%albedo_road(2:i1,2:j1)
+        vars(:,:,121) = slurb_tile%albedo_roof(2:i1,2:j1)
+        vars(:,:,122) = slurb_tile%albedo_wall(2:i1,2:j1)
+        vars(:,:,123) = slurb_tile%albedo_wall_win(2:i1,2:j1)
+        vars(:,:,124) = slurb_tile%albedo_win(2:i1,2:j1)
+        vars(:,:,125) = slurb_tile%emiss_road(2:i1,2:j1)
+        vars(:,:,126) = slurb_tile%emiss_roof(2:i1,2:j1)
+        vars(:,:,127) = slurb_tile%emiss_wall(2:i1,2:j1)
+        vars(:,:,128) = slurb_tile%emiss_win(2:i1,2:j1)
+        vars(:,:,129) = slurb_tile%transmissivity_win(2:i1,2:j1)
+        vars(:,:,130) = slurb_tile%z0_road(2:i1,2:j1)
+        vars(:,:,131) = slurb_tile%z0_roof(2:i1,2:j1)
+        vars(:,:,132) = slurb_tile%z0_wall(2:i1,2:j1)
+        vars(:,:,133) = slurb_tile%z0h_road(2:i1,2:j1)
+        vars(:,:,134) = slurb_tile%z0h_roof(2:i1,2:j1)
+        vars(:,:,135) = slurb_tile%t_indoor(2:i1,2:j1)
+        vars(:,:,136) = slurb_tile%t_soil(2:i1,2:j1)
+        vars(:,:,137) = slurb_tile%sw_ref_denom(2:i1,2:j1)
+        vars(:,:,138) = slurb_tile%uv_abs_can_coef(2:i1,2:j1)
+        vars(:,:,139) = 0!slurb_tile%wall_hor_a_ratio(2:i1,2:j1)
+        vars(:,:,140) = slurb_tile%z_mo(2:i1,2:j1)
+        vars(:,:,141) = slurb_tile%z_mo_can(2:i1,2:j1)
+        vars(:,:,142) = slurb_tile%tm_roof_runoff(2:i1,2:j1)
+        vars(:,:,143) = slurb_tile%tm_road_runoff(2:i1,2:j1)
+        vars(:,:,144) = slurb_tile%tm_roof_precep(2:i1,2:j1) * rhof(1)
+        vars(:,:,145) = slurb_tile%tm_road_precep(2:i1,2:j1) * rhof(1)
+
+        vars3d(:,:,:,1) = slurb_tile%tt_wall_a(:,2:i1,2:j1)
+        vars3d(:,:,:,2) = slurb_tile%tt_wall_b(:,2:i1,2:j1)
+        vars3d(:,:,:,3) = slurb_tile%tt_roof(:,2:i1,2:j1)
+        ! vars(:,:,145) = slurb_tile%tt_roof_b(1,2:i1,2:j1)
+        vars3d(:,:,:,4) = slurb_tile%tt_win_a(:,2:i1,2:j1)
+        vars3d(:,:,:,5) = slurb_tile%tt_win_b(:,2:i1,2:j1)
+        vars3d(:,:,:,6) = slurb_tile%tt_road(:,2:i1,2:j1)
+        ! vars(:,:,149) = slurb_tile%tt_road_b(1,2:i1,2:j1)
+        vars3d(:,:,:,7) = slurb_tile%c_wall(:,2:i1,2:j1)
+        vars3d(:,:,:,8) = slurb_tile%c_roof(:,2:i1,2:j1)
+        vars3d(:,:,:,9) = slurb_tile%c_win(:,2:i1,2:j1)
+        vars3d(:,:,:,10) = slurb_tile%c_road(:,2:i1,2:j1)
+        vars3d(:,:,:,11) = slurb_tile%absorption_win(:,2:i1,2:j1)
+        vars3d(:,:,:,12) = slurb_tile%dz_wall(:,2:i1,2:j1)
+        vars3d(:,:,:,13) = slurb_tile%dz_roof(:,2:i1,2:j1)
+        vars3d(:,:,:,14) = slurb_tile%dz_win(:,2:i1,2:j1)
+        vars3d(:,:,:,15) = slurb_tile%dz_road(:,2:i1,2:j1)
+        vars3d(:,:,:,16) = slurb_tile%t_wall_a_0(:,2:i1,2:j1)
+        vars3d(:,:,:,17) = slurb_tile%t_wall_b_0(:,2:i1,2:j1)
+        vars3d(:,:,:,18) = slurb_tile%t_roof_0(:,2:i1,2:j1)
+        ! vars(:,:,145) = slurb_tile%tt_roof_b(1,2:i1,2:j1)
+        vars3d(:,:,:,19) = slurb_tile%t_win_a_0(:,2:i1,2:j1)
+        vars3d(:,:,:,20) = slurb_tile%t_win_b_0(:,2:i1,2:j1)
+        vars3d(:,:,:,21) = slurb_tile%t_road_0(:,2:i1,2:j1)
+
+
+
+        call writestat_nc(ncid4, 1, tncname4, (/rtimee/), nrec4, .true.)
+        call writestat_nc(ncid4, nvar4-nvars3d4, ncname4(1:nvar4-nvars3d4,:), vars, nrec4, imax, jmax)
+        call writestat_nc(ncid4, nvars3d4, ncname4(nvar4-nvars3d4+1:nvar4,:), vars3d, nrec4, 4, imax, jmax)
+
+        deallocate(vars)
+        deallocate(vars3d)
+    end if
+  end subroutine wrtslurb
 !> Clean up when leaving the run
   subroutine exitlsmcrosssection
     use modstat_nc, only : exitstat_nc,lnetcdf
     use modmpi, only : myidy
+    use modslurb, only : enable_slurb
     implicit none
 
     if(lcrosssoil .and. lnetcdf) then
@@ -404,6 +821,10 @@ contains
     if(lcross .and. lnetcdf) then
        call exitstat_nc(ncid3) ! surface
        deallocate(ncname3)
+       if (enable_slurb) then
+         deallocate(ncname4)
+         call exitstat_nc(ncid4)
+       end if
     end if
   end subroutine exitlsmcrosssection
 

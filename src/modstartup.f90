@@ -87,6 +87,7 @@ contains
     use moddatetime,       only : initdatetime
     use modemission,       only : initemission
     use modlsm,            only : initlsm, kmax_soil
+    use modslurb,          only : initslurb
     use moddrydeposition,  only : initdrydep
     use modfields,         only : initfields,um,vm,wm,u0,v0,w0,up,vp,wp,rhobf
     use modtracers,        only : inittracers, allocate_tracers, add_tracer
@@ -99,7 +100,7 @@ contains
     use modtimedepsv,      only : inittimedepsv,ltimedepsv
     use modtestbed,        only : inittestbed
     use modboundary,       only : initboundary,ksp
-    use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
+    use modthermodynamics, only : initthermodynamics
     use modmicrophysics,   only : initmicrophysics
     use modsubgrid,        only : initsubgrid
     use modmpi,            only : initmpi,commwrld,myid,myidx,myidy,cmyidy,nprocx,nprocy,mpierr,periods &
@@ -271,7 +272,6 @@ contains
     call D_MPI_BCAST(lcloudshading,1,0,commwrld,mpierr)
 
     call D_MPI_BCAST(llsadv     ,1,0,commwrld,mpierr) ! DYNAMICS
-    call D_MPI_BCAST(lqlnr      ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lambda_crit,1,0,commwrld,mpierr)
     call D_MPI_BCAST(cu         ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(cv         ,1,0,commwrld,mpierr)
@@ -393,6 +393,7 @@ contains
     endif
 
     call inittstep
+    call initslurb
 
     call checkinitvalues
 
@@ -503,7 +504,8 @@ contains
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
                                   trestart, ladaptive,llsadv,tnextrestart,longint,lopenbc,linithetero, &
-                                  iinput, input_netcdf, input_ascii, lcoriol
+                                  iinput, input_netcdf, input_ascii, lcoriol, &
+                                  dzhi, iadv_thl, iadv_qt, iadv_kappa
     use modthermodynamics, only : lconstexner,lbaseexner
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
@@ -911,7 +913,8 @@ contains
       call update_gpu
 #endif
 
-      call calc_halflev
+      call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
+      call calc_halflev(qt0, dzf, dzhi, qts, iadv_qt == iadv_kappa, qt0h)
 
 #if defined(_OPENACC)
       call update_host
@@ -1539,6 +1542,7 @@ contains
     use modtracers,        only : exittracers
     use modsurface,        only : exitsurface
     use modlsm,            only : exitlsm
+    use modslurb,          only : exitslurb
     use moddrydeposition,  only : exitdrydep
     use modthermodynamics, only : exitthermodynamics
     use modemission,       only : exitemission
@@ -1554,6 +1558,7 @@ contains
     call exitchecksim
     call exitsurface
     call exitlsm
+    call exitslurb
     call exitdrydep
     call exitsubgrid
     call exitradiation
@@ -1912,7 +1917,8 @@ contains
                        fillvalue=0._field_r)
     call read_nc_field(ncid, "tke", e12prof, start=1, count=kmax, &
                        fillvalue=0._field_r)
-    call read_nc_field(ncid, "zh", height)
+    ! reading with no count in assumes kmax+1 values in the NC file, so we need to set count
+    call read_nc_field(ncid, "zh", height, start=1, count=kmax)
 
     ! Large-scale forcings
     call read_nc_field(ncid, "ug", ug, start=1, count=kmax, &
@@ -1942,6 +1948,7 @@ contains
   subroutine check_initial_state()
     use modthermodynamics, only: lmoist
     use modfields, only: u0, v0, w0, thl0, qt0, sv0
+    use modchecksim, only: lstop
 
     ! Weird bug, casting thresholds to _field_r leads to compilation error for
     ! some reason
@@ -1950,18 +1957,18 @@ contains
     integer :: s
 
     call check_array(u0, 'u0', 'startup', &
-                     threshold=[real(-100, rkind), real(100, rkind)])
+                     threshold=[real(-100, rkind), real(100, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
     call check_array(v0, 'v0', 'startup', &
-                     threshold=[real(-100, rkind), real(100, rkind)])
+                     threshold=[real(-100, rkind), real(100, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
     call check_array(w0, 'w0', 'startup', &
-                     threshold=[real(-30, rkind), real(30, rkind)])
+                     threshold=[real(-30, rkind), real(30, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
     call check_array(thl0, 'thl0', 'startup', &
-                     threshold=[real(150, rkind), real(2000, rkind)])
+                     threshold=[real(150, rkind), real(2000, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
     if (lmoist) call check_array(qt0, 'qt0', 'startup', &
-                                 threshold=[real(0, rkind), real(1, rkind)])
+                                 threshold=[real(0, rkind), real(1, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
 
     do s = 1, size(sv0, dim=4)
-      call check_array(sv0(:,:,:,s), 'sv0('//number2string(s)//')', 'startup')
+      call check_array(sv0(:,:,:,s), 'sv0('//number2string(s)//')', 'startup',stop_if_invalid=lstop, dump_if_invalid=.true.)
     end do
 
   end subroutine check_initial_state
