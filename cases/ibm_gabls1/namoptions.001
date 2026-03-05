@@ -1,0 +1,115 @@
+&run
+	iexpnr     =  001
+	lwarmstart =  .false.
+	startfile  =  'initd001h00mx000y000.001'
+	runtime    =  600
+	trestart   =  600
+	irandom    =  43
+	randthl    =  0.1
+	randqt     =  0
+	nsv        =  0
+	ladaptive  = .true.
+	nprocx     = 4
+	nprocy     = 1
+/
+
+&domain
+	itot = 128
+	jtot = 128
+	kmax = 128
+
+	xsize =  400.
+	ysize =  400.
+	
+	xlat =  73
+	xlon =  0.
+	xday =  0.
+	xtime =  0.
+/
+
+&physics
+	ltimedep   =  .true.
+	iradiation =  0
+	lcoriol    =  .true.
+/
+
+&thermodynamics
+	lmoist     = .false.
+	lqlnr       = .false.
+/
+
+&namsurface
+	z0         =  0.1
+	thls       =  263.5
+	ps         =  100000.00
+	isurf      =  2
+/
+
+&dynamics
+	llsadv     =  .false.
+	cu         =  0.
+	cv         =  0.
+	iadv_mom    =  2
+	iadv_tke    =  2
+	iadv_thl    =  2
+	iadv_qt     =  2
+	iadv_sv     =  2
+/
+
+&namsubgrid
+	lmason = .false.
+	lsmagorinsky = .false.
+	sgs_surface_fix = .true.
+/
+
+&ibm
+	lapply_ibm = .true.
+	lwallheat = .true.
+	thlibm = 263.5
+	thlwall = 263.5
+	thlroof = 263.5
+	qtibm   = 0.000
+	z0m_wall = 0.03
+	z0h_wall = 0.03
+/
+
+&namchecksim
+	tcheck = 10
+	lchecktend = .false.
+	lstop = .false.
+/
+
+&namnetcdfstats
+    	lsync = .true.	
+/
+
+&namtimestat
+	ltimestat   = .true.
+	dtav        = 10
+/
+
+&namfielddump
+	lfielddump  = .true.
+	dtav        = 30
+	ldiracc     = .true.
+/
+
+&nambuget 
+	lbudget     = .true.
+	dtav        = 6
+	timeav      = 60
+/
+
+&NAMGENSTAT
+	lstat       = .true.
+	dtav        = 6
+	timeav      = 60
+/
+
+&namcrosssection
+	lcross  = .true.
+	dtav    = 10
+	crossheight = 2 6 12 16
+	crossplane = 32 64
+	lbinary = .false.
+/

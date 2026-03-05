@@ -11,8 +11,8 @@ module modlogging
 
     integer :: profile_output !< the unit for the ascii output of profiles/fields/tracers.
 
-    character(filename_max) :: profile_output_file = "profiles_used.txt"    !< path of the profile output file
-    character(filename_max) :: namelist_output_file = "namelist_used.txt"   !< path of the namelist output file
+    character(filename_max) :: profile_output_file = "used_profiles.txt"    !< path of the profile output file
+    character(filename_max) :: namelist_output_file = "used_namelist.txt"   !< path of the namelist output file
 
 
     contains
