@@ -282,7 +282,7 @@ contains
 !> Do the xz crosssections and dump them to file
   subroutine wrtvert
   use modglobal, only : imax,i1,j1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
-  use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,e120,exnf,thvf
+  use modfields, only : u0,v0,w0,thl0,qtm,svm,thl0,qt0,ql0,e120,exnf,thvf
   use modmpi,    only : myidy
   use modstat_nc, only : lnetcdf, writestat_nc
   implicit none
@@ -306,19 +306,19 @@ contains
      enddo
 
       open(ifoutput,file='movv_u.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((um(i,crossplane,k)+cu,i=2,i1),k=1,kmax)
+      write(ifoutput,'(es12.5)') ((u0(i,crossplane,k)+cu,i=2,i1),k=1,kmax)
       close(ifoutput)
 
       open(ifoutput,file='movv_v.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((vm(i,crossplane,k)+cv,i=2,i1),k=1,kmax)
+      write(ifoutput,'(es12.5)') ((v0(i,crossplane,k)+cv,i=2,i1),k=1,kmax)
       close(ifoutput)
 
       open(ifoutput,file='movv_w.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((wm(i,crossplane,k),i=2,i1),k=1,kmax)
+      write(ifoutput,'(es12.5)') ((w0(i,crossplane,k),i=2,i1),k=1,kmax)
       close(ifoutput)
 
       open(ifoutput,file='movv_thl.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((thlm(i,crossplane,k),i=2,i1),k=1,kmax)
+      write(ifoutput,'(es12.5)') ((thl0(i,crossplane,k),i=2,i1),k=1,kmax)
       close(ifoutput)
 
       open(ifoutput,file='movv_thv.'//cexpnr,position='append',action='write')
@@ -357,10 +357,10 @@ contains
                   buoy(i,k) = thv0(i,k)-thvf(k)
                enddo
             enddo
-            vars(:,:,1) = um(2:i1,crossplane(cross),1:kmax)+cu
-            vars(:,:,2) = vm(2:i1,crossplane(cross),1:kmax)+cv
-            vars(:,:,3) = wm(2:i1,crossplane(cross),1:kmax)
-            vars(:,:,4) = thlm(2:i1,crossplane(cross),1:kmax)
+            vars(:,:,1) = u0(2:i1,crossplane(cross),1:kmax)+cu
+            vars(:,:,2) = v0(2:i1,crossplane(cross),1:kmax)+cv
+            vars(:,:,3) = w0(2:i1,crossplane(cross),1:kmax)
+            vars(:,:,4) = thl0(2:i1,crossplane(cross),1:kmax)
             vars(:,:,5) = thv0(2:i1,1:kmax)
             vars(:,:,6) = qtm(2:i1,crossplane(cross),1:kmax)
             vars(:,:,7) = ql0(2:i1,crossplane(cross),1:kmax)
@@ -382,7 +382,7 @@ contains
 !> Do the xy crosssections and dump them to file
   subroutine wrthorz
     use modglobal, only : imax,jmax,i1,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
-    use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,e120,exnf,thvf
+    use modfields, only : u0,v0,w0,thl0,qtm,svm,thl0,qt0,ql0,e120,exnf,thvf
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
     implicit none
@@ -413,19 +413,19 @@ contains
       do  cross=1,nxy
       write(cheight,'(i4.4)') crossheight(cross)
       open(ifoutput,file='movh_u.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((um(i,j,crossheight(cross))+cu,i=2,i1),j=2,j1)
+      write(ifoutput,'(es12.5)') ((u0(i,j,crossheight(cross))+cu,i=2,i1),j=2,j1)
       close(ifoutput)
 
       open(ifoutput,file='movh_v.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((vm(i,j,crossheight(cross))+cv,i=2,i1),j=2,j1)
+      write(ifoutput,'(es12.5)') ((v0(i,j,crossheight(cross))+cv,i=2,i1),j=2,j1)
       close(ifoutput)
 
       open(ifoutput,file='movh_w.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((wm(i,j,crossheight(cross)),i=2,i1),j=2,j1)
+      write(ifoutput,'(es12.5)') ((w0(i,j,crossheight(cross)),i=2,i1),j=2,j1)
       close(ifoutput)
 
       open(ifoutput,file='movh_thl.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((thlm(i,j,crossheight(cross)),i=2,i1),j=2,j1)
+      write(ifoutput,'(es12.5)') ((thl0(i,j,crossheight(cross)),i=2,i1),j=2,j1)
       close(ifoutput)
 
       open(ifoutput,file='movh_thv.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
@@ -458,10 +458,10 @@ contains
        allocate(vars(1:imax,1:jmax,nvar))
        do cross=1,nxy
           vars=0.
-          vars(:,:,1) = um(2:i1,2:j1,crossheight(cross))+cu
-          vars(:,:,2) = vm(2:i1,2:j1,crossheight(cross))+cv
-          vars(:,:,3) = wm(2:i1,2:j1,crossheight(cross))
-          vars(:,:,4) = thlm(2:i1,2:j1,crossheight(cross))
+          vars(:,:,1) = u0(2:i1,2:j1,crossheight(cross))+cu
+          vars(:,:,2) = v0(2:i1,2:j1,crossheight(cross))+cv
+          vars(:,:,3) = w0(2:i1,2:j1,crossheight(cross))
+          vars(:,:,4) = thl0(2:i1,2:j1,crossheight(cross))
           vars(:,:,5) = thv0(2:i1,2:j1,cross)
           vars(:,:,6) = qtm(2:i1,2:j1,crossheight(cross))
           vars(:,:,7) = ql0(2:i1,2:j1,crossheight(cross))
@@ -483,7 +483,7 @@ contains
   ! yz cross section
   subroutine wrtorth
     use modglobal, only : jmax,kmax,i1,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
-    use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,e120,exnf,thvf
+    use modfields, only : u0,v0,w0,thl0,qtm,svm,thl0,qt0,ql0,e120,exnf,thvf
     use modmpi,    only : cmyid, myidx
     use modstat_nc, only : lnetcdf, writestat_nc
     implicit none
@@ -512,19 +512,19 @@ contains
        enddo
 
       open(ifoutput,file='movo_u.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((um(crossortho(1),j,k)+cu,j=2,j1),k=1,kmax)
+      write(ifoutput,'(es12.5)') ((u0(crossortho(1),j,k)+cu,j=2,j1),k=1,kmax)
       close(ifoutput)
 
       open(ifoutput,file='movo_v.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((vm(crossortho(1),j,k)+cv,j=2,j1),k=1,kmax)
+      write(ifoutput,'(es12.5)') ((v0(crossortho(1),j,k)+cv,j=2,j1),k=1,kmax)
       close(ifoutput)
 
       open(ifoutput,file='movo_w.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((wm(crossortho(1),j,k),j=2,j1),k=1,kmax)
+      write(ifoutput,'(es12.5)') ((w0(crossortho(1),j,k),j=2,j1),k=1,kmax)
       close(ifoutput)
 
       open(ifoutput,file='movo_thl.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((thlm(crossortho(1),j,k),j=2,j1),k=1,kmax)
+      write(ifoutput,'(es12.5)') ((thl0(crossortho(1),j,k),j=2,j1),k=1,kmax)
       close(ifoutput)
 
       open(ifoutput,file='movo_thv.'//cmyid//'.'//cexpnr,position='append',action='write')
@@ -567,10 +567,10 @@ contains
                    buoy(j,k) =thv0(j,k)-thvf(k)
                 enddo
              enddo
-             vars(:,:,1) = um(crossortho(cross),2:j1,1:kmax)+cu
-             vars(:,:,2) = vm(crossortho(cross),2:j1,1:kmax)+cv
-             vars(:,:,3) = wm(crossortho(cross),2:j1,1:kmax)
-             vars(:,:,4) = thlm(crossortho(cross),2:j1,1:kmax)
+             vars(:,:,1) = u0(crossortho(cross),2:j1,1:kmax)+cu
+             vars(:,:,2) = v0(crossortho(cross),2:j1,1:kmax)+cv
+             vars(:,:,3) = w0(crossortho(cross),2:j1,1:kmax)
+             vars(:,:,4) = thl0(crossortho(cross),2:j1,1:kmax)
              vars(:,:,5) = thv0(2:j1,1:kmax)
              vars(:,:,6) = qtm(crossortho(cross),2:j1,1:kmax)
              vars(:,:,7) = ql0(crossortho(cross),2:j1,1:kmax)
