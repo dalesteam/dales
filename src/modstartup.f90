@@ -100,7 +100,7 @@ contains
     use modtimedepsv,      only : inittimedepsv,ltimedepsv
     use modtestbed,        only : inittestbed
     use modboundary,       only : initboundary,ksp
-    use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
+    use modthermodynamics, only : initthermodynamics
     use modmicrophysics,   only : initmicrophysics
     use modsubgrid,        only : initsubgrid
     use modmpi,            only : initmpi,commwrld,myid,myidx,myidy,cmyidy,nprocx,nprocy,mpierr,periods &
@@ -272,7 +272,6 @@ contains
     call D_MPI_BCAST(lcloudshading,1,0,commwrld,mpierr)
 
     call D_MPI_BCAST(llsadv     ,1,0,commwrld,mpierr) ! DYNAMICS
-    call D_MPI_BCAST(lqlnr      ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lambda_crit,1,0,commwrld,mpierr)
     call D_MPI_BCAST(cu         ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(cv         ,1,0,commwrld,mpierr)
@@ -505,7 +504,8 @@ contains
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
                                   trestart, ladaptive,llsadv,tnextrestart,longint,lopenbc,linithetero, &
-                                  iinput, input_netcdf, input_ascii, lcoriol
+                                  iinput, input_netcdf, input_ascii, lcoriol, &
+                                  dzhi, iadv_thl, iadv_qt, iadv_kappa
     use modthermodynamics, only : lconstexner,lbaseexner
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
@@ -796,7 +796,7 @@ contains
                 w0 (i,j,k:k+1)  = 0.
                 e12m(i,j,k)     = e12min
                 e120(i,j,k)     = e12min
-                if (nsv > 0) then !TODO: check this here..
+                if (nsv > 0) then
                   do n=1,nsv
                     sv0(i,j,k,n) = 0.
                     svm(i,j,k,n) = 0.
@@ -913,7 +913,8 @@ contains
       call update_gpu
 #endif
 
-      call calc_halflev
+      call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
+      call calc_halflev(qt0, dzf, dzhi, qts, iadv_qt == iadv_kappa, qt0h)
 
 #if defined(_OPENACC)
       call update_host
