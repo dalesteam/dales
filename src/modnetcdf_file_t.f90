@@ -1,9 +1,9 @@
-!> NetCDF file type.
+!> Type definitions for various NetCDF file types.
 module modnetcdf_file_t
 
-  use fortran_support, only: finish, message
-  use modglobal,       only: rtimee
-  use modmpi,          only: mpi_comm
+  use fortran_support, only: finish
+  use modglobal,       only: imax, jmax, kmax, itot, jtot, rtimee
+  use modmpi,          only: comm3d, myidx, myidy, cmyid, nprocx, nprocy
   use modprecision,    only: field_r
   use modstat_nc
 
@@ -14,121 +14,140 @@ module modnetcdf_file_t
   character(len=*), parameter :: modname = 'modnetcdf_file_t'
 
   public :: netcdf_file_t
+  public :: time_series_file_t
+  public :: profiles_file_t
+  public :: cross_section_file_t
+  public :: field_dump_file_t
 
-  interface netcdf_file_t
-    procedure :: netcdf_file_open
-  end interface netcdf_file_t
+  interface time_series_file_t
+    procedure :: time_series_file_open
+  end interface time_series_file_t
 
-  type :: netcdf_file_t
-    ! Metadata
-    character(len=80) :: filename = '' !< File name
-    integer           :: ncid = -1     !< NCID
-    integer           :: nrec = -1     !< Number of records (= time steps)
-    integer           :: nvar = 0      !< Number of variables
-    character(len=80) :: timeinfo(1,4) !< Metadata for time
-    integer           :: ndims         !< Number of used dimensions
-    ! Information about the dimensions (local to each MPI rank)
-    integer, allocatable :: offsets(:) !< Starting index of each dimension
-    integer, allocatable :: nvals(:)   !< Number of values in each dimension
-    ! Variable data
-    character(len=80), allocatable :: names(:,:) !< dim 1 = name, dim 2 = long name, dim 3 = unit, dim 4 = dimension
-    real(field_r),     allocatable :: data_0d(:)
-    real(field_r),     allocatable :: data_1d(:,:)
-    real(field_r),     allocatable :: data_2d(:,:,:)
-    real(field_r),     allocatable :: data_3d(:,:,:,:)
+  interface profiles_file_t
+    procedure :: profiles_file_open
+  end interface profiles_file_t
+
+  interface cross_section_file_t
+    procedure :: cross_section_file_open
+  end interface cross_section_file_t
+
+  interface field_dump_file_t
+    procedure :: field_dump_file_open
+  end interface field_dump_file_t
+
+  !> Base NetCDF file type.
+  type, abstract :: netcdf_file_t
+    character(len=80) :: filename      !< Name of the file.
+    integer           :: ncid = 0      !< NetCDF file ID.
+    integer           :: nvar = 0      !< Number of variables.
+    integer           :: nrec = 0      !< Number of records.
+    character(len=80) :: timeinfo(1,4) !< Metadata of time dimension.
+    character(len=80), allocatable :: names(:,:) !< Variable metadata.
   contains
     procedure :: add_var => netcdf_file_add_var
-    procedure :: close => netcdf_file_close
-    procedure :: write => netcdf_file_write
-    procedure :: init => netcdf_file_init
     procedure :: get_var_id => netcdf_file_get_var_id
+    procedure(netcdf_file_init),  deferred :: init
+    procedure(netcdf_file_write), deferred :: write
   end type netcdf_file_t
+
+  abstract interface
+    subroutine netcdf_file_init(this)
+      import :: netcdf_file_t
+      class(netcdf_file_t), intent(inout) :: this
+    end subroutine netcdf_file_init
+  end interface
+
+  abstract interface
+    subroutine netcdf_file_write(this)
+      import :: netcdf_file_t
+      class(netcdf_file_t), intent(inout) :: this
+    end subroutine netcdf_file_write
+  end interface
+
+  !> File containing time series data.
+  type, extends(netcdf_file_t) :: time_series_file_t
+    private
+    real(field_r), allocatable :: buffer(:) !< Memory for variable data.
+  contains
+    procedure :: init => time_series_file_init
+    procedure :: write => time_series_file_write
+    procedure :: get_pointer => time_series_file_get_pointer
+  end type time_series_file_t
+
+  !> File containing vertical profiles.
+  type, extends(netcdf_file_t) :: profiles_file_t
+    private
+    integer :: nz = 0  !< Number of vertical levels.
+    integer :: nzs = 0 !< Number of vertical levels in soil grid.
+    real(field_r), allocatable :: buffer(:,:) !< Memory for variable data.
+  contains
+    procedure :: init => profiles_file_init
+    procedure :: write => profiles_file_write
+    procedure :: get_pointer => profiles_file_get_pointer
+  end type profiles_file_t
+
+  !> File containing cross sections.
+  type, extends(netcdf_file_t) :: cross_section_file_t
+    private
+    integer :: nx = 0      !< Number of cells in the x-direction.
+    integer :: ny = 0      !< Number of cells in the y-direction.
+    integer :: nz = 0      !< Number of vertical layers.
+    integer :: nzs = 0     !< Number of vertical layers in the soil grid.
+    integer :: nslices = 0 !< Number of cross sections.
+    integer :: x_start = 0 !< Writing offset in the x-direction.
+    integer :: y_start = 0 !< Writing offset in the y-direction.
+    integer :: nvals_x = 0 !< Number of values that will be written by calling process in the x-direction.
+    integer :: nvals_y = 0 !< Number of values that will be written by calling process in the y-direction.
+    real(field_r), allocatable :: buffer(:,:,:) !< Memory for variable data.
+  contains
+    procedure :: init => cross_section_file_init
+    procedure :: write => cross_section_file_write
+    procedure :: get_pointer => cross_section_file_get_pointer
+  end type cross_section_file_t
+
+  !> File containing 3D field dumps.
+  type, extends(netcdf_file_t) :: field_dump_file_t
+    private
+    integer :: nx = 0      !< Number of cells in the x-direction.
+    integer :: ny = 0      !< Number of cells in the y-direction.
+    integer :: nz = 0      !< Number of vertical levels.
+    integer :: nzs = 0     !< Number of vertical levels in the soil grid.
+    integer :: ncoarse = 1 !< Coarse graining factor.
+    integer :: klo = 1     !< Vertical lower bound.
+    integer :: khi = 1     !< Vertical upper bound.
+    integer :: x_start = 0 !< Writing offset in the x-direction.
+    integer :: y_start = 0 !< Writing offset in the y-direction.
+    integer :: nvals_x = 0 !< Number of values that will be written by calling process in the x-direction.
+    integer :: nvals_y = 0 !< Number of values that will be written by calling process in the y-direction.
+    real(field_r), allocatable :: buffer(:,:,:,:) !< Memory for variable data.
+  contains
+    procedure :: init => field_dump_file_init
+    procedure :: write => field_dump_file_write
+    procedure :: get_pointer => field_dump_file_get_pointer
+  end type field_dump_file_t
 
 contains
 
-  !> Open a new NetCDF file.
-  function netcdf_file_open(filename, dimension_lengths, nvals, offsets, comm) &
-    result(this)
-
-    character(len=*), intent(in) :: filename             !< File name
-    integer,          intent(in) :: dimension_lengths(5) !< Lengths of the dimensions [n1, n2, n3, ns, nq].
-
-    integer,          intent(in), optional :: nvals(5)   !< How much values will be written per dimension. 
-    integer,          intent(in), optional :: offsets(5) !< Starting indices in each dimension.
-    type(mpi_comm),   intent(in), optional :: comm       !< MPI communicator containing all ranks that write to this file.
-
-    type(netcdf_file_t) :: this !< New NetCDF file object
-
-    integer        :: idim
-
-    integer        :: ndims !< Number of dimensions with length greater than 0
-
-    this%filename = filename
-
-    ! Check how many dimensions we have to define
-    ndims = count(dimension_lengths > 0, dim=1)
-    this%ndims = ndims
-    allocate(this%offsets(ndims), this%nvals(ndims))
-
-    ! Set offsets and number of values for this process
-    do idim = 1, 5
-      if (dimension_lengths(idim) > 0) then 
-        if (present(offsets)) then
-          this%offsets(idim) = offsets(idim)
-        else
-          this%offsets(idim) = 1
-        end if
-
-        if(present(nvals)) then
-          this%nvals(idim) = nvals(idim)
-        else
-          this%nvals(idim) = 1
-        end if
-      end if
-    end do
-
-    ! Finally, open the file and define the dimensions
-    call open_nc(trim(this%filename)//'.nc', this%ncid, &
-                 this%nrec, dimension_lengths(1), &
-                 dimension_lengths(2), dimension_lengths(3), &
-                 dimension_lengths(4), dimension_lengths(5), comm)
-
-    call nctiminfo(this%timeinfo)
-
-    if (this%nrec == 0) then
-      call define_nc(this%ncid, 1, this%timeinfo)
-      call writestat_dims_nc(this%ncid, offset_x=offsets(1), &
-                             offset_y=offsets(2))
-    end if
-
-  end function netcdf_file_open
-
-  !> Add a variable to the file.
+  !> Add a variable to a NetCDF file.
   subroutine netcdf_file_add_var(this, name, long_name, unit, dim)
 
     class(netcdf_file_t), intent(inout) :: this
 
-    character(len=*), intent(in) :: name      !< Name of variable
-    character(len=*), intent(in) :: long_name !< Long name of variable
-    character(len=*), intent(in) :: unit      !< Unit of variable
-    character(len=*), intent(in) :: dim       !< Dimensions of variable
+    character(len=*), intent(in) :: name       !< Name of variable.
+    character(len=*), intent(in) :: long_name  !< Long name of variable.
+    character(len=*), intent(in) :: unit       !< Unit of variable.
+    character(len=*), intent(in) :: dim        !< Dimensions of variable.
 
     character(len=*), parameter :: routine = modname//'/netcdf_file_add_var'
 
-    integer :: i
-
-    logical :: found = .false.
+    integer :: id
 
     character(len=80), allocatable :: tmp(:,:)
 
-    ! Check if the new variable already exists in this file
-    do i = 1, this%nvar
-      if (trim(name) == trim(this%names(i,1))) then
-        found = .true.
-      end if
-    end do
+    ! Check if this variable already exists
+    id = this%get_var_id(name)
 
-    if (found) then
+    if (id > 0) then
       call finish(routine, 'variable '//trim(name)//' already exists in file ' &
                             //trim(this%filename))
     else
@@ -143,117 +162,15 @@ contains
       this%names(this%nvar,2) = trim(long_name)
       this%names(this%nvar,3) = trim(unit)
       this%names(this%nvar,4) = trim(dim)
-
-      call message(routine, 'variable '//trim(name)//' added to file ' &
-                            //trim(this%filename))
     end if
 
   end subroutine netcdf_file_add_var
-
-  !> Ends the definition stage and allocates memory for the variables.
-  subroutine netcdf_file_init(this)
-
-    class(netcdf_file_t), intent(inout) :: this
-
-    integer :: buffer_len
-
-    select case (this%ndims)
-      case (0)
-        allocate(this%data_0d(this%nvar))
-        this%data_0d(:) = 0.0_field_r
-      case (1)
-        allocate(this%data_1d(this%nvals(1), this%nvar))
-        this%data_1d(:,:) = 0.0_field_r
-      case (2)
-        allocate(this%data_2d(this%nvals(1), this%nvals(2), this%nvar))
-        this%data_2d(:,:,:) = 0.0_field_r
-      case (3)
-        allocate(this%data_3d(this%nvals(1), this%nvals(2), this%nvals(3), &
-                              this%nvar))
-        this%data_3d(:,:,:,:) = 0.0_field_r
-      case default
-    end select
-
-    ! Define the variables. Note: this also ends the definition stage
-    call define_nc(this%ncid, this%nvar, this%names)
-
-  end subroutine netcdf_file_init
-
-  !> Write variable data to disk and reset the buffer.
-  subroutine netcdf_file_write(this)
-
-    class(netcdf_file_t), intent(inout) :: this
-    
-    integer :: i, j, k, ivar
-
-    call writestat_nc(this%ncid, 1, this%timeinfo, [rtimee], this%nrec, .true.)
-    
-    select case (this%ndims)
-      case (0)
-        call writestat_nc(this%ncid, this%nvar, this%names, this%data_0d, &
-                          this%nrec, .false.)
-        
-        do ivar = 1, this%nvar
-          this%data_0d(ivar) = 0
-        end do
-
-      case (1)
-        call writestat_nc(this%ncid, this%nvar, this%names(:,:), this%data_1d, &
-                          this%nrec, this%nvals(1))
-
-        do ivar = 1, this%nvar
-          do k = 1, size(this%data_1d, dim=1)
-            this%data_1d(k,ivar) = 0
-          end do
-        end do
-
-      case (2)
-        call writestat_nc(this%ncid, this%nvar, this%names, this%data_2d, &
-                          this%nrec, this%nvals(1), this%nvals(2), &
-                          offsets=this%offsets)
-
-        do ivar = 1, this%nvar
-          do j = 1, size(this%data_2d, dim=2)
-            do i = 1, size(this%data_2d, dim=1)
-              this%data_2d(i,j,ivar) = 0
-            end do
-          end do
-        end do
-
-      case (3)
-        call writestat_nc(this%ncid, this%nvar, this%names, this%data_3d, &
-                          this%nrec, this%nvals(1), this%nvals(2), &
-                          this%nvals(3), offsets=this%offsets) 
-
-        do ivar = 1, this%nvar
-          do k = 1, size(this%data_3d, dim=3)
-            do j = 1, size(this%data_3d, dim=2)
-              do i = 1, size(this%data_3d, dim=1)
-                this%data_3d(i,j,k,ivar) = 0
-              end do
-            end do
-          end do
-        end do
-
-      case default
-    end select
-
-  end subroutine netcdf_file_write
-
-  !> Close NetCDF file.
-  subroutine netcdf_file_close(this)
-
-    class(netcdf_file_t), intent(inout) :: this
-
-    call exitstat_nc(this%ncid)
-  
-  end subroutine netcdf_file_close
 
   !> Get the internal index of variable by name.
   function netcdf_file_get_var_id(this, name) result(id)
 
     class(netcdf_file_t), intent(in) :: this
-    character(len=*),     intent(in) :: name !< Name of the variable
+    character(len=*),     intent(in) :: name !< Name of the variable.
 
     integer :: id !< Index of variable in variable list of this file
 
@@ -269,5 +186,502 @@ contains
     if (.not. found) id = -1
 
   end function netcdf_file_get_var_id
+
+  !> Open a NetCDF file containing time series data.
+  function time_series_file_open(filename) result(this)
+
+    character(len=*), intent(in)  :: filename !< Name of the file.
+
+    type(time_series_file_t) :: this !< New time series file object.
+
+    this%filename = trim(filename)
+
+    call open_nc(this%filename, this%ncid, this%nrec)
+
+  end function time_series_file_open
+
+  !> Define dimensions and allocate memory.
+  subroutine time_series_file_init(this)
+
+    class(time_series_file_t), intent(inout) :: this
+
+    integer :: ivar
+
+    call nctiminfo(this%timeinfo)
+
+    if (this%nrec == 0) then
+      call define_nc(this%ncid, 1, this%timeinfo)
+      call writestat_dims_nc(this%ncid)
+    end if
+
+    call define_nc(this%ncid, this%nvar, this%names)
+
+    allocate(this%buffer(this%nvar))
+
+    do ivar = 1, this%nvar
+      this%buffer(ivar) = 0.0_field_r
+    end do
+
+  end subroutine time_series_file_init
+
+  !> Write data to disk.
+  subroutine time_series_file_write(this)
+
+    class(time_series_file_t), intent(inout) :: this
+
+    integer :: ivar
+
+    call writestat_nc(this%ncid, this%nvar, this%names, this%buffer, &
+                      this%nrec, .true.)
+
+    do ivar = 1, this%nvar
+      this%buffer(ivar) = 0.0_field_r
+    end do
+
+  end subroutine time_series_file_write
+
+  !> Setup a pointer to the buffer of a variable.
+  subroutine time_series_file_get_pointer(this, name, ptr)
+
+    class(time_series_file_t), target, intent(in) :: this
+    character(len=*),                  intent(in) :: name !< Name of the variable.
+
+    real(field_r), pointer, intent(out) :: ptr !< Pointer to the variable's buffer.
+
+    character(len=*), parameter :: routine = &
+      modname//'time_series_file_get_pointer'
+
+    integer :: id
+
+    id = this%get_var_id(name)
+
+    if (id < 0) then
+      call finish(routine, 'variable '//trim(name)//' not found')
+    end if
+
+    ptr => this%buffer(id)
+
+  end subroutine time_series_file_get_pointer
+
+  !> Open a NetCDF file containing vertical profiles.
+  function profiles_file_open(filename, nz, nzs) result(this)
+
+    character(len=*), intent(in) :: filename !< Name of the file.
+
+    integer, intent(in), optional :: nz  !< Number of vertical levels.
+    integer, intent(in), optional :: nzs !< Number of vertical levels in the soil grid.
+
+    type(profiles_file_t) :: this !< New profiles file object.
+
+    character(len=*), parameter :: routine = modname//'/profiles_file_open'
+
+    if (.not. any([present(nz), present(nzs)], dim=1)) then
+      call finish(routine, 'no vertical dimension length given')
+    end if
+
+    this%filename = trim(filename)
+    
+    if (present(nz)) this%nz = nz
+    if (present(nzs)) this%nzs = nzs
+
+    call open_nc(this%filename, this%ncid, this%nrec, n3=nz, ns=nzs)
+
+  end function profiles_file_open
+
+  !> Define dimensions and allocate memory.
+  subroutine profiles_file_init(this)
+
+    class(profiles_file_t), intent(inout) :: this
+
+    integer :: k, ivar
+
+    call nctiminfo(this%timeinfo)
+
+    if (this%nrec == 0) then
+      call define_nc(this%ncid, 1, this%timeinfo)
+      call writestat_dims_nc(this%ncid)
+    end if
+
+    call define_nc(this%ncid, this%nvar, this%names)
+
+    if (this%nz > 0) then
+      allocate(this%buffer(this%nz,this%nvar))
+    else if (this%nzs > 0) then
+      allocate(this%buffer(this%nzs,this%nvar))
+    end if
+
+    do k = 1, size(this%buffer, dim=1)
+      do ivar = 1, this%nvar
+        this%buffer(k,ivar) = 0.0_field_r
+      end do
+    end do
+
+  end subroutine profiles_file_init
+
+  !> Write data to disk.
+  subroutine profiles_file_write(this)
+
+    class(profiles_file_t), intent(inout) :: this
+
+    integer :: k, ivar
+
+    call writestat_nc(this%ncid, 1, this%timeinfo, [rtimee], this%nrec, &
+                      lraise=.true.)
+    call writestat_nc(this%ncid, this%nvar, this%names, this%buffer, &
+                      this%nrec, dim1=size(this%buffer, dim=1))
+
+    do k = 1, size(this%buffer, dim=1) 
+      do ivar = 1, this%nvar
+        this%buffer(k,ivar) = 0.0_field_r
+      end do
+    end do
+
+  end subroutine profiles_file_write
+
+  !> Setup a pointer to the buffer of a variable.
+  subroutine profiles_file_get_pointer(this, name, ptr)
+
+    class(profiles_file_t), target, intent(in) :: this
+    character(len=*),               intent(in) :: name !< Name of the variable.
+
+    real(field_r), pointer, intent(out) :: ptr(:) !< Pointer to the variable's buffer.
+
+    character(len=*), parameter :: routine = &
+      modname//'/profiles_file_get_pointer'
+
+    integer :: id
+
+    id = this%get_var_id(name)
+
+    if (id < 0) then
+      call finish(routine, 'variable '//trim(name)//' not found')
+    end if
+
+    ptr => this%buffer(:,id)
+
+  end subroutine profiles_file_get_pointer
+
+  !> Open a NetCDF file containing cross sections.
+  function cross_section_file_open(filename, nx, ny, nz, nzs) result(this)
+
+    character(len=*), intent(in) :: filename !< Name of the file.
+
+    integer, intent(in), optional :: nx  !< Number of cells in the x-direction.
+    integer, intent(in), optional :: ny  !< Number of cells in the y-direction.
+    integer, intent(in), optional :: nz  !< Number of vertical levels.
+    integer, intent(in), optional :: nzs !< Number of vertical levels in the soil grid.
+
+    type(cross_section_file_t) :: this !< New cross section file object.
+
+    character(len=*), parameter :: routine = modname//'/cross_section_file_open'
+
+    this%filename = trim(filename)
+
+    if (count([present(nx), present(ny), present(nz), present(nzs)], dim=1) > 2) then
+      call finish(routine, 'cross section file can contain only two dimensions')
+    end if
+    
+    if (present(nz)) this%nz = nz
+    if (present(nzs)) this%nzs = nzs
+
+    if (NC_HAVE_PARALLEL) then
+      if (present(nx)) then
+        this%nx = itot
+        this%x_start = (myidx + 1) * imax
+        this%nvals_x = imax
+      end if
+      if (present(ny)) then
+        this%ny = jtot
+        this%y_start = (myidy + 1) * jmax
+        this%nvals_y = jmax
+      end if
+
+      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
+                   n2=this%ny, n3=nz, ns=nzs, comm=comm3d)
+    else
+      ! Every rank writes to its own file, distinguish with cmyid
+      this%filename = this%filename//'.'//trim(cmyid)
+
+      if (present(nx)) then
+        this%nx = imax
+        this%x_start = 1
+        this%nvals_x = imax
+      end if
+      if (present(ny)) then
+        this%ny = imax
+        this%y_start = 1
+        this%nvals_y = jmax
+      end if
+
+      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nvals_x, &
+                   n2=this%nvals_y, n3=nz, ns=nzs)
+    end if
+
+  end function cross_section_file_open
+
+  !> Define dimensions and allocate memory.
+  subroutine cross_section_file_init(this)
+
+    class(cross_section_file_t), intent(inout) :: this
+
+    integer :: n1, n2, ivar
+
+    call nctiminfo(this%timeinfo(1,:))
+
+    if (this%nrec == 0) then
+      call define_nc(this%ncid, 1, this%timeinfo)
+      call writestat_dims_nc(this%ncid, offset_x=this%x_start, &
+                             offset_y=this%y_start)
+    end if
+
+    call define_nc(this%ncid, this%nvar, this%names)
+
+    if (this%nvals_x > 0 .and. this%nvals_y > 0) then
+      n1 = this%nvals_x
+      n2 = this%nvals_y
+    else
+      if (this%nvals_x > 0) then
+        n1 = this%nvals_x
+      else
+        n1 = this%nvals_y
+      end if
+      if (this%nz > 0) then
+        n2 = this%nz
+      else
+        n2 = this%nzs
+      end if
+    end if
+
+    allocate(this%buffer(n1,n2,this%nvar))
+
+    do ivar = 1, this%nvar
+      do n2 = 1, size(this%buffer, dim=2)
+        do n1 = 1, size(this%buffer, dim=1)
+          this%buffer(n1,n2,ivar) = 0.0_field_r
+        end do
+      end do
+    end do
+
+  end subroutine cross_section_file_init
+
+  !> Write data to disk.
+  subroutine cross_section_file_write(this)
+
+    class(cross_section_file_t), intent(inout) :: this
+
+    integer :: n1, n2, ivar
+    integer :: offsets(2)
+
+    if (this%x_start > 0 .and. this%y_start > 0) then
+      offsets = [this%x_start, this%y_start]
+    else if (this%x_start > 0) then
+      offsets = [this%x_start, 1]
+    else if (this%y_start > 0) then
+      offsets = [this%y_start, 1]
+    else
+      offsets = [1, 1]
+    end if
+
+    call writestat_nc(this%ncid, 1, this%timeinfo, [rtimee], this%nrec, &
+                      lraise=.true.)
+    call writestat_nc(this%ncid, this%nvar, this%names, this%buffer, &
+                      this%nrec, dim1=size(this%buffer, dim=1), &
+                      dim2=size(this%buffer, dim=2), offsets=offsets)
+
+    do ivar = 1, this%nvar
+      do n2 = 1, size(this%buffer, dim=2)
+        do n1 = 1, size(this%buffer, dim=1)
+          this%buffer(n1,n2,ivar) = 0.0_field_r
+        end do
+      end do
+    end do
+
+  end subroutine cross_section_file_write
+
+  !> Setup a pointer to the buffer of a variable.
+  !!
+  !! @note Lower bounds of the pointer will be set to 2 for horizontal directions.
+  subroutine cross_section_file_get_pointer(this, name, ptr)
+
+    class(cross_section_file_t), target, intent(in) :: this
+    character(len=*),                    intent(in) :: name
+
+    real(field_r), pointer, intent(out) :: ptr(:,:)
+
+    character(len=*), parameter :: routine = &
+      modname//'/cross_section_file_get_pointer'
+
+    integer :: id
+    integer :: lbound_1 !< Lower bound of first pointer dimension
+    integer :: lbound_2 !< Lower bound of second pointer dimension
+
+    id = this%get_var_id(name)
+
+    ! Set lower bounds to 2 so that we can easily access pointers and
+    ! fields in conjunction
+    lbound_1 = 2
+    lbound_2 = 2
+
+    ! For vertical slices, the second dimension (= vertical) starts from 1
+    if (.not. (this%nx > 0 .and. this%ny > 0)) lbound_2 = 1
+
+    ptr(lbound_1:,lbound_2:) => this%buffer(:,:,id)
+
+  end subroutine cross_section_file_get_pointer
+
+  !> Open a NetCDF file containing 3D field dumps.
+  function field_dump_file_open(filename, nz, nzs, ncoarse, klo, khi) &
+    result(this)
+
+    character(len=*), intent(in) :: filename !< Name of the file.
+
+    integer, intent(in), optional :: nz      !< Number of vertical levels.
+    integer, intent(in), optional :: nzs     !< Number of vertical levels in the soil grid.
+    integer, intent(in), optional :: ncoarse !< Coarse graining factor (e.g.: 2 means saving only half of the data).
+    integer, intent(in), optional :: klo     !< Vertical lower bound.
+    integer, intent(in), optional :: khi     !< Vertical upper bound.
+
+    type(field_dump_file_t) :: this !< New field dump file object.
+
+    character(len=*), parameter :: routine = modname//'/field_dump_file_open'
+
+    this%filename = trim(filename)
+
+    if (.not. present(nz) .and. .not. present(nzs)) then
+      call finish(routine, 'field dump file has to have at least one&
+        & vertical dimension')
+    end if
+
+    if (present(ncoarse)) this%ncoarse = ncoarse
+
+    if (present(klo)) then
+      this%klo = klo
+    else
+      this%klo = 1
+    end if
+    
+    if (present(khi)) then
+      this%khi = khi
+    else
+      this%khi = kmax
+    end if
+
+    if (NC_HAVE_PARALLEL) then
+      this%nx = itot
+      this%ny = jtot
+      this%x_start = (myidx + 1) * imax
+      this%y_start = (myidy + 1) * jmax
+    else
+      this%filename = this%filename//'.'//cmyid
+      this%nx = imax
+      this%ny = jmax
+      this%x_start = 1
+      this%y_start = 1
+    end if
+
+    this%nx = this%nx / ncoarse
+    this%ny = this%ny / ncoarse
+    this%nvals_x = imax / ncoarse
+    this%nvals_y = jmax / ncoarse
+
+    if (present(nz)) this%nz = khi - klo + 1 ! Passed value of nz not actually used...
+    
+    if (NC_HAVE_PARALLEL) then
+      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
+                   n2=this%ny, n3=nz, ns=nzs, comm=comm3d)
+    else
+      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
+                   n2=this%ny, n3=nz, ns=nzs, comm=comm3d)
+    end if
+
+  end function field_dump_file_open
+
+  !> Define dimensions and allocate memory.
+  subroutine field_dump_file_init(this)
+
+    class(field_dump_file_t), intent(inout) :: this
+
+    integer :: n1, n2, n3, ivar
+
+    call nctiminfo(this%timeinfo)
+
+    if (this%nrec == 0) then
+      call define_nc(this%ncid, 1, this%timeinfo)
+      call writestat_dims_nc(this%ncid, ncoarse=this%ncoarse, klow=this%klo, &
+                             offset_x=this%x_start, offset_y=this%y_start)
+    end if
+
+    call define_nc(this%ncid, this%nvar, this%names)
+
+    if (this%nz > 0) then
+      n3 = this%nz
+    else
+      n3 = this%nzs
+    end if
+
+    allocate(this%buffer(this%nvals_x,this%nvals_y,n3,this%nvar))
+
+    do ivar = 1, this%nvar
+      do n3 = 1, size(this%buffer, dim=3)
+        do n2 = 1, size(this%buffer, dim=2)
+          do n1 = 1, size(this%buffer, dim=1)
+            this%buffer(n1,n2,n3,ivar) = 0.0_field_r
+          end do
+        end do
+      end do
+    end do
+
+  end subroutine field_dump_file_init
+
+  !> Write data to disk.
+  subroutine field_dump_file_write(this)
+
+    class(field_dump_file_t), intent(inout) :: this
+
+    integer :: n1, n2, n3, ivar
+
+    call writestat_nc(this%ncid, 1, this%timeinfo, [rtimee], this%nrec, &
+                      lraise=.true.)
+    call writestat_nc(this%ncid, this%nvar, this%names, this%buffer, &
+                      this%nrec, dim1=this%nvals_x, dim2=this%nvals_y, &
+                      dim3=size(this%buffer, dim=3), &
+                      offsets=[this%x_start, this%y_start, 1])
+
+    do ivar = 1, this%nvar
+      do n3 = 1, size(this%buffer, dim=3)
+        do n2 = 1, size(this%buffer, dim=2)
+          do n1 = 1, size(this%buffer, dim=1)
+            this%buffer(n1,n2,n3,ivar) = 0.0_field_r
+          end do
+        end do
+      end do
+    end do
+
+  end subroutine field_dump_file_write
+
+  !> Setup a pointer to the buffer of a variable.
+  !!
+  !! @note Lower bounds of the pointer will be set to 2 for horizontal directions.
+  subroutine field_dump_file_get_pointer(this, name, ptr)
+
+    class(field_dump_file_t), target, intent(in) :: this
+    character(len=*),                 intent(in) :: name
+
+    real(field_r), pointer, intent(out) :: ptr(:,:,:)
+
+    character(len=*), parameter :: routine = &
+      modname//'/field_dump_file_get_pointer'
+
+    integer :: id
+
+    id = this%get_var_id(name)
+
+    if (id < 0) then
+      call finish(routine, 'variable '//trim(name)//' not found')
+    end if
+
+    ptr(2:,2:,1:) => this%buffer(:,:,:,id)
+
+  end subroutine field_dump_file_get_pointer
 
 end module modnetcdf_file_t

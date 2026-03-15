@@ -172,7 +172,7 @@ program DALES
                               swap_fields, exit_precursor, &
                               lprecursor, Nsim, statid, turid, refid
   use modcloudstat,    only: init_cloudstat, do_cloudstat
-  use modstat_nc_files, only: stats_limit_timestep, write_nc_files, init_nc_files
+  use modstat_nc_files, only: stats_limit_timestep, init_output_files, write_output_files
 !----------------------------------------------------------------
 !     0.2     USE STATEMENTS FOR TIMER MODULE
 !----------------------------------------------------------------
@@ -246,7 +246,7 @@ program DALES
 #endif
 
   ! Initialize IO
-  call init_nc_files
+  call init_output_files
 
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
@@ -408,7 +408,7 @@ program DALES
           call testwctime
           call writerestartfiles
 
-          call write_nc_files
+          call write_output_files
         end if
 
         call reset_tendencies

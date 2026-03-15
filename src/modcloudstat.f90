@@ -9,8 +9,8 @@ module modcloudstat
   use modthermodynamics, only: calc_virt_pot_temp
   use modtimer,          only: timer_tic, timer_toc
   use modtracers,        only: get_tracer_index
-  use modstat_nc_files,  only: make_netcdf_file, add_variable, get_pointer, &
-                               is_sampling_timestep
+  use modnetcdf_file_t,  only: cross_section_file_t
+  use modstat_nc_files,  only: add_output_file, is_sampling_timestep
   use modmpi,            only: cmyidy, cmyidx, myidx, myidy, nprocx, nprocy, &
                                comm3d, d_mpi_bcast, myid
 
@@ -23,6 +23,9 @@ module modcloudstat
   public :: cloudstat_read_namelist
   public :: init_cloudstat
   public :: do_cloudstat
+
+  type(cross_section_file_t) :: ofile
+  integer                    :: ofile_id
 
   logical :: lcloudstat
   real    :: dtav = 60
@@ -57,32 +60,29 @@ contains
   subroutine init_cloudstat
 
     ! Make a new NetCDF file
-    fileid = make_netcdf_file( &
-      'cloudstat', &
-      [itot, jtot, 0, 0, 0], &
-      dtav, &
-      nprocs=[nprocx, nprocy, 0, 0, 0], &
-      ranks=[myidx, myidy, 0, 0, 0] &
-    )
+    ofile = cross_section_file_t('cloudstat.nc', nx=itot, ny=jtot)
 
-    call add_variable(fileid, 'lwp', 'liquid water path', 'kg/m2', 'tt0t')
-    call add_variable(fileid,'twp', 'total water path', 'kg/m2', 'tt0t')
+    ! Add the file to the list of output files 
+    call add_output_file(ofile, dtav, ofile_id)
+
+    call ofile%add_var('lwp', 'liquid water path', 'kg/m2', 'tt0t')
+    call ofile%add_var('twp', 'total water path', 'kg/m2', 'tt0t')
 
     ! Check if we have rain
     iqr = get_tracer_index('qr')
-    if(iqr > 0) call add_variable(fileid,'rwp', 'rain water path', 'kg/m2', 'tt0t')
+    if(iqr > 0) call ofile%add_var('rwp', 'rain water path', 'kg/m2', 'tt0t')
 
-    call add_variable(fileid,'thlcb', 'thl at cloudbase', 'K', 'tt0t')
-    call add_variable(fileid,'buoycb', 'buoyancy at cloudbase', 'K', 'tt0t')
-    call add_variable(fileid,'qtcb', 'qt at cloudbase', 'kg/kg', 'tt0t')
-    call add_variable(fileid,'qlcb', 'ql at cloudbase', 'kg/kg', 'tt0t')
-    call add_variable(fileid,'wcb', 'w at cloudbase', 'm/s', 'tt0t')
-    call add_variable(fileid,'hw2cb', '1/2 W^2 at the top of the subcloud layer', &
-                      'm^2/s^2', 'tt0t')
-    call add_variable(fileid,'cldtop', 'cloud top height', 'm', 'tt0t')
-    call add_variable(fileid,'buoymax', 'maximum buoyancy', 'K', 'tt0t')
-    call add_variable(fileid,'hw2max', 'highest 1/2 W^2 at the top of the subcloud layer', &
-                      'm^2/s^2', 'tt0t')
+    call ofile%add_var('thlcb', 'thl at cloudbase', 'K', 'tt0t')
+    call ofile%add_var('buoycb', 'buoyancy at cloudbase', 'K', 'tt0t')
+    call ofile%add_var('qtcb', 'qt at cloudbase', 'kg/kg', 'tt0t')
+    call ofile%add_var('qlcb', 'ql at cloudbase', 'kg/kg', 'tt0t')
+    call ofile%add_var('wcb', 'w at cloudbase', 'm/s', 'tt0t')
+    call ofile%add_var('hw2cb', '1/2 W^2 at the top of the subcloud layer', &
+                       'm^2/s^2', 'tt0t')
+    call ofile%add_var('cldtop', 'cloud top height', 'm', 'tt0t')
+    call ofile%add_var('buoymax', 'maximum buoyancy', 'K', 'tt0t')
+    call ofile%add_var('hw2max', 'highest 1/2 W^2 at the top of the subcloud layer', &
+                       'm^2/s^2', 'tt0t')
 
   end subroutine init_cloudstat
 
@@ -114,7 +114,7 @@ contains
     real(field_r), pointer :: buoymax(:,:)
     real(field_r), pointer :: hw2max(:,:)
 
-    if (is_sampling_timestep(fileid)) then
+    if (is_sampling_timestep(ofile_id)) then
 
       call timer_tic(routine)
 
@@ -122,8 +122,8 @@ contains
       ! Liquid, total and rain water paths
       ! ------------------------------------------------------------------------
 
-      call get_pointer(fileid, 'lwp', lwp, [2, 2])
-      call get_pointer(fileid, 'twp', twp, [2, 2])
+      call ofile%get_pointer('lwp', lwp)
+      call ofile%get_pointer('twp', twp)
 
       !$acc parallel loop collapse(3) default(present)
       do k = 1, kmax
@@ -138,7 +138,7 @@ contains
       end do
 
       if (iqr > 0) then
-        call get_pointer(fileid, 'rwp', rwp, [2, 2])
+        call ofile%get_pointer('rwp', rwp)
 
         !$acc parallel loop collapse(3) default(present)
         do k = 1, kmax
@@ -168,10 +168,10 @@ contains
       ! Variables at cloud-base
       ! ------------------------------------------------------------------------
 
-      call get_pointer(fileid, 'thlcb', thlcb, [2, 2])
-      call get_pointer(fileid, 'buoycb', buoycb, [2, 2])
-      call get_pointer(fileid, 'qtcb', qtcb, [2, 2])
-      call get_pointer(fileid, 'qlcb', qlcb, [2, 2])
+      call ofile%get_pointer('thlcb', thlcb)
+      call ofile%get_pointer('buoycb', buoycb)
+      call ofile%get_pointer('qtcb', qtcb)
+      call ofile%get_pointer('qlcb', qlcb)
 
       !$acc parallel loop collapse(2) default(present) &
       !$acc private(thl_at_cb, ql_at_cb, thv_at_cb)
@@ -189,8 +189,8 @@ contains
         end do
       end do
 
-      call get_pointer(fileid, 'wcb', wcb, [2, 2])
-      call get_pointer(fileid, 'hw2cb', hw2cb, [2, 2])
+      call ofile%get_pointer('wcb', wcb)
+      call ofile%get_pointer('hw2cb', hw2cb)
 
       !$acc parallel loop collapse(2) default(present) &
       !$acc private(w_at_cb)
@@ -206,8 +206,8 @@ contains
       ! Max values
       ! ------------------------------------------------------------------------
 
-      call get_pointer(fileid, 'cldtop', cldtop, [2, 2])
-      call get_pointer(fileid, 'buoymax', buoymax, [2, 2])
+      call ofile%get_pointer('cldtop', cldtop)
+      call ofile%get_pointer('buoymax', buoymax)
 
       !$acc parallel loop seq default(present)
       do k = 1, kmax
@@ -222,7 +222,7 @@ contains
         end do
       end do
 
-      call get_pointer(fileid, 'hw2max', hw2max, [2, 2])
+      call ofile%get_pointer('hw2max', hw2max)
 
       !$acc parallel loop seq default(present)
       do k = 1, kmax
