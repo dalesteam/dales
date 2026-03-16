@@ -46,6 +46,7 @@ module modnetcdf_file_t
   contains
     procedure :: add_var => netcdf_file_add_var
     procedure :: get_var_id => netcdf_file_get_var_id
+    procedure :: set_filename => netcdf_file_set_filename
     procedure(netcdf_file_init),  deferred :: init
     procedure(netcdf_file_write), deferred :: write
   end type netcdf_file_t
@@ -187,6 +188,36 @@ contains
 
   end function netcdf_file_get_var_id
 
+  !> Sets the filename, takes care of the .nc suffix and any other suffix.
+  subroutine netcdf_file_set_filename(this, filename, suffix)
+
+    class(netcdf_file_t), intent(inout) :: this
+
+    character(len=*), intent(in) :: filename
+
+    character(len=*), intent(in), optional :: suffix
+
+    integer           :: strlen
+    character(len=80) :: the_filename
+
+    the_filename = adjustr(filename)
+    strlen = len(trim(the_filename))
+
+    ! Find out if the given filename already ends in '.nc'
+    ! If so, strip it
+    if (the_filename(strlen-3+1:) == '.nc') then
+      the_filename(strlen-3+1:) = ' '
+      the_filename = trim(the_filename)
+    end if
+
+    if (present(suffix)) the_filename = trim(the_filename)//'.'//trim(suffix)
+
+    the_filename = trim(the_filename)//'.nc'
+
+    this%filename = the_filename
+
+  end subroutine netcdf_file_set_filename
+
   !> Open a NetCDF file containing time series data.
   function time_series_file_open(filename) result(this)
 
@@ -194,8 +225,7 @@ contains
 
     type(time_series_file_t) :: this !< New time series file object.
 
-    this%filename = trim(filename)
-
+    call this%set_filename(filename)
     call open_nc(this%filename, this%ncid, this%nrec)
 
   end function time_series_file_open
@@ -279,7 +309,7 @@ contains
       call finish(routine, 'no vertical dimension length given')
     end if
 
-    this%filename = trim(filename)
+    call this%set_filename(filename)
     
     if (present(nz)) this%nz = nz
     if (present(nzs)) this%nzs = nzs
@@ -375,8 +405,6 @@ contains
 
     character(len=*), parameter :: routine = modname//'/cross_section_file_open'
 
-    this%filename = trim(filename)
-
     if (count([present(nx), present(ny), present(nz), present(nzs)], dim=1) > 2) then
       call finish(routine, 'cross section file can contain only two dimensions')
     end if
@@ -396,12 +424,11 @@ contains
         this%nvals_y = jmax
       end if
 
+      call this%set_filename(filename)
+
       call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
                    n2=this%ny, n3=nz, ns=nzs, comm=comm3d)
     else
-      ! Every rank writes to its own file, distinguish with cmyid
-      this%filename = this%filename//'.'//trim(cmyid)
-
       if (present(nx)) then
         this%nx = imax
         this%x_start = 1
@@ -412,6 +439,9 @@ contains
         this%y_start = 1
         this%nvals_y = jmax
       end if
+
+      ! Every rank writes to its own file, distinguish with cmyid
+      call this%set_filename(filename, suffix=cmyid)
 
       call open_nc(this%filename, this%ncid, this%nrec, n1=this%nvals_x, &
                    n2=this%nvals_y, n3=nz, ns=nzs)
@@ -545,8 +575,6 @@ contains
 
     character(len=*), parameter :: routine = modname//'/field_dump_file_open'
 
-    this%filename = trim(filename)
-
     if (.not. present(nz) .and. .not. present(nzs)) then
       call finish(routine, 'field dump file has to have at least one&
         & vertical dimension')
@@ -567,12 +595,13 @@ contains
     end if
 
     if (NC_HAVE_PARALLEL) then
+      call this%set_filename(filename)
       this%nx = itot
       this%ny = jtot
       this%x_start = (myidx + 1) * imax
       this%y_start = (myidy + 1) * jmax
     else
-      this%filename = this%filename//'.'//cmyid
+      call this%set_filename(filename, suffix=cmyid)
       this%nx = imax
       this%ny = jmax
       this%x_start = 1
