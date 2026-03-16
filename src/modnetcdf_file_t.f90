@@ -2,7 +2,7 @@
 module modnetcdf_file_t
 
   use fortran_support, only: finish
-  use modglobal,       only: imax, jmax, kmax, itot, jtot, rtimee
+  use modglobal,       only: imax, jmax, kmax, itot, jtot, rtimee, cexpnr
   use modmpi,          only: comm3d, myidx, myidy, cmyid, nprocx, nprocy
   use modprecision,    only: field_r
   use modstat_nc
@@ -212,7 +212,8 @@ contains
 
     if (present(suffix)) the_filename = trim(the_filename)//'.'//trim(suffix)
 
-    the_filename = trim(the_filename)//'.nc'
+    ! Add the experiment ID and the .nc suffix
+    the_filename = trim(the_filename)//'.'//cexpnr//'.nc'
 
     this%filename = the_filename
 
