@@ -616,11 +616,11 @@ contains
     if (present(nz)) this%nz = khi - klo + 1 ! Passed value of nz not actually used...
     
     if (NC_HAVE_PARALLEL) then
-      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
-                   n2=this%ny, n3=nz, ns=nzs, comm=comm3d)
+      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nvals_x, &
+                   n2=this%nvals_y, n3=nz, ns=nzs, comm=comm3d)
     else
-      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
-                   n2=this%ny, n3=nz, ns=nzs, comm=comm3d)
+      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nvals_x, &
+                   n2=this%nvals_y, n3=nz, ns=nzs)
     end if
 
   end function field_dump_file_open
