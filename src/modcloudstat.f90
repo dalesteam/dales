@@ -163,6 +163,7 @@ contains
           exit
         end if
       end do
+      !$acc end serial
 
       ! ------------------------------------------------------------------------
       ! Variables at cloud-base
