@@ -411,7 +411,9 @@ contains
                                   fluxes_sw)) ! fluxes (inout, W/m2)
           call timer_toc('modradrte_rrtmgp/swrtesolve')
 
-        endif
+        else
+          call zero_SW_for_sunDown()
+        end if
 
       endif
 
@@ -481,7 +483,32 @@ contains
     end if
 
   end subroutine exit_radrte_rrtmgp
+  subroutine zero_SW_for_sunDown
+    implicit none
+    integer :: i, k
 
+    ! Make sure the SW output is 0 if sun is down.
+    ! If the sun is down, rrtmgp does not initialize the sw fluxes arrays, so we need to set them to zero here to avoid uninitialized values in the output.
+    !$acc parallel loop collapse(2) default(present)
+    do i=1,ncol
+      do k=1,nlay+1
+        swUp_slice(i,k) = 0.
+        swDown_slice(i,k) = 0.
+        swDownDir_slice(i,k) = 0.
+      enddo
+    enddo
+
+    if(doclearsky) then
+    !$acc parallel loop collapse(2) default(present)
+     do i=1,ncol
+      do k=1,nlay+1
+          swUpCS_slice(i,k) = 0.
+          swDownCS_slice(i,k) = 0.
+      enddo
+     enddo
+    end if
+
+  end subroutine zero_SW_for_sunDown
   subroutine setupColumnProfiles(ibatch)
 
     use modglobal,   only: imax, jmax, kmax, i1, grav, kind_rb, rlv, cp, rd, pref0, tup, tdn
