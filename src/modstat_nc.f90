@@ -38,7 +38,7 @@ module modstat_nc
 
     character(len=*), parameter :: modname = 'modstat_nc'
 
-#if defined(NC_HAVE_PARALLEL)
+#if defined(NC_HAS_PARALLEL)
     logical, parameter :: NC_HAVE_PARALLEL = .true.
 #else
     logical, parameter :: NC_HAVE_PARALLEL = .false.
