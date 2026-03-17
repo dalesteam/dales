@@ -416,12 +416,12 @@ contains
     if (NC_HAVE_PARALLEL) then
       if (present(nx)) then
         this%nx = itot
-        this%x_start = (myidx + 1) * imax
+        this%x_start = myidx * imax + 1
         this%nvals_x = imax
       end if
       if (present(ny)) then
         this%ny = jtot
-        this%y_start = (myidy + 1) * jmax
+        this%y_start = myidy * jmax + 1
         this%nvals_y = jmax
       end if
 
@@ -599,8 +599,8 @@ contains
       call this%set_filename(filename)
       this%nx = itot
       this%ny = jtot
-      this%x_start = (myidx + 1) * imax
-      this%y_start = (myidy + 1) * jmax
+      this%x_start = myidx * imax + 1
+      this%y_start = myidy * jmax + 1
     else
       call this%set_filename(filename, suffix=cmyid)
       this%nx = imax
