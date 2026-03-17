@@ -505,7 +505,7 @@ contains
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
                                   trestart, ladaptive,llsadv,tnextrestart,longint,lopenbc,linithetero, &
                                   iinput, input_netcdf, input_ascii, lcoriol, &
-                                  dzhi, iadv_thl, iadv_qt, iadv_kappa
+                                  dzhi, iadv_thl, iadv_qt, iadv_kappa, eps1
     use modthermodynamics, only : lconstexner,lbaseexner
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
@@ -808,9 +808,12 @@ contains
         end do
       end if
 
-      !-----------------------------------------------------------------
-      !    2.2 Initialize surface layer and base profiles
-      !-----------------------------------------------------------------
+      !--------------------------------------------------------------------------
+      !    2.2 Check surface settings, initialize surface layer and base profiles
+      !--------------------------------------------------------------------------
+      
+      ! We call thermodynamics to calculate qtsurf, for which we need to know ps is set correctly.
+      if (ps < eps1) call finish(routine, 'ps out of range/not set')
 
       select case(isurf)
       case(1)
