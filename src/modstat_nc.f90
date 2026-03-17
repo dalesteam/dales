@@ -276,10 +276,11 @@ contains
   !> Subroutine Define_NC: Defines the structure of the nc file (if not
   !! already open)
   !
-  subroutine define_nc(ncID, nVar, sx)
+  subroutine define_nc(ncID, nVar, sx, lcollective)
     implicit none
     integer, intent (in) :: nVar, ncID
     character (*), intent (in) :: sx(nVar,4)
+    logical, intent(in), optional :: lcollective
 
     integer, save ::  dim_mttt(4) = 0, dim_tmtt(4) = 0, dim_ttmt(4) = 0, dim_tttt(4) = 0, &
                       dim_tt(2)= 0, dim_mt(2)= 0,dim_t0tt(3)=0,dim_m0tt(3)=0,dim_t0mt(3)=0,dim_tt0t(3)=0, &
@@ -383,6 +384,13 @@ contains
         ! call appl_abort(0)
 
       end select
+
+      if (present(lcollective)) then
+        if (lcollective) then
+          call nchandle_error(nf90_var_par_access(ncid, varid, NF90_COLLECTIVE))
+        end if
+      end if
+
       if (iret/=0) then
         write (*,*) 'nvar', nvar, sx(n,:)
         call nchandle_error(iret)
