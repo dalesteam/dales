@@ -3,7 +3,8 @@ module modnetcdf_file_t
 
   use fortran_support, only: finish
   use modglobal,       only: imax, jmax, kmax, itot, jtot, rtimee, cexpnr
-  use modmpi,          only: comm3d, myidx, myidy, cmyid, nprocx, nprocy
+  use modmpi,          only: comm3d, myidx, myidy, cmyid, nprocx, nprocy, &
+                             mpi_comm, commrow, commcol
   use modprecision,    only: field_r
   use modstat_nc
 
@@ -406,6 +407,8 @@ contains
 
     character(len=*), parameter :: routine = modname//'/cross_section_file_open'
 
+    type(mpi_comm), pointer :: comm
+
     if (count([present(nx), present(ny), present(nz), present(nzs)], dim=1) > 2) then
       call finish(routine, 'cross section file can contain only two dimensions')
     end if
@@ -427,8 +430,17 @@ contains
 
       call this%set_filename(filename)
 
+      ! Determine which MPI communicator to use
+      if (present(nx) .and. present(ny)) then
+        comm => comm3d
+      else if (present(nx)) then 
+        comm => commrow
+      else
+        comm => commcol
+      end if
+
       call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
-                   n2=this%ny, n3=nz, ns=nzs, comm=comm3d)
+                   n2=this%ny, n3=nz, ns=nzs, comm=comm)
     else
       if (present(nx)) then
         this%nx = imax
@@ -460,12 +472,12 @@ contains
     call nctiminfo(this%timeinfo(1,:))
 
     if (this%nrec == 0) then
-      call define_nc(this%ncid, 1, this%timeinfo)
+      call define_nc(this%ncid, 1, this%timeinfo, lcollective=.true.)
       call writestat_dims_nc(this%ncid, offset_x=this%x_start, &
                              offset_y=this%y_start)
     end if
 
-    call define_nc(this%ncid, this%nvar, this%names)
+    call define_nc(this%ncid, this%nvar, this%names, lcollective=.true.)
 
     if (this%nvals_x > 0 .and. this%nvals_y > 0) then
       n1 = this%nvals_x
@@ -636,12 +648,12 @@ contains
     call nctiminfo(this%timeinfo)
 
     if (this%nrec == 0) then
-      call define_nc(this%ncid, 1, this%timeinfo)
+      call define_nc(this%ncid, 1, this%timeinfo, lcollective=.true.)
       call writestat_dims_nc(this%ncid, ncoarse=this%ncoarse, klow=this%klo, &
                              offset_x=this%x_start, offset_y=this%y_start)
     end if
 
-    call define_nc(this%ncid, this%nvar, this%names)
+    call define_nc(this%ncid, this%nvar, this%names, lcollective=.true.)
 
     if (this%nz > 0) then
       n3 = this%nz

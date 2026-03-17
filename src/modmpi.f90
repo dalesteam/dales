@@ -45,7 +45,7 @@ implicit none
   public :: print_info_stderr
 
 save
-  type(MPI_COMM) :: commwrld, comm3d, commrow, commcol
+  type(MPI_COMM), target :: commwrld, comm3d, commrow, commcol
   logical  :: libmode !Library mode: skip finalize, assumed to be called externally
   integer  :: nbrnorth
   integer  :: nbrsouth
