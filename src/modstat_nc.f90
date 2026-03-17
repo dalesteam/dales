@@ -221,7 +221,12 @@ contains
     else
        nrec = 0
        ncall= 0
-       call nchandle_error(nf90_open (trim(fname), NF90_WRITE, ncid))
+       if (present(comm)) then
+         call nchandle_error(nf90_open (trim(fname), NF90_WRITE, ncid, &
+                             comm=comm%mpi_val, info=mpi_info_null%mpi_val))
+       else
+         call nchandle_error(nf90_open (trim(fname), NF90_WRITE, ncid))
+       end if
        call nchandle_error(nf90_inquire(ncid, unlimitedDimId = RecordDimID))
        call nchandle_error(nf90_inquire_dimension(ncid, RecordDimID, len=nrec))
        if (nrec>0) then
