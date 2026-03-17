@@ -462,17 +462,17 @@ contains
     if (.not. lproc) then
       iret = nf90_inq_varid(ncid, 'xt', VarID)
       if (iret==0) iret=nf90_inquire_dimension(ncid, xtID, len=length)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(x0+dx*(0.5+nc*i)+myidx*imax*dx,i=0,length-1)/),(/1/))
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(x0+dx*(0.5+nc*i)+myidx*imax*dx,i=0,length-1)/),xstart)
       iret = nf90_inq_varid(ncid, 'xm', VarID)
       if (iret==0) iret=nf90_inquire_dimension(ncid, xmID, len=length)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(x0+dx*nc*i+myidx*imax*dx,i=0,length-1)/),(/1/))
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(x0+dx*nc*i+myidx*imax*dx,i=0,length-1)/),xstart)
 
       iret = nf90_inq_varid(ncid, 'yt', VarID)
       if (iret==0) iret=nf90_inquire_dimension(ncid, ytID, len=length)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(y0+dy*(0.5+nc*i)+myidy*jmax*dy,i=0,length-1)/),(/1/))
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(y0+dy*(0.5+nc*i)+myidy*jmax*dy,i=0,length-1)/),ystart)
       iret = nf90_inq_varid(ncid, 'ym', VarID)
       if (iret==0) iret=nf90_inquire_dimension(ncid, ymID, len=length)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(y0+dy*nc*i+myidy*jmax*dy,i=0,length-1)/),(/1/))
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(y0+dy*nc*i+myidy*jmax*dy,i=0,length-1)/),ystart)
     else
       iret = nf90_inq_varid(ncid, 'xt', VarID)
       if (iret==0) iret = nf90_put_var(ncid, varID, (/(x0+0.5*dx*imax+myidx*imax*dx)/),(/1/))
