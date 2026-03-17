@@ -36,7 +36,7 @@ contains
 
     logical :: do_sample !< True if sampling should be done for this file.
 
-    if (rk3step == 3) then
+    if (rk3step == 3 .and. timee > 0.001) then
       do_sample = mod(timee, file_list(id)%dt_sample) == 0.0_field_r
     else
       do_sample = .false.
@@ -51,7 +51,7 @@ contains
 
     logical :: do_write !< True if writing should be done for this file.
 
-    if (rk3step == 3) then
+    if (rk3step == 3 .and. timee > 0.001) then
       do_write = mod(timee, file_list(id)%dt_write) == 0.0_field_r
     else
       do_write = .false.
