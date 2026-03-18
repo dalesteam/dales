@@ -4,6 +4,7 @@ module modnamelist
   use modaerosol,        only: aerosol_read_namelist
   use modchecksim,       only: checksim_read_namelist
   use modcloudstat,      only: cloudstat_read_namelist
+  use modfielddump,      only: fielddump_read_namelist
   use modlatsponge,      only: lateral_sponge_read_namelist
   use modmicrophysics,   only: microphysics_read_namelist
   use modpois,           only: poisson_solver_read_namelist
@@ -43,6 +44,7 @@ contains
 
     ! Statistical modules
     call cloudstat_read_namelist(nml_filename)
+    call fielddump_read_namelist(nml_filename)
   
   end subroutine read_namelists
 

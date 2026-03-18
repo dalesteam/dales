@@ -1,13 +1,3 @@
-!> \file modfielddump.f90
-!!  Dumps 3D fields of several variables
-
-!>
-!!  Dumps 3D fields of several variables
-!>
-!!  Dumps 3D fields of several variables Written to wb*.myidx.myidy.expnr
-!! If netcdf is true, this module leads the fielddump.myidx.myidy..expnr.nc output
-!!  \author Thijs Heus,MPI-M
-!!  \par Revision list
 !  This file is part of DALES.
 !
 ! DALES is free software; you can redistribute it and/or modify
@@ -25,50 +15,60 @@
 !
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
+!> Dumps 3D fields of several variables.
 module modfielddump
-  use fortran_support, only: &
+
+  use fortran_support,   only: nnml_output, warning, &
 #if FIELD_PRECISION==64
-                             t_ptr_3d => t_ptr_3d_dp
+                               t_ptr_3d => t_ptr_3d_dp
 #else
-                             t_ptr_3d => t_ptr_3d_sp
+                               t_ptr_3d => t_ptr_3d_sp
 #endif
-  use modfields, only: u0, v0, w0, qt0, ql0, e120, thl0, tmp0, sv0, rhof, &
-                       exnf, thv0h, thvh, presf
-  use modglobal, only: j1, i1, dzf, cp, tdn, tup, nsv
-  use modraddata, only: lwu, lwd, swu, swd
-  use modsubgriddata, only: ekh0 => ekh, ekm0 => ekm
-  use modtracers, only: get_tracer_index, tracer_prop
+  use modfields,         only: u0, v0, w0, qt0, ql0, e120, thl0, tmp0, sv0, &
+                               rhof, exnf, thv0h, thvh, presf
+  use modglobal,         only: j1, i1, kmax, dzf, cp, tdn, tup, nsv, &
+                               ifnamopt, fname_options, checknamelisterror, &
+                               output_prefix, dtav_glob
+  use modraddata,        only: lwu, lwd, swu, swd
+  use modsubgriddata,    only: ekh0 => ekh, ekm0 => ekm
+  use modtracers,        only: get_tracer_index, tracer_prop
   use modthermodynamics, only: calc_qsat
-  use modprecision, only: field_r, longint
-  use modlogging, only: finish
-  use modnetcdf_file_t, only: field_dump_file_t
-  use modstat_nc_files, only: add_output_file, is_sampling_timestep
+  use modprecision,      only: field_r, longint
+  use modnetcdf_file_t,  only: field_dump_file_t
+  use modstat_nc_files,  only: add_output_file, is_sampling_timestep
+  use modmpi,            only: myid, d_mpi_bcast, commwrld
+  use modmicrodata,      only: imicro, imicro_sice
 
-implicit none
-character(len=*), parameter :: modname = 'modfielddump'
-private
+  implicit none
 
-PUBLIC :: initfielddump, fielddump
+  private
 
-save
-!NetCDF variables
+  character(len=*), parameter :: modname = 'modfielddump'
+
+  public :: fielddump_read_namelist
+  public :: initfielddump
+  public :: fielddump
 
   type(field_dump_file_t) :: ofile    !< Output file object.
   integer                 :: ofile_id !< File ID in the list of output files.
 
-  real    :: dtav, tmin, tmax
-  integer(kind=longint) :: idtav,tnext,itmax,itmin
-  integer :: klow,khigh,ncoarse=1
-  logical :: lfielddump= .false. !< switch to enable the fielddump (on/off)
-  logical :: ldiracc   = .false. !< switch for doing direct access writing (on/off)
-  logical :: lbinary   = .false. !< switch for doing direct access writing (on/off)
-  logical :: lu = .true.         !< switch for saving the u field
-  logical :: lv = .true.         !< switch for saving the v field
-  logical :: lw = .true.         !< switch for saving the w field
-  logical :: lqt = .true.        !< switch for saving the qt field
-  logical :: lql = .true.        !< switch for saving the ql field
-  logical :: lthl = .true.       !< switch for saving the thl field
-  logical :: lbuoy = .true.      !< switch for saving the buoy field
+  real    :: dtav
+  real    :: tmin
+  real    :: tmax
+  integer :: klow
+  integer :: khigh
+  integer :: ncoarse = 1
+
+  logical :: lfielddump = .false. !< switch to enable the fielddump (on/off)
+  logical :: ldiracc = .false.    !< switch for doing direct access writing (on/off)
+  logical :: lbinary = .false.    !< switch for doing direct access writing (on/off)
+  logical :: lu = .true.          !< switch for saving the u field
+  logical :: lv = .true.          !< switch for saving the v field
+  logical :: lw = .true.          !< switch for saving the w field
+  logical :: lqt = .true.         !< switch for saving the qt field
+  logical :: lql = .true.         !< switch for saving the ql field
+  logical :: lthl = .true.        !< switch for saving the thl field
+  logical :: lbuoy = .true.       !< switch for saving the buoy field
   logical :: lcli = .false.       !< switch for saving the cli field
   logical :: lclw = .false.       !< switch for saving the clw field
   logical :: lta = .false.        !< switch for saving the ta field
@@ -82,133 +82,134 @@ save
   logical :: le12 = .false.       !< switch for saving the e12 field
   logical :: lekh = .false.       !< switch for saving the ekh field
   logical :: lekm = .false.       !< switch for saving the ekm field
-  logical :: lsv(100) = .true.   !< switches for saving the sv fields
+  logical :: lsv(100) = .true.    !< switches for saving the sv fields
 
 contains
-!> Initializing fielddump. Read out the namelist, initializing the variables
-  subroutine initfielddump
-    use modmpi,   only :myid,comm3d,myidx,myidy,D_MPI_BCAST
-    use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres,&
-         checknamelisterror, output_prefix
-    use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
-    use modtracers, only : tracer_prop, get_tracer_index
-    use modmicrodata, only : imicro, imicro_sice, imicro_sice2
-    use fortran_support, only: nnml_output
-    implicit none
+
+  !> Read fielddump namelist.
+  subroutine fielddump_read_namelist(nml_filename)
+   
+    character(len=*), intent(in) :: nml_filename 
+
+    integer :: ierr
+
+    namelist /NAMFIELDDUMP/ dtav, lfielddump, klow, khigh, ncoarse, tmin, &
+                            tmax, lu, lv, lw, lqt, lql, lthl, lbuoy, lcli, &
+                            lclw, lta, lplw, lpli, lhus, lhur, ltntr, ltntrs, &
+                            ltntrl, le12, lekh, lekm,  lsv
+
+    ! Set default values of some parameters
+    dtav = dtav_glob 
+    klow = 1
+    khigh = kmax
+    tmin = 0
+    tmax = 1E8
+
+    if (myid == 0) then
+      open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
+      read(ifnamopt, NAMFIELDDUMP, iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'NAMFIELDDUMP')
+      write(nnml_output, NAMFIELDDUMP)
+      close(ifnamopt)
+    end if
+
+    call D_MPI_BCAST(ncoarse     ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(klow        ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(khigh       ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(dtav        ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(tmin        ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(tmax        ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lfielddump  ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(ldiracc     ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lbinary     ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lu          ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lv          ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lw          ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lqt         ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lql         ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lthl        ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lbuoy       ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lcli        ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lclw        ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lta         ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lplw        ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lpli        ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lhus        ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lhur        ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(ltntr       ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(ltntrs      ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(ltntrl      ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(le12        ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lekh        ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lekm        ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lsv       ,100,0,commwrld,ierr)
+
+  end subroutine fielddump_read_namelist
+
+  !> Open fielddump output file and add variables.
+  subroutine initfielddump()
 
     character(len=*), parameter :: routine = modname//'/initfielddump'
 
-    integer :: ierr, n, iqr
-    character(3) :: csvname
+    integer :: n, iqr
 
-    namelist/NAMFIELDDUMP/ &
-         dtav,lfielddump,ldiracc,lbinary,klow,khigh,ncoarse, tmin, tmax,&
-         lu, lv, lw, lqt, lql, lthl, lbuoy, lcli, lclw, lta, lplw, lpli, lhus, lhur, ltntr, ltntrs, ltntrl, le12, lekh, lekm,  lsv
+    if (lfielddump) then
 
-    dtav=dtav_glob
-    klow=1
-    khigh=kmax
-    tmin = 0.
-    tmax = 1e8
-    if(myid==0)then
-      open(ifnamopt,file=fname_options,status='old',iostat=ierr)
-      read (ifnamopt,NAMFIELDDUMP,iostat=ierr)
-      call checknamelisterror(ierr, ifnamopt, 'NAMFIELDDUMP')
-      write(nnml_output ,NAMFIELDDUMP)
-      close(ifnamopt)
-
-      if ((lcli .or. lclw) .and. .not. (imicro ==  imicro_sice .or. imicro == imicro_sice2)) then
-         write (*,*) "FIELDDUMP: cli and clw output works only with simpleice microphysics. Turning off."
-         lcli = .false.
-         lclw = .false.
+      if ((lcli .or. lclw) .and. .not. (imicro ==  imicro_sice)) then
+        call warning(routine, 'cli and clw output works only with simpleice&
+          & microphysics. Turning off.') 
+        lcli = .false.
+        lclw = .false.
       end if
-      if (lplw.or.lpli) then
+
+      if (lplw .or. lpli) then
         iqr = get_tracer_index("qr")
-      endif
-      if ((iqr == 0).and.((lplw.or.lpli))) then
-        print *, "lplw or lpli are true but there is no qr tracer. Turning plw and pli output off."
+      end if
+
+      if ((iqr == 0) .and. ((lplw .or. lpli))) then
+        call warning(routine, 'lplw or lpli are true but there is no qr tracer.&
+          & Turning plw and pli output off.')
         lplw = .false.
         lpli = .false. 
-      endif
-    end if
-    call D_MPI_BCAST(ncoarse     ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(klow        ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(khigh       ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(dtav        ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(tmin        ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(tmax        ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lfielddump  ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(ldiracc     ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lbinary     ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lu          ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lv          ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lw          ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lqt         ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lql         ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lthl        ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lbuoy       ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lcli        ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lclw        ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lta         ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lplw        ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lpli        ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lhus        ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lhur        ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(ltntr       ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(ltntrs      ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(ltntrl      ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(le12        ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lekh        ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lekm        ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lsv       ,100,0,comm3d,ierr)
-
-    idtav = int(dtav / tres, kind=kind(idtav))
-    itmin = int(tmin / tres, kind=kind(itmin))
-    itmax = int(tmax / tres, kind=kind(itmax))
-
-    tnext      = idtav   +btime
-    if(.not.(lfielddump)) return
-    dt_lim = min(dt_lim,tnext)
-
-    if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      call finish(routine, 'dtav should be a integer multiple of dtmax')
-    end if
-      
-    ofile = field_dump_file_t('fielddump2.nc', nz=kmax, ncoarse=ncoarse, &
-                              klo=klow, khi=khigh)
-
-    call add_output_file(ofile, dtav, ofile_id)
-
-    if (lu) call ofile%add_var('u', 'West-East velocity', 'm/s', 'mttt')
-    if (lv) call ofile%add_var('v', 'South-North velocity', 'm/s', 'tmtt')
-    if (lw) call ofile%add_var('w', 'Vertical velocity', 'm/s', 'ttmt')
-    if (lqt) call ofile%add_var('qt', 'Total water specific humidity', 'kg/kg', 'tttt')
-    if (lql) call ofile%add_var('ql', 'Liquid water specific humidity', 'kg/kg', 'tttt')
-    if (lthl) call ofile%add_var('thl', 'Liquid water potential temperature', 'K', 'tttt')
-    if (lbuoy) call ofile%add_var('buoy', 'Buoyancy', 'K', 'tttt')
-    if (lcli) call ofile%add_var('cli', 'mass fraction of cloud ice', 'kg/kg', 'tttt')
-    if (lclw) call ofile%add_var('clw', 'mass fraction of cloud liquid water', 'kg/kg', 'tttt')
-    if (lta) call ofile%add_var('ta', 'air temperature', 'K', 'tttt')
-    if (lplw) call ofile%add_var('plw', 'mass fraction of precipitating liquid water', 'kg/kg', 'tttt')
-    if (lpli) call ofile%add_var('pli', 'mass fraction of precipitating ice', 'kg/kg', 'tttt')
-    if (lhus) call ofile%add_var('hus', 'specific humidity', 'kg/kg', 'tttt')
-    if (lhur) call ofile%add_var('hur', 'relative humidity', 'kg/kg', 'tttt')
-    if (ltntr) call ofile%add_var('tntr', 'tendency of air temperature due to radiative heating', 'K/s', 'tttt')
-    if (ltntrs) call ofile%add_var('tntrs', 'tendency of air temperature due to shortwave radiative heating', 'K/s', 'tttt')
-    if (ltntrl) call ofile%add_var('tntrl', 'tendency of air temperature due to longwave radiative heating', 'K/s', 'tttt')
-    if (le12) call ofile%add_var('e12', 'square root of turbulent kinetic energy', 'm/s', 'tttt')
-    if (lekh) call ofile%add_var('ekh', 'diffusion coefficient for heat and moisture', 'm2/s', 'tttt')
-    if (lekm) call ofile%add_var('e12', 'diffusion coefficient for momentum', 'm2/s', 'tttt')
-
-    do n = 1, nsv
-      if (lsv(n)) then
-        call ofile%add_var(tracer_prop(n)%tracname, tracer_prop(n)%traclong, tracer_prop(n)%unit, 'tttt')
       end if
-    end do
+      
+      ofile = field_dump_file_t('fielddump2.nc', nz=kmax, ncoarse=ncoarse, &
+                                klo=klow, khi=khigh)
+
+      call add_output_file(ofile, dtav, ofile_id)
+
+      if (lu) call ofile%add_var('u', 'West-East velocity', 'm/s', 'mttt')
+      if (lv) call ofile%add_var('v', 'South-North velocity', 'm/s', 'tmtt')
+      if (lw) call ofile%add_var('w', 'Vertical velocity', 'm/s', 'ttmt')
+      if (lqt) call ofile%add_var('qt', 'Total water specific humidity', 'kg/kg', 'tttt')
+      if (lql) call ofile%add_var('ql', 'Liquid water specific humidity', 'kg/kg', 'tttt')
+      if (lthl) call ofile%add_var('thl', 'Liquid water potential temperature', 'K', 'tttt')
+      if (lbuoy) call ofile%add_var('buoy', 'Buoyancy', 'K', 'tttt')
+      if (lcli) call ofile%add_var('cli', 'mass fraction of cloud ice', 'kg/kg', 'tttt')
+      if (lclw) call ofile%add_var('clw', 'mass fraction of cloud liquid water', 'kg/kg', 'tttt')
+      if (lta) call ofile%add_var('ta', 'air temperature', 'K', 'tttt')
+      if (lplw) call ofile%add_var('plw', 'mass fraction of precipitating liquid water', 'kg/kg', 'tttt')
+      if (lpli) call ofile%add_var('pli', 'mass fraction of precipitating ice', 'kg/kg', 'tttt')
+      if (lhus) call ofile%add_var('hus', 'specific humidity', 'kg/kg', 'tttt')
+      if (lhur) call ofile%add_var('hur', 'relative humidity', 'kg/kg', 'tttt')
+      if (ltntr) call ofile%add_var('tntr', 'tendency of air temperature due to radiative heating', 'K/s', 'tttt')
+      if (ltntrs) call ofile%add_var('tntrs', 'tendency of air temperature due to shortwave radiative heating', 'K/s', 'tttt')
+      if (ltntrl) call ofile%add_var('tntrl', 'tendency of air temperature due to longwave radiative heating', 'K/s', 'tttt')
+      if (le12) call ofile%add_var('e12', 'square root of turbulent kinetic energy', 'm/s', 'tttt')
+      if (lekh) call ofile%add_var('ekh', 'diffusion coefficient for heat and moisture', 'm2/s', 'tttt')
+      if (lekm) call ofile%add_var('e12', 'diffusion coefficient for momentum', 'm2/s', 'tttt')
+
+      do n = 1, nsv
+        if (lsv(n)) then
+          call ofile%add_var(tracer_prop(n)%tracname, tracer_prop(n)%traclong, tracer_prop(n)%unit, 'tttt')
+        end if
+      end do
+    end if
 
   end subroutine initfielddump
 
-  subroutine fielddump
+  !> Do the fielddump.
+  subroutine fielddump()
 
     integer :: i, j, k, n, ii, jj, kk
     integer :: iqr
@@ -475,7 +476,6 @@ contains
           end do
         end do
       end if
-
     end if
 
   end subroutine fielddump

@@ -656,7 +656,6 @@ module daleslib
             use modAGScross,        only : exitAGScross
             use modlsmcrosssection, only : exitlsmcrosssection
             use modcloudfield,      only : cloudfield
-            use modfielddump,       only : exitfielddump
             use modradfield,        only : exitradfield
             use modsamptend,        only : exitsamptend
 
@@ -694,7 +693,6 @@ module daleslib
             call exitAGScross
             call exitlsmcrosssection
             call exitcape
-            call exitfielddump
             call exitradfield
             call exitheterostats
             call exitcanopy
