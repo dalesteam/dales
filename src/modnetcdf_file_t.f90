@@ -611,8 +611,8 @@ contains
       call this%set_filename(filename)
       this%nx = itot
       this%ny = jtot
-      this%x_start = myidx * imax + 1
-      this%y_start = myidy * jmax + 1
+      this%x_start = myidx * (imax / this%ncoarse) + 1
+      this%y_start = myidy * (jmax / this%ncoarse) + 1
     else
       call this%set_filename(filename, suffix=cmyid)
       this%nx = imax
@@ -621,10 +621,10 @@ contains
       this%y_start = 1
     end if
 
-    this%nx = this%nx / ncoarse
-    this%ny = this%ny / ncoarse
-    this%nvals_x = imax / ncoarse
-    this%nvals_y = jmax / ncoarse
+    this%nx = this%nx / this%ncoarse
+    this%ny = this%ny / this%ncoarse
+    this%nvals_x = imax / this%ncoarse
+    this%nvals_y = jmax / this%ncoarse
 
     if (present(nz)) this%nz = khi - klo + 1 ! Passed value of nz not actually used...
     
