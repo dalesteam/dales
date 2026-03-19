@@ -652,7 +652,6 @@ module daleslib
             use modlsmstat,         only : exitlsmstat
             use modsampling,        only : exitsampling
             use modquadrant,        only : exitquadrant
-            use modcrosssection,    only : exitcrosssection  
             use modAGScross,        only : exitAGScross
             use modlsmcrosssection, only : exitlsmcrosssection
             use modcloudfield,      only : cloudfield
@@ -689,7 +688,6 @@ module daleslib
             call exitbudget
             call exitvarbudget
             !call exitstressbudget
-            call exitcrosssection
             call exitAGScross
             call exitlsmcrosssection
             call exitcape

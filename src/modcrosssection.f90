@@ -28,36 +28,29 @@
 !
 module modcrosssection
 
+  use fortran_support, only: &
+#if FIELD_PRECISION==64
+                               t_ptr_2d => t_ptr_2d_dp
+#else
+                               t_ptr_2d => t_ptr_2d_sp
+#endif
   use modglobal, only  : longint, kmax, nsv
   use modtracers, only : tracer_prop
   use modlogging, only: finish
+  use modnetcdf_file_t, only: cross_section_file_t
+  use modstat_nc_files, only: add_output_file, is_sampling_timestep
+  use modprecision, only: field_r
+  use modthermodynamics, only: calc_virt_pot_temp
 
 implicit none
 character(len=*), parameter :: modname = 'modcrosssection'
 private
-PUBLIC :: initcrosssection, crosssection,exitcrosssection
+PUBLIC :: initcrosssection, crosssection
 save
-!NetCDF variables
-  integer :: nvar = 9
-  integer :: ncid1(100)
-  integer :: ncid2(100)
-  integer :: ncid3(100)
-  integer :: nrec1(100) = 0
-  integer :: nrec2(100) = 0
-  integer :: nrec3(100) = 0
   integer :: crossheight(100)
   integer :: nxy = 0, nxz = 0, nyz = 0
   integer :: cross
   character(4) :: cheight
-  character(80) :: fname1 = 'crossxz.yyyy.x000.exp.nc'
-  character(80) :: fname2 = 'crossxy.zzzz.x000y000.exp.nc'
-  character(80) :: fname3 = 'crossyz.xxxx.y000.exp.nc'
-  character(80),dimension(:,:),allocatable :: ncname1
-  character(80),dimension(1,4) :: tncname1
-  character(80),dimension(:,:),allocatable :: ncname2
-  character(80),dimension(1,4) :: tncname2
-  character(80),dimension(:,:),allocatable :: ncname3
-  character(80),dimension(1,4) :: tncname3
 
   real    :: dtav
   integer(kind=longint) :: idtav,tnext
@@ -70,6 +63,12 @@ save
   logical :: lxz = .true.   !< switch for doing xz crosssections
   logical :: lyz = .true.   !< switch for doing yz crosssections
 
+  type(cross_section_file_t), allocatable :: xy_files(:)    !< List of xy cross files.
+  type(cross_section_file_t), allocatable :: xz_files(:)    !< List of xz cross files.
+  type(cross_section_file_t), allocatable :: yz_files(:)    !< List of yz cross files.
+  integer,                    allocatable :: xy_file_ids(:) !< List of xy cross file ids.
+  integer,                    allocatable :: yz_file_ids(:) !< List of yz cross file ids.
+  integer,                    allocatable :: xz_file_ids(:) !< List of xz cross file ids.
 
 contains
 !> Initializing Crosssection. Read out the namelist, initializing the variables
@@ -83,13 +82,11 @@ contains
    implicit none
     character(len=*), parameter :: routine = modname//'/initcrosssection'
     integer :: ierr,k,n
+    integer :: ifile
 
     namelist/NAMCROSSSECTION/ &
     lcross, lbinary, dtav, crossheight, crossplane, crossortho, lxy, lxz, lyz
 
-    nvar = nvar + nsv
-
-    allocate(ncname1(nvar,4), ncname2(nvar,4), ncname3(nvar,4))
 
     crossheight(1)=2
     crossheight(2:100)=-999
@@ -116,13 +113,9 @@ contains
     call D_MPI_BCAST(lxy        ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lxz        ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lyz        ,1,0,comm3d,mpierr)
-    call D_MPI_BCAST(nvar       ,1,0,comm3d,mpierr)
 
     if(any((crossheight(1:100).gt.kmax)) .or. any(crossplane > jtot+1) .or. any(crossortho > itot+1) ) then
       call finish(routine, 'CROSSSECTION: crosssection out of range')
-    end if
-    if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      call finish(routine, 'CROSSSECTION: dtav should be a integer multiple of dtmax')
     end if
 
     k=1
@@ -150,104 +143,86 @@ contains
     ! 2  <= crossortho <= i1
     ! belong to this processor
 
-    idtav = int(dtav / tres, kind=kind(idtav))
-    tnext   = idtav+btime
-    if(.not.(lcross)) return
-    dt_lim = min(dt_lim,tnext)
+    ! XY cross sections
 
-    if (lnetcdf) then
-       if (lxz) then
-          do cross=1,nxz
-             if (crossplane(cross) >= 2 .and. crossplane(cross) <= j1) then
-                !      fname1(9:16) = cmyid
-                !      fname1(18:20) = cexpnr
-                write(cheight,'(i4.4)') crossplane(cross) + myidy*jmax
-                fname1(9:12) = cheight
-                fname1(15:17) = cmyidx
-                fname1(19:21) = cexpnr
-                call nctiminfo(tncname1(1,:))
-                call ncinfo(ncname1( 1,:),      'u', 'xz crosssection of the west-east velocity',                'm/s',     'm0tt')
-                call ncinfo(ncname1( 2,:),      'v', 'xz crosssection of the south-north velocity',              'm/s',     't0tt')
-                call ncinfo(ncname1( 3,:),      'w', 'xz crosssection of the vertical velocity',                 'm/s',     't0mt')
-                call ncinfo(ncname1( 4,:),    'thl', 'xz crosssection of the liquid water potential temperature','K',       't0tt')
-                call ncinfo(ncname1( 5,:),    'thv', 'xz crosssection of the virtual potential temperature',     'K',       't0tt')
-                call ncinfo(ncname1( 6,:),     'qt', 'xz crosssection of the total water specific humidity',     'kg/kg',   't0tt')
-                call ncinfo(ncname1( 7,:),     'ql', 'xz crosssection of the liquid water specific humidity',    'kg/kg',   't0tt')
-                call ncinfo(ncname1( 8,:),   'buoy', 'xz crosssection of the buoyancy',                          'K',       't0tt')
-                call ncinfo(ncname1( 9,:),   'e120', 'xz crosssection of sqrt(turbulent kinetic energy)',        'm^2/s^2', 't0tt')
-                do n = 1,nsv
-                  call ncinfo(ncname1(9+n,:), trim(tracer_prop(n)%tracname), trim(tracer_prop(n)%traclong), trim(tracer_prop(n)%unit), 't0tt')
-                enddo
-                call open_nc(trim(output_prefix)//fname1,ncid1(cross),nrec1(cross),n1=imax,n3=kmax)
+    allocate(xy_files(nxy), xy_file_ids(nxy))
 
-                if (nrec1(cross) == 0) then
-                   call define_nc(ncid1(cross), 1, tncname1)
-                   call writestat_dims_nc(ncid1(cross))
-                end if
-                call define_nc(ncid1(cross), nvar, ncname1)
-             end if
-          end do
-        end if
-        if (lxy) then
-           do cross=1,nxy
-              write(cheight,'(i4.4)') crossheight(cross)
-              fname2(9:12) = cheight
-              fname2(14:21) = cmyid
-              fname2(23:25) = cexpnr
-              
-              call nctiminfo(tncname2(1,:))
-              call ncinfo(ncname2( 1,:),       'u', 'xy crosssection of the west-east velocity',                 'm/s',     'mt0t')
-              call ncinfo(ncname2( 2,:),       'v', 'xy crosssection of the south-north velocity',               'm/s',     'tm0t')
-              call ncinfo(ncname2( 3,:),       'w', 'xy crosssection of the vertical velocity',                  'm/s',     'tt0t')
-              call ncinfo(ncname2( 4,:),     'thl', 'xy crosssection of the liquid water potential temperature', 'K',       'tt0t')
-              call ncinfo(ncname2( 5,:),     'thv', 'xy crosssection of the virtual potential temperature',      'K',       'tt0t')
-              call ncinfo(ncname2( 6,:),      'qt', 'xy crosssection of the total water specific humidity',      'kg/kg',   'tt0t')
-              call ncinfo(ncname2( 7,:),      'ql', 'xy crosssection of the liquid water specific humidity',     'kg/kg',   'tt0t')
-              call ncinfo(ncname2( 8,:),    'buoy', 'xy crosssection of the buoyancy',                           'K',       'tt0t')
-              call ncinfo(ncname2( 9,:),    'e120', 'xy crosssection of sqrt(turbulent kinetic energy)',         'm^2/s^2', 'tt0t')
-              do n = 1,nsv
-                call ncinfo(ncname2(9+n,:), trim(tracer_prop(n)%tracname), trim(tracer_prop(n)%traclong), trim(tracer_prop(n)%unit), 'tt0t')
-              enddo
-              call open_nc(trim(output_prefix)//fname2,ncid2(cross),nrec2(cross),n1=imax,n2=jmax)
-              if (nrec2(cross)==0) then
-                 call define_nc(ncid2(cross), 1, tncname2)
-                 call writestat_dims_nc(ncid2(cross))
-              end if
-              call define_nc(ncid2(cross), nvar, ncname2)
-           end do
-        end if
-        if (lyz) then  ! .and. myidx == 0
-           do cross=1,nyz
-              if (crossortho(cross) >= 2 .and. crossortho(cross) <= i1) then
-                 !fname3(9:16) = cmyid
-                 !fname3(18:20) = cexpnr
-                 write(cheight,'(i4.4)') crossortho(cross) + myidx*imax
-                 fname3(9:12) = cheight
-                 fname3(15:17) = cmyidy
-                 fname3(19:21) = cexpnr
-                 call nctiminfo(tncname3(1,:))
-                 call ncinfo(ncname3( 1,:),       'u', 'yz crosssection of the west-east velocity',                 'm/s',    '0ttt')
-                 call ncinfo(ncname3( 2,:),       'v', 'yz crosssection of the south-north velocity',               'm/s',    '0mtt')
-                 call ncinfo(ncname3( 3,:),       'w', 'yz crosssection of the vertical velocity',                  'm/s',    '0tmt')
-                 call ncinfo(ncname3( 4,:),     'thl', 'yz crosssection of the liquid water potential temperature', 'K',      '0ttt')
-                 call ncinfo(ncname3( 5,:),     'thv', 'yz crosssection of the virtual potential temperature',      'K',      '0ttt')
-                 call ncinfo(ncname3( 6,:),      'qt', 'yz crosssection of the total water specific humidity',      'kg/kg',  '0ttt')
-                 call ncinfo(ncname3( 7,:),      'ql', 'yz crosssection of the liquid water specific humidity',     'kg/kg',  '0ttt')
-                 call ncinfo(ncname3( 8,:),    'buoy', 'yz crosssection of the buoyancy',                           'K',      '0ttt')
-                 call ncinfo(ncname3( 9,:),    'e120', 'yz crosssection of sqrt(turbulent kinetic energy)',         'm^2/s^2','0ttt')
-                 do n = 1,nsv
-                    call ncinfo(ncname3(9+n,:), trim(tracer_prop(n)%tracname), trim(tracer_prop(n)%traclong), trim(tracer_prop(n)%unit), '0ttt')
-                 enddo
-                 call open_nc(trim(output_prefix)//fname3,  ncid3(cross),nrec3(cross),n2=jmax,n3=kmax)
-                 if (nrec3(cross)==0) then
-                    call define_nc(ncid3(cross), 1, tncname3)
-                    call writestat_dims_nc(ncid3(cross))
-                 end if
-                 call define_nc(ncid3(cross), nvar, ncname3)
-              end if
-           end do
-        end if
-    end if
+    ifile = 0
+    do k = 1, size(crossheight)
+      if (crossheight(k) > 0) then
+        ifile = ifile + 1
+        write(cheight, '(i4.4)') crossheight(k)
+        xy_files(ifile) = cross_section_file_t('crossxy.'//cheight, nx=itot, &
+                                               ny=jtot)
+        call add_output_file(xy_files(ifile), dtav, xy_file_ids(ifile))
+      end if
+    end do
+
+    do ifile = 1, nxy
+      call xy_files(ifile)%add_var('u',    'xy crosssection of the west-east velocity',                'm/s',     'mt0t')
+      call xy_files(ifile)%add_var('v',    'xy crosssection of the south-north velocity',              'm/s',     'tm0t')
+      call xy_files(ifile)%add_var('w',    'xy crosssection of the vertical velocity',                 'm/s',     'tt0t')
+      call xy_files(ifile)%add_var('thl',  'xy crossection of the liquid water potential temperature', 'K',       'tt0t')
+      call xy_files(ifile)%add_var('thv',  'xy crosssection of the virtual potential temperature',     'K',       'tt0t')
+      call xy_files(ifile)%add_var('qt',   'xy crosssection of the total water specific humidity',     'kg/kg',   'tt0t')
+      call xy_files(ifile)%add_var('ql',   'xy crosssection of the liquid water specific humidity',    'kg/kg',   'tt0t')
+      call xy_files(ifile)%add_var('buoy', 'xy crosssection of the buoyancy',                          'K',       'tt0t')
+      call xy_files(ifile)%add_var('e120', 'xy crosssection of the sqrt(turbulent kinetic energy',     'm^2/s^2', 'tt0t')
+    end do
+
+    ! XZ cross sections
+
+    allocate(xz_files(nxz), xz_file_ids(nxz))
+
+    ifile = 0
+    do k = 1, size(crossplane)
+      if (crossplane(k) > 0) then
+        ifile = ifile + 1
+        write(cheight, '(i4.4)') crossplane(k)
+        xz_files(ifile) = cross_section_file_t('crossxz.'//cheight, &
+                                               nx=itot, nz=kmax)
+        call add_output_file(xz_files(ifile), dtav, xz_file_ids(ifile))
+      end if
+    end do
+
+    do ifile = 1, nxz
+      call xz_files(ifile)%add_var('u',    'xz crosssection of the west-east velocity',                'm/s',     'm0tt')
+      call xz_files(ifile)%add_var('v',    'xz crosssection of the south-north velocity',              'm/s',     't0tt')
+      call xz_files(ifile)%add_var('w',    'xz crosssection of the vertical velocity',                 'm/s',     't0mt')
+      call xz_files(ifile)%add_var('thl',  'xz crossection of the liquid water potential temperature', 'K',       't0tt')
+      call xz_files(ifile)%add_var('thv',  'xz crosssection of the virtual potential temperature',     'K',       't0tt')
+      call xz_files(ifile)%add_var('qt',   'xz crosssection of the total water specific humidity',     'kg/kg',   't0tt')
+      call xz_files(ifile)%add_var('ql',   'xz crosssection of the liquid water specific humidity',    'kg/kg',   't0tt')
+      call xz_files(ifile)%add_var('buoy', 'xz crosssection of the buoyancy',                          'K',       't0tt')
+      call xz_files(ifile)%add_var('e120', 'xz crosssection of the sqrt(turbulent kinetic energy',     'm^2/s^2', 't0tt')
+    end do
+
+    ! YZ cross sections
+
+    allocate(yz_files(nyz), yz_file_ids(nyz))
+
+    ifile = 0
+    do k = 1, size(crossortho)
+      if (crossortho(k) > 0) then
+        ifile = ifile + 1
+        write(cheight, '(i4.4)') crossortho(k)
+        yz_files(ifile) = cross_section_file_t('crossyz.'//cheight, &
+                                               ny=jtot, nz=kmax)
+        call add_output_file(yz_files(ifile), dtav, yz_file_ids(ifile))
+      end if
+    end do
+
+    do ifile = 1, nyz
+      call yz_files(ifile)%add_var('u',    'yz crosssection of the west-east velocity',                'm/s',     '0ttt')
+      call yz_files(ifile)%add_var('v',    'yz crosssection of the south-north velocity',              'm/s',     '0mtt')
+      call yz_files(ifile)%add_var('w',    'yz crosssection of the vertical velocity',                 'm/s',     '0tmt')
+      call yz_files(ifile)%add_var('thl',  'yz crossection of the liquid water potential temperature', 'K',       '0ttt')
+      call yz_files(ifile)%add_var('thv',  'yz crosssection of the virtual potential temperature',     'K',       '0ttt')
+      call yz_files(ifile)%add_var('qt',   'yz crosssection of the total water specific humidity',     'kg/kg',   '0ttt')
+      call yz_files(ifile)%add_var('ql',   'yz crosssection of the liquid water specific humidity',    'kg/kg',   '0ttt')
+      call yz_files(ifile)%add_var('buoy', 'yz crosssection of the buoyancy',                          'K',       '0ttt')
+      call yz_files(ifile)%add_var('e120', 'yz crosssection of the sqrt(turbulent kinetic energy',     'm^2/s^2', '0ttt')
+    end do
 
   end subroutine initcrosssection
 !>Run crosssection. Mainly timekeeping
@@ -262,16 +237,9 @@ contains
 
     if (.not. lcross) return
     if (rk3step/=3) return
-    if(timee<tnext) then
-      dt_lim = min(dt_lim,tnext-timee)
-      return
-    end if
 #if defined(_OPENACC)
     call update_host
 #endif
-    tnext = tnext+idtav
-    dt_lim = minval((/dt_lim,tnext-timee/))
-
     if (lxz) call wrtvert
     if (lxy) call wrthorz
     if (lyz) call wrtorth
@@ -287,95 +255,59 @@ contains
   use modstat_nc, only : lnetcdf, writestat_nc
   implicit none
 
-  integer i,k,n,isv
-  character(20) :: name
+  integer i,k,n,isv, j, cross
 
-  real, allocatable :: thv0(:,:),vars(:,:,:),buoy(:,:)
+    type(t_ptr_2d) :: u(100)
+    type(t_ptr_2d) :: v(100)
+    type(t_ptr_2d) :: w(100)
+    type(t_ptr_2d) :: thl(100)
+    type(t_ptr_2d) :: thv(100)
+    type(t_ptr_2d) :: qt(100)
+    type(t_ptr_2d) :: ql(100)
+    type(t_ptr_2d) :: buoy(100)
+    type(t_ptr_2d) :: e12(100)
 
-  allocate(thv0(2:i1,1:kmax),buoy(2:i1,1:kmax))
+  if (is_sampling_timestep(xz_file_ids(1))) then
+   
+    ! Setup the pointers
+    ! CJ: this could be done one time during initialization, have to make sure that
+    ! the buffer is allocated though...
+    do cross = 1, nxz
+      call xz_files(cross)%get_pointer('u', u(cross)%p)
+      call xz_files(cross)%get_pointer('v', v(cross)%p)
+      call xz_files(cross)%get_pointer('w', w(cross)%p)
+      call xz_files(cross)%get_pointer('thl', thl(cross)%p)
+      call xz_files(cross)%get_pointer('thv', thv(cross)%p)
+      call xz_files(cross)%get_pointer('qt', qt(cross)%p)
+      call xz_files(cross)%get_pointer('ql', ql(cross)%p)
+      call xz_files(cross)%get_pointer('buoy', buoy(cross)%p)
+      call xz_files(cross)%get_pointer('e120', e12(cross)%p)
+    end do
 
-  if(lbinary .and. myidy == 0) then
-     ! the old binary format only writes the first cross plane, in the first MPI row.
+    do cross = 1, nxz
+      j = crossplane(cross)
 
-     do  i=2,i1
-        do  k=1,kmax
-           thv0(i,k) = (thl0(i,crossplane(1),k)+rlv*ql0(i,crossplane(1),k)/(cp*exnf(k))) &
-                *(1+(rv/rd-1)*qt0(i,crossplane(1),k)-rv/rd*ql0(i,crossplane(1),k))
-           buoy(i,k) = thv0(i,k)-thvf(k)
-        enddo
-     enddo
+      !$acc kernels default(present) async
+      u(cross)%p(:,:) = um(2:i1,j,1:kmax) + cu
+      v(cross)%p(:,:) = vm(2:i1,j,1:kmax) + cv
+      w(cross)%p(:,:) = wm(2:i1,j,1:kmax)
+      e12(cross)%p(:,:) = e120(2:i1,j,1:kmax)
+      !$acc end kernels
 
-      open(ifoutput,file='movv_u.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((um(i,crossplane,k)+cu,i=2,i1),k=1,kmax)
-      close(ifoutput)
-
-      open(ifoutput,file='movv_v.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((vm(i,crossplane,k)+cv,i=2,i1),k=1,kmax)
-      close(ifoutput)
-
-      open(ifoutput,file='movv_w.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((wm(i,crossplane,k),i=2,i1),k=1,kmax)
-      close(ifoutput)
-
-      open(ifoutput,file='movv_thl.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((thlm(i,crossplane,k),i=2,i1),k=1,kmax)
-      close(ifoutput)
-
-      open(ifoutput,file='movv_thv.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((thv0(i,k),i=2,i1),k=1,kmax)
-      close(ifoutput)
-
-      open(ifoutput,file='movv_buoy.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((buoy(i,k),i=2,i1),k=1,kmax)
-      close(ifoutput)
-
-      open(ifoutput,file='movv_qt.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((1.e3*qtm(i,crossplane,k),i=2,i1),k=1,kmax)
-      close(ifoutput)
-
-      open(ifoutput,file='movv_ql.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((1.e3*ql0(i,crossplane,k),i=2,i1),k=1,kmax)
-      close(ifoutput)
-
-      do n = 1,nsv
-        name = 'movh_tnn.'//cexpnr
-        write(name(7:8),'(i2.2)') n
-        open(ifoutput,file=name,position='append',action='write')
-        write(ifoutput,'(es12.5)') ((svm(i,crossplane,k,n),i=2,i1),k=1,kmax)
-        close(ifoutput)
+      !$acc parallel loop collapse(2) default(present) async
+      do k = 1, kmax
+        do i = 2, i1
+          qt(cross)%p(i,k) = qt0(i,j,k)
+          ql(cross)%p(i,k) = ql0(i,j,k)
+          thl(cross)%p(i,k) = thl0(i,j,k)
+          thv(cross)%p(i,k) = calc_virt_pot_temp(thl0(i,j,k), qt0(i,j,k), &
+                                                 ql0(i,j,k), exnf(k))
+          buoy(cross)%p(i,k) = thv(cross)%p(i,k) - thvf(k)
+        end do
       end do
-    end if
-
-    if (lnetcdf) then
-      allocate(vars(1:imax,1:kmax,nvar))
-      do cross=1,nxz
-         if (crossplane(cross) >= 2 .and. crossplane(cross) <= j1) then
-            do  i=2,i1
-               do  k=1,kmax
-                  thv0(i,k) = (thl0(i,crossplane(cross),k)+rlv*ql0(i,crossplane(cross),k)/(cp*exnf(k))) &
-                       *(1+(rv/rd-1)*qt0(i,crossplane(cross),k)-rv/rd*ql0(i,crossplane(cross),k))
-                  buoy(i,k) = thv0(i,k)-thvf(k)
-               enddo
-            enddo
-            vars(:,:,1) = um(2:i1,crossplane(cross),1:kmax)+cu
-            vars(:,:,2) = vm(2:i1,crossplane(cross),1:kmax)+cv
-            vars(:,:,3) = wm(2:i1,crossplane(cross),1:kmax)
-            vars(:,:,4) = thlm(2:i1,crossplane(cross),1:kmax)
-            vars(:,:,5) = thv0(2:i1,1:kmax)
-            vars(:,:,6) = qtm(2:i1,crossplane(cross),1:kmax)
-            vars(:,:,7) = ql0(2:i1,crossplane(cross),1:kmax)
-            vars(:,:,8) = buoy(2:i1,1:kmax)
-            vars(:,:,9) = e120(2:i1,crossplane(cross),1:kmax)
-            do isv = 1,nsv
-               vars(:,:,9+isv) = svm(2:i1,crossplane(cross),1:kmax,isv)
-            end do
-            call writestat_nc(ncid1(cross),1,tncname1,(/rtimee/),nrec1(cross),.true.)
-            call writestat_nc(ncid1(cross),nvar,ncname1(1:nvar,:),vars,nrec1(cross),imax,kmax)
-         end if
-      end do
-      deallocate(vars)
-    end if
-    deallocate(thv0,buoy)
+    end do
+  
+  end if
 
   end subroutine wrtvert
 
@@ -389,94 +321,59 @@ contains
 
 
     ! LOCAL
-    integer i,j,n,isv
-    character(40) :: name
-    real, allocatable :: thv0(:,:,:),vars(:,:,:),buoy(:,:,:)
+    integer i,j,n,isv, cross,k
 
-    allocate(thv0(2:i1,2:j1,nxy),buoy(2:i1,2:j1,nxy))
+    type(t_ptr_2d) :: u(100)
+    type(t_ptr_2d) :: v(100)
+    type(t_ptr_2d) :: w(100)
+    type(t_ptr_2d) :: thl(100)
+    type(t_ptr_2d) :: thv(100)
+    type(t_ptr_2d) :: qt(100)
+    type(t_ptr_2d) :: ql(100)
+    type(t_ptr_2d) :: buoy(100)
+    type(t_ptr_2d) :: e12(100)
 
-    do  cross=1,nxy
-    do  j=2,j1
-    do  i=2,i1
-      thv0(i,j,cross) =&
-       (thl0(i,j,crossheight(cross))+&
-       rlv*ql0(i,j,crossheight(cross))/&
-       (cp*exnf(crossheight(cross)))) &
-                    *(1+(rv/rd-1)*qt0(i,j,crossheight(cross))&
-                    -rv/rd*ql0(i,j,crossheight(cross)))
-      buoy(i,j,cross) =thv0(i,j,cross)-thvf(crossheight(cross))
-    enddo
-    enddo
-    enddo
+    if (is_sampling_timestep(xy_file_ids(1))) then
 
-    if(lbinary) then
-      do  cross=1,nxy
-      write(cheight,'(i4.4)') crossheight(cross)
-      open(ifoutput,file='movh_u.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((um(i,j,crossheight(cross))+cu,i=2,i1),j=2,j1)
-      close(ifoutput)
+    ! Setup the pointers
+    ! CJ: this could be done one time during initialization, have to make sure that
+    ! the buffer is allocated though...
+    do cross = 1, nxy
+      call xy_files(cross)%get_pointer('u', u(cross)%p)
+      call xy_files(cross)%get_pointer('v', v(cross)%p)
+      call xy_files(cross)%get_pointer('w', w(cross)%p)
+      call xy_files(cross)%get_pointer('thl', thl(cross)%p)
+      call xy_files(cross)%get_pointer('thv', thv(cross)%p)
+      call xy_files(cross)%get_pointer('qt', qt(cross)%p)
+      call xy_files(cross)%get_pointer('ql', ql(cross)%p)
+      call xy_files(cross)%get_pointer('buoy', buoy(cross)%p)
+      call xy_files(cross)%get_pointer('e120', e12(cross)%p)
+    end do
 
-      open(ifoutput,file='movh_v.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((vm(i,j,crossheight(cross))+cv,i=2,i1),j=2,j1)
-      close(ifoutput)
+    do cross = 1, nxy
+      k = crossheight(cross)
 
-      open(ifoutput,file='movh_w.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((wm(i,j,crossheight(cross)),i=2,i1),j=2,j1)
-      close(ifoutput)
+      !$acc kernels default(present) async
+      u(cross)%p(:,:) = um(2:i1,2:j1,k) + cu
+      v(cross)%p(:,:) = vm(2:i1,2:j1,k) + cv
+      w(cross)%p(:,:) = wm(2:i1,2:j1,k)
+      e12(cross)%p(:,:) = e120(2:i1,2:j1,k)
+      !$acc end kernels
 
-      open(ifoutput,file='movh_thl.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((thlm(i,j,crossheight(cross)),i=2,i1),j=2,j1)
-      close(ifoutput)
-
-      open(ifoutput,file='movh_thv.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((thv0(i,j,cross),i=2,i1),j=2,j1)
-      close(ifoutput)
-
-      open(ifoutput,file='movh_buoy.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((buoy(i,j,cross),i=2,i1),j=2,j1)
-      close(ifoutput)
-
-      open(ifoutput,file='movh_qt.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((1.e3*qtm(i,j,crossheight(cross)),i=2,i1),j=2,j1)
-      close(ifoutput)
-
-      open(ifoutput,file='movh_ql.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((1.e3*ql0(i,j,crossheight(cross)),i=2,i1),j=2,j1)
-      close(ifoutput)
-
-      do n = 1,nsv
-        name = 'movh_snn.'//trim(cheight)//'.'//cmyid//'.'//cexpnr
-        write(name(7:8),'(i2.2)') n
-        open(ifoutput,file=name,position='append',action='write')
-        write(ifoutput,'(es12.5)') ((svm(i,j,crossheight(cross),n),i=2,i1),j=2,j1)
-        close(ifoutput)
+      !$acc parallel loop collapse(2) default(present) async
+      do j = 2, j1
+        do i = 2, i1
+          qt(cross)%p(i,j) = qt0(i,j,k)
+          ql(cross)%p(i,j) = ql0(i,j,k)
+          thl(cross)%p(i,j) = thl0(i,j,k)
+          thv(cross)%p(i,j) = calc_virt_pot_temp(thl0(i,j,k), qt0(i,j,k), &
+                                                 ql0(i,j,k), exnf(k))
+          buoy(cross)%p(i,j) = thv(cross)%p(i,j) - thvf(k)
+        end do
       end do
-      end do
-    endif
+    end do
 
-    if (lnetcdf) then
-       allocate(vars(1:imax,1:jmax,nvar))
-       do cross=1,nxy
-          vars=0.
-          vars(:,:,1) = um(2:i1,2:j1,crossheight(cross))+cu
-          vars(:,:,2) = vm(2:i1,2:j1,crossheight(cross))+cv
-          vars(:,:,3) = wm(2:i1,2:j1,crossheight(cross))
-          vars(:,:,4) = thlm(2:i1,2:j1,crossheight(cross))
-          vars(:,:,5) = thv0(2:i1,2:j1,cross)
-          vars(:,:,6) = qtm(2:i1,2:j1,crossheight(cross))
-          vars(:,:,7) = ql0(2:i1,2:j1,crossheight(cross))
-          vars(:,:,8) = buoy(2:i1,2:j1,cross)
-          vars(:,:,9) = e120(2:i1,2:j1,crossheight(cross))
-          do isv = 1,nsv
-             vars(:,:,9+isv) = svm(2:i1,2:j1,crossheight(cross),isv)
-          end do
-          call writestat_nc(ncid2(cross),1,tncname2,(/rtimee/),nrec2(cross),.true.)
-          call writestat_nc(ncid2(cross),nvar,ncname2(1:nvar,:),vars,nrec2(cross),imax,jmax)
-       end do
-       deallocate(vars)
-    end if
-
-    deallocate(thv0,buoy)
+  end if
 
   end subroutine wrthorz
 
@@ -490,136 +387,61 @@ contains
 
 
     ! LOCAL
-    integer j,k,n,isv
+    integer j,k,n,isv,i
     character(21) :: name
 
-    real, allocatable :: thv0(:,:),vars(:,:,:),buoy(:,:)
+    type(t_ptr_2d) :: u(100)
+    type(t_ptr_2d) :: v(100)
+    type(t_ptr_2d) :: w(100)
+    type(t_ptr_2d) :: thl(100)
+    type(t_ptr_2d) :: thv(100)
+    type(t_ptr_2d) :: qt(100)
+    type(t_ptr_2d) :: ql(100)
+    type(t_ptr_2d) :: buoy(100)
+    type(t_ptr_2d) :: e12(100)
 
-    allocate(thv0(1:j1,1:kmax),buoy(1:j1,1:kmax))
+    if (is_sampling_timestep(yz_file_ids(1))) then
 
-    if(lbinary .and. myidx == 0) then
-       ! the old binary format only writes the first cross plane, in the first MPI column
-       do  j=1,j1
-          do  k=1,kmax
-             thv0(j,k) =&
-                  (thl0(crossortho(1),j,k)+&
-                  rlv*ql0(crossortho(1),j,k)/&
-                  (cp*exnf(k))) &
-                  *(1+(rv/rd-1)*qt0(crossortho(1),j,k)&
-                  -rv/rd*ql0(crossortho(1),j,k))
-             buoy(j,k) =thv0(j,k)-thvf(k)
-          enddo
-       enddo
+    ! Setup the pointers
+    ! CJ: this could be done one time during initialization, have to make sure that
+    ! the buffer is allocated though...
+    do cross = 1, nyz
+      call yz_files(cross)%get_pointer('u', u(cross)%p)
+      call yz_files(cross)%get_pointer('v', v(cross)%p)
+      call yz_files(cross)%get_pointer('w', w(cross)%p)
+      call yz_files(cross)%get_pointer('thl', thl(cross)%p)
+      call yz_files(cross)%get_pointer('thv', thv(cross)%p)
+      call yz_files(cross)%get_pointer('qt', qt(cross)%p)
+      call yz_files(cross)%get_pointer('ql', ql(cross)%p)
+      call yz_files(cross)%get_pointer('buoy', buoy(cross)%p)
+      call yz_files(cross)%get_pointer('e120', e12(cross)%p)
+    end do
 
-      open(ifoutput,file='movo_u.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((um(crossortho(1),j,k)+cu,j=2,j1),k=1,kmax)
-      close(ifoutput)
+    do cross = 1, nyz
+      i = crossortho(cross)
 
-      open(ifoutput,file='movo_v.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((vm(crossortho(1),j,k)+cv,j=2,j1),k=1,kmax)
-      close(ifoutput)
+      !$acc kernels default(present) async
+      u(cross)%p(:,:) = um(i,2:j1,1:kmax) + cu
+      v(cross)%p(:,:) = vm(i,2:j1,1:kmax) + cv
+      w(cross)%p(:,:) = wm(i,2:j1,1:kmax)
+      e12(cross)%p(:,:) = e120(i,2:j1,1:kmax)
+      !$acc end kernels
 
-      open(ifoutput,file='movo_w.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((wm(crossortho(1),j,k),j=2,j1),k=1,kmax)
-      close(ifoutput)
-
-      open(ifoutput,file='movo_thl.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((thlm(crossortho(1),j,k),j=2,j1),k=1,kmax)
-      close(ifoutput)
-
-      open(ifoutput,file='movo_thv.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((thv0(j,k),j=2,j1),k=1,kmax)
-      close(ifoutput)
-
-      open(ifoutput,file='movo_buoy.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((buoy(j,k),j=2,j1),k=1,kmax)
-      close(ifoutput)
-
-      open(ifoutput,file='movo_qt.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((1.e3*qtm(crossortho(1),j,k),j=2,j1),k=1,kmax)
-      close(ifoutput)
-
-      open(ifoutput,file='movo_ql.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((1.e3*ql0(crossortho(1),j,k),j=2,j1),k=1,kmax)
-      close(ifoutput)
-
-      do n = 1,nsv
-        name = 'movh_tnn.'//cmyid//'.'//cexpnr
-        write(name(7:8),'(i2.2)') n
-        open(ifoutput,file=name,position='append',action='write')
-        write(ifoutput,'(es12.5)') ((svm(crossortho(1),j,k,n),j=2,j1),k=1,kmax)
-        close(ifoutput)
+      !$acc parallel loop collapse(2) default(present) async
+      do k = 1, kmax
+        do j = 2, j1
+          qt(cross)%p(j,k) = qt0(i,j,k)
+          ql(cross)%p(j,k) = ql0(i,j,k)
+          thl(cross)%p(j,k) = thl0(i,j,k)
+          thv(cross)%p(j,k) = calc_virt_pot_temp(thl0(i,j,k), qt0(i,j,k), &
+                                                 ql0(i,j,k), exnf(k))
+          buoy(cross)%p(j,k) = thv(cross)%p(i,j) - thvf(k)
+        end do
       end do
-    end if
+    end do
 
-    if (lnetcdf) then
-       allocate(vars(1:jmax,1:kmax,nvar))
-       do cross=1,nyz
-          if (crossortho(cross) >= 2 .and. crossortho(cross) <= i1) then
-             do  j=1,j1
-                do  k=1,kmax
-                   thv0(j,k) =&
-                        (thl0(crossortho(cross),j,k)+&
-                        rlv*ql0(crossortho(cross),j,k)/&
-                        (cp*exnf(k))) &
-                        *(1+(rv/rd-1)*qt0(crossortho(cross),j,k)&
-                        -rv/rd*ql0(crossortho(cross),j,k))
-                   buoy(j,k) =thv0(j,k)-thvf(k)
-                enddo
-             enddo
-             vars(:,:,1) = um(crossortho(cross),2:j1,1:kmax)+cu
-             vars(:,:,2) = vm(crossortho(cross),2:j1,1:kmax)+cv
-             vars(:,:,3) = wm(crossortho(cross),2:j1,1:kmax)
-             vars(:,:,4) = thlm(crossortho(cross),2:j1,1:kmax)
-             vars(:,:,5) = thv0(2:j1,1:kmax)
-             vars(:,:,6) = qtm(crossortho(cross),2:j1,1:kmax)
-             vars(:,:,7) = ql0(crossortho(cross),2:j1,1:kmax)
-             vars(:,:,8) = buoy(2:j1,1:kmax)
-             vars(:,:,9) = e120(crossortho(cross),2:j1,1:kmax)
-             do isv = 1,nsv
-                vars(:,:,9+isv) = svm(crossortho(cross),2:j1,1:kmax,isv)
-             end do
-             call writestat_nc(ncid3(cross),1,tncname3,(/rtimee/),nrec3(cross),.true.)
-             call writestat_nc(ncid3(cross),nvar,ncname3(1:nvar,:),vars,nrec3(cross),jmax,kmax)
-          end if
-       end do
-       deallocate(vars)
-    end if
-
-    deallocate(thv0,buoy)
+  end if
 
   end subroutine wrtorth
-
-!> Clean up when leaving the run
-  subroutine exitcrosssection
-    use modstat_nc, only : exitstat_nc,lnetcdf
-    use modglobal, only : i1,j1
-    implicit none
-
-    if(lcross .and. lnetcdf) then
-       if (lxz) then
-          do cross=1,nxz
-             if (crossplane(cross) >= 2 .and. crossplane(cross) <= j1) then
-                call exitstat_nc(ncid1(cross))
-             end if
-          end do
-       end if
-       if (lxy) then
-          do cross=1,nxy
-             call exitstat_nc(ncid2(cross))
-          end do
-       end if
-       if (lyz) then
-          do cross=1,nyz
-             if (crossortho(cross) >= 2 .and. crossortho(cross) <= i1) then
-                call exitstat_nc(ncid3(cross))
-             end if
-          end do
-       end if
-    end if
-
-    deallocate(ncname1, ncname2, ncname3)
-
-  end subroutine exitcrosssection
 
 end module modcrosssection

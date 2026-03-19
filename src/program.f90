@@ -133,7 +133,7 @@ program DALES
   !use moddepstat,      only : initdepstat ,depstat, exitdepstat
   use modsampling,     only : initsampling, sampling,exitsampling
   use modquadrant,     only : initquadrant, quadrant,exitquadrant
-  use modcrosssection, only : initcrosssection, crosssection,exitcrosssection
+  use modcrosssection, only : initcrosssection, crosssection
   use modAGScross,     only : initAGScross, AGScross,exitAGScross
   use modlsmcrosssection, only : initlsmcrosssection, lsmcrosssection,exitlsmcrosssection
   use moddepcrosssection, only : initdepcrosssection, depcrosssection,exitdepcrosssection
@@ -450,7 +450,6 @@ program DALES
   call exitvarbudget
   call exitmsebudg
   !call exitstressbudget
-  call exitcrosssection
   call exitAGScross
   call exitlsmcrosssection
   call exitdepcrosssection
