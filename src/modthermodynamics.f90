@@ -81,6 +81,7 @@ contains
 
   !> Calculate the virtual potential temperature.
   elemental function calc_virt_pot_temp(thl, qt, ql, exn) result(thv)
+    !$acc routine seq
 
     real(field_r), intent(in) :: thl  !< Liquid water potential temperature [K]
     real(field_r), intent(in) :: qt   !< Total water specific humidity [kg/kg]
