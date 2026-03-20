@@ -59,30 +59,32 @@ contains
 
   subroutine init_cloudstat
 
-    ! Make a new NetCDF file
-    ofile = cross_section_file_t('cloudstat.nc', nx=itot, ny=jtot)
+    if (lcloudstat) then
+      ! Make a new NetCDF file
+      ofile = cross_section_file_t('cloudstat.nc', nx=itot, ny=jtot)
 
-    ! Add the file to the list of output files 
-    call add_output_file(ofile, dtav, ofile_id)
+      ! Add the file to the list of output files
+      call add_output_file(ofile, dtav, ofile_id)
 
-    call ofile%add_var('lwp', 'liquid water path', 'kg/m2', 'tt0t')
-    call ofile%add_var('twp', 'total water path', 'kg/m2', 'tt0t')
+      call ofile%add_var('lwp', 'liquid water path', 'kg/m2', 'tt0t')
+      call ofile%add_var('twp', 'total water path', 'kg/m2', 'tt0t')
 
-    ! Check if we have rain
-    iqr = get_tracer_index('qr')
-    if(iqr > 0) call ofile%add_var('rwp', 'rain water path', 'kg/m2', 'tt0t')
+      ! Check if we have rain
+      iqr = get_tracer_index('qr')
+      if(iqr > 0) call ofile%add_var('rwp', 'rain water path', 'kg/m2', 'tt0t')
 
-    call ofile%add_var('thlcb', 'thl at cloudbase', 'K', 'tt0t')
-    call ofile%add_var('buoycb', 'buoyancy at cloudbase', 'K', 'tt0t')
-    call ofile%add_var('qtcb', 'qt at cloudbase', 'kg/kg', 'tt0t')
-    call ofile%add_var('qlcb', 'ql at cloudbase', 'kg/kg', 'tt0t')
-    call ofile%add_var('wcb', 'w at cloudbase', 'm/s', 'tt0t')
-    call ofile%add_var('hw2cb', '1/2 W^2 at the top of the subcloud layer', &
-                       'm^2/s^2', 'tt0t')
-    call ofile%add_var('cldtop', 'cloud top height', 'm', 'tt0t')
-    call ofile%add_var('buoymax', 'maximum buoyancy', 'K', 'tt0t')
-    call ofile%add_var('hw2max', 'highest 1/2 W^2 at the top of the subcloud layer', &
-                       'm^2/s^2', 'tt0t')
+      call ofile%add_var('thlcb', 'thl at cloudbase', 'K', 'tt0t')
+      call ofile%add_var('buoycb', 'buoyancy at cloudbase', 'K', 'tt0t')
+      call ofile%add_var('qtcb', 'qt at cloudbase', 'kg/kg', 'tt0t')
+      call ofile%add_var('qlcb', 'ql at cloudbase', 'kg/kg', 'tt0t')
+      call ofile%add_var('wcb', 'w at cloudbase', 'm/s', 'tt0t')
+      call ofile%add_var('hw2cb', '1/2 W^2 at the top of the subcloud layer', &
+                         'm^2/s^2', 'tt0t')
+      call ofile%add_var('cldtop', 'cloud top height', 'm', 'tt0t')
+      call ofile%add_var('buoymax', 'maximum buoyancy', 'K', 'tt0t')
+      call ofile%add_var('hw2max', 'highest 1/2 W^2 at the top of the subcloud layer', &
+                         'm^2/s^2', 'tt0t')
+    end if
 
   end subroutine init_cloudstat
 
@@ -114,133 +116,135 @@ contains
     real(field_r), pointer :: buoymax(:,:)
     real(field_r), pointer :: hw2max(:,:)
 
-    if (is_sampling_timestep(ofile_id)) then
+    if (lcloudstat) then
+      if (is_sampling_timestep(ofile_id)) then
 
-      call timer_tic(routine)
+        call timer_tic(routine)
 
-      ! ------------------------------------------------------------------------
-      ! Liquid, total and rain water paths
-      ! ------------------------------------------------------------------------
+        ! ------------------------------------------------------------------------
+        ! Liquid, total and rain water paths
+        ! ------------------------------------------------------------------------
 
-      call ofile%get_pointer('lwp', lwp)
-      call ofile%get_pointer('twp', twp)
-
-      !$acc parallel loop collapse(3) default(present)
-      do k = 1, kmax
-        do j = 2, j1
-          do i = 2, i1
-            !$acc atomic update
-            lwp(i,j) = lwp(i,j) + rhobf(k) * ql0(i,j,k) * dzf(k)
-            !$acc atomic update
-            twp(i,j) = twp(i,j) + rhobf(k) * qt0(i,j,k) * dzf(k)
-          end do
-        end do
-      end do
-
-      if (iqr > 0) then
-        call ofile%get_pointer('rwp', rwp)
+        call ofile%get_pointer('lwp', lwp)
+        call ofile%get_pointer('twp', twp)
 
         !$acc parallel loop collapse(3) default(present)
         do k = 1, kmax
           do j = 2, j1
             do i = 2, i1
               !$acc atomic update
-              rwp(i,j) = rwp(i,j) + rhobf(k) * sv0(i,j,k,iqr) * dzf(k)
+              lwp(i,j) = lwp(i,j) + rhobf(k) * ql0(i,j,k) * dzf(k)
+              !$acc atomic update
+              twp(i,j) = twp(i,j) + rhobf(k) * qt0(i,j,k) * dzf(k)
             end do
           end do
         end do
 
-      end if
+        if (iqr > 0) then
+          call ofile%get_pointer('rwp', rwp)
 
-      ! ------------------------------------------------------------------------
-      ! Compute cloud base height (highest level below which it is non-cloudy)
-      ! ------------------------------------------------------------------------
+          !$acc parallel loop collapse(3) default(present)
+          do k = 1, kmax
+            do j = 2, j1
+              do i = 2, i1
+                !$acc atomic update
+                rwp(i,j) = rwp(i,j) + rhobf(k) * sv0(i,j,k,iqr) * dzf(k)
+              end do
+            end do
+          end do
 
-      !$acc serial default(present) copyout(kcb)
-      do k = 2, kmax
-        if (ql0av(k-1) < 0.001) then
-          kcb = k
-          exit
         end if
-      end do
-      !$acc end serial
 
-      ! ------------------------------------------------------------------------
-      ! Variables at cloud-base
-      ! ------------------------------------------------------------------------
+        ! ------------------------------------------------------------------------
+        ! Compute cloud base height (highest level below which it is non-cloudy)
+        ! ------------------------------------------------------------------------
 
-      call ofile%get_pointer('thlcb', thlcb)
-      call ofile%get_pointer('buoycb', buoycb)
-      call ofile%get_pointer('qtcb', qtcb)
-      call ofile%get_pointer('qlcb', qlcb)
-
-      !$acc parallel loop collapse(2) default(present) &
-      !$acc private(thl_at_cb, ql_at_cb, thv_at_cb)
-      do j = 2, j1
-        do i = 2, i1
-          thl_at_cb = thl0(i,j,kcb)
-          qt_at_cb = qt0(i,j,kcb)
-          ql_at_cb = ql0(i,j,kcb)
-          thv_at_cb = calc_virt_pot_temp(thl_at_cb, qt_at_cb, ql_at_cb, &
-                                         exnf(kcb))
-          thlcb(i,j) = thl_at_cb
-          buoycb(i,j) = thv_at_cb - thvf(kcb)
-          qtcb(i,j) = qt_at_cb
-          qlcb(i,j) = ql_at_cb
+        !$acc serial default(present) copyout(kcb)
+        do k = 2, kmax
+          if (ql0av(k-1) < 0.001) then
+            kcb = k
+            exit
+          end if
         end do
-      end do
+        !$acc end serial
 
-      call ofile%get_pointer('wcb', wcb)
-      call ofile%get_pointer('hw2cb', hw2cb)
+        ! ------------------------------------------------------------------------
+        ! Variables at cloud-base
+        ! ------------------------------------------------------------------------
 
-      !$acc parallel loop collapse(2) default(present) &
-      !$acc private(w_at_cb)
-      do j = 2, j1
-        do i = 2, i1
-          w_at_cb = (w0(i,j,kcb) + w0(i,j,kcb+1)) / 2
-          wcb(i,j) = w_at_cb
-          hw2cb(i,j) = 0.5_field_r * w_at_cb * abs(w_at_cb)
-        end do
-      end do
+        call ofile%get_pointer('thlcb', thlcb)
+        call ofile%get_pointer('buoycb', buoycb)
+        call ofile%get_pointer('qtcb', qtcb)
+        call ofile%get_pointer('qlcb', qlcb)
 
-      ! ------------------------------------------------------------------------
-      ! Max values
-      ! ------------------------------------------------------------------------
-
-      call ofile%get_pointer('cldtop', cldtop)
-      call ofile%get_pointer('buoymax', buoymax)
-
-      !$acc parallel loop seq default(present)
-      do k = 1, kmax
-        !$acc loop collapse(2)
+        !$acc parallel loop collapse(2) default(present) &
+        !$acc private(thl_at_cb, ql_at_cb, thv_at_cb)
         do j = 2, j1
           do i = 2, i1
-            thv = calc_virt_pot_temp(thl0(i,j,k), qt0(i,j,k), ql0(i,j,k), &
-                                     exnf(k))
-            if (ql0(i,j,k) > 1.0E-10_field_r) cldtop(i,j) = zf(k)
-            if (thv - thvf(k) > buoymax(i,j)) buoymax(i,j) = thv - thvf(k)
+            thl_at_cb = thl0(i,j,kcb)
+            qt_at_cb = qt0(i,j,kcb)
+            ql_at_cb = ql0(i,j,kcb)
+            thv_at_cb = calc_virt_pot_temp(thl_at_cb, qt_at_cb, ql_at_cb, &
+                                           exnf(kcb))
+            thlcb(i,j) = thl_at_cb
+            buoycb(i,j) = thv_at_cb - thvf(kcb)
+            qtcb(i,j) = qt_at_cb
+            qlcb(i,j) = ql_at_cb
           end do
         end do
-      end do
 
-      call ofile%get_pointer('hw2max', hw2max)
+        call ofile%get_pointer('wcb', wcb)
+        call ofile%get_pointer('hw2cb', hw2cb)
 
-      !$acc parallel loop seq default(present)
-      do k = 1, kmax
-        !$acc loop collapse(2)
+        !$acc parallel loop collapse(2) default(present) &
+        !$acc private(w_at_cb)
         do j = 2, j1
           do i = 2, i1
-            if (w0(i,j,k)**2 > hw2max(i,j)) then
-              hw2max(i,j) = 0.5 * w0(i,j,k) * abs(w0(i,j,k))
-            end if
+            w_at_cb = (w0(i,j,kcb) + w0(i,j,kcb+1)) / 2
+            wcb(i,j) = w_at_cb
+            hw2cb(i,j) = 0.5_field_r * w_at_cb * abs(w_at_cb)
           end do
         end do
-      end do
 
-      !$acc wait
+        ! ------------------------------------------------------------------------
+        ! Max values
+        ! ------------------------------------------------------------------------
 
-      call timer_toc(routine)
+        call ofile%get_pointer('cldtop', cldtop)
+        call ofile%get_pointer('buoymax', buoymax)
 
+        !$acc parallel loop seq default(present)
+        do k = 1, kmax
+          !$acc loop collapse(2)
+          do j = 2, j1
+            do i = 2, i1
+              thv = calc_virt_pot_temp(thl0(i,j,k), qt0(i,j,k), ql0(i,j,k), &
+                                       exnf(k))
+              if (ql0(i,j,k) > 1.0E-10_field_r) cldtop(i,j) = zf(k)
+              if (thv - thvf(k) > buoymax(i,j)) buoymax(i,j) = thv - thvf(k)
+            end do
+          end do
+        end do
+
+        call ofile%get_pointer('hw2max', hw2max)
+
+        !$acc parallel loop seq default(present)
+        do k = 1, kmax
+          !$acc loop collapse(2)
+          do j = 2, j1
+            do i = 2, i1
+              if (w0(i,j,k)**2 > hw2max(i,j)) then
+                hw2max(i,j) = 0.5 * w0(i,j,k) * abs(w0(i,j,k))
+              end if
+            end do
+          end do
+        end do
+
+        !$acc wait
+
+        call timer_toc(routine)
+
+      end if
     end if
 
   end subroutine do_cloudstat
