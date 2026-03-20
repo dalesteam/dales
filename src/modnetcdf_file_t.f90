@@ -38,11 +38,12 @@ module modnetcdf_file_t
 
   !> Base NetCDF file type.
   type, abstract :: netcdf_file_t
-    character(len=80) :: filename      !< Name of the file.
-    integer           :: ncid = 0      !< NetCDF file ID.
-    integer           :: nvar = 0      !< Number of variables.
-    integer           :: nrec = 0      !< Number of records.
-    character(len=80) :: timeinfo(1,4) !< Metadata of time dimension.
+    character(len=80) :: filename       !< Name of the file.
+    integer           :: ncid = 0       !< NetCDF file ID.
+    integer           :: nvar = 0       !< Number of variables.
+    integer           :: nrec = 0       !< Number of records.
+    character(len=80) :: timeinfo(1,4)  !< Metadata of time dimension.
+    logical           :: lgpu = .false. !< Buffer is on GPU.
     character(len=80), allocatable :: names(:,:) !< Variable metadata.
   contains
     procedure :: add_var => netcdf_file_add_var
@@ -221,11 +222,15 @@ contains
   end subroutine netcdf_file_set_filename
 
   !> Open a NetCDF file containing time series data.
-  function time_series_file_open(filename) result(this)
+  function time_series_file_open(filename, lgpu) result(this)
 
     character(len=*), intent(in)  :: filename !< Name of the file.
 
+    logical, intent(in), optional :: lgpu !< Allocate buffer on GPU.
+
     type(time_series_file_t) :: this !< New time series file object.
+
+    if (present(lgpu)) this%lgpu = lgpu
 
     call this%set_filename(filename)
     call open_nc(this%filename, this%ncid, this%nrec)
@@ -254,6 +259,8 @@ contains
       this%buffer(ivar) = 0.0_field_r
     end do
 
+    !$acc enter data copyin(this, this%buffer) if(this%lgpu)
+
   end subroutine time_series_file_init
 
   !> Write data to disk.
@@ -263,9 +270,12 @@ contains
 
     integer :: ivar
 
+    !$acc update host(this%buffer) if(this%lgpu)
+
     call writestat_nc(this%ncid, this%nvar, this%names, this%buffer, &
                       this%nrec, .true.)
 
+    !$acc parallel loop default(present) if(this%lgpu)
     do ivar = 1, this%nvar
       this%buffer(ivar) = 0.0_field_r
     end do
@@ -296,12 +306,13 @@ contains
   end subroutine time_series_file_get_pointer
 
   !> Open a NetCDF file containing vertical profiles.
-  function profiles_file_open(filename, nz, nzs) result(this)
+  function profiles_file_open(filename, nz, nzs, lgpu) result(this)
 
     character(len=*), intent(in) :: filename !< Name of the file.
 
-    integer, intent(in), optional :: nz  !< Number of vertical levels.
-    integer, intent(in), optional :: nzs !< Number of vertical levels in the soil grid.
+    integer, intent(in), optional :: nz   !< Number of vertical levels.
+    integer, intent(in), optional :: nzs  !< Number of vertical levels in the soil grid.
+    logical, intent(in), optional :: lgpu !< Allocate buffer on GPU.
 
     type(profiles_file_t) :: this !< New profiles file object.
 
@@ -310,6 +321,8 @@ contains
     if (.not. any([present(nz), present(nzs)], dim=1)) then
       call finish(routine, 'no vertical dimension length given')
     end if
+
+    if (present(lgpu)) this%lgpu = lgpu
 
     call this%set_filename(filename)
     
@@ -348,6 +361,8 @@ contains
       end do
     end do
 
+    !$acc enter data copyin(this, this%buffer) if(this%lgpu)
+
   end subroutine profiles_file_init
 
   !> Write data to disk.
@@ -357,11 +372,14 @@ contains
 
     integer :: k, ivar
 
+    !$acc update host(this%buffer) if(this%lgpu)
+
     call writestat_nc(this%ncid, 1, this%timeinfo, [rtimee], this%nrec, &
                       lraise=.true.)
     call writestat_nc(this%ncid, this%nvar, this%names, this%buffer, &
                       this%nrec, dim1=size(this%buffer, dim=1))
 
+    !$acc parallel loop collapse(2) default(present) if(this%lgpu)
     do k = 1, size(this%buffer, dim=1) 
       do ivar = 1, this%nvar
         this%buffer(k,ivar) = 0.0_field_r
@@ -394,14 +412,15 @@ contains
   end subroutine profiles_file_get_pointer
 
   !> Open a NetCDF file containing cross sections.
-  function cross_section_file_open(filename, nx, ny, nz, nzs) result(this)
+  function cross_section_file_open(filename, nx, ny, nz, nzs, lgpu) result(this)
 
     character(len=*), intent(in) :: filename !< Name of the file.
 
-    integer, intent(in), optional :: nx  !< Number of cells in the x-direction.
-    integer, intent(in), optional :: ny  !< Number of cells in the y-direction.
-    integer, intent(in), optional :: nz  !< Number of vertical levels.
-    integer, intent(in), optional :: nzs !< Number of vertical levels in the soil grid.
+    integer, intent(in), optional :: nx   !< Number of cells in the x-direction.
+    integer, intent(in), optional :: ny   !< Number of cells in the y-direction.
+    integer, intent(in), optional :: nz   !< Number of vertical levels.
+    integer, intent(in), optional :: nzs  !< Number of vertical levels in the soil grid.
+    logical, intent(in), optional :: lgpu !< Allocate buffer on GPU.
 
     type(cross_section_file_t) :: this !< New cross section file object.
 
@@ -415,6 +434,7 @@ contains
     
     if (present(nz)) this%nz = nz
     if (present(nzs)) this%nzs = nzs
+    if (present(lgpu)) this%lgpu = lgpu
 
     if (NC_HAVE_PARALLEL) then
       if (present(nx)) then
@@ -505,6 +525,8 @@ contains
       end do
     end do
 
+    !$acc enter data copyin(this, this%buffer) if(this%lgpu)
+
   end subroutine cross_section_file_init
 
   !> Write data to disk.
@@ -514,6 +536,8 @@ contains
 
     integer :: n1, n2, ivar
     integer :: offsets(2)
+
+    !$acc update host(this%buffer) if(this%lgpu)
 
     if (this%x_start > 0 .and. this%y_start > 0) then
       offsets = [this%x_start, this%y_start]
@@ -531,6 +555,7 @@ contains
                       this%nrec, dim1=size(this%buffer, dim=1), &
                       dim2=size(this%buffer, dim=2), offsets=offsets)
 
+    !$acc parallel loop collapse(3) default(present) if(this%lgpu)
     do ivar = 1, this%nvar
       do n2 = 1, size(this%buffer, dim=2)
         do n1 = 1, size(this%buffer, dim=1)
@@ -573,7 +598,7 @@ contains
   end subroutine cross_section_file_get_pointer
 
   !> Open a NetCDF file containing 3D field dumps.
-  function field_dump_file_open(filename, nz, nzs, ncoarse, klo, khi) &
+  function field_dump_file_open(filename, nz, nzs, ncoarse, klo, khi, lgpu) &
     result(this)
 
     character(len=*), intent(in) :: filename !< Name of the file.
@@ -583,6 +608,7 @@ contains
     integer, intent(in), optional :: ncoarse !< Coarse graining factor (e.g.: 2 means saving only half of the data).
     integer, intent(in), optional :: klo     !< Vertical lower bound.
     integer, intent(in), optional :: khi     !< Vertical upper bound.
+    logical, intent(in), optional :: lgpu    !< Allocate buffer on GPU.
 
     type(field_dump_file_t) :: this !< New field dump file object.
 
@@ -606,6 +632,8 @@ contains
     else
       this%khi = kmax
     end if
+
+    if (present(lgpu)) this%lgpu = lgpu
 
     if (NC_HAVE_PARALLEL) then
       call this%set_filename(filename)
@@ -673,6 +701,8 @@ contains
       end do
     end do
 
+    !$acc enter data copyin(this, this%buffer) if(this%lgpu)
+
   end subroutine field_dump_file_init
 
   !> Write data to disk.
@@ -682,6 +712,8 @@ contains
 
     integer :: n1, n2, n3, ivar
 
+    !$acc update host(this%buffer) if(this%lgpu)
+
     call writestat_nc(this%ncid, 1, this%timeinfo, [rtimee], this%nrec, &
                       lraise=.true.)
     call writestat_nc(this%ncid, this%nvar, this%names, this%buffer, &
@@ -689,6 +721,7 @@ contains
                       dim3=size(this%buffer, dim=3), &
                       offsets=[this%x_start, this%y_start, 1])
 
+    !$acc parallel loop collapse(4) default(present) if(this%lgpu)
     do ivar = 1, this%nvar
       do n3 = 1, size(this%buffer, dim=3)
         do n2 = 1, size(this%buffer, dim=2)
@@ -723,6 +756,8 @@ contains
     end if
 
     ptr(2:,2:,1:) => this%buffer(:,:,:,id)
+
+    !$acc enter data copyin(ptr)
 
   end subroutine field_dump_file_get_pointer
 
