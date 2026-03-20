@@ -36,6 +36,9 @@ module modcrosssection
   use modmpi,            only: D_MPI_BCAST, commwrld, mpierr, myid, myidx, &
                                myidy
   use modfields,         only: um, vm, wm, thlm, qtm, ql0, thvf, e12m, exnf
+#if defined(_OPENACC)
+  use modgpu,            only: update_host
+#endif
 
   implicit none
 

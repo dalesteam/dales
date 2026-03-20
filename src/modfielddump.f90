@@ -369,7 +369,7 @@ contains
       if (lpli) then
         call ofile%get_pointer('pli', pli)
         iqr = get_tracer_index('qr')
-        !$acc parallell loop collapse(3) default(present) async
+        !$acc parallel loop collapse(3) default(present) async
         do k = klow, khigh
           do j = 2, j1, ncoarse
             do i = 2, i1, ncoarse
