@@ -1,13 +1,17 @@
 !> Output file manager. Does the timekeeping for all output files.
 module modstat_nc_files
 
-  use modglobal,        only: timee, rtimee, rk3step, dt_lim, tres
+  use fortran_support,  only: finish
+  use modglobal,        only: timee, rtimee, rk3step, dt_lim, tres, ladaptive, &
+                              dtmax
   use modnetcdf_file_t, only: netcdf_file_t
   use modprecision,     only: field_r, longint
 
   implicit none
 
   private
+
+  character(len=*), parameter :: modname = 'modstat_nc_files'
 
   public :: is_sampling_timestep
   public :: add_output_file
@@ -69,6 +73,19 @@ contains
 
     real, intent(in), optional :: dt_write
 
+    character(len=*), parameter :: routine = modname//'/add_output_file'
+
+    if (dt_sample < 0.0_field_r) then
+      call finish(routine, 'dt_sample cannot be negative (file: '&
+                  //trim(file%filename)//')')
+    end if
+
+    if (.not. ladaptive .and. mod(dt_sample, dtmax) > 1.0E-4_field_r) then
+      call finish(routine, 'adaptive time stepping is disabled, so dt_sample&
+        & should be an integer multiple of dtmax (file: '&
+        //trim(file%filename)//')')
+    end if
+
     nfiles = nfiles + 1
     id = nfiles
 
@@ -76,6 +93,10 @@ contains
     file_list(id)%dt_sample = int(dt_sample / tres, kind=longint)
 
     if (present(dt_write)) then
+      if (mod(dt_write, dt_sample) > 1.0E-4_field_r) then
+        call finish(routine, 'dt_write should be an integer multiple of&
+          & dt_sample (file: '//trim(file%filename)//')')
+      end if
       file_list(id)%dt_write = int(dt_write / tres, kind=longint)
     else
       file_list(id)%dt_write = file_list(id)%dt_sample
