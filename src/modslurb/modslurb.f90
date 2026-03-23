@@ -291,8 +291,8 @@ end subroutine exitslurb
 
             du = 0.5*(u0(i,j,1) + u0(i+1,j,1)) + cu
             dv = 0.5*(v0(i,j,1) + v0(i,j+1,1)) + cv
-            slurb_tile%uv_abs1(i,j) = sqrt(du**2 + dv**2)
-            ! slurb_tile%uv_abs1(i,j) = max(0.1, sqrt(du**2 + dv**2)) DALES VERSION
+            ! slurb_tile%uv_abs1(i,j) = sqrt(du**2 + dv**2)
+            slurb_tile%uv_abs1(i,j) = max(0.1, sqrt(du**2 + dv**2))! DALES VERSION
 
 
 
@@ -318,7 +318,7 @@ end subroutine exitslurb
             ! m/s = (m^3 s^-3)^(1/3)
             ws = ( g / slurb_tile%pt1(i,j) * slurb_tile%z_mo(i,j) * vtws )**( 1.0_field_r / 3.0_field_r )  ! (m s^-1)
 
-            slurb_tile%uv_eff1(i, j) = sqrt(du**2 + dv**2 + ws**2)
+            slurb_tile%uv_eff1(i, j) = max(0.1, sqrt(du**2 + dv**2 + ws**2)) ! DALES VERSION
         enddo
     enddo
 
@@ -812,8 +812,8 @@ end subroutine slurb_update_external_vars
 
         du = 0.5*(u0(i,j,1) + u0(i+1,j,1)) + cu
         dv = 0.5*(v0(i,j,1) + v0(i,j+1,1)) + cv
-        slurb_tile%uv_abs1(i,j) = sqrt(du**2 + dv**2)
-        ! slurb_tile%uv_abs1(i,j) = max(0.1, sqrt(du**2 + dv**2)) DALES VERSION
+        ! slurb_tile%uv_abs1(i,j) = sqrt(du**2 + dv**2)
+        slurb_tile%uv_abs1(i,j) = max(0.1, sqrt(du**2 + dv**2))! DALES VERSION
         slurb_tile%uv_eff1(i,j) = slurb_tile%uv_abs1(i,j)
 
 
