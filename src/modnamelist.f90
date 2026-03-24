@@ -10,6 +10,7 @@ module modnamelist
   use modmicrophysics,   only: microphysics_read_namelist
   use modpois,           only: poisson_solver_read_namelist
   use modprecursor,      only: precursor_read_namelist
+  use modradfield,       only: radfield_read_namelist
   use modspraying,       only: spraying_read_namelist
   use modsurface,        only: surface_read_namelist
   use modthermodynamics, only: thermodynamics_read_namelist
@@ -47,6 +48,7 @@ contains
     call cloudstat_read_namelist(nml_filename)
     call crosssection_read_namelist(nml_filename)
     call fielddump_read_namelist(nml_filename)
+    call radfield_read_namelist(nml_filename)
   
   end subroutine read_namelists
 

@@ -139,7 +139,7 @@ program DALES
   use moddepcrosssection, only : initdepcrosssection, depcrosssection,exitdepcrosssection
   use modcloudfield,   only : initcloudfield, cloudfield
   use modfielddump,    only : initfielddump, fielddump
-  use modradfield,     only : initradfield, radfield, exitradfield
+  use modradfield,     only : initradfield, radfield
   use modsamptend,     only : initsamptend, samptend,exitsamptend, tend_start,tend_subg,tend_force,&
                               tend_rad,tend_ls,tend_micro, tend_topbound,tend_pois,tend_addon, tend_coriolis,&
                               leibniztend, writesamptend
@@ -454,7 +454,6 @@ program DALES
   call exitlsmcrosssection
   call exitdepcrosssection
   call exitcape
-  call exitradfield
   call exitheterostats
   call exitcanopy
   call exittimestat

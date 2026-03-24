@@ -1,8 +1,3 @@
-!> \file modradfield.f90
-!!  Dumps 2D fields of several variables
-!>
-!!  \author Stephan de Roode,TU Delft
-!!  \author Fredrik Jansson,TU Delft
 !  This file is part of DALES.
 !
 ! DALES is free software; you can redistribute it and/or modify
@@ -20,241 +15,244 @@
 !
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
+!> Dumps 2D fields of several (radiation related) variables.
 module modradfield
-  use modprecision, only : field_r
-  use modglobal, only : longint
-  use modprecision, only : field_r
-  use modlogging, only: finish
 
-implicit none
-character(len=*), parameter :: modname = 'modradfield'
-private
-PUBLIC :: initradfield, radfield, exitradfield
-save
-!NetCDF variables
-  integer,parameter :: nvar = 30
-  integer :: ncid2,nrec2 = 0
-  integer :: nsamples
-  character(80) :: fname
-  character(80),dimension(nvar,4) :: ncname
-  character(80),dimension(1,4) :: tncname
+  use fortran_support,   only: finish, nnml_output
+  use modfields,         only: rhof, qt0, ql0, tmp0, u0, v0, presf
+  use modglobal,         only: itot, jtot, i1, j1, kmax, dzf, ifnamopt, &
+                               dtav_glob, timeav_glob, cu, cv, tup, tdn, cp, &
+                               rlv, checknamelisterror
+  use modmpi,            only: D_MPI_BCAST, commwrld, myid
+  use modnetcdf_file_t,  only: cross_section_file_t
+  use modprecision,      only: field_r
+  use modraddata,        only: lwd, lwu, swd, swu, lwdca, lwuca, swdca, swuca, &
+                               swdir, swdif, sw_up_toa, sw_dn_toa, lw_up_toa, &
+                               sw_up_ca_toa, lw_up_ca_toa
+  use modstat_nc_files,  only: add_output_file, is_sampling_timestep
+  use modsurfdata,       only: qtflux, thlflux
+  use modthermodynamics, only: calc_qsat
+  use modtimer,          only: timer_tic, timer_toc
 
-  real    :: dtav,timeav
-  integer(kind=longint) :: idtav,itimeav,tnext,tnextwrite
-  logical :: lradfield= .false. !< switch to enable the fielddump (on/off)
+  implicit none
 
-  real, allocatable :: field_2D_mn (:,:,:)
+  character(len=*), parameter :: modname = 'modradfield'
 
-contains
-!> Initializing fielddump. Read out the namelist, initializing the variables
-  subroutine initradfield
-    use modmpi,   only :myid,comm3d,myidx,myidy,D_MPI_BCAST
-    use modglobal,only :imax,jmax,i1,ih,j1,jh,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,&
-         timeav_glob,ladaptive,dt_lim,btime,tres,checknamelisterror,&
-         output_prefix
-    use modstat_nc,only : open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
-    use fortran_support, only: nnml_output
-    implicit none
+  public :: radfield_read_namelist
+  public :: initradfield
+  public :: radfield
 
-    character(len=*), parameter :: routine = modname//'/initradfield'
+  type(cross_section_file_t) :: ofile
+  integer                    :: ofile_id
+
+  real    :: dtav
+  real    :: timeav
+  real    :: nsamples
+  logical :: lradfield
+
+contains 
+
+  !> Read radfield namelist.
+  subroutine radfield_read_namelist(nml_filename)
+
+    character(len=*), intent(in) :: nml_filename
 
     integer :: ierr
 
-    namelist/NAMRADFIELD/ &
-         dtav,timeav,lradfield
+    namelist /NAMRADFIELD/ dtav, timeav, lradfield
 
-    dtav=dtav_glob
-    timeav=timeav_glob
+    dtav = dtav_glob
+    timeav = timeav_glob
 
-    if(myid==0)then
-       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
-       read(ifnamopt,NAMRADFIELD,iostat=ierr)
-       call checknamelisterror(ierr, ifnamopt, 'NAMRADFIELD')
-       write(nnml_output, NAMRADFIELD)
-       close(ifnamopt)
-    end if
-    call D_MPI_BCAST(dtav       ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(timeav     ,1,0,comm3d,ierr)
-    call D_MPI_BCAST(lradfield  ,1,0,comm3d,ierr)
-    idtav = int(dtav/tres,kind=longint)
-    itimeav = int(timeav/tres,kind=longint)
-
-    tnext      = idtav   +btime ! sample time
-    tnextwrite = itimeav +btime ! write time
-    nsamples = int(itimeav/idtav)
-
-    if(.not.(lradfield)) return
-    dt_lim = min(dt_lim,tnext)
-
-
-    if (abs(timeav/dtav-nsamples)>1e-4) then
-       call finish(routine, 'radfield timeav must be a integer multiple of dtav')
+    if (myid == 0) then
+      open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
+      read(ifnamopt, NAMRADFIELD, iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'NAMRADFIELD')
+      write(nnml_output, NAMRADFIELD)
+      close(ifnamopt)
     end if
 
-    if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-       call finish(routine, 'radfield dtav should be a integer multiple of dtmax')
+    call D_MPI_BCAST(dtav       ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(timeav     ,1,0,commwrld,ierr)
+    call D_MPI_BCAST(lradfield  ,1,0,commwrld,ierr)
+
+  end subroutine radfield_read_namelist
+
+  !> Open radfield NetCDF file and add variables.
+  subroutine initradfield
+
+    character(len=*), parameter :: routine = modname//'/initradfield'
+
+    if (lradfield) then
+      call timer_tic(routine, 1)
+
+      nsamples = timeav / dtav
+
+      ofile = cross_section_file_t('radfield', nx=itot, ny=jtot)
+      call add_output_file(ofile, dtav, ofile_id, dt_write=timeav)
+
+      call ofile%add_var('hfls','surface upward latent heat flux','W/m2','tt0t')
+      call ofile%add_var('hfss','surface upward sensible heat flux','W/m2','tt0t')
+      call ofile%add_var('rlds','surface downwellling longwave flux','W/m2','tt0t')
+      call ofile%add_var('rlus','surface upwelling longwave flux','W/m2','tt0t')
+      call ofile%add_var('rsds','surface downwellling shortwave flux','W/m2','tt0t')
+      call ofile%add_var('rsus','surface upwellling shortwave flux','W/m2','tt0t')
+      call ofile%add_var('rsdtm','TOM incoming shortwave flux','W/m2','tt0t')
+      call ofile%add_var('rldtm','TOM incoming longwave flux','W/m2','tt0t')
+      call ofile%add_var('rsutm','TOM outgoing shortwave flux','W/m2','tt0t')
+      call ofile%add_var('rlutm','TOM outgoing longwave flux','W/m2','tt0t')
+      call ofile%add_var('rsdscs','surface downwelling shortwave flux - clear sky','W/m2','tt0t')
+      call ofile%add_var('rsuscs','surface upwelling shortwave flux - clear sky','W/m2','tt0t')
+      call ofile%add_var('rldscs','surface downwelling longwave flux - clear sky','W/m2','tt0t')
+      call ofile%add_var('rluscs','surface upwelling longwave flux - clear sky','W/m2','tt0t')
+      call ofile%add_var('rsutmcs','TOM outgoing shortwave flux - clear sky','W/m2','tt0t')
+      call ofile%add_var('rlutmcs','TOM outgoing longwave flux - clear sky','W/m2','tt0t')
+      call ofile%add_var('rsds_dir','surface downwellling shortwave direct flux','W/m2','tt0t')
+      call ofile%add_var('rsds_dif','surface downwellling shortwave diffuse flux','W/m2','tt0t')
+
+      call ofile%add_var('prw','water vapor path','kg/m2','tt0t')
+      call ofile%add_var('clwvi','condensed water path','kg/m2','tt0t')
+      call ofile%add_var('clivi','ice water path','kg/m2','tt0t')
+      call ofile%add_var('spwr','saturated water vapor path','kg/m2','tt0t')
+      call ofile%add_var('uabot','eastward wind at lowest model level','m/s','mt0t')
+      call ofile%add_var('vabot','northward wind at lowest model level','m/s','tm0t')
+      call ofile%add_var('tabot','air temperature at lowest model level','K','tt0t')
+
+      call ofile%add_var('rsdt','TOA incoming shortwave flux','W/m2','tt0t')
+      call ofile%add_var('rsut','TOA outgoing shortwave flux','W/m2','tt0t')
+      call ofile%add_var('rlut','TOA outgoing longwave flux','W/m2','tt0t')
+      call ofile%add_var('rsutcs','TOA outgoing shortwave flux - clear sky','W/m2','tt0t')
+      call ofile%add_var('rlutcs','TOA outgoing longwave flux - clear sky','W/m2','tt0t')
+
+      call timer_toc(routine)
     end if
 
-    allocate(field_2D_mn(2-ih:i1+ih,2-jh:j1+jh,nvar))
-    field_2D_mn = 0
-
-    write(fname,'(A,i3.3,A,i3.3,A)') 'radfield.', myidx, '.', myidy, '.xxx.nc'    !rce table 5 2D hourly averaged variables
-    fname(18:20) = cexpnr
-    call nctiminfo(tncname(1,:))
-    call ncinfo(ncname( 1,:),'hfls','surface upward latent heat flux','W/m2','tt0t')
-    call ncinfo(ncname( 2,:),'hfss','surface upward sensible heat flux','W/m2','tt0t')
-    call ncinfo(ncname( 3,:),'rlds','surface downwellling longwave flux','W/m2','tt0t')
-    call ncinfo(ncname( 4,:),'rlus','surface upwelling longwave flux','W/m2','tt0t')
-    call ncinfo(ncname( 5,:),'rsds','surface downwellling shortwave flux','W/m2','tt0t')
-    call ncinfo(ncname( 6,:),'rsus','surface upwellling shortwave flux','W/m2','tt0t')
-    call ncinfo(ncname( 7,:),'rsdtm','TOM incoming shortwave flux','W/m2','tt0t')
-    call ncinfo(ncname( 8,:),'rldtm','TOM incoming longwave flux','W/m2','tt0t')
-    call ncinfo(ncname( 9,:),'rsutm','TOM outgoing shortwave flux','W/m2','tt0t')
-    call ncinfo(ncname(10,:),'rlutm','TOM outgoing longwave flux','W/m2','tt0t')
-    call ncinfo(ncname(11,:),'rsdscs','surface downwelling shortwave flux - clear sky','W/m2','tt0t')
-    call ncinfo(ncname(12,:),'rsuscs','surface upwelling shortwave flux - clear sky','W/m2','tt0t')
-    call ncinfo(ncname(13,:),'rldscs','surface downwelling longwave flux - clear sky','W/m2','tt0t')
-    call ncinfo(ncname(14,:),'rluscs','surface upwelling longwave flux - clear sky','W/m2','tt0t')
-    call ncinfo(ncname(15,:),'rsutmcs','TOM outgoing shortwave flux - clear sky','W/m2','tt0t')
-    call ncinfo(ncname(16,:),'rlutmcs','TOM outgoing longwave flux - clear sky','W/m2','tt0t')
-    call ncinfo(ncname(17,:),'rsds_dir','surface downwellling shortwave direct flux','W/m2','tt0t')
-    call ncinfo(ncname(18,:),'rsds_dif','surface downwellling shortwave diffuse flux','W/m2','tt0t')
-
-    call ncinfo(ncname(19,:),'prw','water vapor path','kg/m2','tt0t')
-    call ncinfo(ncname(20,:),'clwvi','condensed water path','kg/m2','tt0t')
-    call ncinfo(ncname(21,:),'clivi','ice water path','kg/m2','tt0t')
-    call ncinfo(ncname(22,:),'spwr','saturated water vapor path','kg/m2','tt0t')
-    call ncinfo(ncname(23,:),'uabot','eastward wind at lowest model level','m/s','mt0t')
-    call ncinfo(ncname(24,:),'vabot','northward wind at lowest model level','m/s','tm0t')
-    call ncinfo(ncname(25,:),'tabot','air temperature at lowest model level','K','tt0t')
-
-    call ncinfo(ncname(26,:),'rsdt','TOA incoming shortwave flux','W/m2','tt0t')
-    call ncinfo(ncname(27,:),'rsut','TOA outgoing shortwave flux','W/m2','tt0t')
-    call ncinfo(ncname(28,:),'rlut','TOA outgoing longwave flux','W/m2','tt0t')
-    call ncinfo(ncname(29,:),'rsutcs','TOA outgoing shortwave flux - clear sky','W/m2','tt0t')
-    call ncinfo(ncname(30,:),'rlutcs','TOA outgoing longwave flux - clear sky','W/m2','tt0t')
-
-    call open_nc(trim(output_prefix)//fname,  ncid2,nrec2,n1=imax,n2=jmax,n3=1)
-    if (nrec2==0) then
-       call define_nc( ncid2, 1, tncname)
-       call writestat_dims_nc(ncid2)
-    end if
-    call define_nc( ncid2, nvar, ncname)
   end subroutine initradfield
 
-
+  !> Sample radiation fields.
   subroutine radfield
-    use modglobal, only : rk3step,timee,dt_lim
-#if defined(_OPENACC)
-    use modgpu, only: update_host
-#endif
-    implicit none
 
-    if (.not. lradfield) return
-    if (rk3step/=3) return
+    character(len=*), parameter :: routine = modname//'/radfield'
 
-    if(timee<tnext .and. timee<tnextwrite) then
-      dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
-      return
-    end if
-    if (timee>=tnext) then
-      tnext = tnext+idtav
-#if defined(_OPENACC)
-      call update_host
-#endif
-      call sample_radfield
-    end if
-    if (timee>=tnextwrite) then
-      tnextwrite = tnextwrite+itimeav
-      call writestat_radfield
-    end if
-    dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
-  end subroutine radfield
+    integer       :: i, j, k
+    real(field_r) :: ilratio
 
+    real(field_r), pointer :: hfls(:,:)
+    real(field_r), pointer :: hfss(:,:)
+    real(field_r), pointer :: rlds(:,:)
+    real(field_r), pointer :: rlus(:,:)
+    real(field_r), pointer :: rsds(:,:)
+    real(field_r), pointer :: rsus(:,:)
+    real(field_r), pointer :: rsdtm(:,:)
+    real(field_r), pointer :: rldtm(:,:)
+    real(field_r), pointer :: rsutm(:,:)
+    real(field_r), pointer :: rlutm(:,:)
+    real(field_r), pointer :: rsdscs(:,:)
+    real(field_r), pointer :: rsuscs(:,:)
+    real(field_r), pointer :: rldscs(:,:)
+    real(field_r), pointer :: rluscs(:,:)
+    real(field_r), pointer :: rsutmcs(:,:)
+    real(field_r), pointer :: rlutmcs(:,:)
+    real(field_r), pointer :: rsds_dir(:,:)
+    real(field_r), pointer :: rsds_dif(:,:)
+    real(field_r), pointer :: prw(:,:)
+    real(field_r), pointer :: clwvi(:,:)
+    real(field_r), pointer :: clivi(:,:)
+    real(field_r), pointer :: spwr(:,:)
+    real(field_r), pointer :: uabot(:,:)
+    real(field_r), pointer :: vabot(:,:)
+    real(field_r), pointer :: tabot(:,:)
+    real(field_r), pointer :: rsdt(:,:)
+    real(field_r), pointer :: rsut(:,:)
+    real(field_r), pointer :: rlut(:,:)
+    real(field_r), pointer :: rsutcs(:,:)
+    real(field_r), pointer :: rlutcs(:,:)
 
-  subroutine sample_radfield
-    use modfields, only : rhof,qt0,ql0,tmp0,u0,v0,presf
-    use modsurfdata, only: qtflux,thlflux
-    use modglobal, only: dzf,tup,tdn,i1,j1,kmax,rlv,cp
-    use modraddata, only : lwd,lwu,swd,swu,lwdca,lwuca,swdca,swuca,swdir,swdif,&
-                            SW_up_TOA,SW_dn_TOA,LW_up_TOA,&
-                            SW_up_ca_TOA,LW_up_ca_TOA
-    use modthermodynamics, only : qsat_tab
+    if (lradfield) then
+      if (is_sampling_timestep(ofile_id)) then
+        call timer_tic(routine, 1) 
 
-    implicit none
-    integer :: i,j,k
-    real :: ilratio
+        call ofile%get_pointer('hfls', hfls)
+        call ofile%get_pointer('hfss', hfss)
+        call ofile%get_pointer('rlds', rlds)
+        call ofile%get_pointer('rlus', rlus)
+        call ofile%get_pointer('rsds', rsds)
+        call ofile%get_pointer('rsus', rsus)
+        call ofile%get_pointer('rsdtm', rsdtm)
+        call ofile%get_pointer('rldtm', rldtm)
+        call ofile%get_pointer('rsutm', rsutm)
+        call ofile%get_pointer('rlutm', rlutm)
+        call ofile%get_pointer('rsdscs', rsdscs)
+        call ofile%get_pointer('rsuscs', rsuscs)
+        call ofile%get_pointer('rldscs', rldscs)
+        call ofile%get_pointer('rluscs', rluscs)
+        call ofile%get_pointer('rsutmcs', rsutmcs)
+        call ofile%get_pointer('rlutmcs', rlutmcs)
+        call ofile%get_pointer('rsds_dir', rsds_dir)
+        call ofile%get_pointer('rsds_dif', rsds_dif)
+        call ofile%get_pointer('prw', prw)
+        call ofile%get_pointer('clwvi', clwvi)
+        call ofile%get_pointer('clivi', clivi)
+        call ofile%get_pointer('spwr', spwr)
+        call ofile%get_pointer('uabot', uabot)
+        call ofile%get_pointer('vabot', vabot)
+        call ofile%get_pointer('tabot', tabot)
+        call ofile%get_pointer('rsdt', rsdt)
+        call ofile%get_pointer('rsut', rsut)
+        call ofile%get_pointer('rlut', rlut)
+        call ofile%get_pointer('rsutcs', rsutcs)
+        call ofile%get_pointer('rlutcs', rlutcs)
 
-    ! rcemip , neglect density difference zf and zh (consistent with surface flux parameterization)
-    field_2D_mn (2:i1,2:j1,1) = field_2D_mn (2:i1,2:j1,1) + rhof(1) * rlv * qtflux (2:i1,2:j1)
-    field_2D_mn (2:i1,2:j1,2) = field_2D_mn (2:i1,2:j1,2) + rhof(1) * cp * thlflux(2:i1,2:j1)
-
-    ! radiation fields are allocated and initialized to 0 even if radiation is off
-    field_2D_mn (2:i1,2:j1,3) = field_2D_mn (2:i1,2:j1,3) + abs(lwd(2:i1,2:j1,1))
-    field_2D_mn (2:i1,2:j1,4) = field_2D_mn (2:i1,2:j1,4) + abs(lwu(2:i1,2:j1,1))
-    field_2D_mn (2:i1,2:j1,5) = field_2D_mn (2:i1,2:j1,5) + abs(swd(2:i1,2:j1,1))
-    field_2D_mn (2:i1,2:j1,6) = field_2D_mn (2:i1,2:j1,6) + abs(swu(2:i1,2:j1,1))
-    field_2D_mn (2:i1,2:j1,7) = field_2D_mn (2:i1,2:j1,7) + abs(swd(2:i1,2:j1,kmax))
-    field_2D_mn (2:i1,2:j1,8) = field_2D_mn (2:i1,2:j1,8) + abs(lwd(2:i1,2:j1,kmax))
-    field_2D_mn (2:i1,2:j1, 9) = field_2D_mn (2:i1,2:j1, 9) + abs(swu(2:i1,2:j1,kmax))
-    field_2D_mn (2:i1,2:j1,10) = field_2D_mn (2:i1,2:j1,10) + abs(lwu(2:i1,2:j1,kmax))
-    field_2D_mn (2:i1,2:j1,11) = field_2D_mn (2:i1,2:j1,11) + abs(swdca(2:i1,2:j1,1))
-    field_2D_mn (2:i1,2:j1,12) = field_2D_mn (2:i1,2:j1,12) + abs(swuca(2:i1,2:j1,1))
-    field_2D_mn (2:i1,2:j1,13) = field_2D_mn (2:i1,2:j1,13) + abs(lwdca(2:i1,2:j1,1))
-    field_2D_mn (2:i1,2:j1,14) = field_2D_mn (2:i1,2:j1,14) + abs(lwuca(2:i1,2:j1,1))
-    field_2D_mn (2:i1,2:j1,15) = field_2D_mn (2:i1,2:j1,15) + abs(swuca(2:i1,2:j1,kmax))
-    field_2D_mn (2:i1,2:j1,16) = field_2D_mn (2:i1,2:j1,16) + abs(lwuca(2:i1,2:j1,kmax))
-    field_2D_mn (2:i1,2:j1,17) = field_2D_mn (2:i1,2:j1,17) + abs(swdir(2:i1,2:j1,kmax))
-    field_2D_mn (2:i1,2:j1,18) = field_2D_mn (2:i1,2:j1,18) + abs(swdif(2:i1,2:j1,kmax))
-
-    do k=1,kmax
-       do j=2,j1
-          do i=2,i1
-             field_2D_mn (i,j,19) = field_2D_mn (i,j,19) + rhof(k) * (qt0(i,j,k) - ql0(i,j,k)) * dzf(k)
-             field_2D_mn (i,j,20) = field_2D_mn (i,j,20) + rhof(k) *  ql0(i,j,k) * dzf(k)
-             ilratio=max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
-             field_2D_mn (i,j,21) = field_2D_mn (i,j,21) + rhof(k) *  ql0(i,j,k) * dzf(k) *(1-ilratio)
-             field_2D_mn (i,j,22) = field_2D_mn (i,j,22) + rhof(k) *  qsat_tab(tmp0(i,j,k), presf(k)) * dzf(k)
+        do j = 2, j1
+          do i = 2, i1
+            hfls(i,j) = hfls(i,j) + rhof(1) * rlv * qtflux(i,j)
+            hfss(i,j) = hfss(i,j) + rhof(1) * cp * thlflux(i,j)
           end do
-       end do
-    end do
+        end do
 
-    field_2D_mn (2:i1,2:j1,23) = field_2D_mn (2:i1,2:j1,23) + u0(2:i1,2:j1,1) ! cu, cv added later in writestat_radfield
-    field_2D_mn (2:i1,2:j1,24) = field_2D_mn (2:i1,2:j1,24) + v0(2:i1,2:j1,1)
-    field_2D_mn (2:i1,2:j1,25) = field_2D_mn (2:i1,2:j1,25) + tmp0(2:i1,2:j1,1)
+        rlds(:,:) = rlds(:,:) + abs(lwd(2:i1,2:j1,1)) 
+        rlus(:,:) = rlus(:,:) + abs(lwu(2:i1,2:j1,1))
+        rsds(:,:) = rsds(:,:) + abs(swd(2:i1,2:j1,1))
+        rsus(:,:) = rsus(:,:) + abs(swu(2:i1,2:j1,1))
+        rsdtm(:,:) = rsdtm(:,:) + abs(swd(2:i1,2:j1,kmax))
+        rldtm(:,:) = rldtm(:,:) + abs(lwd(2:i1,2:j1,kmax))
+        rsutm(:,:) = rsutm(:,:) + abs(swu(2:i1,2:j1,kmax))
+        rlutm(:,:) = rlutm(:,:) + abs(lwu(2:i1,2:j1,kmax))
+        rsdscs(:,:) = rsdscs(:,:) + abs(swdca(2:i1,2:j1,1))
+        rsuscs(:,:) = rsuscs(:,:) + abs(swuca(2:i1,2:j1,1))
+        rldscs(:,:) = rldscs(:,:) + abs(lwdca(2:i1,2:j1,1))
+        rluscs(:,:) = rluscs(:,:) + abs(lwuca(2:i1,2:j1,1))
+        rsutmcs(:,:) = rsutmcs(:,:) + abs(swuca(2:i1,2:j1,kmax))
+        rlutmcs(:,:) = rlutmcs(:,:) + abs(lwuca(2:i1,2:j1,kmax))
+        rsds_dir(:,:) = rsds_dir(:,:) + abs(swdir(2:i1,2:j1,1))
+        rsds_dif(:,:) = rsds_dif(:,:) + abs(swdif(2:i1,2:j1,1))
 
-    field_2D_mn (2:i1,2:j1,26) = field_2D_mn (2:i1,2:j1,26) + abs(SW_dn_TOA(2:i1,2:j1))    !rsdt,  TOA incoming shortwave flux
-    field_2D_mn (2:i1,2:j1,27) = field_2D_mn (2:i1,2:j1,27) + abs(SW_up_TOA(2:i1,2:j1))    !rsut,  TOA outgoing shortwave flux
-    field_2D_mn (2:i1,2:j1,28) = field_2D_mn (2:i1,2:j1,28) + abs(LW_up_TOA(2:i1,2:j1))    !rlut,  TOA outgoing longwave flux
-    field_2D_mn (2:i1,2:j1,29) = field_2D_mn (2:i1,2:j1,29) + abs(SW_up_ca_TOA(2:i1,2:j1)) !rsutcs,TOA outgoing shortwave flux - clear sky
-    field_2D_mn (2:i1,2:j1,30) = field_2D_mn (2:i1,2:j1,30) + abs(LW_up_ca_TOA(2:i1,2:j1)) !rlutcs,TOA outgoing longwave flux - clear sky
-  end subroutine sample_radfield
+        do k = 1, kmax
+          do j = 2, j1
+            do i = 2, i1
+              prw(i,j) = prw(i,j) + rhof(k) * (qt0(i,j,k) - ql0(i,j,k)) * dzf(k)
+              clwvi(i,j) = clwvi(i,j) + rhof(k) *  ql0(i,j,k) * dzf(k)
+              ilratio=max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
+              clivi(i,j) = clivi(i,j) + rhof(k) *  ql0(i,j,k) * dzf(k) *(1-ilratio)
+              spwr(i,j) = spwr(i,j) + rhof(k) *  calc_qsat(tmp0(i,j,k), presf(k)) * dzf(k)
+            end do
+          end do
+        end do
 
+        uabot(2:i1,2:j1) = uabot(2:i1,2:j1) + u0(2:i1,2:j1,1) + cu
+        vabot(2:i1,2:j1) = vabot(2:i1,2:j1) + v0(2:i1,2:j1,1) + cv
+        tabot(2:i1,2:j1) = tabot(2:i1,2:j1) + tmp0(2:i1,2:j1,1)
 
-  subroutine writestat_radfield
-    use modglobal, only : imax,jmax,i1,j1,rtimee,cu,cv
-    use modstat_nc, only : writestat_nc
+        rsdt(:,:) = rsdt(:,:) + abs(SW_dn_TOA(2:i1,2:j1))
+        rsut(:,:) = rsut(:,:) + abs(SW_up_TOA(2:i1,2:j1))
+        rlut(:,:) = rlut(:,:) + abs(LW_up_TOA(2:i1,2:j1))
+        rsutcs(:,:) = rsutcs(:,:) + abs(SW_up_ca_TOA(2:i1,2:j1))
+        rlutcs(:,:) = rlutcs(:,:) + abs(LW_up_ca_TOA(2:i1,2:j1))
 
-    implicit none
+        call timer_toc(routine)
+      end if
+    end if
 
-    field_2D_mn (2:i1,2:j1,:) = field_2D_mn (2:i1,2:j1,:) / nsamples
-
-    field_2D_mn (2:i1,2:j1,23) = field_2D_mn (2:i1,2:j1,23) + cu
-    field_2D_mn (2:i1,2:j1,24) = field_2D_mn (2:i1,2:j1,24) + cv
-
-    call writestat_nc(ncid2,1,tncname,(/rtimee/),nrec2,.true.)
-    call writestat_nc(ncid2,nvar,ncname,field_2D_mn(2:i1,2:j1,:),nrec2,imax,jmax)
-
-    field_2D_mn = 0.
-  end subroutine writestat_radfield
-
-!> Clean up when leaving the run
-  subroutine exitradfield
-    use modstat_nc, only : exitstat_nc,lnetcdf
-    implicit none
-
-    if(lradfield) call exitstat_nc(ncid2)
-    if(lradfield) deallocate(field_2D_mn)
-  end subroutine exitradfield
+  end subroutine radfield
 
 end module modradfield
