@@ -21,19 +21,19 @@ module modnetcdf_file_t
   public :: field_dump_file_t
 
   interface time_series_file_t
-    procedure :: time_series_file_open
+    procedure :: time_series_file_init
   end interface time_series_file_t
 
   interface profiles_file_t
-    procedure :: profiles_file_open
+    procedure :: profiles_file_init
   end interface profiles_file_t
 
   interface cross_section_file_t
-    procedure :: cross_section_file_open
+    procedure :: cross_section_file_init
   end interface cross_section_file_t
 
   interface field_dump_file_t
-    procedure :: field_dump_file_open
+    procedure :: field_dump_file_init
   end interface field_dump_file_t
 
   !> Base NetCDF file type.
@@ -49,15 +49,15 @@ module modnetcdf_file_t
     procedure :: add_var => netcdf_file_add_var
     procedure :: get_var_id => netcdf_file_get_var_id
     procedure :: set_filename => netcdf_file_set_filename
-    procedure(netcdf_file_init),  deferred :: init
+    procedure(netcdf_file_open),  deferred :: open
     procedure(netcdf_file_write), deferred :: write
   end type netcdf_file_t
 
   abstract interface
-    subroutine netcdf_file_init(this)
+    subroutine netcdf_file_open(this)
       import :: netcdf_file_t
       class(netcdf_file_t), intent(inout) :: this
-    end subroutine netcdf_file_init
+    end subroutine netcdf_file_open
   end interface
 
   abstract interface
@@ -72,7 +72,7 @@ module modnetcdf_file_t
     private
     real(field_r), allocatable :: buffer(:) !< Memory for variable data.
   contains
-    procedure :: init => time_series_file_init
+    procedure :: open => time_series_file_open
     procedure :: write => time_series_file_write
     procedure :: get_pointer => time_series_file_get_pointer
   end type time_series_file_t
@@ -84,7 +84,7 @@ module modnetcdf_file_t
     integer :: nzs = 0 !< Number of vertical levels in soil grid.
     real(field_r), allocatable :: buffer(:,:) !< Memory for variable data.
   contains
-    procedure :: init => profiles_file_init
+    procedure :: open => profiles_file_open
     procedure :: write => profiles_file_write
     procedure :: get_pointer => profiles_file_get_pointer
   end type profiles_file_t
@@ -103,7 +103,7 @@ module modnetcdf_file_t
     integer :: nvals_y = 0 !< Number of values that will be written by calling process in the y-direction.
     real(field_r), allocatable :: buffer(:,:,:) !< Memory for variable data.
   contains
-    procedure :: init => cross_section_file_init
+    procedure :: open => cross_section_file_open
     procedure :: write => cross_section_file_write
     procedure :: get_pointer => cross_section_file_get_pointer
   end type cross_section_file_t
@@ -124,7 +124,7 @@ module modnetcdf_file_t
     integer :: nvals_y = 0 !< Number of values that will be written by calling process in the y-direction.
     real(field_r), allocatable :: buffer(:,:,:,:) !< Memory for variable data.
   contains
-    procedure :: init => field_dump_file_init
+    procedure :: open => field_dump_file_open
     procedure :: write => field_dump_file_write
     procedure :: get_pointer => field_dump_file_get_pointer
   end type field_dump_file_t
@@ -221,8 +221,8 @@ contains
 
   end subroutine netcdf_file_set_filename
 
-  !> Open a NetCDF file containing time series data.
-  function time_series_file_open(filename, lgpu) result(this)
+  !> Constructor; initialize a NetCDF file containing time series data.
+  function time_series_file_init(filename, lgpu) result(this)
 
     character(len=*), intent(in)  :: filename !< Name of the file.
 
@@ -233,16 +233,17 @@ contains
     if (present(lgpu)) this%lgpu = lgpu
 
     call this%set_filename(filename)
-    call open_nc(this%filename, this%ncid, this%nrec)
 
-  end function time_series_file_open
+  end function time_series_file_init
 
-  !> Define dimensions and allocate memory.
-  subroutine time_series_file_init(this)
+  !> Open the NetCDF file, define dimensions and allocate memory.
+  subroutine time_series_file_open(this)
 
     class(time_series_file_t), intent(inout) :: this
 
     integer :: ivar
+
+    call open_nc(this%filename, this%ncid, this%nrec)
 
     call nctiminfo(this%timeinfo)
 
@@ -261,7 +262,7 @@ contains
 
     !$acc enter data copyin(this, this%buffer) if(this%lgpu)
 
-  end subroutine time_series_file_init
+  end subroutine time_series_file_open
 
   !> Write data to disk.
   subroutine time_series_file_write(this)
@@ -305,8 +306,8 @@ contains
 
   end subroutine time_series_file_get_pointer
 
-  !> Open a NetCDF file containing vertical profiles.
-  function profiles_file_open(filename, nz, nzs, lgpu) result(this)
+  !> Constructor; initialize a NetCDF file containing vertical profiles.
+  function profiles_file_init(filename, nz, nzs, lgpu) result(this)
 
     character(len=*), intent(in) :: filename !< Name of the file.
 
@@ -329,16 +330,16 @@ contains
     if (present(nz)) this%nz = nz
     if (present(nzs)) this%nzs = nzs
 
-    call open_nc(this%filename, this%ncid, this%nrec, n3=nz, ns=nzs)
+  end function profiles_file_init
 
-  end function profiles_file_open
-
-  !> Define dimensions and allocate memory.
-  subroutine profiles_file_init(this)
+  !> Open the NetCDF file, define dimensions and allocate memory.
+  subroutine profiles_file_open(this)
 
     class(profiles_file_t), intent(inout) :: this
 
     integer :: k, ivar
+
+    call open_nc(this%filename, this%ncid, this%nrec, n3=this%nz, ns=this%nzs)
 
     call nctiminfo(this%timeinfo)
 
@@ -363,7 +364,7 @@ contains
 
     !$acc enter data copyin(this, this%buffer) if(this%lgpu)
 
-  end subroutine profiles_file_init
+  end subroutine profiles_file_open
 
   !> Write data to disk.
   subroutine profiles_file_write(this)
@@ -411,8 +412,8 @@ contains
 
   end subroutine profiles_file_get_pointer
 
-  !> Open a NetCDF file containing cross sections.
-  function cross_section_file_open(filename, nx, ny, nz, nzs, lgpu) result(this)
+  !> Constructor; initialize a NetCDF file containing time series data.
+  function cross_section_file_init(filename, nx, ny, nz, nzs, lgpu) result(this)
 
     character(len=*), intent(in) :: filename !< Name of the file.
 
@@ -425,8 +426,6 @@ contains
     type(cross_section_file_t) :: this !< New cross section file object.
 
     character(len=*), parameter :: routine = modname//'/cross_section_file_open'
-
-    type(mpi_comm), pointer :: comm
 
     if (count([present(nx), present(ny), present(nz), present(nzs)], dim=1) > 2) then
       call finish(routine, 'cross section file can contain only two dimensions')
@@ -449,18 +448,6 @@ contains
       end if
 
       call this%set_filename(filename)
-
-      ! Determine which MPI communicator to use
-      if (present(nx) .and. present(ny)) then
-        comm => comm3d
-      else if (present(nx)) then 
-        comm => commrow
-      else
-        comm => commcol
-      end if
-
-      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
-                   n2=this%ny, n3=nz, ns=nzs, comm=comm)
     else
       if (present(nx)) then
         this%nx = imax
@@ -475,19 +462,45 @@ contains
 
       ! Every rank writes to its own file, distinguish with cmyid
       call this%set_filename(filename, suffix=cmyid)
-
-      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nvals_x, &
-                   n2=this%nvals_y, n3=nz, ns=nzs)
     end if
 
-  end function cross_section_file_open
+  end function cross_section_file_init
 
-  !> Define dimensions and allocate memory.
-  subroutine cross_section_file_init(this)
+  !> Open the NetCDF file, define dimensions and allocate memory.
+  subroutine cross_section_file_open(this)
 
     class(cross_section_file_t), intent(inout) :: this
 
     integer :: n1, n2, ivar
+
+    type(mpi_comm), pointer :: comm
+
+    if (this%nvals_x > 0 .and. this%nvals_y > 0) then
+      n1 = this%nvals_x
+      n2 = this%nvals_y
+      comm => comm3d
+    else
+      if (this%nvals_x > 0) then
+        n1 = this%nvals_x
+        comm => commrow
+      else
+        n1 = this%nvals_y
+        comm => commcol
+      end if
+      if (this%nz > 0) then
+        n2 = this%nz
+      else
+        n2 = this%nzs
+      end if
+    end if
+
+    if (NC_HAVE_PARALLEL) then
+      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
+                   n2=this%ny, n3=this%nz, ns=this%nzs, comm=comm)
+    else
+      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
+                   n2=this%ny, n3=this%nz, ns=this%nzs)
+    end if
 
     call nctiminfo(this%timeinfo(1,:))
 
@@ -498,22 +511,6 @@ contains
     end if
 
     call define_nc(this%ncid, this%nvar, this%names, lcollective=.true.)
-
-    if (this%nvals_x > 0 .and. this%nvals_y > 0) then
-      n1 = this%nvals_x
-      n2 = this%nvals_y
-    else
-      if (this%nvals_x > 0) then
-        n1 = this%nvals_x
-      else
-        n1 = this%nvals_y
-      end if
-      if (this%nz > 0) then
-        n2 = this%nz
-      else
-        n2 = this%nzs
-      end if
-    end if
 
     allocate(this%buffer(n1,n2,this%nvar))
 
@@ -527,7 +524,7 @@ contains
 
     !$acc enter data copyin(this, this%buffer) if(this%lgpu)
 
-  end subroutine cross_section_file_init
+  end subroutine cross_section_file_open
 
   !> Write data to disk.
   subroutine cross_section_file_write(this)
@@ -597,8 +594,8 @@ contains
 
   end subroutine cross_section_file_get_pointer
 
-  !> Open a NetCDF file containing 3D field dumps.
-  function field_dump_file_open(filename, nz, nzs, ncoarse, klo, khi, lgpu) &
+  !> Constructor; initialize a NetCDF file containing time series data.
+  function field_dump_file_init(filename, nz, nzs, ncoarse, klo, khi, lgpu) &
     result(this)
 
     character(len=*), intent(in) :: filename !< Name of the file.
@@ -655,23 +652,23 @@ contains
     this%nvals_y = jmax / this%ncoarse
 
     if (present(nz)) this%nz = khi - klo + 1 ! Passed value of nz not actually used...
-    
-    if (NC_HAVE_PARALLEL) then
-      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
-                   n2=this%ny, n3=nz, ns=nzs, comm=comm3d)
-    else
-      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
-                   n2=this%ny, n3=nz, ns=nzs)
-    end if
 
-  end function field_dump_file_open
+  end function field_dump_file_init
 
-  !> Define dimensions and allocate memory.
-  subroutine field_dump_file_init(this)
+  !> Open the NetCDF file, define dimensions and allocate memory.
+  subroutine field_dump_file_open(this)
 
     class(field_dump_file_t), intent(inout) :: this
 
     integer :: n1, n2, n3, ivar
+
+    if (NC_HAVE_PARALLEL) then
+      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
+                   n2=this%ny, n3=this%nz, ns=this%nzs, comm=comm3d)
+    else
+      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
+                   n2=this%ny, n3=this%nz, ns=this%nzs)
+    end if
 
     call nctiminfo(this%timeinfo)
 
@@ -703,7 +700,7 @@ contains
 
     !$acc enter data copyin(this, this%buffer) if(this%lgpu)
 
-  end subroutine field_dump_file_init
+  end subroutine field_dump_file_open
 
   !> Write data to disk.
   subroutine field_dump_file_write(this)

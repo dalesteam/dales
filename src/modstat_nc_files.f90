@@ -110,7 +110,7 @@ contains
     integer :: ifile
 
     do ifile = 1, nfiles
-      call file_list(ifile)%file%init
+      call file_list(ifile)%file%open
     end do
 
   end subroutine init_output_files
