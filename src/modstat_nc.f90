@@ -385,7 +385,7 @@ contains
 
       end select
 
-      if (present(lcollective)) then
+      if (present(lcollective) .and. NC_HAVE_PARALLEL) then
         if (lcollective) then
           call nchandle_error(nf90_var_par_access(ncid, varid, NF90_COLLECTIVE))
         end if
