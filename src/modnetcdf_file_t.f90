@@ -49,6 +49,7 @@ module modnetcdf_file_t
     procedure :: add_var => netcdf_file_add_var
     procedure :: get_var_id => netcdf_file_get_var_id
     procedure :: set_filename => netcdf_file_set_filename
+    procedure :: close => netcdf_file_close
     procedure(netcdf_file_open),  deferred :: open
     procedure(netcdf_file_write), deferred :: write
   end type netcdf_file_t
@@ -220,6 +221,15 @@ contains
     this%filename = the_filename
 
   end subroutine netcdf_file_set_filename
+
+  !> Close the NetCDF file.
+  subroutine netcdf_file_close(this)
+
+    class(netcdf_file_t), intent(inout) :: this
+
+    if (this%ncid /= 0) call exitstat_nc(this%ncid)
+
+  end subroutine netcdf_file_close
 
   !> Constructor; initialize a NetCDF file containing time series data.
   function time_series_file_init(filename, lgpu) result(this)

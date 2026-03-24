@@ -149,4 +149,15 @@ contains
 
   end subroutine stats_limit_timestep
 
+  !> Closes all files.
+  subroutine close_output_files()
+
+    integer :: ifile
+
+    do ifile = 1, nfiles
+      call file_list(ifile)%file%close()
+    end do
+
+  end subroutine close_output_files
+
 end module modstat_nc_files
