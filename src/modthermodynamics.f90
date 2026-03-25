@@ -365,8 +365,17 @@ contains
                del_thv_sat = a_moist * dth + b_moist * dq
 
                chi     = 2*chi_half*(zf(k) - zf(k-1))/(dzh(k)+dzh(k+1))
-               chi_sat = c_liquid * ql0(i,j,k) / (del_thv_dry - del_thv_sat)
 
+               if (del_thv_dry - del_thv_sat == 0) then
+                  print *, 'i,j,k', i, j, k
+                  print *, 'c_liquid', c_liquid, 'ql0',  ql0(i,j,k)
+                  print *, 'del_thv_dry', del_thv_dry, 'del_thv_sat', del_thv_sat
+                  print *, 'dq', dq, 'dth', dth
+                  chi_sat = 0 ! can't compute it but it doesn't matter in this case
+               else
+                  chi_sat = c_liquid * ql0(i,j,k) / (del_thv_dry - del_thv_sat)
+               end if
+              
                if (chi < chi_sat) then  !mixed parcel is saturated
                  dthv = del_thv_sat
               end if
