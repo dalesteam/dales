@@ -426,7 +426,8 @@ contains
    call nchandle_error(status)
  end subroutine exitstat_nc
 
- subroutine writestat_dims_nc(ncid, ncoarse, klow, proc, offset_x, offset_y)
+ subroutine writestat_dims_nc(ncid, ncoarse, klow, proc, offset_x, offset_y, &
+                              x_vals, y_vals, z_vals)
     ! optional arguments ncoarse (coarsegraining in the horizontal directions)
     !                    klow    (lower bound for z. Upper bound is taken from the size of the dimension)
     !                    proc    (if present and length on horizontal cooridinates is 1 include processor starting edges and center)
@@ -440,12 +441,17 @@ contains
     logical, optional, intent(in) :: proc
     integer, optional, intent(in) :: offset_x
     integer, optional, intent(in) :: offset_y
+    real(field_r), optional, intent(in) :: x_vals(:) !< Values of x-coordinates of cell centers.
+    real(field_r), optional, intent(in) :: y_vals(:) !< Values of y-coordinates of cell centers.
+    real(field_r), optional, intent(in) :: z_vals(:) !< Values of z-coordinates of cell centers.
     integer             :: i=0,iret,length,varid, nc
     integer             :: kl
     logical             :: lproc
     logical             :: do_parallel = .false.
     integer             :: xstart(1), ystart(1)
 
+    real(field_r), allocatable :: dim_vals_t(:)
+    real(field_r), allocatable :: dim_vals_m(:)
 
     lproc = .false.
     if (present(ncoarse)) then
@@ -472,38 +478,85 @@ contains
       ystart = 1
     end if
 
-    if (.not. lproc) then
-      iret = nf90_inq_varid(ncid, 'xt', VarID)
-      if (iret==0) iret=nf90_inquire_dimension(ncid, xtID, len=length)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(x0+dx*(0.5+nc*i)+myidx*imax*dx,i=0,length-1)/),xstart)
-      iret = nf90_inq_varid(ncid, 'xm', VarID)
-      if (iret==0) iret=nf90_inquire_dimension(ncid, xmID, len=length)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(x0+dx*nc*i+myidx*imax*dx,i=0,length-1)/),xstart)
+    ! Check if the x dimension is defined
+    iret = nf90_inq_dimid(ncid, 'xt', xtid)
 
-      iret = nf90_inq_varid(ncid, 'yt', VarID)
-      if (iret==0) iret=nf90_inquire_dimension(ncid, ytID, len=length)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(y0+dy*(0.5+nc*i)+myidy*jmax*dy,i=0,length-1)/),ystart)
-      iret = nf90_inq_varid(ncid, 'ym', VarID)
-      if (iret==0) iret=nf90_inquire_dimension(ncid, ymID, len=length)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(y0+dy*nc*i+myidy*jmax*dy,i=0,length-1)/),ystart)
-    else
-      iret = nf90_inq_varid(ncid, 'xt', VarID)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(x0+0.5*dx*imax+myidx*imax*dx)/),(/1/))
-      iret = nf90_inq_varid(ncid, 'xm', VarID)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(x0+myidx*imax*dx)/),(/1/))
-
-      iret = nf90_inq_varid(ncid, 'yt', VarID)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(y0+0.5*dy*jmax+myidy*jmax*dy)/),(/1/))
-      iret = nf90_inq_varid(ncid, 'ym', VarID)
-      if (iret==0) iret = nf90_put_var(ncid, varID, (/(y0+myidy*jmax*dy)/),(/1/))
+    if (iret == 0) then
+      if (present(x_vals)) then ! User-provided coordinate values
+        allocate(dim_vals_t, dim_vals_m, source=x_vals)
+        dim_vals_m(:) = dim_vals_m(:) - 0.5 * dx
+      else
+        iret = nf90_inquire_dimension(ncid, xtid, len=length)
+        allocate(dim_vals_t(length), dim_vals_m(length))
+        do i = 1, length
+          dim_vals_t(i) = x0 + dx * (0.5 + nc * (i - 1))
+          dim_vals_m(i) = x0 + dx * nc * (i - 1)
+        end do
+        if (length == imax .or. lproc) then
+          ! Add offset for this rank
+          dim_vals_t(:) = dim_vals_t(:) + myidx * imax
+          dim_vals_m(:) = dim_vals_m(:) + myidx * imax
+        end if
+      end if
+      ! Now write the coordinate info
+      iret = nf90_inq_varid(ncid, 'xt', varid)
+      iret = nf90_put_var(ncid, varid, dim_vals_t, start=xstart)
+      iret = nf90_inq_varid(ncid, 'xm', varid)
+      iret = nf90_put_var(ncid, varid, dim_vals_m, start=xstart)
+      deallocate(dim_vals_t, dim_vals_m)
     end if
 
-    iret = nf90_inq_varid(ncid, 'zt', VarID)
-    if (iret==0) iret=nf90_inquire_dimension(ncid,ztID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, zf(kl:kl+length-1),(/1/))
-    iret = nf90_inq_varid(ncid, 'zm', VarID)
-    if (iret==0) iret=nf90_inquire_dimension(ncid, zmID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, zh(kl:kl+length-1),(/1/))
+    ! Now do the same for y and z
+    iret = nf90_inq_dimid(ncid, 'yt', ytid)
+
+    if (iret == 0) then
+      if (present(y_vals)) then ! User-provided coordinate values
+        allocate(dim_vals_t, dim_vals_m, source=y_vals)
+        dim_vals_m(:) = dim_vals_m(:) - 0.5 * dy
+      else
+        iret = nf90_inquire_dimension(ncid, ytid, len=length)
+        allocate(dim_vals_t(length), dim_vals_m(length))
+        do i = 1, length
+          dim_vals_t(i) = y0 + dy * (0.5 + nc * (i - 1))
+          dim_vals_m(i) = y0 + dy * nc * (i - 1)
+        end do
+        if (length == jmax .or. lproc) then
+          ! Add offset for this rank
+          dim_vals_t(:) = dim_vals_t(:) + myidy * jmax
+          dim_vals_m(:) = dim_vals_m(:) + myidy * jmax
+        end if
+      end if
+      ! Now write the coordinate info
+      iret = nf90_inq_varid(ncid, 'yt', varid)
+      iret = nf90_put_var(ncid, varid, dim_vals_t, start=ystart)
+      iret = nf90_inq_varid(ncid, 'ym', varid)
+      iret = nf90_put_var(ncid, varid, dim_vals_m, start=ystart)
+
+      deallocate(dim_vals_t, dim_vals_m)
+    end if
+
+    iret = nf90_inq_dimid(ncid, 'zt', ztid)
+
+    if (iret == 0) then
+      if (present(z_vals)) then
+        allocate(dim_vals_t, dim_vals_m, source=z_vals)
+        do i = 1, size(z_vals)
+          dim_vals_m(i) = zh(findloc(zf, z_vals(i), dim=1))
+        end do
+      else
+        iret = nf90_inquire_dimension(ncid, ztid, len=length)
+        allocate(dim_vals_t(length), dim_vals_m(length))
+        dim_vals_t(:) = zf(kl:kl+length-1)
+        dim_vals_m(:) = zh(kl:kl+length-1)
+      end if
+      iret = nf90_inq_varid(ncid, 'zt', varid)
+      iret = nf90_put_var(ncid, varid, dim_vals_t)
+      iret = nf90_inq_varid(ncid, 'zm', varid)
+      iret = nf90_put_var(ncid, varid, dim_vals_m)
+
+      deallocate(dim_vals_t, dim_vals_m)
+    end if
+
     if (isurf==1) then
       iret = nf90_inq_varid(ncid, 'zts', VarID)
       if (iret==0) iret = nf90_inquire_dimension(ncid, ztsID, len=length)

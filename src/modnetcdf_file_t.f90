@@ -93,15 +93,15 @@ module modnetcdf_file_t
   !> File containing cross sections.
   type, extends(netcdf_file_t) :: cross_section_file_t
     private
-    integer :: nx = 0      !< Number of cells in the x-direction.
-    integer :: ny = 0      !< Number of cells in the y-direction.
-    integer :: nz = 0      !< Number of vertical layers.
-    integer :: nzs = 0     !< Number of vertical layers in the soil grid.
-    integer :: nslices = 0 !< Number of cross sections.
-    integer :: x_start = 0 !< Writing offset in the x-direction.
-    integer :: y_start = 0 !< Writing offset in the y-direction.
-    integer :: nvals_x = 0 !< Number of values that will be written by calling process in the x-direction.
-    integer :: nvals_y = 0 !< Number of values that will be written by calling process in the y-direction.
+    integer       :: nx = 1      !< Number of cells in the x-direction.
+    integer       :: ny = 1      !< Number of cells in the y-direction.
+    integer       :: nz = 1      !< Number of vertical layers.
+    integer       :: nzs = 0     !< Number of vertical layers in the soil grid.
+    real(field_r) :: loc = 0     !< Location of the cross section.
+    integer       :: x_start = 0 !< Writing offset in the x-direction.
+    integer       :: y_start = 0 !< Writing offset in the y-direction.
+    integer       :: nvals_x = 0 !< Number of values that will be written by calling process in the x-direction.
+    integer       :: nvals_y = 0 !< Number of values that will be written by calling process in the y-direction.
     real(field_r), allocatable :: buffer(:,:,:) !< Memory for variable data.
   contains
     procedure :: open => cross_section_file_open
@@ -423,15 +423,17 @@ contains
   end subroutine profiles_file_get_pointer
 
   !> Constructor; initialize a NetCDF file containing time series data.
-  function cross_section_file_init(filename, nx, ny, nz, nzs, lgpu) result(this)
+  function cross_section_file_init(filename, nx, ny, nz, nzs, loc, lgpu) &
+    result(this)
 
     character(len=*), intent(in) :: filename !< Name of the file.
 
-    integer, intent(in), optional :: nx   !< Number of cells in the x-direction.
-    integer, intent(in), optional :: ny   !< Number of cells in the y-direction.
-    integer, intent(in), optional :: nz   !< Number of vertical levels.
-    integer, intent(in), optional :: nzs  !< Number of vertical levels in the soil grid.
-    logical, intent(in), optional :: lgpu !< Allocate buffer on GPU.
+    integer,       intent(in), optional :: nx   !< Number of cells in the x-direction.
+    integer,       intent(in), optional :: ny   !< Number of cells in the y-direction.
+    integer,       intent(in), optional :: nz   !< Number of vertical levels.
+    integer,       intent(in), optional :: nzs  !< Number of vertical levels in the soil grid.
+    real(field_r), intent(in), optional :: loc  !< Location of the cross section.
+    logical,       intent(in), optional :: lgpu !< Allocate buffer on GPU.
 
     type(cross_section_file_t) :: this !< New cross section file object.
 
@@ -443,6 +445,7 @@ contains
     
     if (present(nz)) this%nz = nz
     if (present(nzs)) this%nzs = nzs
+    if (present(loc)) this%loc = loc
     if (present(lgpu)) this%lgpu = lgpu
 
     if (NC_HAVE_PARALLEL) then
@@ -516,8 +519,22 @@ contains
 
     if (this%nrec == 0) then
       call define_nc(this%ncid, 1, this%timeinfo, lcollective=.true.)
-      call writestat_dims_nc(this%ncid, offset_x=this%x_start, &
-                             offset_y=this%y_start)
+      ! TODO: this is some horrible code, clean this up
+      if (this%loc > 0) then
+        if (this%nx == 1) then
+          call writestat_dims_nc(this%ncid, offset_y=this%y_start, &
+                                 x_vals=[this%loc])
+        else if (this%ny == 1) then
+          call writestat_dims_nc(this%ncid, offset_x=this%x_start, &
+                                 y_vals=[this%loc])
+        else if (this%nz == 1) then
+          call writestat_dims_nc(this%ncid, offset_x=this%x_start, &
+                                 offset_y=this%y_start, z_vals=[this%loc])
+        end if
+      else
+        call writestat_dims_nc(this%ncid, offset_x=this%x_start, &
+                               offset_y=this%y_start)
+      end if
     end if
 
     call define_nc(this%ncid, this%nvar, this%names, lcollective=.true.)

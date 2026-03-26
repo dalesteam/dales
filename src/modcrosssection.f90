@@ -27,7 +27,7 @@ module modcrosssection
 #endif
   use modglobal,         only: longint, kmax, nsv, cu, cv, itot, jtot, imax, &
                                jmax, kmax, i1, j1, ifnamopt, dtav_glob, &
-                               rk3step, checknamelisterror
+                               rk3step, checknamelisterror, dx, dy, zf
   use modtracers,        only: tracer_prop
   use modnetcdf_file_t,  only: cross_section_file_t
   use modstat_nc_files,  only: add_output_file, is_sampling_timestep
@@ -118,6 +118,7 @@ contains
     character(len=*), parameter :: routine = modname//'/initcrosssection'
 
     integer          :: k, ifile
+    real(field_r)    :: loc
     character(len=4) :: cloc
 
     if (.not. lcross) return
@@ -161,8 +162,9 @@ contains
       if (crossheight(k) > 0) then
         ifile = ifile + 1
         write(cloc, '(i4.4)') crossheight(k)
+        loc = zf(crossheight(k))
         xy_files(ifile) = cross_section_file_t('crossxy.'//cloc, nx=itot, &
-                                               ny=jtot)
+                                               ny=jtot, loc=loc)
         call add_output_file(xy_files(ifile), dtav, xy_file_ids(ifile))
       end if
     end do
@@ -188,8 +190,9 @@ contains
       if (crossplane(k) > 0) then
         ifile = ifile + 1
         write(cloc, '(i4.4)') crossplane(k)
+        loc = dy * (crossplane(k) - 2) + 0.5_field_r * dy
         xz_files(ifile) = cross_section_file_t('crossxz.'//cloc, &
-                                               nx=itot, nz=kmax)
+                                               nx=itot, nz=kmax, loc=loc)
         call add_output_file(xz_files(ifile), dtav, xz_file_ids(ifile))
       end if
     end do
@@ -215,8 +218,9 @@ contains
       if (crossortho(k) > 0) then
         ifile = ifile + 1
         write(cloc, '(i4.4)') crossortho(k)
+        loc = dx * (crossortho(k) - 2) + 0.5_field_r * dx
         yz_files(ifile) = cross_section_file_t('crossyz.'//cloc, &
-                                               ny=jtot, nz=kmax)
+                                               ny=jtot, nz=kmax, loc=loc)
         call add_output_file(yz_files(ifile), dtav, yz_file_ids(ifile))
       end if
     end do
