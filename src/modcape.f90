@@ -26,13 +26,15 @@
 !
 module modcape
   use modprecision, only : field_r
-  use modglobal, only : longint,kmax
+  use modglobal, only : longint,kmax, itot, jtot
   use modlogging, only: finish
+  use modnetcdf_file_t, only: cross_section_file_t
+  use modstat_nc_files, only: add_output_file, is_sampling_timestep
 
 implicit none
 private
 character(len=*), parameter :: modname = 'modcape'
-PUBLIC :: initcape,docape,exitcape
+PUBLIC :: initcape,docape
 save
 !NetCDF variables
   integer,parameter :: nvar = 25
@@ -44,6 +46,9 @@ save
   real    :: dtav
   integer(kind=longint) :: idtav,tnext
   logical :: lcape = .false. !< switch for doing the crosssection (on/off)
+
+  type(cross_section_file_t) :: ofile
+  integer                    :: ofile_id
 
 contains
 
@@ -73,50 +78,40 @@ contains
     call D_MPI_BCAST(dtav    ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lcape   ,1,0,comm3d,mpierr)
 
-    idtav = int(dtav / tres, kind=kind(idtav))
-    tnext   = idtav+btime
     if(.not.(lcape)) return
-    dt_lim = min(dt_lim,tnext)
 
-    if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      call finish(routine, 'dtav should be a integer multiple of dtmax')
-    end if
     if (lnetcdf) then
-    fname(6:13) = cmyid
-    fname(15:17) = cexpnr
-    call nctiminfo(tncname(1,:))
-    call ncinfo(ncname( 1,:),'dcape','actual dcape','J/m^2','tt0t')
-    call ncinfo(ncname( 2,:),'dscape','actual dscape','J/m^2','tt0t')
-    call ncinfo(ncname( 3,:),'dcin','actual CIN between zcb and 1.2 zcb','J/m^2','tt0t')
-    call ncinfo(ncname( 4,:),'dscin','actual CIN up to zcb','J/m^2','tt0t')
-    call ncinfo(ncname( 5,:),'dcintot','total CIN up to dcape level','J/m^2','tt0t')
-    call ncinfo(ncname( 6,:),'capemax','CAPEmax','J/m^2','tt0t')
-    call ncinfo(ncname( 7,:),'cinmax','CIN as in CAPEmax','J/m^2','tt0t')
-    call ncinfo(ncname( 8,:),'hw2cb','1/2 W^2 at the top of the subcloud layer','m^2/s^2','tt0t')
-    call ncinfo(ncname( 9,:),'hw2max','highest 1/2 W^2','m^2/s^2','tt0t')
-    call ncinfo(ncname( 10,:),'qtcb','qt at cloudbase','kg/kg','tt0t')
-    call ncinfo(ncname( 11,:),'thlcb','thl at cloudbase','K','tt0t')
-    call ncinfo(ncname( 12,:),'wcb','w at cloudbase','m/s','tt0t')
-    call ncinfo(ncname( 13,:),'buoycb','buoyancy at cloudbase','K','tt0t')
-    call ncinfo(ncname( 14,:),'buoymax','maximum buoyancy','K','tt0t')
-    call ncinfo(ncname( 15,:),'qlcb','ql at cloudbase','kg/kg','tt0t')
-    call ncinfo(ncname( 16,:),'lwp','liquid water path','kg/m^2','tt0t')
-    call ncinfo(ncname( 17,:),'rwp','rain water path','kg/m^2','tt0t')
-    call ncinfo(ncname( 18,:),'twp','total water path','kg/m^2','tt0t')
-    call ncinfo(ncname( 19,:),'cldtop','cloud top height','m','tt0t')
-    call ncinfo(ncname( 20,:),'surfprec','surface precipitation','kg/m^2/s','tt0t')
-    call ncinfo(ncname( 21,:),'hmix','mixed layer height','m','tt0t')
-    call ncinfo(ncname( 22,:),'hinvsrf','height of surface inversion','m','tt0t')
-    call ncinfo(ncname( 23,:),'umix','u wind speed averaged over mixed layer','m/s','tt0t')
-    call ncinfo(ncname( 24,:),'vmix','v wind speed averaged over mixed layer','m/s','tt0t')
-    call ncinfo(ncname( 25,:),'thetavmix','theta_v averaged over mixed layer','K','tt0t')
 
-    call open_nc(trim(output_prefix)//fname,  ncid4,nrec,n1=imax,n2=jmax)
-    if (nrec==0) then
-      call define_nc( ncid4, 1, tncname)
-      call writestat_dims_nc(ncid4)
-    end if
-    call define_nc( ncid4, NVar, ncname)
+      ofile = cross_section_file_t('new-cape.nc', nx=itot, ny=jtot, &
+                                   lgpu=.false.)
+      
+      call add_output_file(ofile, dtav, ofile_id)
+
+      call ofile%add_var('dcape','actual dcape','J/m^2','tt0t')
+      call ofile%add_var('dscape','actual dscape','J/m^2','tt0t')
+      call ofile%add_var('dcin','actual CIN between zcb and 1.2 zcb','J/m^2','tt0t')
+      call ofile%add_var('dscin','actual CIN up to zcb','J/m^2','tt0t')
+      call ofile%add_var('dcintot','total CIN up to dcape level','J/m^2','tt0t')
+      call ofile%add_var('capemax','CAPEmax','J/m^2','tt0t')
+      call ofile%add_var('cinmax','CIN as in CAPEmax','J/m^2','tt0t')
+      call ofile%add_var('hw2cb','1/2 W^2 at the top of the subcloud layer','m^2/s^2','tt0t')
+      call ofile%add_var('hw2max','highest 1/2 W^2','m^2/s^2','tt0t')
+      call ofile%add_var('qtcb','qt at cloudbase','kg/kg','tt0t')
+      call ofile%add_var('thlcb','thl at cloudbase','K','tt0t')
+      call ofile%add_var('wcb','w at cloudbase','m/s','tt0t')
+      call ofile%add_var('buoycb','buoyancy at cloudbase','K','tt0t')
+      call ofile%add_var('buoymax','maximum buoyancy','K','tt0t')
+      call ofile%add_var('qlcb','ql at cloudbase','kg/kg','tt0t')
+      call ofile%add_var('lwp','liquid water path','kg/m^2','tt0t')
+      call ofile%add_var('rwp','rain water path','kg/m^2','tt0t')
+      call ofile%add_var('twp','total water path','kg/m^2','tt0t')
+      call ofile%add_var('cldtop','cloud top height','m','tt0t')
+      call ofile%add_var('surfprec','surface precipitation','kg/m^2/s','tt0t')
+      call ofile%add_var('hmix','mixed layer height','m','tt0t')
+      call ofile%add_var('hinvsrf','height of surface inversion','m','tt0t')
+      call ofile%add_var('umix','u wind speed averaged over mixed layer','m/s','tt0t')
+      call ofile%add_var('vmix','v wind speed averaged over mixed layer','m/s','tt0t')
+      call ofile%add_var('thetavmix','theta_v averaged over mixed layer','K','tt0t')
     end if
 
   end subroutine initcape
@@ -137,12 +132,13 @@ contains
 #endif
     implicit none
 
-    real, allocatable :: dcape(:,:),dscape(:,:),dcin(:,:),dscin(:,:),dcintot(:,:),capemax(:,:),&
+    real(field_r), pointer :: dcape(:,:),dscape(:,:),dcin(:,:),dscin(:,:),dcintot(:,:),capemax(:,:),&
     cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),&
     thlcb(:,:),wcb(:,:),buoycb(:,:),buoymax(:,:),qlcb(:,:),lwp(:,:),twp(:,:),rwp(:,:),&
-    cldtop(:,:),thl200400(:,:),qt200400(:,:),sprec(:,:),&
+    cldtop(:,:),sprec(:,:),&
     hmix(:,:), hinv(:,:), umix(:,:), vmix(:,:), thetavmix(:,:)
-    real, allocatable :: thvfull(:,:,:),thvma(:,:,:),qlma(:,:,:),vars(:,:,:)
+    real, allocatable :: thl200400(:,:), qt200400(:,:)
+    real, allocatable :: thvfull(:,:,:),thvma(:,:,:),qlma(:,:,:)
     integer, allocatable :: capetop(:,:),matop(:,:)
     logical,allocatable :: capemask(:,:,:)
 
@@ -152,29 +148,43 @@ contains
     real :: thv_sum, rho_sum, thv_avg, u_sum, v_sum, tmpk, tmpkp
 
     if (.not. lcape) return
-    if (rk3step/=3) return
-    if(timee<tnext) then
-      dt_lim = min(dt_lim,tnext-timee)
-      return
-    end if
-    tnext = tnext+idtav
-    dt_lim = minval((/dt_lim,tnext-timee/))
+
+    if (.not. is_sampling_timestep(ofile_id)) return
 
 #if defined(_OPENACC)
     call update_host
 #endif
 
-    allocate(dcape(2:i1,2:j1),dscape(2:i1,2:j1),dcin(2:i1,2:j1),dscin(2:i1,2:j1),dcintot(2:i1,2:j1))
-    allocate(capemax(2:i1,2:j1),cinmax(2:i1,2:j1),hw2cb(2:i1,2:j1))
     allocate(thl200400(2:i1,2:j1),qt200400(2:i1,2:j1))
-    allocate(hw2max(2:i1,2:j1),qtcb(2:i1,2:j1),thlcb(2:i1,2:j1),wcb(2:i1,2:j1))
-    allocate(buoycb(2:i1,2:j1),buoymax(2:i1,2:j1),qlcb(2:i1,2:j1),&
-             lwp(2:i1,2:j1),rwp(2:i1,2:j1),cldtop(2:i1,2:j1),twp(2:i1,2:j1))
     allocate(thvfull(2:i1,2:j1,1:k1),thvma(2:i1,2:j1,1:k1),qlma(2:i1,2:j1,1:k1),&
-             capemask(2:i1,2:j1,1:k1),capetop(2:i1,2:j1),matop(2:i1,2:j1),sprec(2:i1,2:j1))
-    allocate(hmix(2:i1,2:j1),hinv(2:i1,2:j1),&
-             umix(2:i1,2:j1),vmix(2:i1,2:j1),thetavmix(2:i1,2:j1))
+             capemask(2:i1,2:j1,1:k1),capetop(2:i1,2:j1),matop(2:i1,2:j1))
 
+    call ofile%get_pointer('dcape', dcape)
+    call ofile%get_pointer('dscape', dscape)
+    call ofile%get_pointer('dcin', dcin)
+    call ofile%get_pointer('dscin', dscin)
+    call ofile%get_pointer('dcintot', dcintot)
+    call ofile%get_pointer('capemax', capemax)
+    call ofile%get_pointer('cinmax', cinmax)
+    call ofile%get_pointer('hw2cb', hw2cb)
+    call ofile%get_pointer('hw2max', hw2max)
+    call ofile%get_pointer('qtcb', qtcb)
+    call ofile%get_pointer('thlcb', thlcb)
+    call ofile%get_pointer('wcb', wcb)
+    call ofile%get_pointer('buoycb', buoycb)
+    call ofile%get_pointer('buoymax', buoymax)
+    call ofile%get_pointer('qlcb', qlcb)
+    call ofile%get_pointer('lwp', lwp)
+    call ofile%get_pointer('rwp', rwp)
+    call ofile%get_pointer('twp', twp)
+    call ofile%get_pointer('cldtop', cldtop)
+    call ofile%get_pointer('surfprec', sprec)
+    call ofile%get_pointer('hmix', hmix)
+    call ofile%get_pointer('hinvsrf', hinv)
+    call ofile%get_pointer('umix', umix)
+    call ofile%get_pointer('vmix', vmix)
+    call ofile%get_pointer('thetavmix', thetavmix)
+    
     ! DETERMINE CLOUD BASE, UNFORTUNATELY HAVE TO USE STATS HERE: END UP JUST BELOW
     kcb=1
     ktest=0
@@ -487,55 +497,9 @@ contains
        end do
     end do
 
-
-
-    if (lnetcdf) then
-      allocate(vars(1:imax,1:jmax,nvar))
-      vars(:,:,1) = dcape(2:i1,2:j1)
-      vars(:,:,2) = dscape(2:i1,2:j1)
-      vars(:,:,3) = dcin(2:i1,2:j1)
-      vars(:,:,4) = dscin(2:i1,2:j1)
-      vars(:,:,5) = dcintot(2:i1,2:j1)
-      vars(:,:,6) = capemax(2:i1,2:j1)
-      vars(:,:,7) = cinmax(2:i1,2:j1)
-      vars(:,:,8) = hw2cb(2:i1,2:j1)
-      vars(:,:,9) = hw2max(2:i1,2:j1)
-      vars(:,:,10) = qtcb(2:i1,2:j1)
-      vars(:,:,11) = thlcb(2:i1,2:j1)
-      vars(:,:,12) = wcb(2:i1,2:j1)
-      vars(:,:,13) = buoycb(2:i1,2:j1)
-      vars(:,:,14) = buoymax(2:i1,2:j1)
-      vars(:,:,15) = qlcb(2:i1,2:j1)
-      vars(:,:,16) = lwp(2:i1,2:j1)
-      vars(:,:,17) = rwp(2:i1,2:j1)
-      vars(:,:,18) = twp(2:i1,2:j1)
-      vars(:,:,19) = cldtop(2:i1,2:j1)
-      vars(:,:,20) = sprec(2:i1,2:j1)
-      vars(:,:,21) = hmix(2:i1,2:j1)
-      vars(:,:,22) = hinv(2:i1,2:j1)
-      vars(:,:,23) = umix(2:i1,2:j1)
-      vars(:,:,24) = vmix(2:i1,2:j1)
-      vars(:,:,25) = thetavmix(2:i1,2:j1)
-      call writestat_nc(ncid4,1,tncname,(/rtimee/),nrec,.true.)
-      call writestat_nc(ncid4,nvar,ncname(1:nvar,:),vars,nrec,imax,jmax)
-      deallocate(vars)
-    end if
-
-    deallocate(dcape,dscape,dcin,dscin,dcintot,capemax,cinmax,hw2cb,hw2max,qtcb,thlcb,wcb,&
-    buoycb,buoymax,qlcb,lwp,twp,rwp,cldtop,thvfull,thvma,qlma,capemask,capetop,matop,thl200400,qt200400,sprec)
-    deallocate(hmix,hinv,umix,vmix,thetavmix)
+    deallocate(thl200400, qt200400, thvfull, thvma, qlma, capemask, capetop, &
+               matop)
 
   end subroutine docape
-
-!> Clean up when leaving the run
-  subroutine exitcape
-    use modstat_nc, only : exitstat_nc,lnetcdf
-    implicit none
-
-    if(lcape .and. lnetcdf) then
-    call exitstat_nc(ncid4)
-    end if
-
-  end subroutine exitcape
 
 end module modcape

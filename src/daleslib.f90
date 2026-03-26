@@ -646,7 +646,6 @@ module daleslib
             !----------------------------------------------------------------
             !     0.1     USE STATEMENTS FOR ADDONS STATISTICAL ROUTINES
             !----------------------------------------------------------------
-            use modcape,            only : exitcape
             use modgenstat,         only : exitgenstat
             use modradstat,         only : exitradstat
             use modlsmstat,         only : exitlsmstat
@@ -689,7 +688,6 @@ module daleslib
             !call exitstressbudget
             call exitAGScross
             call exitlsmcrosssection
-            call exitcape
             call exitheterostats
             call exitcanopy
             call exitmodules

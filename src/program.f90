@@ -122,7 +122,7 @@ program DALES
 !     0.1     USE STATEMENTS FOR ADDONS STATISTICAL ROUTINES
 !----------------------------------------------------------------
   use modscalarpulse,  only : initscalarpulse, scalarpulse
-  use modcape,         only : initcape,exitcape,docape
+  use modcape,         only : initcape,docape
   use modchecksim,     only : initchecksim, checksim
   use modstat_nc,      only : initstat_nc
   !use modspectra2,     only : dospecs,initspectra2,tanhfilter
@@ -453,7 +453,6 @@ program DALES
   call exitAGScross
   call exitlsmcrosssection
   call exitdepcrosssection
-  call exitcape
   call exitheterostats
   call exitcanopy
   call exittimestat
