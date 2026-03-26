@@ -19,12 +19,7 @@
 !> Dumps instantaneous cross sections of several fields.
 module modcrosssection
 
-  use fortran_support,   only: nnml_output, finish, &
-#if FIELD_PRECISION==64
-                               t_ptr_2d => t_ptr_2d_dp
-#else
-                               t_ptr_2d => t_ptr_2d_sp
-#endif
+  use fortran_support,   only: nnml_output, finish
   use modglobal,         only: longint, kmax, nsv, cu, cv, itot, jtot, imax, &
                                jmax, kmax, i1, j1, ifnamopt, dtav_glob, &
                                rk3step, checknamelisterror, dx, dy, zf
@@ -36,9 +31,6 @@ module modcrosssection
   use modmpi,            only: D_MPI_BCAST, commwrld, mpierr, myid, myidx, &
                                myidy
   use modfields,         only: um, vm, wm, thlm, qtm, ql0, thvf, e12m, exnf
-#if defined(_OPENACC)
-  use modgpu,            only: update_host
-#endif
 
   implicit none
 
@@ -164,7 +156,7 @@ contains
         write(cloc, '(i4.4)') crossheight(k)
         loc = zf(crossheight(k))
         xy_files(ifile) = cross_section_file_t('crossxy.'//cloc, nx=itot, &
-                                               ny=jtot, loc=loc)
+                                               ny=jtot, loc=loc, lgpu=.true.)
         call add_output_file(xy_files(ifile), dtav, xy_file_ids(ifile))
       end if
     end do
@@ -191,8 +183,8 @@ contains
         ifile = ifile + 1
         write(cloc, '(i4.4)') crossplane(k)
         loc = dy * (crossplane(k) - 2) + 0.5_field_r * dy
-        xz_files(ifile) = cross_section_file_t('crossxz.'//cloc, &
-                                               nx=itot, nz=kmax, loc=loc)
+        xz_files(ifile) = cross_section_file_t('crossxz.'//cloc, nx=itot, &
+                                               nz=kmax, loc=loc, lgpu=.true.)
         call add_output_file(xz_files(ifile), dtav, xz_file_ids(ifile))
       end if
     end do
@@ -219,8 +211,8 @@ contains
         ifile = ifile + 1
         write(cloc, '(i4.4)') crossortho(k)
         loc = dx * (crossortho(k) - 2) + 0.5_field_r * dx
-        yz_files(ifile) = cross_section_file_t('crossyz.'//cloc, &
-                                               ny=jtot, nz=kmax, loc=loc)
+        yz_files(ifile) = cross_section_file_t('crossyz.'//cloc, ny=jtot, &
+                                               nz=kmax, loc=loc, lgpu=.true.)
         call add_output_file(yz_files(ifile), dtav, yz_file_ids(ifile))
       end if
     end do
@@ -243,9 +235,6 @@ contains
   subroutine crosssection
 
     if (lcross .and. rk3step == 3) then
-#if defined(_OPENACC)
-      call update_host
-#endif
       if (lxz) call wrtvert
       if (lxy) call wrthorz
       if (lyz) call wrtorth
@@ -259,53 +248,51 @@ contains
 
     integer :: i, j, k, n, cross
 
-    ! Lists of pointers, one per file. This is so that each cross section can be
-    ! taken asyncronously on GPU.
-    type(t_ptr_2d) :: u(100)
-    type(t_ptr_2d) :: v(100)
-    type(t_ptr_2d) :: w(100)
-    type(t_ptr_2d) :: thl(100)
-    type(t_ptr_2d) :: thv(100)
-    type(t_ptr_2d) :: qt(100)
-    type(t_ptr_2d) :: ql(100)
-    type(t_ptr_2d) :: buoy(100)
-    type(t_ptr_2d) :: e12(100)
+    real(field_r), pointer :: u(:,:)
+    real(field_r), pointer :: v(:,:)
+    real(field_r), pointer :: w(:,:)
+    real(field_r), pointer :: thl(:,:)
+    real(field_r), pointer :: thv(:,:)
+    real(field_r), pointer :: qt(:,:)
+    real(field_r), pointer :: ql(:,:)
+    real(field_r), pointer :: buoy(:,:)
+    real(field_r), pointer :: e12(:,:)
 
     if (is_sampling_timestep(xz_file_ids(1))) then
       ! Setup the pointers
       ! CJ: this could be done one time during initialization, have to make sure that
       ! the buffer is allocated though...
       do cross = 1, nxz
-        call xz_files(cross)%get_pointer('u', u(cross)%p)
-        call xz_files(cross)%get_pointer('v', v(cross)%p)
-        call xz_files(cross)%get_pointer('w', w(cross)%p)
-        call xz_files(cross)%get_pointer('thl', thl(cross)%p)
-        call xz_files(cross)%get_pointer('thv', thv(cross)%p)
-        call xz_files(cross)%get_pointer('qt', qt(cross)%p)
-        call xz_files(cross)%get_pointer('ql', ql(cross)%p)
-        call xz_files(cross)%get_pointer('buoy', buoy(cross)%p)
-        call xz_files(cross)%get_pointer('e120', e12(cross)%p)
+        call xz_files(cross)%get_pointer('u', u)
+        call xz_files(cross)%get_pointer('v', v)
+        call xz_files(cross)%get_pointer('w', w)
+        call xz_files(cross)%get_pointer('thl', thl)
+        call xz_files(cross)%get_pointer('thv', thv)
+        call xz_files(cross)%get_pointer('qt', qt)
+        call xz_files(cross)%get_pointer('ql', ql)
+        call xz_files(cross)%get_pointer('buoy', buoy)
+        call xz_files(cross)%get_pointer('e120', e12)
       end do
 
       do cross = 1, nxz
         j = crossplane(cross)
 
         !$acc kernels default(present) async
-        u(cross)%p(:,:) = um(2:i1,j,1:kmax) + cu
-        v(cross)%p(:,:) = vm(2:i1,j,1:kmax) + cv
-        w(cross)%p(:,:) = wm(2:i1,j,1:kmax)
-        e12(cross)%p(:,:) = e12m(2:i1,j,1:kmax)
+        u(:,:) = um(2:i1,j,1:kmax) + cu
+        v(:,:) = vm(2:i1,j,1:kmax) + cv
+        w(:,:) = wm(2:i1,j,1:kmax)
+        e12(:,:) = e12m(2:i1,j,1:kmax)
         !$acc end kernels
 
         !$acc parallel loop collapse(2) default(present) async
         do k = 1, kmax
           do i = 2, i1
-            qt(cross)%p(i,k) = qtm(i,j,k)
-            ql(cross)%p(i,k) = ql0(i,j,k)
-            thl(cross)%p(i,k) = thlm(i,j,k)
-            thv(cross)%p(i,k) = calc_virt_pot_temp(thlm(i,j,k), qtm(i,j,k), &
-                                                   ql0(i,j,k), exnf(k))
-            buoy(cross)%p(i,k) = thv(cross)%p(i,k) - thvf(k)
+            qt(i,k) = qtm(i,j,k)
+            ql(i,k) = ql0(i,j,k)
+            thl(i,k) = thlm(i,j,k)
+            thv(i,k) = calc_virt_pot_temp(thlm(i,j,k), qtm(i,j,k), &
+                                          ql0(i,j,k), exnf(k))
+            buoy(i,k) = thv(i,k) - thvf(k)
           end do
         end do
       end do
@@ -318,48 +305,48 @@ contains
 
     integer :: i, j, k, n, cross
 
-    type(t_ptr_2d) :: u(100)
-    type(t_ptr_2d) :: v(100)
-    type(t_ptr_2d) :: w(100)
-    type(t_ptr_2d) :: thl(100)
-    type(t_ptr_2d) :: thv(100)
-    type(t_ptr_2d) :: qt(100)
-    type(t_ptr_2d) :: ql(100)
-    type(t_ptr_2d) :: buoy(100)
-    type(t_ptr_2d) :: e12(100)
+    real(field_r), pointer :: u(:,:)
+    real(field_r), pointer :: v(:,:)
+    real(field_r), pointer :: w(:,:)
+    real(field_r), pointer :: thl(:,:)
+    real(field_r), pointer :: thv(:,:)
+    real(field_r), pointer :: qt(:,:)
+    real(field_r), pointer :: ql(:,:)
+    real(field_r), pointer :: buoy(:,:)
+    real(field_r), pointer :: e12(:,:)
 
     if (is_sampling_timestep(xy_file_ids(1))) then
       do cross = 1, nxy
-        call xy_files(cross)%get_pointer('u', u(cross)%p)
-        call xy_files(cross)%get_pointer('v', v(cross)%p)
-        call xy_files(cross)%get_pointer('w', w(cross)%p)
-        call xy_files(cross)%get_pointer('thl', thl(cross)%p)
-        call xy_files(cross)%get_pointer('thv', thv(cross)%p)
-        call xy_files(cross)%get_pointer('qt', qt(cross)%p)
-        call xy_files(cross)%get_pointer('ql', ql(cross)%p)
-        call xy_files(cross)%get_pointer('buoy', buoy(cross)%p)
-        call xy_files(cross)%get_pointer('e120', e12(cross)%p)
+        call xy_files(cross)%get_pointer('u', u)
+        call xy_files(cross)%get_pointer('v', v)
+        call xy_files(cross)%get_pointer('w', w)
+        call xy_files(cross)%get_pointer('thl', thl)
+        call xy_files(cross)%get_pointer('thv', thv)
+        call xy_files(cross)%get_pointer('qt', qt)
+        call xy_files(cross)%get_pointer('ql', ql)
+        call xy_files(cross)%get_pointer('buoy', buoy)
+        call xy_files(cross)%get_pointer('e120', e12)
       end do
 
       do cross = 1, nxy
         k = crossheight(cross)
 
         !$acc kernels default(present) async
-        u(cross)%p(:,:) = um(2:i1,2:j1,k) + cu
-        v(cross)%p(:,:) = vm(2:i1,2:j1,k) + cv
-        w(cross)%p(:,:) = wm(2:i1,2:j1,k)
-        e12(cross)%p(:,:) = e12m(2:i1,2:j1,k)
+        u(:,:) = um(2:i1,2:j1,k) + cu
+        v(:,:) = vm(2:i1,2:j1,k) + cv
+        w(:,:) = wm(2:i1,2:j1,k)
+        e12(:,:) = e12m(2:i1,2:j1,k)
         !$acc end kernels
 
         !$acc parallel loop collapse(2) default(present) async
         do j = 2, j1
           do i = 2, i1
-            qt(cross)%p(i,j) = qtm(i,j,k)
-            ql(cross)%p(i,j) = ql0(i,j,k)
-            thl(cross)%p(i,j) = thlm(i,j,k)
-            thv(cross)%p(i,j) = calc_virt_pot_temp(thlm(i,j,k), qtm(i,j,k), &
-                                                   ql0(i,j,k), exnf(k))
-            buoy(cross)%p(i,j) = thv(cross)%p(i,j) - thvf(k)
+            qt(i,j) = qtm(i,j,k)
+            ql(i,j) = ql0(i,j,k)
+            thl(i,j) = thlm(i,j,k)
+            thv(i,j) = calc_virt_pot_temp(thlm(i,j,k), qtm(i,j,k), &
+                                          ql0(i,j,k), exnf(k))
+            buoy(i,j) = thv(i,j) - thvf(k)
           end do
         end do
       end do
@@ -372,48 +359,48 @@ contains
 
     integer :: i, j, k, n, cross
 
-    type(t_ptr_2d) :: u(100)
-    type(t_ptr_2d) :: v(100)
-    type(t_ptr_2d) :: w(100)
-    type(t_ptr_2d) :: thl(100)
-    type(t_ptr_2d) :: thv(100)
-    type(t_ptr_2d) :: qt(100)
-    type(t_ptr_2d) :: ql(100)
-    type(t_ptr_2d) :: buoy(100)
-    type(t_ptr_2d) :: e12(100)
+    real(field_r), pointer :: u(:,:)
+    real(field_r), pointer :: v(:,:)
+    real(field_r), pointer :: w(:,:)
+    real(field_r), pointer :: thl(:,:)
+    real(field_r), pointer :: thv(:,:)
+    real(field_r), pointer :: qt(:,:)
+    real(field_r), pointer :: ql(:,:)
+    real(field_r), pointer :: buoy(:,:)
+    real(field_r), pointer :: e12(:,:)
 
     if (is_sampling_timestep(yz_file_ids(1))) then
       do cross = 1, nyz
-        call yz_files(cross)%get_pointer('u', u(cross)%p)
-        call yz_files(cross)%get_pointer('v', v(cross)%p)
-        call yz_files(cross)%get_pointer('w', w(cross)%p)
-        call yz_files(cross)%get_pointer('thl', thl(cross)%p)
-        call yz_files(cross)%get_pointer('thv', thv(cross)%p)
-        call yz_files(cross)%get_pointer('qt', qt(cross)%p)
-        call yz_files(cross)%get_pointer('ql', ql(cross)%p)
-        call yz_files(cross)%get_pointer('buoy', buoy(cross)%p)
-        call yz_files(cross)%get_pointer('e120', e12(cross)%p)
+        call yz_files(cross)%get_pointer('u', u)
+        call yz_files(cross)%get_pointer('v', v)
+        call yz_files(cross)%get_pointer('w', w)
+        call yz_files(cross)%get_pointer('thl', thl)
+        call yz_files(cross)%get_pointer('thv', thv)
+        call yz_files(cross)%get_pointer('qt', qt)
+        call yz_files(cross)%get_pointer('ql', ql)
+        call yz_files(cross)%get_pointer('buoy', buoy)
+        call yz_files(cross)%get_pointer('e120', e12)
       end do
 
       do cross = 1, nyz
         i = crossortho(cross)
 
         !$acc kernels default(present) async
-        u(cross)%p(:,:) = um(i,2:j1,1:kmax) + cu
-        v(cross)%p(:,:) = vm(i,2:j1,1:kmax) + cv
-        w(cross)%p(:,:) = wm(i,2:j1,1:kmax)
-        e12(cross)%p(:,:) = e12m(i,2:j1,1:kmax)
+        u(:,:) = um(i,2:j1,1:kmax) + cu
+        v(:,:) = vm(i,2:j1,1:kmax) + cv
+        w(:,:) = wm(i,2:j1,1:kmax)
+        e12(:,:) = e12m(i,2:j1,1:kmax)
         !$acc end kernels
 
         !$acc parallel loop collapse(2) default(present) async
         do k = 1, kmax
           do j = 2, j1
-            qt(cross)%p(j,k) = qtm(i,j,k)
-            ql(cross)%p(j,k) = ql0(i,j,k)
-            thl(cross)%p(j,k) = thlm(i,j,k)
-            thv(cross)%p(j,k) = calc_virt_pot_temp(thlm(i,j,k), qtm(i,j,k), &
-                                                   ql0(i,j,k), exnf(k))
-            buoy(cross)%p(j,k) = thv(cross)%p(i,j) - thvf(k)
+            qt(j,k) = qtm(i,j,k)
+            ql(j,k) = ql0(i,j,k)
+            thl(j,k) = thlm(i,j,k)
+            thv(j,k) = calc_virt_pot_temp(thlm(i,j,k), qtm(i,j,k), &
+                                          ql0(i,j,k), exnf(k))
+            buoy(j,k) = thv(i,j) - thvf(k)
           end do
         end do
       end do

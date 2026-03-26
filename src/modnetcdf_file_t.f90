@@ -781,8 +781,6 @@ contains
 
     ptr(2:,2:,1:) => this%buffer(:,:,:,id)
 
-    !$acc enter data copyin(ptr)
-
   end subroutine field_dump_file_get_pointer
 
 end module modnetcdf_file_t

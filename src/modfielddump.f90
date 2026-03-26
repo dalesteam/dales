@@ -18,12 +18,7 @@
 !> Dumps 3D fields of several variables.
 module modfielddump
 
-  use fortran_support,   only: nnml_output, warning, &
-#if FIELD_PRECISION==64
-                               t_ptr_3d => t_ptr_3d_dp
-#else
-                               t_ptr_3d => t_ptr_3d_sp
-#endif
+  use fortran_support,   only: nnml_output, warning
   use modfields,         only: u0, v0, w0, qt0, ql0, e120, thl0, tmp0, sv0, &
                                rhof, exnf, thv0h, thvh, presf
   use modglobal,         only: j1, i1, kmax, dzf, cp, tdn, tup, nsv, &
@@ -174,7 +169,7 @@ contains
       end if
       
       ofile = field_dump_file_t('fielddump2.nc', nz=kmax, ncoarse=ncoarse, &
-                                klo=klow, khi=khigh)
+                                klo=klow, khi=khigh, lgpu=.true.)
 
       call add_output_file(ofile, dtav, ofile_id)
 
@@ -234,8 +229,7 @@ contains
     real(field_r), pointer :: tntr(:,:,:)
     real(field_r), pointer :: tntrs(:,:,:)
     real(field_r), pointer :: tntrl(:,:,:)
-    
-    type(t_ptr_3d) :: sv(100)
+    real(field_r), pointer :: sv(:,:,:)
 
     if (lfielddump .and. is_sampling_timestep(ofile_id)) then
       
@@ -311,9 +305,9 @@ contains
 
       do n = 1, nsv
         if (lsv(n)) then
-          call ofile%get_pointer(tracer_prop(n)%tracname, sv(n)%p)
+          call ofile%get_pointer(tracer_prop(n)%tracname, sv)
           !$acc kernels default(present) async
-          sv(n)%p(:,:,:) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,n)
+          sv(:,:,:) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,n)
           !$acc end kernels
         end if
       end do
