@@ -340,7 +340,7 @@ module modslurb_resistance_stability
 
     do j=2,j1
         do i=2,i1
-            slurb_tile%rah_road(i,j) = 1.0_field_r / ( kappa * slurb_tile%us_can(i,j) ) *                                    &
+            slurb_tile%rah_road(i,j) = 1.0_field_r / ( kappa * slurb_tile%us_road(i,j) ) *                                    &
                                 ( ln_z_z0h_road(i,j) -                                                     &
                                     psi_h( slurb_tile%z_mo_can(i,j) / slurb_tile%ol_road(i,j) ) +                          &
                                     psi_h( slurb_tile%z0h_road(i,j) / slurb_tile%ol_road(i,j) ) )
