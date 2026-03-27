@@ -370,7 +370,7 @@ contains
       if(rad_shortw) then
 
         ! setup incoming flux and albedo as a function of the zenith angle
-        call setupSW(sunUp)
+        call setupSW(sunUp, ibatch)
 
         if(sunUp) then
           ! Compute optical properties and incoming shortwave flux
@@ -411,7 +411,9 @@ contains
                                   fluxes_sw)) ! fluxes (inout, W/m2)
           call timer_toc('modradrte_rrtmgp/swrtesolve')
 
-        endif
+        else
+          call zero_SW_for_sunDown()
+        end if
 
       endif
 
@@ -481,7 +483,32 @@ contains
     end if
 
   end subroutine exit_radrte_rrtmgp
+  subroutine zero_SW_for_sunDown
+    implicit none
+    integer :: i, k
 
+    ! Make sure the SW output is 0 if sun is down.
+    ! If the sun is down, rrtmgp does not initialize the sw fluxes arrays, so we need to set them to zero here to avoid uninitialized values in the output.
+    !$acc parallel loop collapse(2) default(present)
+    do i=1,ncol
+      do k=1,nlay+1
+        swUp_slice(i,k) = 0.
+        swDown_slice(i,k) = 0.
+        swDownDir_slice(i,k) = 0.
+      enddo
+    enddo
+
+    if(doclearsky) then
+    !$acc parallel loop collapse(2) default(present)
+     do i=1,ncol
+      do k=1,nlay+1
+          swUpCS_slice(i,k) = 0.
+          swDownCS_slice(i,k) = 0.
+      enddo
+     enddo
+    end if
+
+  end subroutine zero_SW_for_sunDown
   subroutine setupColumnProfiles(ibatch)
 
     use modglobal,   only: imax, jmax, kmax, i1, grav, kind_rb, rlv, cp, rd, pref0, tup, tdn
@@ -706,16 +733,23 @@ contains
 
   end subroutine
 
-  subroutine setupSW(sunUp)
+  subroutine setupSW(sunUp, ibatch)
 
-    use modglobal,   only : xday,xlat,xlon,xtime,rtimee
+    use modglobal,   only : xday,xlat,xlon,xtime,rtimee,imax,jmax,i1
     use shr_orb_mod, only : shr_orb_decl
-    use modsurfdata, only : albedoav
+    use modsurfdata, only : albedo
 
     implicit none
 
+    integer, intent(in) :: ibatch
+    integer :: jstart, jend
+    integer :: i, j, icol
     logical,intent(out) :: sunUp
     real                :: dayForSW
+
+    ! Set up j indices to be treated. We need to set the albedo correctly.
+    jstart = (ibatch-1) * jmax/nbatch + 2
+    jend   =  ibatch    * jmax/nbatch + 1
 
     if(doseasons) then
       ! The diurnal cycle of insolation will vary
@@ -736,10 +770,15 @@ contains
       ! Constant albedo for now
       ! Albedos can be computed as a function of solarZenithAngleCos,
       ! so it makes sense to keep the init here
-      !$acc kernels default(present)
-      sfc_alb_dir=albedoav
-      sfc_alb_dif=albedoav
-      !$acc end kernels
+      !$acc parallel loop collapse(2) default(present) private(icol)
+      do j=jstart, jend
+        do i=2,i1 !i1=imax+1
+          icol=i-1+(j-jstart)*imax
+          sfc_alb_dif(:,icol) = albedo(i,j)
+          sfc_alb_dir(:,icol) = albedo(i,j)
+        enddo
+      enddo
+      !
 
     end if
 

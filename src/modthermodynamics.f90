@@ -1,11 +1,5 @@
 !>\file modthermodynamics.f90
 !! Do the thermodynamics
-
-!>
-!! Do the thermodynamics
-!>
-!! Timeseries of the most relevant parameters. Written to tmser1.expnr and tmsurf.expnr
-!! If netcdf is true, this module leads the tmser.expnr.nc output
 !!  \author Pier Siebesma, K.N.M.I.
 !!  \author Stephan de Roode,TU Delft
 !!  \author Thijs Heus,MPI-M
@@ -202,6 +196,7 @@ contains
         end do
       end do
 
+      !$acc wait
       if (too_cold) then
         call finish(routine, 'temperature below 150 K encountered!')
       else if (too_hot) then
@@ -309,6 +304,7 @@ contains
   end subroutine calc_dry_tmp
 
   !> Calculate thetav and dthvdz
+  !> also calculates and stores tmp0 for statistics
   subroutine calthv
 
     character(len=*), parameter :: routine = modname//'/calthv'
@@ -361,6 +357,7 @@ contains
             if  (ql0(i,j,k)> 0) then  !include moist thermodynamics
 
                temp = thl0(i,j,k)*exnf(k)+(rlv/cp)*ql0(i,j,k)
+               tmp0(i,j,k) = temp !stored for statistics
                qs   = qt0(i,j,k) - ql0(i,j,k)
 
                a_moist = (1-qt0(i,j,k)+qs/epsilon*(1+rlv/(rv*temp))) &
@@ -376,6 +373,8 @@ contains
                if (chi < chi_sat) then  !mixed parcel is saturated
                  dthv = del_thv_sat
               end if
+            else
+                tmp0(i,j,k) = thl0(i,j,k)*exnf(k) !stored for statistics
             end if
 
             dthvdz(i,j,k) = dthv/(dzh(k+1)+dzh(k))
@@ -388,12 +387,14 @@ contains
         do i=2,i1
           if(ql0(i,j,1)>0) then
             temp = thl0(i,j,1)*exnf(1)+(rlv/cp)*ql0(i,j,1)
+            tmp0(i,j,1) = temp !stored for statistics
             qs   = qt0(i,j,1) - ql0(i,j,1)
             a_surf   = (1-qt0(i,j,1)+rv/rd*qs*(1+rlv/(rv*temp))) &
                       /(1+rlv**2*qs/(cp*rv*temp**2))
             b_surf   = a_surf*rlv/(temp*cp)-1
 
           else
+            tmp0(i,j,1) = thl0(i,j,1)*exnf(1) !stored for statistics
             a_surf = 1+(rv/rd-1)*qt0(i,j,1)
             b_surf = rv/rd-1
 
@@ -540,7 +541,7 @@ contains
     end do
 
     if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
-      !$acc parallel loop gang(static:1) default(present)
+      !$acc parallel loop gang(static:1) default(present) async(1)
       do k = 1, k1
         exnf(k) = (presf(k) / pref0)**(rd / cp)
       end do
@@ -558,7 +559,7 @@ contains
       exnf(1) = (presf(1)/pref0)**(rd/cp)
       !$acc end serial
 
-      !$acc parallel loop default(present) async(2)
+      !$acc parallel loop default(present) async(1)
       do k=2,k1
         exnf(k) = (presf(k)/pref0)**(rd/cp)
         exnh(k) = (presh(k)/pref0)**(rd/cp)
@@ -599,7 +600,8 @@ contains
     ! Calculate pressures at full levels
     ! Do this on the CPU for now; these loops are serial so GPU is very slow!
 
-    !$acc update self(thetah, qth, qlh, th0av, qt0av, ql0av)
+    !$acc update self(thetah, qth, qlh, th0av, qt0av, ql0av) async(1)
+    !$acc wait
 
     thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
     presf(1) = ps**rdocp - grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))

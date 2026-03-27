@@ -250,6 +250,7 @@ contains
     call D_MPI_BCAST(uvdamprate  ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lforce_user ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lmomsubs    ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(ntimedep    ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(ltimedep    ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(ltimedepuv  ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(ltimedepsv  ,1,0,commwrld,mpierr)
@@ -352,7 +353,6 @@ contains
     call initlsm
     call initdrydep
     call initsubgrid
-
 
     if (loutdirs) then
        output_prefix(1:3) = cmyidy
@@ -507,7 +507,7 @@ contains
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
                                   trestart, ladaptive,llsadv,tnextrestart,longint,lopenbc,linithetero, &
                                   iinput, input_netcdf, input_ascii, lcoriol, &
-                                  dzhi, iadv_thl, iadv_qt, iadv_kappa
+                                  dzhi, iadv_thl, iadv_qt, iadv_kappa, eps1
     use modthermodynamics, only : lconstexner,lbaseexner
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
@@ -798,7 +798,7 @@ contains
                 w0 (i,j,k:k+1)  = 0.
                 e12m(i,j,k)     = e12min
                 e120(i,j,k)     = e12min
-                if (nsv > 0) then !TODO: check this here..
+                if (nsv > 0) then
                   do n=1,nsv
                     sv0(i,j,k,n) = 0.
                     svm(i,j,k,n) = 0.
@@ -810,9 +810,12 @@ contains
         end do
       end if
 
-      !-----------------------------------------------------------------
-      !    2.2 Initialize surface layer and base profiles
-      !-----------------------------------------------------------------
+      !--------------------------------------------------------------------------
+      !    2.2 Check surface settings, initialize surface layer and base profiles
+      !--------------------------------------------------------------------------
+      
+      ! We call thermodynamics to calculate qtsurf, for which we need to know ps is set correctly.
+      if (ps < eps1) call finish(routine, 'ps out of range/not set')
 
       select case(isurf)
       case(1)

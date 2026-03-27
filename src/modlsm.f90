@@ -1040,7 +1040,7 @@ end subroutine calc_water_bcs
 subroutine calc_bulk_bcs
     use modglobal,   only : i1, j1, i2, j2, cp, rlv, fkar, zf, cu, cv, grav, rv, rd, lopenbc,lboundary,lperiodic
     use modfields,   only : rhof, thl0, u0, v0, thvh
-    use modsurface,  only : phim, phih
+    use modsurface,  only : phim, phih, albedo
     use modmpi,      only : excjs
     use modopenboundary, only : openboundary_excjs
     use modsurfdata, only : &
@@ -1084,6 +1084,7 @@ subroutine calc_bulk_bcs
             rsveg(i,j) = 0
             rssoil(i,j) = 0
             Qnet(i,j) = 0
+            albedo(i,j) = 0
         enddo
     enddo
 
@@ -1098,6 +1099,7 @@ subroutine calc_bulk_bcs
                     ustar(i,j)  = ustar(i,j) + fraction_slurb(i,j) * slurb_tile%us_urb(i,j)
                     tskin(i,j)  = tskin(i,j) + fraction_slurb(i,j) * slurb_tile%thlskin(i,j)
                     qskin(i,j)  = qskin(i,j) + fraction_slurb(i,j) * slurb_tile%qtskin(i,j)
+                    albedo(i,j) = albedo(i,j) + fraction_slurb(i,j) * slurb_tile%albedo_urb(i,j)
                 else
                     H(i,j)      = H(i,j)     + tile(ilu)%frac(i,j) * tile(ilu)%H(i,j)
                     LE(i,j)     = LE(i,j)    + tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j)
@@ -1106,6 +1108,7 @@ subroutine calc_bulk_bcs
                     tskin(i,j)  = tskin(i,j) + tile(ilu)%frac(i,j) * tile(ilu)%thlskin(i,j)
                     qskin(i,j)  = qskin(i,j) + tile(ilu)%frac(i,j) * tile(ilu)%qtskin(i,j)
                     Qnet(i,j)   = Qnet(i,j)  + tile(ilu)%frac(i,j) * tile(ilu)%Qnet(i,j)
+                    albedo(i,j) = albedo(i,j) + tile(ilu)%frac(i,j) * tile(ilu)%albedo(i,j)
                 endif
            enddo
         enddo
@@ -1736,6 +1739,7 @@ subroutine allocate_on_device()
      !$acc enter data copyin(tile(ilu)%wthl)
      !$acc enter data copyin(tile(ilu)%z0h)
      !$acc enter data copyin(tile(ilu)%z0m)
+     !$acc enter data copyin(tile(ilu)%albedo)
   enddo
 
   !$acc enter data create(rhocp_i, rholv_i)
@@ -1827,6 +1831,7 @@ subroutine deallocate_from_device()
      !$acc exit data delete(tile(ilu)%wthl)
      !$acc exit data delete(tile(ilu)%z0h)
      !$acc exit data delete(tile(ilu)%z0m)
+     !$acc exit data delete(tile(ilu)%albedo)
 
      !$acc exit data delete(tile(ilu))
   enddo
@@ -2059,6 +2064,9 @@ subroutine allocate_tile(tile)
     allocate(tile % wqt(i2, j2))
     allocate(tile % Qnet(i2, j2))
 
+    ! Surface albedo
+    allocate(tile % albedo(i2, j2))
+
     ! Surface temperature and humidity:
     allocate(tile % tskin(i2, j2))
     allocate(tile % thlskin(i2, j2))
@@ -2123,7 +2131,7 @@ subroutine deallocate_tile(tile)
     deallocate( tile%z0m, tile%z0h, tile%base_frac, tile%frac )
     deallocate( tile%obuk, tile%ustar, tile%ra )
     deallocate( tile%lambda_stable, tile%lambda_unstable )
-    deallocate( tile%H, tile%LE, tile%G, tile%wthl, tile%wqt, tile%Qnet)
+    deallocate( tile%H, tile%LE, tile%G, tile%wthl, tile%wqt, tile%Qnet, tile%albedo)
     deallocate( tile%tskin, tile%thlskin, tile%qtskin)
     deallocate( tile%db, tile%lai, tile%rs_min, tile%rs )
     deallocate( tile%a_r, tile%b_r, tile%root_frac, tile%phiw_mean )
@@ -2163,7 +2171,7 @@ end subroutine init_lsm_tiles
 subroutine init_homogeneous
     use modglobal,   only : ifnamopt, fname_options, checknamelisterror, lwarmstart, eps1
     use modmpi,      only : myid, comm3d, mpierr, D_MPI_BCAST
-    use modsurfdata, only : tsoil, tsoilm, phiw, phiwm, wl, wlm, wmax
+    use modsurfdata, only : tsoil, tsoilm, phiw, phiwm, wl, wlm, wmax, albedoav
     use fortran_support, only: nnml_output
     implicit none
 
@@ -2343,6 +2351,13 @@ subroutine init_homogeneous
 
     tile(ilu_aq) % tskin(:,:) = tskin_water
 
+    tile(ilu_lv) % albedo(:,:) = albedoav
+    tile(ilu_hv) % albedo(:,:) = albedoav
+    tile(ilu_bs) % albedo(:,:) = albedoav
+    tile(ilu_ap) % albedo(:,:) = albedoav
+    tile(ilu_aq) % albedo(:,:) = albedoav
+    tile(ilu_ws) % albedo(:,:) = albedoav
+
     if (.not. lwarmstart) then
         ! Init prognostic variables in case of cold start.
         ! For a warm start, these are read from restartfiles
@@ -2403,8 +2418,9 @@ subroutine init_heterogeneous_nc
     use modmpi,      only : myid, myidx, myidy
     use modglobal,   only : imax, jmax, itot, jtot, ldrydep
 
-    use modsurfdata, only : tsoil, tskin, phiw, wl, wlm, wmax
+    use modsurfdata, only : tsoil, tskin, phiw, wl, wlm, wmax, albedoav
     use modlogging, only : profile_output
+    use modstat_nc, only: read_nc_field
     implicit none
     character(len=*), parameter :: routine = modname//'/init_heterogeneous_nc'
 
@@ -2504,6 +2520,7 @@ subroutine init_heterogeneous_nc
     tile(nlu)%LE = 0
     tile(nlu)%G = 0
     tile(nlu)%ustar = 0
+    tile(nlu)%albedo = 0
 
     ! 2D surface fields
     do ilu=1,nlu-1
@@ -2523,6 +2540,7 @@ subroutine init_heterogeneous_nc
       tile(ilu)%LE = 0
       tile(ilu)%G = 0
       tile(ilu)%ustar = 0
+      tile(ilu)%albedo = 0
 
       write(profile_output,*) 'reading variables for LU type: ', trim(tile(ilu)%lushort)
       ! LU cover
@@ -2580,6 +2598,13 @@ subroutine init_heterogeneous_nc
       call check( nf90_get_var(ncid, varid, tile(ilu)%tskin(2:i1, 2:j1) , &
                               start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                               count = (/imax, jmax/) ) )
+      ! albedo
+      ! we read with the new read_nc_field. if requirefill=true and we provide the fillvalue, it will fill any missing values with the fillvalue (instead of throwing an error)
+      call read_nc_field(ncid, 'albedo_'//trim(tile(ilu)%lushort), &
+                              tile(ilu)%albedo(2:i1,2:j1), &
+                              requirefill=.true.,fillvalue=albedoav, &
+                              start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                              count = (/imax, jmax/) )
 
     !!! deposition parameters
     if (ldrydep) then
@@ -2696,6 +2721,7 @@ subroutine init_heterogeneous_nc
     tile(ilu_ws)%z0h(:,:) = 1e-4
     tile(ilu_ws)%lambda_stable(:,:) = 0
     tile(ilu_ws)%lambda_unstable(:,:) = 0
+    tile(ilu_ws)%albedo = 0
 
     do ilu=1,nlu
         if (tile(ilu)%lushort == "slb") then; cycle; endif
@@ -2706,6 +2732,7 @@ subroutine init_heterogeneous_nc
         tile(ilu_ws)%z0h(:,:) = tile(ilu_ws)%z0h(:,:) + tile(ilu)%base_frac(:,:)*tile(ilu)%z0h(:,:)
         tile(ilu_ws)%lambda_stable(:,:) = tile(ilu_ws)%lambda_stable(:,:) + tile(ilu)%base_frac(:,:)*tile(ilu)%lambda_stable(:,:)
         tile(ilu_ws)%lambda_unstable(:,:) = tile(ilu_ws)%lambda_unstable(:,:) + tile(ilu)%base_frac(:,:)*tile(ilu)%lambda_unstable(:,:)
+        tile(ilu_ws)%albedo = tile(ilu_ws)%albedo + tile(ilu)%base_frac(:,:)*tile(ilu)%albedo(:,:)
       end if
     end do
 
@@ -2807,6 +2834,7 @@ subroutine check_value_validity
         call check_array(tile(ilu)%z0h, 'tile('//tile(ilu)%lushort//')%z0h', routine,[real(0, kind=rkind), real(zf(1),kind=rkind)], stop_if_invalid=.true.)
         call check_array(tile(ilu)%z0m, 'tile('//tile(ilu)%lushort//')%z0m', routine,[real(0, kind=rkind), real(zf(1),kind=rkind)], stop_if_invalid=.true.)
       end if
+      call check_array(tile(ilu)%albedo, 'tile('//tile(ilu)%lushort//')%albedo', routine,[real(0, kind=rkind), real(1,kind=rkind)], stop_if_invalid=.true.)
     end do
     
 end subroutine check_value_validity
