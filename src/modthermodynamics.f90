@@ -787,6 +787,8 @@ contains
             ql(i,j,k) = max(qt(i,j,k) - qsat, 0.0_field_r)
           end do
         end do
+      else
+        ql(:,:,k) = 0
       end if
     end do
 
