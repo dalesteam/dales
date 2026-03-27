@@ -91,7 +91,6 @@
 &namfielddump
 	lfielddump  = .true.
 	dtav        = 30
-	ldiracc     = .true.
 /
 
 &nambuget 

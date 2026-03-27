@@ -94,7 +94,6 @@ timeav     = 1440
 &NAMFIELDDUMP
 lfielddump = .false.
 dtav       = 60
-ldiracc    = .true.
 /
 &NAMSTATTEND
 dtav       = 60

@@ -55,8 +55,6 @@ module modfielddump
   integer :: ncoarse = 1
 
   logical :: lfielddump = .false. !< switch to enable the fielddump (on/off)
-  logical :: ldiracc = .false.    !< switch for doing direct access writing (on/off)
-  logical :: lbinary = .false.    !< switch for doing direct access writing (on/off)
   logical :: lu = .true.          !< switch for saving the u field
   logical :: lv = .true.          !< switch for saving the v field
   logical :: lw = .true.          !< switch for saving the w field
@@ -115,8 +113,6 @@ contains
     call D_MPI_BCAST(tmin        ,1,0,commwrld,ierr)
     call D_MPI_BCAST(tmax        ,1,0,commwrld,ierr)
     call D_MPI_BCAST(lfielddump  ,1,0,commwrld,ierr)
-    call D_MPI_BCAST(ldiracc     ,1,0,commwrld,ierr)
-    call D_MPI_BCAST(lbinary     ,1,0,commwrld,ierr)
     call D_MPI_BCAST(lu          ,1,0,commwrld,ierr)
     call D_MPI_BCAST(lv          ,1,0,commwrld,ierr)
     call D_MPI_BCAST(lw          ,1,0,commwrld,ierr)
