@@ -468,7 +468,7 @@ contains
         this%nvals_x = imax
       end if
       if (present(ny)) then
-        this%ny = imax
+        this%ny = jmax
         this%y_start = 1
         this%nvals_y = jmax
       end if
