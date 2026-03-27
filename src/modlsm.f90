@@ -1093,10 +1093,16 @@ subroutine calc_bulk_bcs
         do i=2,i1
             do ilu=1,nlu
                 if (tile(ilu)%lushort == "slb") then
+                    ! we treat the urban canyon and roof separately. SHF and LE have been aggregated in the urban tile already.
+                    ! we calculate thlskin/qtskin in slurb as the weighted average of roof and canyon skin temperature/humidity, which
+                    ! are each calculated like an individual LSM tile is calculated, with their own resistances.
+                    ! note that we will later subtract the urban contribution to the skin temperature, to later add the 
+                    ! urban radiative temperature instead.
                     H(i,j)      = H(i,j)     + fraction_slurb(i,j) * slurb_tile%shf_urb(i,j)
                     LE(i,j)     = LE(i,j)    + fraction_slurb(i,j) * slurb_tile%qsws_urb(i,j)
                     ! G0(i,j)     = G0(i,j)    + tile(ilu)%frac(i,j) * tile(ilu)%G(i,j)
-                    ustar(i,j)  = ustar(i,j) + fraction_slurb(i,j) * slurb_tile%us_urb(i,j)
+                    ustar(i,j)  = ustar(i,j) + fraction_slurb(i,j) * (slurb_tile%f_bld(i,j) * slurb_tile%us_roof(i,j) &
+                                                                + (1 - slurb_tile%f_bld(i,j)) * slurb_tile%us_can(i,j))
                     tskin(i,j)  = tskin(i,j) + fraction_slurb(i,j) * slurb_tile%thlskin(i,j)
                     qskin(i,j)  = qskin(i,j) + fraction_slurb(i,j) * slurb_tile%qtskin(i,j)
                     albedo(i,j) = albedo(i,j) + fraction_slurb(i,j) * slurb_tile%albedo_urb(i,j)
