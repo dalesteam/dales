@@ -980,7 +980,7 @@ end subroutine slurb_update_external_vars
         slurb_tile%t_2m_urb(i,j)       = 0.0_field_r
         slurb_tile%t_c_urb(i,j)        = 0.0_field_r
         slurb_tile%t_h_urb(i,j)        = 0.0_field_r
-        slurb_tile%t_rad_urb(i,j)      = 0.0_field_r
+        slurb_tile%thl_rad_urb(i,j)    = 0.0_field_r
         slurb_tile%usws_urb(i,j)       = 0.0_field_r
         slurb_tile%vsws_urb(i,j)       = 0.0_field_r
 
@@ -1706,6 +1706,7 @@ SUBROUTINE slurb_canyon_model
     !--------------------------------------------------------------------------------------------------!
  SUBROUTINE calc_urban_aggregated_temperatures
     use modglobal, only : boltz, rlv, cp
+    use modfields, only: exnh
     use modslurb_resistance_stability, only: psi_h, psi_m
     REAL(field_r) ::  c_h_roof    !< bulk heat transfer coefficient for roof (J kg^-1 K^-1)
     REAL(field_r) ::  c_h_wall_a  !< bulk heat transfer coefficient for wall a (J kg^-1 K^-1)
@@ -1769,7 +1770,7 @@ SUBROUTINE slurb_canyon_model
 
     !
     !-- 2) Radiative surface temperature T_rad.
-    slurb_tile%t_rad_urb(i,j) = SQRT( SQRT( slurb_tile%rad_lw_out_urb(i,j) / ( slurb_tile%emiss_urb(i,j) * boltz ) ) )
+    slurb_tile%thl_rad_urb(i,j) = SQRT( SQRT( slurb_tile%rad_lw_out_urb(i,j) / ( slurb_tile%emiss_urb(i,j) * boltz ) ) ) / exnh(1)
 
     !
     !-- 3) Complete surface temperature T_C, similarly to T_H but without the C_h weighting.
