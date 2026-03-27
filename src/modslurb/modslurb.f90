@@ -1124,7 +1124,7 @@ END SUBROUTINE init_slurb_variables
                 slurb_tile%conductivity_win(k,i,j) = 2.0_field_r / ( slurb_tile%dz_win(k,i,j)   / slurb_tile%lambda_win(k,i,j) +      &
                                                         slurb_tile%dz_win(k+1,i,j) / slurb_tile%lambda_win(k+1,i,j) )
             ENDDO
-            slurb_tile%conductivity_win(nz_win,i,j) = 2.0_field_r * slurb_tile%lambda_win(nzb_win,i,j) /                  &
+            slurb_tile%conductivity_win(nzb_win,i,j) = 2.0_field_r * slurb_tile%lambda_win(nzb_win,i,j) /                  &
                                                 slurb_tile%dz_win(nzb_win,i,j)
 
         !
