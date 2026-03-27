@@ -31,6 +31,7 @@ module modprecursor
   public :: init_precursor
   public :: precursor_nudge_boundary
   public :: swap_fields
+  public :: swap
   public :: exit_precursor
 
   character(len=*), parameter :: modname = 'modprecursor'
