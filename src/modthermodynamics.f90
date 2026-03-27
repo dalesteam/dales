@@ -316,8 +316,6 @@ contains
 
     call timer_tic(routine, 1)
 
-    dthvdz = 0
-
     if (lmoist) then
       !$acc parallel loop collapse(3) default(present) async(1)
       do k = 2, k1
