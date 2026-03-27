@@ -1080,6 +1080,7 @@ END SUBROUTINE init_slurb_variables
 
     use modfields, only: rhof
     use modglobal, only: rhow, rlv, i1, j1, boltz
+    use modsurface, only: emissivity
     use modmpi, only: comm3d
 
     use modmpi, only: comm3d, mpierr,mpi_min, D_MPI_ALLREDUCE
@@ -1166,6 +1167,12 @@ END SUBROUTINE init_slurb_variables
         enddo
     ENDDO
 
+    ! apply the urban emissivity to the overall emissivity
+    do j=2,j1
+        do i=2,i1
+            emissivity(i,j) = fraction_slurb(i,j) * slurb_tile%emiss_urb(i,j) + ( 1.0_field_r - fraction_slurb(i,j) ) * emissivity(i,j)
+        end do
+    end do
     !
     !-- Preompute the longwave interaction coefficients for surface elements as these are
     !-- static in time. Based on Johnson et al. (1991) general formula. Absorption from reflected

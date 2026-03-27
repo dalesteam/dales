@@ -677,10 +677,12 @@ contains
     end if
 
     allocate(albedo(i2,j2))
+    allocate(emissivity(i2,j2))
     allocate(z0m(i2,j2))
     allocate(z0h(i2,j2))
     allocate(obl(i2,j2))
     allocate(tskin(i2,j2))
+    allocate(tskin_radiative(i2,j2))
     allocate(qskin(i2,j2))
     allocate(Cm(i2,j2))
     allocate(Cs(i2,j2))
@@ -701,7 +703,10 @@ contains
       lwdavn =  0.
       lwuavn =  0.
     end if
-
+    ! emissivity was always set in (rte)rrtmg to 0.95, but we want to be able to change it for the urban tile.
+    ! Hence we set it in surface to be used later.
+    emissivity = 0.95
+  
     albedo     = albedoav
     if(lhetero) then
       do j=1,j2

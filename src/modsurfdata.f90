@@ -100,12 +100,14 @@ SAVE
   real, allocatable :: z0h        (:,:) !<  Roughness length for heat [m]
   real              :: z0hav    = -1
   real, allocatable :: tskin      (:,:) !<  Skin temperature [K]
+  real, allocatable :: tskin_radiative(:,:) !<  Radiative skin temperature used in modslurb [K]
   real, allocatable :: tskinm     (:,:) !<  Skin temperature previous timestep [K]
   real, allocatable :: Wl         (:,:) !<  Liquid water reservoir [m]
   real              :: Wlav     = -1
   real, parameter   :: Wmax     = 0.0002 !<  Maximum layer of liquid water on surface [m]
   real, allocatable :: Wlm        (:,:) !<  Liquid water reservoir previous timestep [m]
   real(field_r), allocatable :: qskin      (:,:) !<  Skin specific humidity [kg/kg]
+  real, allocatable :: emissivity (:,:) !<  Surface emissivity (default 0.95) [-]
   real, allocatable :: albedo     (:,:) !<  Surface albedo [-]
   real              :: albedoav = -1
   real, allocatable :: LAI        (:,:) !<  Leaf area index vegetation [-]
