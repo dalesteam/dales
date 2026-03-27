@@ -615,7 +615,7 @@ contains
     lbound_2 = 2
 
     ! For vertical slices, the second dimension (= vertical) starts from 1
-    if (.not. (this%nx > 0 .and. this%ny > 0)) lbound_2 = 1
+    if (.not. (this%nx > 1 .and. this%ny > 1)) lbound_2 = 1
 
     ptr(lbound_1:,lbound_2:) => this%buffer(:,:,id)
 
