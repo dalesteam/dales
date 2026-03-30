@@ -48,7 +48,7 @@ module modradfield
   real    :: dtav
   real    :: timeav
   real    :: nsamples
-  logical :: lradfield
+  logical :: lradfield = .false.
 
 contains 
 
