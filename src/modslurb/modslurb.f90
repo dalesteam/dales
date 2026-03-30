@@ -1690,8 +1690,8 @@ SUBROUTINE slurb_canyon_model
         rhocp_i = 1. / (rhof(1) * cp)
         rholv_i = 1. / (rhof(1) * rlv)
         ! Calculate surface values. These are weighted, to fit in the LSM tile construct
-        slurb_tile%thlskin = slurb_tile%f_bld(i,j) * (thl0(i,j,1) + (slurb_tile%shf_roof(i,j) * rhocp_i) * slurb_tile%rah_roof(i,j)) + (1.0_field_r - slurb_tile%f_bld(i,j)) * (thl0(i,j,1) + (slurb_tile%shf_can(i,j) * rhocp_i) * slurb_tile%rah_can(i,j))
-        slurb_tile%qtskin = slurb_tile%f_bld(i,j) * (qt0(i,j,1) + (slurb_tile%qsws_roof(i,j) * rholv_i) * slurb_tile%rah_roof(i,j)) + (1.0_field_r - slurb_tile%f_bld(i,j)) * (qt0(i,j,1) + (slurb_tile%qsws_can(i,j) * rholv_i) * slurb_tile%rah_can(i,j))
+        slurb_tile%thlskin(i,j) = slurb_tile%f_bld(i,j) * (thl0(i,j,1) + (slurb_tile%shf_roof(i,j) * rhocp_i) * slurb_tile%rah_roof(i,j)) + (1.0_field_r - slurb_tile%f_bld(i,j)) * (thl0(i,j,1) + (slurb_tile%shf_can(i,j) * rhocp_i) * slurb_tile%rah_can(i,j))
+        slurb_tile%qtskin(i,j) = slurb_tile%f_bld(i,j) * (qt0(i,j,1) + (slurb_tile%qsws_roof(i,j) * rholv_i) * slurb_tile%rah_roof(i,j)) + (1.0_field_r - slurb_tile%f_bld(i,j)) * (qt0(i,j,1) + (slurb_tile%qsws_can(i,j) * rholv_i) * slurb_tile%rah_can(i,j))
       enddo
     enddo
 
