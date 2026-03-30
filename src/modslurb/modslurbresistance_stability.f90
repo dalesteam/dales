@@ -193,6 +193,7 @@ module modslurb_resistance_stability
     !
     !--    Use ram_min for canyon air as turbulence is able to mix the air.
        IF ( slurb_tile%rah_can(i,j) < ram_min )  slurb_tile%rah_can(i,j) = ram_min
+       IF ( slurb_tile%rah_can(i,j) > rah_max )  slurb_tile%rah_can(i,j) = rah_max
       enddo
     enddo
 
