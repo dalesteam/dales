@@ -29,7 +29,6 @@
 !
 module modstat_nc
     use, intrinsic :: iso_fortran_env
-    use fortran_support, only: warning
     use netcdf
     use modglobal,    only: imax, jmax
     use modprecision, only: field_r
@@ -110,7 +109,7 @@ contains
   subroutine initstat_nc
     use modglobal, only : ifnamopt,fname_options,checknamelisterror
     use modmpi,    only : mpierr,comm3d,myid,D_MPI_BCAST
-    use fortran_support, only : nnml_output
+    use fortran_support, only : nnml_output, warning
     implicit none
 
     character(len=*), parameter :: routine = modname//'/initstat_nc'
