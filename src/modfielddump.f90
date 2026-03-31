@@ -164,7 +164,7 @@ contains
         lpli = .false. 
       end if
       
-      ofile = field_dump_file_t('fielddump2.nc', nz=kmax, ncoarse=ncoarse, &
+      ofile = field_dump_file_t('fielddump.nc', nz=kmax, ncoarse=ncoarse, &
                                 klo=klow, khi=khigh, lgpu=.true.)
 
       call add_output_file(ofile, dtav, ofile_id)
