@@ -227,244 +227,246 @@ contains
     real(field_r), pointer :: tntrl(:,:,:)
     real(field_r), pointer :: sv(:,:,:)
 
-    if (lfielddump .and. is_sampling_timestep(ofile_id)) then
+    if (lfielddump) then
+      if (is_sampling_timestep(ofile_id)) then
       
-      if (lu) then
-        call ofile%get_pointer('u', u) 
-        !$acc kernels default(present) async
-        u(:,:,:) = u0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-        !$acc end kernels
-      end if
-
-      if (lv) then
-        call ofile%get_pointer('v', v) 
-        !$acc kernels default(present) async
-        v(:,:,:) = v0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-        !$acc end kernels
-      end if
-
-      if (lw) then
-        call ofile%get_pointer('w', w)
-        !$acc kernels default(present) async
-        w(:,:,:) = w0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-        !$acc end kernels
-      end if
-
-      if (lqt) then
-        call ofile%get_pointer('qt', qt)
-        !$acc kernels default(present) async
-        qt(:,:,:) = qt0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-        !$acc end kernels
-      end if
-
-      if (lql) then
-        call ofile%get_pointer('ql', ql)
-        !$acc kernels default(present) async
-        ql(:,:,:) = ql0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-        !$acc end kernels
-      end if
-
-      if (lthl) then
-        call ofile%get_pointer('thl', thl)
-        !$acc kernels default(present) async
-        thl(:,:,:) = thl0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-        !$acc end kernels
-      end if
-
-      if (le12) then
-        call ofile%get_pointer('e12', e12)
-        !$acc kernels default(present) async
-        e12(:,:,:) = e120(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-        !$acc end kernels
-      end if
-
-      if (lekh) then
-        call ofile%get_pointer('ekh', ekh)
-        !$acc kernels default(present) async
-        ekh(:,:,:) = ekh0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-        !$acc end kernels
-      end if
-
-      if (lekm) then
-        call ofile%get_pointer('ekm', ekm)
-        !$acc kernels default(present) async
-        ekm(:,:,:) = ekm0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-        !$acc end kernels
-      end if
-
-      if (lta) then
-        call ofile%get_pointer('ta', ta)
-        !$acc kernels default(present) async
-        ta(:,:,:) = tmp0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-        !$acc end kernels
-      end if
-
-      do n = 1, nsv
-        if (lsv(n)) then
-          call ofile%get_pointer(tracer_prop(n)%tracname, sv)
+        if (lu) then
+          call ofile%get_pointer('u', u) 
           !$acc kernels default(present) async
-          sv(:,:,:) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,n)
+          u(:,:,:) = u0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
           !$acc end kernels
         end if
-      end do
 
-      if (lbuoy) then
-        call ofile%get_pointer('buoy', buoy)
-        !$acc parallel loop collapse(3) default(present) async
-        do k = klow, khigh
-          do j = 2, j1, ncoarse
-            do i = 2, i1, ncoarse
-              kk = k - klow + 1
-              jj = (j - 2) / ncoarse + 2
-              ii = (i - 2) / ncoarse + 2
-              buoy(ii,jj,kk) = thv0h(i,j,k) - thvh(k)
+        if (lv) then
+          call ofile%get_pointer('v', v) 
+          !$acc kernels default(present) async
+          v(:,:,:) = v0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+          !$acc end kernels
+        end if
+
+        if (lw) then
+          call ofile%get_pointer('w', w)
+          !$acc kernels default(present) async
+          w(:,:,:) = w0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+          !$acc end kernels
+        end if
+
+        if (lqt) then
+          call ofile%get_pointer('qt', qt)
+          !$acc kernels default(present) async
+          qt(:,:,:) = qt0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+          !$acc end kernels
+        end if
+
+        if (lql) then
+          call ofile%get_pointer('ql', ql)
+          !$acc kernels default(present) async
+          ql(:,:,:) = ql0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+          !$acc end kernels
+        end if
+
+        if (lthl) then
+          call ofile%get_pointer('thl', thl)
+          !$acc kernels default(present) async
+          thl(:,:,:) = thl0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+          !$acc end kernels
+        end if
+
+        if (le12) then
+          call ofile%get_pointer('e12', e12)
+          !$acc kernels default(present) async
+          e12(:,:,:) = e120(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+          !$acc end kernels
+        end if
+
+        if (lekh) then
+          call ofile%get_pointer('ekh', ekh)
+          !$acc kernels default(present) async
+          ekh(:,:,:) = ekh0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+          !$acc end kernels
+        end if
+
+        if (lekm) then
+          call ofile%get_pointer('ekm', ekm)
+          !$acc kernels default(present) async
+          ekm(:,:,:) = ekm0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+          !$acc end kernels
+        end if
+
+        if (lta) then
+          call ofile%get_pointer('ta', ta)
+          !$acc kernels default(present) async
+          ta(:,:,:) = tmp0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+          !$acc end kernels
+        end if
+
+        do n = 1, nsv
+          if (lsv(n)) then
+            call ofile%get_pointer(tracer_prop(n)%tracname, sv)
+            !$acc kernels default(present) async
+            sv(:,:,:) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,n)
+            !$acc end kernels
+          end if
+        end do
+
+        if (lbuoy) then
+          call ofile%get_pointer('buoy', buoy)
+          !$acc parallel loop collapse(3) default(present) async
+          do k = klow, khigh
+            do j = 2, j1, ncoarse
+              do i = 2, i1, ncoarse
+                kk = k - klow + 1
+                jj = (j - 2) / ncoarse + 2
+                ii = (i - 2) / ncoarse + 2
+                buoy(ii,jj,kk) = thv0h(i,j,k) - thvh(k)
+              end do
             end do
           end do
-        end do
-      end if
+        end if
 
-      if (lcli) then
-        call ofile%get_pointer('cli', cli)
-        !$acc parallel loop collapse(3) default(present) async 
-        do k = klow, khigh
-          do j = 2, j1, ncoarse 
-            do i = 2, i1, ncoarse
-              kk = k - klow + 1
-              jj = (j - 2) / ncoarse + 2
-              ii = (i - 2) / ncoarse + 2
-              cli(ii,jj,k) = ql0(i,j,k) * (1 &
-                             - max(0.0_field_r, min(1.0_field_r, &
-                               (tmp0(i,j,k) - tdn) / (tup - tdn))))
+        if (lcli) then
+          call ofile%get_pointer('cli', cli)
+          !$acc parallel loop collapse(3) default(present) async 
+          do k = klow, khigh
+            do j = 2, j1, ncoarse 
+              do i = 2, i1, ncoarse
+                kk = k - klow + 1
+                jj = (j - 2) / ncoarse + 2
+                ii = (i - 2) / ncoarse + 2
+                cli(ii,jj,k) = ql0(i,j,k) * (1 &
+                               - max(0.0_field_r, min(1.0_field_r, &
+                                 (tmp0(i,j,k) - tdn) / (tup - tdn))))
+              end do
             end do
           end do
-        end do
-      end if
+        end if
 
-      if (lclw) then
-        call ofile%get_pointer('clw', clw)
-        !$acc parallel loop collapse(3) default(present) async 
-        do k = klow, khigh
-          do j = 2, j1, ncoarse 
-            do i = 2, i1, ncoarse
-              kk = k - klow + 1
-              jj = (j - 2) / ncoarse + 2
-              ii = (i - 2) / ncoarse + 2
-              clw(ii,jj,kk) = ql0(i,j,k) * max(0.0_field_r, min(1.0_field_r, &
-                               (tmp0(i,j,k) - tdn) / (tup - tdn)))
+        if (lclw) then
+          call ofile%get_pointer('clw', clw)
+          !$acc parallel loop collapse(3) default(present) async 
+          do k = klow, khigh
+            do j = 2, j1, ncoarse 
+              do i = 2, i1, ncoarse
+                kk = k - klow + 1
+                jj = (j - 2) / ncoarse + 2
+                ii = (i - 2) / ncoarse + 2
+                clw(ii,jj,kk) = ql0(i,j,k) * max(0.0_field_r, min(1.0_field_r, &
+                                 (tmp0(i,j,k) - tdn) / (tup - tdn)))
+              end do
             end do
           end do
-        end do
-      end if
+        end if
 
-      if (lpli) then
-        call ofile%get_pointer('pli', pli)
-        iqr = get_tracer_index('qr')
-        !$acc parallel loop collapse(3) default(present) async
-        do k = klow, khigh
-          do j = 2, j1, ncoarse
-            do i = 2, i1, ncoarse
-              kk = k - klow + 1
-              jj = (j - 2) / ncoarse + 2
-              ii = (i - 2) / ncoarse + 2
-              pli(ii,jj,kk) = sv0(i,j,k,iqr) * (1 &
-                              - max(0.0_field_r, min(1.0_field_r, &
-                               (tmp0(i,j,k) - tdn) / (tup - tdn))))
+        if (lpli) then
+          call ofile%get_pointer('pli', pli)
+          iqr = get_tracer_index('qr')
+          !$acc parallel loop collapse(3) default(present) async
+          do k = klow, khigh
+            do j = 2, j1, ncoarse
+              do i = 2, i1, ncoarse
+                kk = k - klow + 1
+                jj = (j - 2) / ncoarse + 2
+                ii = (i - 2) / ncoarse + 2
+                pli(ii,jj,kk) = sv0(i,j,k,iqr) * (1 &
+                                - max(0.0_field_r, min(1.0_field_r, &
+                                 (tmp0(i,j,k) - tdn) / (tup - tdn))))
+              end do
             end do
           end do
-        end do
-      end if
+        end if
 
-      if (lplw) then
-        call ofile%get_pointer('plw', plw)
-        iqr = get_tracer_index('qr')
-        !$acc parallel loop collapse(3) default(present) async
-        do k = klow, khigh
-          do j = 2, j1, ncoarse
-            do i = 2, i1, ncoarse
-              kk = k - klow + 1
-              jj = (j - 2) / ncoarse + 2
-              ii = (i - 2) / ncoarse + 2
-              pli(ii,jj,kk) = sv0(i,j,k,iqr) - max(0.0_field_r, min(1.0_field_r, &
-                               (tmp0(i,j,k) - tdn) / (tup - tdn)))
+        if (lplw) then
+          call ofile%get_pointer('plw', plw)
+          iqr = get_tracer_index('qr')
+          !$acc parallel loop collapse(3) default(present) async
+          do k = klow, khigh
+            do j = 2, j1, ncoarse
+              do i = 2, i1, ncoarse
+                kk = k - klow + 1
+                jj = (j - 2) / ncoarse + 2
+                ii = (i - 2) / ncoarse + 2
+                pli(ii,jj,kk) = sv0(i,j,k,iqr) - max(0.0_field_r, min(1.0_field_r, &
+                                 (tmp0(i,j,k) - tdn) / (tup - tdn)))
+              end do
             end do
           end do
-        end do
-      end if
+        end if
  
-      if (lhus) then
-        call ofile%get_pointer('hus', hus)
-        !$acc kernels default(present) async
-        hus(:,:,:) = qt0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) &
-                     - ql0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) 
-        !$acc end kernels
-      end if
+        if (lhus) then
+          call ofile%get_pointer('hus', hus)
+          !$acc kernels default(present) async
+          hus(:,:,:) = qt0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) &
+                       - ql0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) 
+          !$acc end kernels
+        end if
 
-      if (lhur) then 
-        call ofile%get_pointer('hur', hur)
-        do k = klow, khigh
-          do j = 2, j1
-            do i = 2, i1
-              kk = k - klow + 1
-              jj = (j - 2) / ncoarse + 2
-              ii = (i - 2) / ncoarse + 2
-              hur(ii,jj,kk) = 100 * (qt0(i,j,k) - ql0(i,j,k)) &
-                              / calc_qsat(tmp0(i,j,k), presf(k)) 
+        if (lhur) then 
+          call ofile%get_pointer('hur', hur)
+          do k = klow, khigh
+            do j = 2, j1
+              do i = 2, i1
+                kk = k - klow + 1
+                jj = (j - 2) / ncoarse + 2
+                ii = (i - 2) / ncoarse + 2
+                hur(ii,jj,kk) = 100 * (qt0(i,j,k) - ql0(i,j,k)) &
+                                / calc_qsat(tmp0(i,j,k), presf(k)) 
+              end do
             end do
           end do
-        end do
-      end if
+        end if
 
-      if (ltntr) then 
-        call ofile%get_pointer('tntr', tntr)
-        !$acc parallel loop collapse(3) default(present)
-        do k = klow, khigh
-          do j = 2, j1
-            do i = 2, i1
-              kk = k - klow + 1
-              jj = (j - 2) / ncoarse + 2
-              ii = (i - 2) / ncoarse + 2
-              tntr(ii,jj,kk) = (- swd(i,j,k+1) - swu(i,j,k+1) &
-                                + swd(i,j,k)   + swu(i,j,k) &
-                                - lwd(i,j,k+1) - lwu(i,j,k+1) &
-                                + lwd(i,j,k)   + lwu(i,j,k)) &
-                               / (rhof(k) * exnf(k) * cp * dzf(k))
+        if (ltntr) then 
+          call ofile%get_pointer('tntr', tntr)
+          !$acc parallel loop collapse(3) default(present)
+          do k = klow, khigh
+            do j = 2, j1
+              do i = 2, i1
+                kk = k - klow + 1
+                jj = (j - 2) / ncoarse + 2
+                ii = (i - 2) / ncoarse + 2
+                tntr(ii,jj,kk) = (- swd(i,j,k+1) - swu(i,j,k+1) &
+                                  + swd(i,j,k)   + swu(i,j,k) &
+                                  - lwd(i,j,k+1) - lwu(i,j,k+1) &
+                                  + lwd(i,j,k)   + lwu(i,j,k)) &
+                                 / (rhof(k) * exnf(k) * cp * dzf(k))
+              end do
             end do
           end do
-        end do
-      end if
+        end if
 
-      if (ltntrs) then 
-        call ofile%get_pointer('tntrs', tntrs)
-        !$acc parallel loop collapse(3) default(present)
-        do k = klow, khigh
-          do j = 2, j1
-            do i = 2, i1
-              kk = k - klow + 1
-              jj = (j - 2) / ncoarse + 2
-              ii = (i - 2) / ncoarse + 2
-              tntrs(ii,jj,kk) = (- swd(i,j,k+1) - swu(i,j,k+1) &
-                                 + swd(i,j,k)   + swu(i,j,k)) &
-                                / (rhof(k) * exnf(k) * cp * dzf(k))
+        if (ltntrs) then 
+          call ofile%get_pointer('tntrs', tntrs)
+          !$acc parallel loop collapse(3) default(present)
+          do k = klow, khigh
+            do j = 2, j1
+              do i = 2, i1
+                kk = k - klow + 1
+                jj = (j - 2) / ncoarse + 2
+                ii = (i - 2) / ncoarse + 2
+                tntrs(ii,jj,kk) = (- swd(i,j,k+1) - swu(i,j,k+1) &
+                                   + swd(i,j,k)   + swu(i,j,k)) &
+                                  / (rhof(k) * exnf(k) * cp * dzf(k))
+              end do
             end do
           end do
-        end do
-      end if
+        end if
 
-      if (ltntrl) then 
-        call ofile%get_pointer('tntrl', tntrl)
-        !$acc parallel loop collapse(3) default(present)
-        do k = klow, khigh
-          do j = 2, j1
-            do i = 2, i1
-              kk = k - klow + 1
-              jj = (j - 2) / ncoarse + 2
-              ii = (i - 2) / ncoarse + 2
-              tntrl(ii,jj,kk) = (- lwd(i,j,k+1) - lwu(i,j,k+1) &
-                                 + lwd(i,j,k)   + lwu(i,j,k)) &
-                                / (rhof(k) * exnf(k) * cp * dzf(k))
+        if (ltntrl) then 
+          call ofile%get_pointer('tntrl', tntrl)
+          !$acc parallel loop collapse(3) default(present)
+          do k = klow, khigh
+            do j = 2, j1
+              do i = 2, i1
+                kk = k - klow + 1
+                jj = (j - 2) / ncoarse + 2
+                ii = (i - 2) / ncoarse + 2
+                tntrl(ii,jj,kk) = (- lwd(i,j,k+1) - lwu(i,j,k+1) &
+                                   + lwd(i,j,k)   + lwu(i,j,k)) &
+                                  / (rhof(k) * exnf(k) * cp * dzf(k))
+              end do
             end do
           end do
-        end do
+        end if
       end if
     end if
 
