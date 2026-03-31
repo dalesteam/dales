@@ -29,6 +29,7 @@
 !
 module modstat_nc
     use, intrinsic :: iso_fortran_env
+    use fortran_support, only: warning
     use netcdf
     use modglobal,    only: imax, jmax
     use modprecision, only: field_r
@@ -39,14 +40,15 @@ module modstat_nc
     character(len=*), parameter :: modname = 'modstat_nc'
 
 #if defined(NC_HAS_PARALLEL)
-    logical, parameter :: NC_HAVE_PARALLEL = .true.
+    logical :: NC_HAVE_PARALLEL = .true.
 #else
-    logical, parameter :: NC_HAVE_PARALLEL = .false.
+    logical :: NC_HAVE_PARALLEL = .false.
 #endif
 
     logical :: lnetcdf = .true.
     logical :: lsync   = .false.     ! Sync NetCDF file after each writestat_*_nc
     logical :: lclassic = .false.    ! Create netCDF in CLASSIC format (less RAM usage, compression not supported)
+    logical :: lparallel = .true.    !< Enable parallel I/O when supported by the library and when running with MPI.
     integer :: deflate = 2           ! Deflate level for netCDF files (only for NETCDF4 format)
 
     integer, save :: timeID=0, ztID=0, zmID=0, xtID=0, xmID=0, ytID=0, ymID=0,ztsID=0, zqID=0
@@ -111,10 +113,12 @@ contains
     use fortran_support, only : nnml_output
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/initstat_nc'
+
     integer             :: ierr
 
     namelist/NAMNETCDFSTATS/ &
-    lnetcdf, lsync, lclassic, deflate
+    lnetcdf, lsync, lclassic, lparallel, deflate
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -127,7 +131,17 @@ contains
     call D_MPI_BCAST(lnetcdf    ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(lsync      ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(lclassic   ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lparallel  ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(deflate    ,1, 0,comm3d,mpierr)
+
+    if (lparallel) then
+      if (.not. NC_HAVE_PARALLEL) then
+        call warning(routine, 'Parallel I/O requested but not supported by the&
+          & NetCDF library. Falling back to serial I/O.')
+      end if
+    else
+      NC_HAVE_PARALLEL = .false.
+    end if
 
   end subroutine initstat_nc
 !
