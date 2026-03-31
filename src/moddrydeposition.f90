@@ -173,7 +173,7 @@ end subroutine drydep
 subroutine depos_call(ilu, species, species_idx)  !GT added variable of species_idx for trac_id to allow looping in the calculations of ccomp
   use modlsm, only : tile
   use modglobal, only : i1, j1, xday, xlat, xlon, xtime, rtimee
-  use modfields, only : thl0, exnf, presf, qt0, qsat, sv0             !GT added sv0
+  use modfields, only : thl0, exnf, presf, qt0, qsat, sv0, exnh             !GT added sv0
   use le_drydepos_gas, only : DryDepos_Gas
   use modraddata, only : zenith, swd
   use go, only : to_upper
@@ -183,7 +183,7 @@ subroutine depos_call(ilu, species, species_idx)  !GT added variable of species_
   character(*), intent(in) :: species
   character(len=6) :: depos_species
   integer :: i, j, nwet = 0, status, depos_ilu, isv      !GT added isv as an integer
-  real :: T, RH, sinphi, lai, sai                            !GT removed ccomp_tot as a real variable
+  real :: T, RH, sinphi, lai, sai, Tskin
 
   ! Temporary values, until something better is available
   ! for now, assuming low NH3/SO2 ratios
@@ -218,11 +218,12 @@ subroutine depos_call(ilu, species, species_idx)  !GT added variable of species_
     do j = 2, j1
       T = thl0(i, j, 1) * exnf(1)
       RH = qt0(i, j, 1) / qsat(i, j, 1) * 100
+      Tskin = tile(ilu)%tskin(i, j) * exnh(1)  ! tskin is actually thlskin...
       ! swd needs to be negated, since it is pointing downward.
       ! tsea is a temperature the deposition model needs in case of water LU classes
       call DryDepos_Gas(depos_species, int(xday), xlat, T, &
                         tile(ilu)%ustar(i, j), -swd(i, j, 1), sinphi, RH, lai, sai, nwet, &
-                        depos_ilu, iratns, Rc(i, j), Ccomp(i, j), 0.0, 0.0, status, tsea=tile(ilu)%tskin(i, j), c_ave_prev_nh3=nh3_avg, &
+                        depos_ilu, iratns, Rc(i, j), Ccomp(i, j), 0.0, 0.0, status, tsea=Tskin, c_ave_prev_nh3=nh3_avg, &
                         c_ave_prev_so2=so2_avg, catm=sv0(i,j,1,species_idx))         !GT added everything behind tsea, variables needed to calculate comp. if values are set to 0 no comp is calculated
       ! check for missing Rc values, i.e. -9999, and return huge resistance, so virtually no deposition takes place
       if (missing_real(Rc(i, j), -9999.)) then
