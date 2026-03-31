@@ -119,31 +119,31 @@ contains
         .or. any(crossortho > itot + 1)) then
       call finish(routine, 'crosssection out of range')
     end if
-
-    k=1
-    do while (crossheight(k) > 0)
-       nxy=nxy+1
-       k=k+1
+    
+    do k = 1, size(crossheight)
+      if (crossheight(k) > 0 .and. crossheight(k) <= kmax) then
+        nxy = nxy + 1
+      end if
     end do
-
-    k=1
-    do while (crossplane(k) > 0)
-       crossplane(k) = crossplane(k) - myidy*jmax  ! convert to local grid index
-       nxz=nxz+1
-       k=k+1
-    end do
-
-    k=1
-    do while (crossortho(k) > 0)
-       crossortho(k) = crossortho(k) - myidx*imax  ! convert to local grid index
-       nyz=nyz+1
-       k=k+1
-    end do
-
+    
     ! cross sections with
     ! 2  <= crossplane, <= j1
     ! 2  <= crossortho <= i1
     ! belong to this processor
+
+    do k = 1, size(crossplane)
+      crossplane(k) = crossplane(k) - myidy * jmax ! convert to local grid index
+      if (crossplane(k) >= 2 .and. crossplane(k) <= j1) then
+        nxz = nxz + 1
+      end if
+    end do
+
+    do k = 1, size(crossortho)
+      crossortho(k) = crossortho(k) - myidx * imax ! convert to local grid index
+      if (crossortho(k) >= 2 .and. crossortho(k) <= i1) then
+        nyz = nyz + 1
+      end if
+    end do
 
     ! XY cross sections
 
