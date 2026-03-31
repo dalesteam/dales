@@ -52,9 +52,9 @@ module modcrosssection
   logical :: lxy = .true.     !< Switch for doing xy crosssections.
   logical :: lyz = .true.     !< Switch for doing yz crosssections.
 
-  integer :: nxz !< Number of xz cross sections.
-  integer :: nxy !< Number of xy cross sections.
-  integer :: nyz !< Number of yz cross sections.
+  integer :: nxz = 0 !< Number of xz cross sections.
+  integer :: nxy = 0 !< Number of xy cross sections.
+  integer :: nyz = 0 !< Number of yz cross sections.
 
   ! NetCDF files.
   type(cross_section_file_t), allocatable :: xy_files(:)    !< List of xy cross files.
