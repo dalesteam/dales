@@ -188,7 +188,7 @@ contains
       if (ltntrl) call ofile%add_var('tntrl', 'tendency of air temperature due to longwave radiative heating', 'K/s', 'tttt')
       if (le12) call ofile%add_var('e12', 'square root of turbulent kinetic energy', 'm/s', 'tttt')
       if (lekh) call ofile%add_var('ekh', 'diffusion coefficient for heat and moisture', 'm2/s', 'tttt')
-      if (lekm) call ofile%add_var('e12', 'diffusion coefficient for momentum', 'm2/s', 'tttt')
+      if (lekm) call ofile%add_var('ekm', 'diffusion coefficient for momentum', 'm2/s', 'tttt')
 
       do n = 1, nsv
         if (lsv(n)) then
