@@ -508,11 +508,11 @@ contains
     end if
 
     if (NC_HAVE_PARALLEL) then
-      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
-                   n2=this%ny, n3=this%nz, ns=this%nzs, comm=comm)
+      call open_nc(this%filename, this%ncid, this%nrec, n1=n1, &
+                   n2=n2, n3=this%nz, ns=this%nzs, comm=comm)
     else
-      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
-                   n2=this%ny, n3=this%nz, ns=this%nzs)
+      call open_nc(this%filename, this%ncid, this%nrec, n1=n1, &
+                   n2=n2, n3=this%nz, ns=this%nzs)
     end if
 
     call nctiminfo(this%timeinfo(1,:))
