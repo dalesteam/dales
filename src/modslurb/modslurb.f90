@@ -970,7 +970,6 @@ end subroutine slurb_update_external_vars
     !--    proper assignment by the model, the respective variable should be added to restart routines,
     !--    and given a proper intialization.
         slurb_tile%albedo_urb(i,j)     = 0.0_field_r
-        slurb_tile%emiss_urb(i,j)      = 1.0_field_r
         slurb_tile%rad_lw_in_urb(i,j)  = 0.0_field_r
         slurb_tile%rad_lw_out_urb(i,j) = 0.0_field_r
         slurb_tile%rad_sw_in_urb(i,j)  = 0.0_field_r
