@@ -16,7 +16,7 @@ module modprecursor
                              nprocy
   use modsubgriddata,  only: ekm
   use modtimer,        only: timer_tic, timer_toc
-  use modprecision,    only: field_r
+  use modprecision,    only: field_r, real32, real64
 
   implicit none 
 
@@ -38,10 +38,14 @@ module modprecursor
 
   !> Pointer swap
   interface swap
-    module procedure :: swap_4d
-    module procedure :: swap_3d
-    module procedure :: swap_2d
-    module procedure :: swap_1d
+    module procedure :: swap_4d_r4
+    module procedure :: swap_4d_r8
+    module procedure :: swap_3d_r4
+    module procedure :: swap_3d_r8
+    module procedure :: swap_2d_r4
+    module procedure :: swap_2d_r8
+    module procedure :: swap_1d_r4
+    module procedure :: swap_1d_r8
   end interface swap
 
   logical :: lprecursor = .false. !< Switch for enabling the precursor method
@@ -414,59 +418,107 @@ contains
   end subroutine exit_precursor
 
   !> Swap the pointers of two 4D arrays.
-  subroutine swap_4d(a, b)
+  subroutine swap_4d_r4(a, b)
 
-    real(field_r), allocatable, intent(inout) :: a(:,:,:,:)
-    real(field_r), allocatable, intent(inout) :: b(:,:,:,:)
+    real(real32), allocatable, intent(inout) :: a(:,:,:,:)
+    real(real32), allocatable, intent(inout) :: b(:,:,:,:)
 
-    real(field_r), allocatable :: temp(:,:,:,:)
+    real(real32), allocatable :: temp(:,:,:,:)
     
     call move_alloc(a, temp)
     call move_alloc(b, a)
     call move_alloc(temp, b)
 
-  end subroutine swap_4d
+  end subroutine swap_4d_r4
+  !> Swap the pointers of two 4D arrays.
+  subroutine swap_4d_r8(a, b)
 
+    real(real64), allocatable, intent(inout) :: a(:,:,:,:)
+    real(real64), allocatable, intent(inout) :: b(:,:,:,:)
+
+    real(real64), allocatable :: temp(:,:,:,:)
+    
+    call move_alloc(a, temp)
+    call move_alloc(b, a)
+    call move_alloc(temp, b)
+
+  end subroutine swap_4d_r8
   !> Swap the pointers of two 3D arrays.
-  subroutine swap_3d(a, b)
+  subroutine swap_3d_r4(a, b)
 
-    real(field_r), allocatable, intent(inout) :: a(:,:,:)
-    real(field_r), allocatable, intent(inout) :: b(:,:,:)
+    real(real32), allocatable, intent(inout) :: a(:,:,:)
+    real(real32), allocatable, intent(inout) :: b(:,:,:)
 
-    real(field_r), allocatable :: temp(:,:,:)
+    real(real32), allocatable :: temp(:,:,:)
 
     call move_alloc(a, temp)
     call move_alloc(b, a)
     call move_alloc(temp, b)
 
-  end subroutine swap_3d
+  end subroutine swap_3d_r4
+  !> Swap the pointers of two 3D arrays.
+  subroutine swap_3d_r8(a, b)
 
+    real(real64), allocatable, intent(inout) :: a(:,:,:)
+    real(real64), allocatable, intent(inout) :: b(:,:,:)
+
+    real(real64), allocatable :: temp(:,:,:)
+
+    call move_alloc(a, temp)
+    call move_alloc(b, a)
+    call move_alloc(temp, b)
+
+  end subroutine swap_3d_r8
   !> Swap the pointers of two 2D arrays.
-  subroutine swap_2d(a, b)
+  subroutine swap_2d_r4(a, b)
 
-    real(field_r), allocatable, intent(inout) :: a(:,:)
-    real(field_r), allocatable, intent(inout) :: b(:,:)
+    real(real32), allocatable, intent(inout) :: a(:,:)
+    real(real32), allocatable, intent(inout) :: b(:,:)
 
-    real(field_r), allocatable :: temp(:,:)
+    real(real32), allocatable :: temp(:,:)
 
     call move_alloc(a, temp)
     call move_alloc(b, a)
     call move_alloc(temp, b)
 
-  end subroutine swap_2d
+  end subroutine swap_2d_r4
+  !> Swap the pointers of two 2D arrays.
+  subroutine swap_2d_r8(a, b)
 
+    real(real64), allocatable, intent(inout) :: a(:,:)
+    real(real64), allocatable, intent(inout) :: b(:,:)
+
+    real(real64), allocatable :: temp(:,:)
+
+    call move_alloc(a, temp)
+    call move_alloc(b, a)
+    call move_alloc(temp, b)
+
+  end subroutine swap_2d_r8
   !> Swap the pointers of two 1D arrays.
-  subroutine swap_1d(a, b)
+  subroutine swap_1d_r4(a, b)
 
-    real(field_r), allocatable, intent(inout) :: a(:)
-    real(field_r), allocatable, intent(inout) :: b(:)
+    real(real32), allocatable, intent(inout) :: a(:)
+    real(real32), allocatable, intent(inout) :: b(:)
 
-    real(field_r), allocatable :: temp(:)
+    real(real32), allocatable :: temp(:)
 
     call move_alloc(a, temp)
     call move_alloc(b, a)
     call move_alloc(temp, b)
 
-  end subroutine swap_1d
+  end subroutine swap_1d_r4
+  !> Swap the pointers of two 1D arrays.
+  subroutine swap_1d_r8(a, b)
 
+    real(real64), allocatable, intent(inout) :: a(:)
+    real(real64), allocatable, intent(inout) :: b(:)
+
+    real(real64), allocatable :: temp(:)
+
+    call move_alloc(a, temp)
+    call move_alloc(b, a)
+    call move_alloc(temp, b)
+
+  end subroutine swap_1d_r8
 end module modprecursor
