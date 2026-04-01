@@ -390,7 +390,7 @@ end subroutine slurb_update_external_vars
     !-- Urban surface and street canyon MOST heights.
     do j=2,j1
       do i=2,i1
-       slurb_tile%z_mo(i,j) = 0.5_field_r * (zf(2) - zf(1)) ! (m)
+       slurb_tile%z_mo(i,j) = zf(1) ! (m)
     !    slurb_tile%z_mo(i,j) = 0.5_field_r *  dzw(topo_top_ind(j,i,0)+1)
        slurb_tile%z_mo_can(i,j) = 0.5_field_r * slurb_tile%h_bld(i,j) ! (m)
       enddo
