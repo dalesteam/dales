@@ -21,6 +21,7 @@
 module modnetcdfstats
 
 use modglobal
+use modstat_nc, only: nchandle_error
 
 implicit none
 private
@@ -578,20 +579,5 @@ contains
     if (status /= nf90_noerr) call nchandle_error(status)
 
   end subroutine exitnetcdfstats
-
-  subroutine nchandle_error(status)
-
-    use typeSizes
-    use netcdf
-    implicit none
-
-    integer, intent(in) :: status
-
-    if(status /= nf90_noerr) then
-      print *, trim(nf90_strerror(status))
-      stop "Stopped"
-    end if
-
-  end subroutine nchandle_error
 
 end module modnetcdfstats
