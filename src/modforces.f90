@@ -158,7 +158,7 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal, only : i1,j1,kmax,dzh,dzf,cu,cv,om22,om23,lcoriol,lopenbc,lboundary,lperiodic
+  use modglobal, only : i1,j1,kmax,dzh,dzf,cu,cv,om22,om23,lcoriol,lopenbc,lboundary,lperiodic,corot,sirot
   use modfields, only : u0,v0,w0,up,vp,wp
   implicit none
 
@@ -179,9 +179,9 @@ contains
     do k = 1, kmax
       do j = 2, j1
         do i = sx, i1
-          up(i,j,k) = up(i,j,k)+ cv*om23 &
+          up(i,j,k) = up(i,j,k) + cv*om23 &
                 +(v0(i,j,k)+v0(i,j+1,k)+v0(i-1,j,k)+v0(i-1,j+1,k))*om23*0.25_field_r &
-                -(w0(i,j,k)+w0(i,j,k+1)+w0(i-1,j,k+1)+w0(i-1,j,k))*om22*0.25_field_r
+                -(w0(i,j,k)+w0(i,j,k+1)+w0(i-1,j,k+1)+w0(i-1,j,k))*om22*0.25_field_r*corot
         end do
       end do
     end do
@@ -190,8 +190,9 @@ contains
     do k = 1, kmax
       do j = sy, j1
         do i = 2, i1
-          vp(i,j,k) = vp(i,j,k)  - cu*om23 &
-                -(u0(i,j,k)+u0(i,j-1,k)+u0(i+1,j-1,k)+u0(i+1,j,k))*om23*0.25_field_r
+          vp(i,j,k) = vp(i,j,k) - cu*om23 &
+                -(u0(i,j,k)+u0(i,j-1,k)+u0(i+1,j-1,k)+u0(i+1,j,k))*om23*0.25_field_r &
+                +(w0(i,j,k)+w0(i,j-1,k)+w0(i,j,k+1)+w0(i,j-1,k+1))*om22*0.25_field_r*sirot
         end do
       end do
     end do
@@ -200,9 +201,11 @@ contains
     do k = 2, kmax
       do j = 2, j1
         do i = 2, i1
-          wp(i,j,k) = wp(i,j,k) + cu*om22 +( (dzf(k-1) * (u0(i,j,k)  + u0(i+1,j,k) )    &
+          wp(i,j,k) = wp(i,j,k) + cu*om22*corot + ( (dzf(k-1) * (u0(i,j,k)  + u0(i+1,j,k) )    &
                       +    dzf(k)  * (u0(i,j,k-1) + u0(i+1,j,k-1))  ) / dzh(k) ) &
-                      * om22*0.25_field_r
+                      * om22*0.25_field_r*corot &
+                      - ( (dzf(k-1) * (v0(i,j,k)  + v0(i,j+1,k) ) + dzf(k) * (v0(i,j,k-1) + v0(i,j+1,k-1)) ) / dzh(k) ) &
+                      * om22*0.25_field_r*sirot
         end do
       end do
     end do
@@ -225,14 +228,17 @@ contains
         do i = 2, i1
           up(i,j,k) = up(i,j,k)+ cv*om23 &
                 +(v0(i,j,k)+v0(i,j+1,k)+v0(i-1,j,k)+v0(i-1,j+1,k))*om23*0.25_field_r &
-                -(w0(i,j,k)+w0(i,j,k+1)+w0(i-1,j,k+1)+w0(i-1,j,k))*om22*0.25_field_r
+                -(w0(i,j,k)+w0(i,j,k+1)+w0(i-1,j,k+1)+w0(i-1,j,k))*om22*0.25_field_r*corot
 
           vp(i,j,k) = vp(i,j,k)  - cu*om23 &
-                -(u0(i,j,k)+u0(i,j-1,k)+u0(i+1,j-1,k)+u0(i+1,j,k))*om23*0.25_field_r
+                -(u0(i,j,k)+u0(i,j-1,k)+u0(i+1,j-1,k)+u0(i+1,j,k))*om23*0.25_field_r &
+                +(w0(i,j,k)+w0(i,j-1,k)+w0(i,j,k+1)+w0(i,j-1,k+1))*om22*0.25_field_r*sirot
 
-          wp(i,j,k) = wp(i,j,k) + cu*om22 +( (dzf(k-1) * (u0(i,j,k)  + u0(i+1,j,k) )    &
+          wp(i,j,k) = wp(i,j,k) + cu*om22*corot +( (dzf(k-1) * (u0(i,j,k)  + u0(i+1,j,k) )    &
                       +    dzf(k)  * (u0(i,j,k-1) + u0(i+1,j,k-1))  ) / dzh(k) ) &
-                      * om22*0.25_field_r
+                      * om22*0.25_field_r*corot &
+                      - ( (dzf(k-1) * (v0(i,j,k)  + v0(i,j+1,k) ) + dzf(k) * (v0(i,j,k-1) + v0(i,j+1,k-1)) ) / dzh(k) ) &
+                      * om22*0.25_field_r*sirot
         end do
       end do
     end do
@@ -245,10 +251,11 @@ contains
       do i = 2, i1
         up(i,j,1) = up(i,j,1)  + cv*om23 &
               +(v0(i,j,1)+v0(i,j+1,1)+v0(i-1,j,1)+v0(i-1,j+1,1))*om23*0.25_field_r &
-              -(w0(i,j,1)+w0(i,j ,2)+w0(i-1,j,2)+w0(i-1,j ,1))*om22*0.25_field_r
+              -(w0(i,j,1)+w0(i,j ,2)+w0(i-1,j,2)+w0(i-1,j ,1))*om22*0.25_field_r*corot
 
         vp(i,j,1) = vp(i,j,1) - cu*om23 &
-              -(u0(i,j,1)+u0(i,j-1,1)+u0(i+1,j-1,1)+u0(i+1,j,1))*om23*0.25_field_r
+              -(u0(i,j,1)+u0(i,j-1,1)+u0(i+1,j-1,1)+u0(i+1,j,1))*om23*0.25_field_r &
+              +(w0(i,j,1)+w0(i,j-1,1)+w0(i  ,j  ,2)+w0(i,j-1,2))*om22*0.25_field_r*sirot
 
         wp(i,j,1) = 0.0
       end do

@@ -110,6 +110,7 @@ save
       real,parameter :: gamma_T_matrix = 3.4293695508945325 !< Heat conductivity soil [J s-1 m-1 K-1]
       real,parameter :: gamma_T_water  = 0.57       !< Heat conductivity water [J s-1 m-1 K-1]
 
+      ! Physics / forcings
       logical       :: lcoriol  = .true.  !<  switch for coriolis force
       logical       :: lpressgrad = .false.  !<  switch for horizontal pressure gradient (not to be used in combination with coriolis force)
       integer       :: igrw_damp = 2 !< switch to enable gravity wave damping
@@ -121,6 +122,9 @@ save
       real(field_r) :: om23_gs                       !<    *2.*omega_earth*sin(lat)
       real          :: xlat    = 52.              !<    *latitude  in degrees.
       real          :: xlon    = 0.               !<    *longitude in degrees.
+      real          :: beta    = 0.               !< Rotation angle of local xy plane with respect to Easting vector (postive turning towards Northing vector) in degrees
+      real(field_r) :: corot                      !< cos(beta*pi/180)
+      real(field_r) :: sirot                      !< sin(beta*pi/180)
       logical       :: lrigidlid = .false. !< switch to enable simulations with a rigid lid
       real(field_r) :: unudge = 1.0   !< Nudging factor if igrw_damp == -1 (nudging mean wind fields to geostrophic values provided by lscale.inp)
 
@@ -258,7 +262,7 @@ contains
     character(len=*), parameter :: routine = modname//'/initglobal'
 
     integer :: advarr(4)
-    real phi, colat, silat, omega, omega_gs
+    real phi, colat, silat, omega, omega_gs, gamma
     real :: ilratio
     integer :: k, m, ierr
     integer :: ncid, height_id
@@ -331,6 +335,10 @@ contains
     phi    = xlat*pi/180.
     colat  = cos(phi)
     silat  = sin(phi)
+
+    gamma = beta*pi/180. 
+    corot = cos(gamma) 
+    sirot = sin(gamma) 
 
     omega = 7.292e-5
     omega_gs = 7.292e-5
