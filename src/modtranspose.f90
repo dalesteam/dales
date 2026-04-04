@@ -34,11 +34,11 @@ module modtranspose
     procedure :: z_to_y => transpose_z_to_y
   end type t_transposer
 
-#if POIS_PRECISION == 64
-  type(MPI_DATATYPE), parameter :: MPI_DTYPE = MPI_REAL8
-#else
-  type(MPI_DATATYPE), parameter :: MPI_DTYPE = MPI_REAL4
-#endif
+!#if POIS_PRECISION == 64
+!  type(MPI_DATATYPE), parameter :: MPI_DTYPE = MPI_REAL8
+!#else
+!  type(MPI_DATATYPE), parameter :: MPI_DTYPE = MPI_REAL4
+!#endif
 
 contains
 
@@ -131,8 +131,8 @@ contains
       end do
 
       !$acc host_data use_device(buffer)
-      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_DTYPE, &
-                        buffer, n1*n2*n3, MPI_DTYPE, commrow, mpierr)
+      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL4, &
+                        buffer, n1*n2*n3, MPI_REAL4, commrow, mpierr)
       !$acc end host_data
 
       !$acc parallel loop collapse(4) default(present) private(ii)
@@ -200,8 +200,8 @@ contains
       end do
 
       !$acc host_data use_device(buffer)
-      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_DTYPE, &
-                        buffer, n1*n2*n3, MPI_DTYPE, commrow, mpierr)
+      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL4, &
+                        buffer, n1*n2*n3, MPI_REAL4, commrow, mpierr)
       !$acc end host_data
 
       !$acc parallel loop collapse(4) default(present) private(ii)
@@ -280,8 +280,8 @@ contains
       end do
 
       !$acc host_data use_device(buffer)
-      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_DTYPE, &
-                        buffer, n1*n2*n3, MPI_DTYPE, &
+      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL4, &
+                        buffer, n1*n2*n3, MPI_REAL4, &
                         commcol, mpierr)
       !$acc end host_data
 
@@ -361,8 +361,8 @@ contains
       end do
 
       !$acc host_data use_device(buffer)
-      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_DTYPE, &
-                        buffer, n1*n2*n3, MPI_DTYPE, &
+      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL4, &
+                        buffer, n1*n2*n3, MPI_REAL4, &
                         commcol, mpierr)
       !$acc end host_data
 
@@ -431,8 +431,8 @@ contains
       end do
 
       !$acc host_data use_device(buffer)
-      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_DTYPE, &
-                        buffer, n1*n2*n3, MPI_DTYPE, &
+      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL4, &
+                        buffer, n1*n2*n3, MPI_REAL4, &
                         commrow, mpierr)
       !$acc end host_data
 
@@ -501,8 +501,8 @@ contains
       end do
 
       !$acc host_data use_device(buffer)
-      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_DTYPE, &
-                        buffer, n1*n2*n3, MPI_DTYPE, &
+      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL4, &
+                        buffer, n1*n2*n3, MPI_REAL4, &
                         commrow, mpierr)
       !$acc end host_data
 
