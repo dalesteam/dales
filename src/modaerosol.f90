@@ -151,7 +151,7 @@ contains
                                      .false., .true., .true., .true., .true.]
 
     do imod = 1, maxmodes
-      call modes(imod)%p%init(imod, mode_config(:,imod))
+!      call modes(imod)%p%init(imod, mode_config(:,imod))
     end do
 
     ! Connect free aerosol modes to in-hydrometeor modes
@@ -193,7 +193,7 @@ contains
     !$acc wait
 
     do imod = 1, maxmodes
-      call modes(imod)%p%prepare(sv0)
+!      call modes(imod)%p%prepare(sv0)
     end do
 
     if (rk3step == 3 .or. timee < 0.01) then
@@ -227,7 +227,9 @@ contains
     !$acc wait
 
     do imod = 1, maxmodes
-      call modes(imod)%p%finish(svp, svm, delt)
+
+    !call modes(imod)%p%finish(svp, svm, delt)
+
     end do
 
     !$acc wait

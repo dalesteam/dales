@@ -46,9 +46,9 @@ module modaerosol_mode_t
       sig_g,          &
       rho(maxspecies)
   contains
-    procedure(mode_t_init), deferred :: init
-    procedure(mode_t_prepare), deferred :: prepare
-    procedure(mode_t_finish), deferred :: finish
+!    procedure(mode_t_init), deferred :: init
+!    procedure(mode_t_prepare), deferred :: prepare
+!    procedure(mode_t_finish), deferred :: finish
   end type mode_t
 
   interface
@@ -91,9 +91,9 @@ module modaerosol_mode_t
     type(mode_connection_t) :: &
       to_hydro
   contains
-    procedure :: init => aerosol_mode_init
-    procedure :: prepare => aerosol_mode_prepare
-    procedure :: finish => aerosol_mode_finish
+!    procedure :: init => aerosol_mode_init
+!    procedure :: prepare => aerosol_mode_prepare
+!    procedure :: finish => aerosol_mode_finish
   end type aerosol_mode_t
 
   !> Mode representing in-hydrometeor aerosol.
@@ -108,9 +108,9 @@ module modaerosol_mode_t
       q(:,:,:,:),             &
       qp(:,:,:,:) 
   contains
-    procedure :: init => hydrometeor_mode_init
-    procedure :: prepare => hydrometeor_mode_prepare
-    procedure :: finish => hydrometeor_mode_finish
+!    procedure :: init => hydrometeor_mode_init
+!    procedure :: prepare => hydrometeor_mode_prepare
+!    procedure :: finish => hydrometeor_mode_finish
   end type hydrometeor_mode_t
 
 contains
