@@ -314,7 +314,7 @@ subroutine slurb_bulk_allocations
 
 
 
-
+#ifndef __FUJITSU ! Fujitsu compiler doesn't like these initializations (March 2026)
     fraction_slurb(:,:) = ieee_value(fraction_slurb,ieee_signaling_nan)
 
     ln_z_z0_roof(:,:) = ieee_value(ln_z_z0_roof,ieee_signaling_nan)
@@ -565,6 +565,7 @@ subroutine slurb_bulk_allocations
     ENDIF
 
     slurb_tile%dt_max(:,:) = ieee_value(slurb_tile%dt_max,ieee_signaling_nan)
+#endif
 end subroutine slurb_bulk_allocations
 
 subroutine slurb_bulk_deallocations
