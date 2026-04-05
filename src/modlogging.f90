@@ -91,9 +91,15 @@ module modlogging
     character(len=*), intent(in) :: name !< the name of the routine which caused an error
     class(*), intent(in), optional :: text1, text2, text3, text4, text5
     class(*), intent(in), optional :: text6, text7, text8, text9, text10
-  
-    call fs_finish(name=name, text=convertstring(text1, text2, text3, text4, text5, text6, text7, text8, text9, text10))
 
+    character(len=4096) buffer
+    buffer = convertstring(text1, text2, text3, text4, text5, text6, text7, text8, text9, text10)
+#ifdef __FUJITSU
+    print *, trim(buffer)
+    call abort
+#else
+    call fs_finish(name=name, text=buffer)
+#endif
   end subroutine finish
 
   !>
@@ -104,8 +110,14 @@ module modlogging
     class(*), intent(in), optional :: text1, text2, text3, text4, text5
     class(*), intent(in), optional :: text6, text7, text8, text9, text10
 
-    call fs_warning(name, text=convertstring(text1, text2, text3, text4, text5, text6, text7, text8, text9, text10))
+    character(len=4096) buffer
+    buffer = convertstring(text1, text2, text3, text4, text5, text6, text7, text8, text9, text10)
 
+#ifdef __FUJITSU
+    print *, trim(buffer)
+#else
+    call fs_warning(name, text=buffer)
+#endif
   end subroutine warning
 
   !>
@@ -117,8 +129,13 @@ module modlogging
     class(*), intent(in), optional :: text1, text2, text3, text4, text5
     class(*), intent(in), optional :: text6, text7, text8, text9, text10
 
-    call fs_message(name, text=convertstring(text1, text2, text3, text4, text5, text6, text7, text8, text9, text10), all_print=all_print)
-
+    character(len=4096) buffer
+    buffer = convertstring(text1, text2, text3, text4, text5, text6, text7, text8, text9, text10)
+#ifdef __FUJITSU
+    print *, trim(buffer)
+#else
+    call fs_message(name, text=buffer, all_print=all_print)
+#endif
   end subroutine message
 
   !> converts up to 10 optional arguments and returns a line with all of them concatenated
