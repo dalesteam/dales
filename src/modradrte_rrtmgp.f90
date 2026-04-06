@@ -71,6 +71,7 @@ contains
     use modmpi,                only: myid
     use modfields,             only: initial_presh, initial_presf
     use modglobal,             only: imax, jmax, kmax, k1
+    use modlogging,            only: finish, message
     implicit none
 
     character(len=*), parameter :: routine = modname//'/init_radrte_rrtmgp'
@@ -169,7 +170,7 @@ contains
 
     ! Reading Trace Profiles
     call readTraceProfs
-    if(myid==0) write(*,*) 'Trace gas profile have been read'
+    if(myid == 0) call message(routine, 'Trace gas profiles have been read')
 
     ! Specific RRTMGP initialization
     call stop_on_err(gas_concs%init(gas_names))

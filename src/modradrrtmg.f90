@@ -155,7 +155,6 @@ contains
                                       1.5*psnd(npatch_end) - 0.5*psnd(npatch_end-1) )
       end if
       call readTraceProfs
-
       call message(routine, 'Trace gas profile have been read',all_print=.false.)
       isReadTraceProfiles = .true.
     end if
