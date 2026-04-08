@@ -89,7 +89,7 @@ subroutine slurb_bulk_allocations
     ALLOCATE( slurb_tile%zw_win(nzt_win:nzb_win,i2,j2) )
 
     ALLOCATE( slurb_tile%t_c_urb(i2,j2) )
-    ALLOCATE( slurb_tile%t_rad_urb(i2,j2) )
+    ALLOCATE( slurb_tile%thl_rad_urb(i2,j2) )
     ALLOCATE( slurb_tile%t_h_urb(i2,j2) )
     ALLOCATE( slurb_tile%t_2m_urb(i2,j2) )
     ALLOCATE( slurb_tile%shf_urb(i2,j2) )
@@ -331,7 +331,7 @@ subroutine slurb_bulk_allocations
     slurb_tile%zw_win(:,:,:) = ieee_value(slurb_tile%zw_win,ieee_signaling_nan)
 
     slurb_tile%t_c_urb(:,:) = ieee_value(slurb_tile%t_c_urb,ieee_signaling_nan)
-    slurb_tile%t_rad_urb(:,:) = ieee_value(slurb_tile%t_rad_urb,ieee_signaling_nan)
+    slurb_tile%thl_rad_urb(:,:) = ieee_value(slurb_tile%thl_rad_urb,ieee_signaling_nan)
     slurb_tile%t_h_urb(:,:) = ieee_value(slurb_tile%t_h_urb,ieee_signaling_nan)
     slurb_tile%t_2m_urb(:,:) = ieee_value(slurb_tile%t_2m_urb,ieee_signaling_nan)
     slurb_tile%shf_urb(:,:) = ieee_value(slurb_tile%shf_urb,ieee_signaling_nan)
@@ -585,7 +585,7 @@ subroutine slurb_bulk_deallocations
     DEALLOCATE( slurb_tile%zw_win)
 
     DEALLOCATE( slurb_tile%t_c_urb)
-    DEALLOCATE( slurb_tile%t_rad_urb)
+    DEALLOCATE( slurb_tile%thl_rad_urb)
     DEALLOCATE( slurb_tile%t_h_urb)
     DEALLOCATE( slurb_tile%t_2m_urb)
     DEALLOCATE( slurb_tile%shf_urb)
