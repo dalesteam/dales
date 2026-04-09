@@ -56,7 +56,9 @@ contains
       precond_id, maxiter_precond, hypre_logging
 
     ! Set a default solver based on how DALES is compiled.
-#if defined(DALES_GPU)
+#if defined(DALES_AMDGPU)
+    solver_id = 100
+#elif defined(DALES_GPU)
     solver_id = 200
 #elif defined(USE_FFTW)
     solver_id = 100
@@ -93,10 +95,12 @@ contains
 
     character(len=*), parameter :: routine = modname//'/initpois'
 
+#ifndef DALES_AMDGPU
 #ifdef DALES_GPU
     if (solver_id /= 200) then
        call finish(routine, 'Running on GPU requires solver_id = 200 (cufft)')
     end if
+#endif
 #endif
 
     if (solver_id == 0) then
