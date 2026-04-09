@@ -35,6 +35,7 @@ use modpois_data, only: p, Fp, d, xyrt, pup, pvp, pwp, a, b, c, ps, pe, qs, &
                           qe, maxiter, tolerance, n_pre, n_post, precond_id, &
                           maxiter_precond, hypre_logging, psolver, solver_id
 use modtimer
+use modlogging,   only: finish
 implicit none
 character(len=*), parameter :: modname = 'modpois'
 private
