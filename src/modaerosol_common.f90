@@ -12,19 +12,22 @@ module modaerosol_common
     maxspecies = 5,     &
     maxmodes = 9
 
-  character(len=*), parameter :: &
-    aerosol_names(maxspecies) = [character(len=3) :: &
-      'so4', 'ss', 'pom', 'bc', 'du'],               &
-    aerosol_stdnames(maxspecies) = [character(len=26) :: &
-      'sulfate',                                         &
+  character(len=3), parameter :: &
+    aerosol_names(maxspecies) = &
+      ['so4', 'ss', 'pom', 'bc', 'du']
+  character(len=26), parameter :: &
+    aerosol_stdnames(maxspecies) = &
+      ['sulfate',                                         &
       'sea_salt',                                        &
       'particulate_organic_matter',                      &
       'black_carbon',                                    &
-      'dust'],                                           &
+      'dust']
+  character(len=3), parameter :: &
     mode_names(maxmodes) = &
-      ['nus', 'ais', 'acs', 'cos', 'aii', 'aci', 'coi', 'inc', 'inr'], &
-    mode_longnames(maxmodes) = [character(len=27) :: &
-      'soluble_nucleation_mode',     &
+      ['nus', 'ais', 'acs', 'cos', 'aii', 'aci', 'coi', 'inc', 'inr']
+  character(len=27), parameter :: &
+    mode_longnames(maxmodes) = &
+      ['soluble_nucleation_mode',     &
       'soluble_Aitken_mode',         &
       'soluble_accumulation_mode',   &
       'soluble_coarse_mode',         &
