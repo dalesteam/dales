@@ -31,11 +31,11 @@
 
 module modstartup
 use iso_c_binding
+use fortran_support, only: int2string
 use modprecision,      only : field_r
 use modtimer
 use modstat_nc
 use modchecksim, only: check_array
-use modstringutils, only: number2string
 use modlogging, only: warning, finish, message
 
 implicit none
@@ -1971,7 +1971,7 @@ contains
                                  threshold=[real(0, rkind), real(1, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
 
     do s = 1, size(sv0, dim=4)
-      call check_array(sv0(:,:,:,s), 'sv0('//number2string(s)//')', 'startup',stop_if_invalid=lstop, dump_if_invalid=.true.)
+      call check_array(sv0(:,:,:,s), 'sv0('//int2string(s)//')', 'startup',stop_if_invalid=lstop, dump_if_invalid=.true.)
     end do
 
   end subroutine check_initial_state
