@@ -30,7 +30,7 @@ module modcrosssection
   use modthermodynamics, only: calc_virt_pot_temp
   use modmpi,            only: D_MPI_BCAST, commwrld, mpierr, myid, myidx, &
                                myidy
-  use modfields,         only: um, vm, wm, thlm, qtm, ql0, thvf, e12m, exnf
+  use modfields,         only: u0, v0, w0, thl0, qt0, ql0, thvf, e120, exnf
 
   implicit none
 
@@ -277,19 +277,19 @@ contains
           j = crossplane(cross) - 1
 
           !$acc kernels default(present) async
-          u(:,:) = um(2:i1,j,1:kmax) + cu
-          v(:,:) = vm(2:i1,j,1:kmax) + cv
-          w(:,:) = wm(2:i1,j,1:kmax)
-          e12(:,:) = e12m(2:i1,j,1:kmax)
+          u(:,:) = u0(2:i1,j,1:kmax) + cu
+          v(:,:) = v0(2:i1,j,1:kmax) + cv
+          w(:,:) = w0(2:i1,j,1:kmax)
+          e12(:,:) = e120(2:i1,j,1:kmax)
           !$acc end kernels
 
           !$acc parallel loop collapse(2) default(present) async
           do k = 1, kmax
             do i = 2, i1
-              qt(i,k) = qtm(i,j,k)
+              qt(i,k) = qt0(i,j,k)
               ql(i,k) = ql0(i,j,k)
-              thl(i,k) = thlm(i,j,k)
-              thv(i,k) = calc_virt_pot_temp(thlm(i,j,k), qtm(i,j,k), &
+              thl(i,k) = thl0(i,j,k)
+              thv(i,k) = calc_virt_pot_temp(thl0(i,j,k), qt0(i,j,k), &
                                             ql0(i,j,k), exnf(k))
               buoy(i,k) = thv(i,k) - thvf(k)
             end do
@@ -330,19 +330,19 @@ contains
         k = crossheight(cross)
 
         !$acc kernels default(present) async
-        u(:,:) = um(2:i1,2:j1,k) + cu
-        v(:,:) = vm(2:i1,2:j1,k) + cv
-        w(:,:) = wm(2:i1,2:j1,k)
-        e12(:,:) = e12m(2:i1,2:j1,k)
+        u(:,:) = u0(2:i1,2:j1,k) + cu
+        v(:,:) = v0(2:i1,2:j1,k) + cv
+        w(:,:) = w0(2:i1,2:j1,k)
+        e12(:,:) = e120(2:i1,2:j1,k)
         !$acc end kernels
 
         !$acc parallel loop collapse(2) default(present) async
         do j = 2, j1
           do i = 2, i1
-            qt(i,j) = qtm(i,j,k)
+            qt(i,j) = qt0(i,j,k)
             ql(i,j) = ql0(i,j,k)
-            thl(i,j) = thlm(i,j,k)
-            thv(i,j) = calc_virt_pot_temp(thlm(i,j,k), qtm(i,j,k), &
+            thl(i,j) = thl0(i,j,k)
+            thv(i,j) = calc_virt_pot_temp(thl0(i,j,k), qt0(i,j,k), &
                                           ql0(i,j,k), exnf(k))
             buoy(i,j) = thv(i,j) - thvf(k)
           end do
@@ -383,19 +383,19 @@ contains
           i = crossortho(cross) - 1
 
           !$acc kernels default(present) async
-          u(:,:) = um(i,2:j1,1:kmax) + cu
-          v(:,:) = vm(i,2:j1,1:kmax) + cv
-          w(:,:) = wm(i,2:j1,1:kmax)
-          e12(:,:) = e12m(i,2:j1,1:kmax)
+          u(:,:) = u0(i,2:j1,1:kmax) + cu
+          v(:,:) = v0(i,2:j1,1:kmax) + cv
+          w(:,:) = w0(i,2:j1,1:kmax)
+          e12(:,:) = e120(i,2:j1,1:kmax)
           !$acc end kernels
 
           !$acc parallel loop collapse(2) default(present) async
           do k = 1, kmax
             do j = 2, j1
-              qt(j,k) = qtm(i,j,k)
+              qt(j,k) = qt0(i,j,k)
               ql(j,k) = ql0(i,j,k)
-              thl(j,k) = thlm(i,j,k)
-              thv(j,k) = calc_virt_pot_temp(thlm(i,j,k), qtm(i,j,k), &
+              thl(j,k) = thl0(i,j,k)
+              thv(j,k) = calc_virt_pot_temp(thl0(i,j,k), qt0(i,j,k), &
                                             ql0(i,j,k), exnf(k))
               buoy(j,k) = thv(j,k) - thvf(k)
             end do
