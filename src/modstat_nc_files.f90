@@ -20,7 +20,7 @@ module modstat_nc_files
   public :: close_output_files
   public :: stats_limit_timestep
 
-  integer, parameter :: MAX_FILES = 10 !< Max number of NetCDF files.
+  integer, parameter :: MAX_FILES = 15 !< Max number of NetCDF files.
 
   type netcdf_file_list_entry_t
     class(netcdf_file_t), pointer :: file => null()
@@ -85,6 +85,12 @@ contains
       call finish(routine, 'adaptive time stepping is disabled, so dt_sample&
         & should be an integer multiple of dtmax (file: '&
         //trim(file%filename)//')')
+    end if
+
+    if (nfiles >= MAX_FILES) then
+      call finish(routine, 'Too many output files registered. Increase MAX_FILES. '// &
+                  'Current=',nfiles,' max=',MAX_FILES, &
+                  ' while adding '//trim(file%filename))
     end if
 
     nfiles = nfiles + 1
