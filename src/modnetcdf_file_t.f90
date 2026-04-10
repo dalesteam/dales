@@ -19,6 +19,7 @@ module modnetcdf_file_t
   public :: profiles_file_t
   public :: cross_section_file_t
   public :: field_dump_file_t
+  public :: slurb_3d_file_t
 
   interface time_series_file_t
     procedure :: time_series_file_init
@@ -35,6 +36,10 @@ module modnetcdf_file_t
   interface field_dump_file_t
     procedure :: field_dump_file_init
   end interface field_dump_file_t
+
+  interface slurb_3d_file_t
+    procedure :: slurb_3d_file_init
+  end interface slurb_3d_file_t
 
   !> Base NetCDF file type.
   type, abstract :: netcdf_file_t
@@ -129,6 +134,24 @@ module modnetcdf_file_t
     procedure :: write => field_dump_file_write
     procedure :: get_pointer => field_dump_file_get_pointer
   end type field_dump_file_t
+
+  !> File containing SLURB 3D dumps with dimensions ordered as nzs,nx,ny.
+  type, extends(netcdf_file_t) :: slurb_3d_file_t
+    private
+    integer :: nx = 0      !< Number of cells in the x-direction.
+    integer :: ny = 0      !< Number of cells in the y-direction.
+    integer :: nzs = 0     !< Number of vertical levels in the soil grid.
+    integer :: ncoarse = 1 !< Coarse graining factor.
+    integer :: x_start = 0 !< Writing offset in the x-direction.
+    integer :: y_start = 0 !< Writing offset in the y-direction.
+    integer :: nvals_x = 0 !< Number of values that will be written by calling process in the x-direction.
+    integer :: nvals_y = 0 !< Number of values that will be written by calling process in the y-direction.
+    real(field_r), allocatable :: buffer(:,:,:,:) !< Memory for variable data (nzs,nx,ny,nvar).
+  contains
+    procedure :: open => slurb_3d_file_open
+    procedure :: write => slurb_3d_file_write
+    procedure :: get_pointer => slurb_3d_file_get_pointer
+  end type slurb_3d_file_t
 
 contains
 
@@ -843,5 +866,146 @@ contains
     ptr(2:,2:,1:) => this%buffer(:,:,:,id)
 
   end subroutine field_dump_file_get_pointer
+
+  !> Constructor; initialize a NetCDF file containing SLURB 3D data. (z,x,y) instead of (x,y,z)!
+  function slurb_3d_file_init(filename, nzs, ncoarse, lgpu) &
+    result(this)
+
+    character(len=*), intent(in) :: filename !< Name of the file.
+
+    integer, intent(in), optional :: nzs     !< Number of vertical levels in the soil grid.
+    integer, intent(in), optional :: ncoarse !< Coarse graining factor.
+    logical, intent(in), optional :: lgpu    !< Allocate buffer on GPU.
+
+    type(slurb_3d_file_t) :: this !< New slurb 3D file object.
+
+    character(len=*), parameter :: routine = modname//'/slurb_3d_file_init'
+
+    if (.not. present(nzs)) then
+      call finish(routine, 'slurb 3d file needs nzs vertical dimension')
+    end if
+
+    if (present(ncoarse)) this%ncoarse = ncoarse
+
+    if (present(lgpu)) this%lgpu = lgpu
+
+    if (NC_HAVE_PARALLEL) then
+      call this%set_filename(filename)
+      this%nx = itot
+      this%ny = jtot
+      this%x_start = myidx * (imax / this%ncoarse) + 1
+      this%y_start = myidy * (jmax / this%ncoarse) + 1
+    else
+      call this%set_filename(filename, suffix=cmyid)
+      this%nx = imax
+      this%ny = jmax
+      this%x_start = 1
+      this%y_start = 1
+    end if
+
+    this%nx = this%nx / this%ncoarse
+    this%ny = this%ny / this%ncoarse
+    this%nvals_x = imax / this%ncoarse
+    this%nvals_y = jmax / this%ncoarse
+
+    this%nzs = nzs
+
+  end function slurb_3d_file_init
+
+  !> Open the NetCDF file, define dimensions and allocate memory.
+  subroutine slurb_3d_file_open(this)
+
+    class(slurb_3d_file_t), intent(inout) :: this
+
+    integer :: n1, n2, nlev, ivar
+
+    if (NC_HAVE_PARALLEL) then
+      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
+                   n2=this%ny, ns=this%nzs, comm=comm3d)
+    else
+      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
+                   n2=this%ny, ns=this%nzs)
+    end if
+
+    call nctiminfo(this%timeinfo)
+
+    if (this%nrec == 0) then
+      call define_nc(this%ncid, 1, this%timeinfo, lcollective=.true.)
+      call writestat_dims_nc(this%ncid, ncoarse=this%ncoarse, &
+                             offset_x=this%x_start, offset_y=this%y_start)
+    end if
+
+    call define_nc(this%ncid, this%nvar, this%names, lcollective=.true.)
+
+    nlev = this%nzs
+    allocate(this%buffer(nlev,this%nvals_x,this%nvals_y,this%nvar))
+
+    do ivar = 1, this%nvar
+      do n2 = 1, this%nvals_y
+        do n1 = 1, this%nvals_x
+          do nlev = 1, size(this%buffer, dim=1)
+            this%buffer(nlev,n1,n2,ivar) = 0.0_field_r
+          end do
+        end do
+      end do
+    end do
+
+    !$acc enter data copyin(this, this%buffer) if(this%lgpu)
+
+  end subroutine slurb_3d_file_open
+
+  !> Write data to disk.
+  subroutine slurb_3d_file_write(this)
+
+    class(slurb_3d_file_t), intent(inout) :: this
+
+    integer :: n1, n2, nlev, ivar
+
+    !$acc update host(this%buffer) if(this%lgpu)
+
+    call writestat_nc(this%ncid, 1, this%timeinfo, [rtimee], this%nrec, &
+                      lraise=.true.)
+    call writestat_nc(this%ncid, this%nvar, this%names, this%buffer, &
+                      this%nrec, dim1=size(this%buffer, dim=1), &
+                      dim2=this%nvals_x, dim3=this%nvals_y, &
+                      offsets=[1, this%x_start, this%y_start])
+
+    !$acc parallel loop collapse(4) default(present) if(this%lgpu)
+    do ivar = 1, this%nvar
+      do n2 = 1, this%nvals_y
+        do n1 = 1, this%nvals_x
+          do nlev = 1, size(this%buffer, dim=1)
+            this%buffer(nlev,n1,n2,ivar) = 0.0_field_r
+          end do
+        end do
+      end do
+    end do
+
+  end subroutine slurb_3d_file_write
+
+  !> Setup a pointer to the buffer of a variable.
+  !!
+  !! @note Lower bounds of horizontal pointer dimensions are set to 2.
+  subroutine slurb_3d_file_get_pointer(this, name, ptr)
+
+    class(slurb_3d_file_t), target, intent(in) :: this
+    character(len=*),              intent(in) :: name
+
+    real(field_r), pointer, intent(out) :: ptr(:,:,:)
+
+    character(len=*), parameter :: routine = &
+      modname//'/slurb_3d_file_get_pointer'
+
+    integer :: id
+
+    id = this%get_var_id(name)
+
+    if (id < 0) then
+      call finish(routine, 'variable '//trim(name)//' not found')
+    end if
+
+    ptr(1:,2:,2:) => this%buffer(:,:,:,id)
+
+  end subroutine slurb_3d_file_get_pointer
 
 end module modnetcdf_file_t

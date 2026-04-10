@@ -136,6 +136,7 @@ program DALES
   use modcrosssection, only : initcrosssection, crosssection
   use modAGScross,     only : initAGScross, AGScross,exitAGScross
   use modlsmcrosssection, only : initlsmcrosssection, lsmcrosssection,exitlsmcrosssection
+  use modslurbcrosssection, only : initslurbcrosssection, slurbcrosssection
   use moddepcrosssection, only : initdepcrosssection, depcrosssection,exitdepcrosssection
   use modcloudfield,   only : initcloudfield, cloudfield
   use modfielddump,    only : initfielddump, fielddump
@@ -213,6 +214,7 @@ program DALES
   call initcrosssection
   call initAGScross
   call initlsmcrosssection
+  call initslurbcrosssection
   call initdepcrosssection
   !call initprojection
   call initcloudfield
@@ -388,6 +390,7 @@ program DALES
           call crosssection
           call AGScross
           call lsmcrosssection
+          call slurbcrosssection
           call depcrosssection
           !call tanhfilter
           call docape

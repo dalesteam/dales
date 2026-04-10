@@ -27,7 +27,7 @@ module modslurbhelpers
     contains
 
 subroutine slurb_read_namelist(nml_filename)
-    use modglobal,   only : ifnamopt, checknamelisterror
+   use modglobal,   only : ifnamopt, checknamelisterror, dtav_glob
     use modmpi,      only : myid, comm3d, mpierr, D_MPI_BCAST
     use fortran_support,       only: nnml_output
     implicit none
@@ -37,11 +37,14 @@ subroutine slurb_read_namelist(nml_filename)
 
     integer :: ierr
 
-    ! Namelist definition
-    namelist /NAMSLURB/ &
-        urban_fraction, urban_roughness_length, building_plan_area_fraction, building_frontal_area_fraction, building_height, window_fraction,&
-        street_canyon_aspect_ratio, building_type, pavement_type, anisotropic_street_canyons, street_canyon_orientation, deep_soil_temperature,building_indoor_temperature,shf_external,qsws_external
 
+    namelist /NAMSLURB/ &
+      urban_fraction, urban_roughness_length, building_plan_area_fraction, building_frontal_area_fraction, building_height, window_fraction,&
+      street_canyon_aspect_ratio, building_type, pavement_type, anisotropic_street_canyons, street_canyon_orientation, deep_soil_temperature,building_indoor_temperature,shf_external,qsws_external,&
+      dtav_slurb, output_slurb_bc, output_slurb_constants,&
+      slurb_cross_output, slurb_cross_output_roof, slurb_cross_output_road, slurb_cross_output_wall_win, slurb_cross_output_tendencies, slurb_cross_output_radiation
+
+    dtav_slurb = dtav_glob
     ! Read namelist
     if (myid == 0) then
         open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
@@ -67,6 +70,15 @@ subroutine slurb_read_namelist(nml_filename)
     call D_MPI_BCAST(building_indoor_temperature, 1, 0, comm3d, mpierr)
     call D_MPI_BCAST(shf_external, 1, 0, comm3d, mpierr)
     call D_MPI_BCAST(qsws_external, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(dtav_slurb, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(output_slurb_bc, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(output_slurb_constants, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(slurb_cross_output, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(slurb_cross_output_roof, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(slurb_cross_output_road, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(slurb_cross_output_wall_win, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(slurb_cross_output_tendencies, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(slurb_cross_output_radiation, 1, 0, comm3d, mpierr)
 end subroutine slurb_read_namelist
 
 subroutine slurb_bulk_allocations

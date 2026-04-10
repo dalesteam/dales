@@ -89,6 +89,7 @@ module daleslib
             use modquadrant,        only : initquadrant
             use modcrosssection,    only : initcrosssection 
             use modAGScross,        only : initAGScross
+            use modslurbcrosssection, only : initslurbcrosssection
             use modlsmcrosssection, only : initlsmcrosssection
             use modcloudfield,      only : initcloudfield
             use modfielddump,       only : initfielddump
@@ -162,6 +163,7 @@ module daleslib
             call initcrosssection
             call initAGScross
             call initlsmcrosssection
+            call initslurbcrosssection
             !call initprojection
             call initcloudfield
             call initradstat
@@ -451,6 +453,7 @@ module daleslib
             use modcrosssection,    only : crosssection
             use modAGScross,        only : AGScross
             use modlsmcrosssection, only : lsmcrosssection
+            use modslurbcrosssection, only: slurbcrosssection
             use modcloudfield,      only : cloudfield
             use modfielddump,       only : fielddump
             use modradfield,        only : radfield
@@ -565,6 +568,7 @@ module daleslib
             call crosssection
             call AGScross
             call lsmcrosssection
+            call slurbcrosssection
             !call tanhfilter
             call docape
             !call projection

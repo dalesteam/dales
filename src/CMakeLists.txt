@@ -65,6 +65,7 @@ set( dales_srcs
 	modslurb/modslurbdata.f90
 	modslurb/modslurb_energybalance.f90
 	modslurb/modslurb_radiationmodel.f90
+	modslurb/modslurbcrosssection.f90
 	modslurb/modslurbhelpers.f90
 	modslurb/modslurbresistance_stability.f90
 	modmicrodata.f90
