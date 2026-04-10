@@ -19,7 +19,7 @@
 !> Dumps instantaneous cross sections of several fields.
 module modcrosssection
 
-  use fortran_support,   only: nnml_output, finish
+  use modlogging,   only: nnml_output, finish, warning
   use modglobal,         only: longint, kmax, nsv, cu, cv, itot, jtot, imax, &
                                jmax, kmax, i1, j1, ifnamopt, dtav_glob, &
                                rk3step, checknamelisterror, dx, dy, zf

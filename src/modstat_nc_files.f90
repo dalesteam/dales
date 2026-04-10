@@ -1,7 +1,7 @@
 !> Output file manager. Does the timekeeping for all output files.
 module modstat_nc_files
 
-  use fortran_support,  only: finish
+  use modlogging,       only: finish
   use modglobal,        only: timee, rtimee, rk3step, dt_lim, tres, ladaptive, &
                               dtmax
   use modnetcdf_file_t, only: netcdf_file_t
