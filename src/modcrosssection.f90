@@ -22,7 +22,7 @@ module modcrosssection
   use modlogging,   only: nnml_output, finish, warning
   use modglobal,         only: longint, kmax, nsv, cu, cv, itot, jtot, imax, &
                                jmax, kmax, i1, j1, ifnamopt, dtav_glob, &
-                               rk3step, checknamelisterror, dx, dy, zf
+                               rk3step, checknamelisterror, dx, dy, zf, x0, y0
   use modtracers,        only: tracer_prop
   use modnetcdf_file_t,  only: cross_section_file_t
   use modstat_nc_files,  only: add_output_file, is_sampling_timestep
@@ -63,6 +63,11 @@ module modcrosssection
   integer,                    allocatable :: xy_file_ids(:) !< List of xy cross file ids.
   integer,                    allocatable :: yz_file_ids(:) !< List of yz cross file ids.
   integer,                    allocatable :: xz_file_ids(:) !< List of xz cross file ids.
+
+  ! Local model-array indices (2-indexed: halo at 1, first physical cell at 2) for
+  ! each active cross-section plane on this MPI rank.  Sized nxz / nyz.
+  integer,                    allocatable :: crossplane_local(:) !< Local j-indices for xz cross sections.
+  integer,                    allocatable :: crossortho_local(:) !< Local i-indices for yz cross sections.
 
 contains
 
@@ -110,6 +115,7 @@ contains
     character(len=*), parameter :: routine = modname//'/initcrosssection'
 
     integer          :: k, ifile
+    integer, allocatable :: crossplane_j_all(:), crossortho_i_all(:)
     real(field_r)    :: loc
     character(len=4) :: cloc
 
@@ -126,23 +132,28 @@ contains
       end if
     end do
     
-    ! cross sections with
-    ! 2  <= crossplane, <= j1
-    ! 2  <= crossortho <= i1
-    ! belong to this processor
+    ! crossplane / crossortho: 1-indexed global output-cell numbers (user input,
+    !   range 1..jtot / 1..itot).  Never modified.
+    !
+    ! crossplane_j_all / crossortho_i_all: 2-indexed local model-array indices for
+    !   every entry (may be < 2 or > j1/i1 for cells not owned by this rank).
+    !   Index 1 = halo, index 2 = first physical cell.
+    !   Conversion: local = global - myidy*jmax + 1
+    !   e.g. global=1, rank 0 (myidy=0) → 1 - 0 + 1 = 2  (first physical cell)
+    !
+    ! crossplane_local / crossortho_local: compacted 2-indexed arrays containing
+    !   only the entries that are on this rank (2 <= local <= j1/i1).
+
+    allocate(crossplane_j_all(size(crossplane)), crossortho_i_all(size(crossortho)))
+    crossplane_j_all = crossplane - myidy * jmax + 1  ! 2-indexed, all entries
+    crossortho_i_all = crossortho - myidx * imax + 1  ! 2-indexed, all entries
 
     do k = 1, size(crossplane)
-      crossplane(k) = crossplane(k) - myidy * jmax ! convert to local grid index
-      if (crossplane(k) >= 2 .and. crossplane(k) <= j1) then
-        nxz = nxz + 1
-      end if
+      if (crossplane_j_all(k) >= 2 .and. crossplane_j_all(k) <= j1) nxz = nxz + 1
     end do
 
     do k = 1, size(crossortho)
-      crossortho(k) = crossortho(k) - myidx * imax ! convert to local grid index
-      if (crossortho(k) >= 2 .and. crossortho(k) <= i1) then
-        nyz = nyz + 1
-      end if
+      if (crossortho_i_all(k) >= 2 .and. crossortho_i_all(k) <= i1) nyz = nyz + 1
     end do
 
     ! XY cross sections
@@ -175,14 +186,15 @@ contains
 
     ! XZ cross sections
 
-    allocate(xz_files(nxz), xz_file_ids(nxz))
+    allocate(xz_files(nxz), xz_file_ids(nxz), crossplane_local(nxz))
 
     ifile = 0
     do k = 1, size(crossplane)
-      if (crossplane(k) >= 2 .and. crossplane(k) <= j1) then
+      if (crossplane_j_all(k) >= 2 .and. crossplane_j_all(k) <= j1) then
         ifile = ifile + 1
-        write(cloc, '(i4.4)') crossplane(k) + myidy * jmax
-        loc = dy * (crossplane(k) - 1) + 0.5_field_r * dy
+        crossplane_local(ifile) = crossplane_j_all(k)  ! 2-indexed; used by wrtvert
+        write(cloc, '(i4.4)') crossplane(k)  ! 1-indexed global number → filename
+        loc = y0 + dy * (crossplane(k) - 1) + 0.5_field_r * dy  ! cell centre
         xz_files(ifile) = cross_section_file_t('crossxz.'//cloc, nx=itot, &
                                                nz=kmax, loc=loc, lgpu=.true.)
         call add_output_file(xz_files(ifile), dtav, xz_file_ids(ifile))
@@ -203,14 +215,15 @@ contains
 
     ! YZ cross sections
 
-    allocate(yz_files(nyz), yz_file_ids(nyz))
+    allocate(yz_files(nyz), yz_file_ids(nyz), crossortho_local(nyz))
 
     ifile = 0
     do k = 1, size(crossortho)
-      if (crossortho(k) >= 2 .and. crossortho(k) <= i1) then
+      if (crossortho_i_all(k) >= 2 .and. crossortho_i_all(k) <= i1) then
         ifile = ifile + 1
-        write(cloc, '(i4.4)') crossortho(k) + myidx * imax
-        loc = dx * (crossortho(k) - 1) + 0.5_field_r * dx
+        crossortho_local(ifile) = crossortho_i_all(k)  ! 2-indexed; used by wrtorth
+        write(cloc, '(i4.4)') crossortho(k)  ! 1-indexed global number → filename
+        loc = x0 + dx * (crossortho(k) - 1) + 0.5_field_r * dx  ! cell centre
         yz_files(ifile) = cross_section_file_t('crossyz.'//cloc, ny=jtot, &
                                                nz=kmax, loc=loc, lgpu=.true.)
         call add_output_file(yz_files(ifile), dtav, yz_file_ids(ifile))
@@ -274,7 +287,7 @@ contains
           call xz_files(cross)%get_pointer('buoy', buoy)
           call xz_files(cross)%get_pointer('e120', e12)
 
-          j = crossplane(cross) - 1
+          j = crossplane_local(cross)  ! 2-indexed local array index
 
           !$acc kernels default(present) async
           u(:,:) = u0(2:i1,j,1:kmax) + cu
@@ -380,7 +393,7 @@ contains
           call yz_files(cross)%get_pointer('buoy', buoy)
           call yz_files(cross)%get_pointer('e120', e12)
 
-          i = crossortho(cross) - 1
+          i = crossortho_local(cross)  ! 2-indexed local array index
 
           !$acc kernels default(present) async
           u(:,:) = u0(i,2:j1,1:kmax) + cu

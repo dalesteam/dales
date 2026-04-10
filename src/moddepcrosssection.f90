@@ -27,7 +27,10 @@
 module moddepcrosssection
   use modlsm, only : llsm
   use moddrydeposition, only : ldrydep
-  use modglobal, only : longint, nsv
+  use modglobal, only : longint, nsv, itot, jtot
+  use modnetcdf_file_t, only : cross_section_file_t
+  use modprecision, only : field_r
+  use modstat_nc_files, only : add_output_file
   use modtracers, only: tracer_prop
   use modlogging, only: finish
 
@@ -36,11 +39,10 @@ module moddepcrosssection
   private
   public :: initdepcrosssection, depcrosssection, exitdepcrosssection
   save
-  ! NetCDF variables
-  integer :: ncid, nrec = 0
-  character(80) :: fname
-  character(80), allocatable, dimension(:, :) :: ncname
-  character(80), dimension(1, 4) :: tncname
+
+  type(cross_section_file_t) :: dep_file
+  integer :: dep_file_id = 0
+  logical :: dep_file_enabled = .false.
 
   ! integer :: nvar = 0  !< Number of variables (for now, equal to nsv, not using svskip)
   real :: dtav
@@ -51,13 +53,12 @@ module moddepcrosssection
 contains
   !> Initializing depcrosssection. Read out the namelist, initializing the variables
   subroutine initdepcrosssection
-    use modmpi, only : myid, comm3d, myidx, myidy, &
+    use modmpi, only : myid, comm3d, &
         mpierr, D_MPI_BCAST
     use modglobal, only : dtav_glob, ifnamopt, fname_options, &
         checknamelisterror, tres, btime, dt_lim, ladaptive, &
-        dtmax, iexpnr, imax, jmax, output_prefix
-    use modstat_nc, only : lnetcdf, open_nc, define_nc, ncinfo, &
-        nctiminfo, writestat_dims_nc
+      dtmax
+    use modstat_nc, only : lnetcdf
     use moddrydeposition, only : ndeptracers
     use fortran_support,  only : nnml_output
 
@@ -65,7 +66,7 @@ contains
 
     character(len=*), parameter :: routine = modname//'/initdepcrosssection'
 
-    integer :: ierr, isv, idt
+    integer :: ierr, isv
     character(80) :: varname, varlongname
 
     namelist/NAMDEPCROSSSECTION/ ldepcrosssection, dtav
@@ -97,34 +98,22 @@ contains
       call finish(routine, 'depcrosssection: dtav should be a integer multiple of dtmax')
     end if
 
-    if ( lnetcdf ) then
-      write(fname, '(a,i3.3,a,i3.3,a,i3.3,a)') 'depcross.', myidx, &
-        '.', myidy, '.', iexpnr, '.nc'
-
-      allocate(ncname(ndeptracers, 4))
-
-      call nctiminfo(tncname(1, :))
-      idt = 1
+    if (lnetcdf) then
+      dep_file = cross_section_file_t('depcross', nx=itot, ny=jtot, lgpu=.false.)
       do isv = 1, nsv
         if (.not. tracer_prop(isv)%ldep) cycle
         write (varname, '(a,a)') 'drydep_', trim(tracer_prop(isv)%tracname)
         write (varlongname, '(a,a)')  'Dry deposition flux of ', trim(tracer_prop(isv)%tracname)
-        call ncinfo(ncname(idt, :), varname, varlongname, 'kg / (m2 * s)', 'tt0t')
-        idt = idt+1
+        call dep_file%add_var(varname, varlongname, 'kg / (m2 * s)', 'tt0t')
       end do
-      call open_nc(trim(output_prefix)//fname, ncid, nrec, n1=imax, n2=jmax)
-      if (nrec==0) then
-        call define_nc(ncid, 1, tncname)
-        call writestat_dims_nc(ncid)
-        call define_nc(ncid, ndeptracers, ncname)
-      end if
+      call add_output_file(dep_file, dtav, dep_file_id)
+      dep_file_enabled = .true.
     end if
   end subroutine initdepcrosssection
 
   !> Do crosssection. Collect data to truncated (2 byte) integers, and write them to file
   subroutine depcrosssection
     use modglobal, only : rk3step, timee, dt_lim
-    use modstat_nc, only : writestat_nc
     implicit none
 
     if (.not. ldepcrosssection) return
@@ -142,47 +131,36 @@ contains
 
   subroutine wrtdrydepfields
     use moddrydeposition, only : depfield
-    use modglobal, only : i1, j1, nsv, imax, jmax, rtimee
+    use modglobal, only : i1, j1, nsv
     use modfields, only : rhof
-    use modstat_nc, only : lnetcdf, writestat_nc
-    use moddrydeposition, only : ndeptracers
+    use modstat_nc, only : lnetcdf
     use modtracers, only : tracer_prop
     implicit none
 
-    real, allocatable :: depfield_massflux(:, :, :)
+    real(field_r), pointer :: dep_ptr(:, :)
     integer :: isv, idt
     real    :: MW_air = 28.9644
+    character(80) :: varname
 
-    allocate(depfield_massflux(1:imax, 1:jmax, ndeptracers))
+    if (.not. (lnetcdf .and. dep_file_enabled)) return
 
     ! Store the flux as a positive number
-    ! depfield_massflux(1:imax, 1:jmax, 1:ndeptracers) = -depfield(2:i1, 2:j1, 1:ndeptracers) &
+    ! dep_ptr(1:imax, 1:jmax, 1:ndeptracers) = -depfield(2:i1, 2:j1, 1:ndeptracers) &
     !     * rhof(1) * 1e-6  ! to go from ug*m/(s*g) to kg/(m2*s)
     idt = 1
     do isv = 1, nsv
       if (.not. tracer_prop(isv)%ldep) cycle
-      depfield_massflux(1:imax, 1:jmax, idt) = -depfield(2:i1, 2:j1, idt) &
-          * rhof(1) * (tracer_prop(isv)%molar_mass/MW_air) * 1e-9  ! from ppb m s-1 to kg/(m2*s)
+      write(varname, '(a,a)') 'drydep_', trim(tracer_prop(isv)%tracname)
+      call dep_file%get_pointer(trim(varname), dep_ptr)
+      dep_ptr(:,:) = -depfield(2:i1, 2:j1, idt) * rhof(1) * &
+          (tracer_prop(isv)%molar_mass / MW_air) * 1e-9  ! from ppb m s-1 to kg/(m2*s)
       idt = idt + 1
     end do
-
-    if (lnetcdf) then
-      call writestat_nc(ncid, 1, tncname, (/rtimee/), nrec, .true.)
-      call writestat_nc(ncid, ndeptracers, ncname, depfield_massflux, nrec, imax, jmax)
-    end if
-
-    deallocate(depfield_massflux)
   end subroutine wrtdrydepfields
 
   !> Clean up when leaving the run
   subroutine exitdepcrosssection
-    use modstat_nc, only : exitstat_nc, lnetcdf
     implicit none
-
-    if(ldepcrosssection .and. lnetcdf) then
-      call exitstat_nc(ncid)
-      deallocate(ncname)
-    end if
   end subroutine exitdepcrosssection
 
 end module moddepcrosssection

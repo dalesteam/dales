@@ -135,7 +135,7 @@ program DALES
   use modquadrant,     only : initquadrant, quadrant,exitquadrant
   use modcrosssection, only : initcrosssection, crosssection
   use modAGScross,     only : initAGScross, AGScross,exitAGScross
-  use modlsmcrosssection, only : initlsmcrosssection, lsmcrosssection,exitlsmcrosssection
+  use modlsmcrosssection, only : initlsmcrosssection, lsmcrosssection
   use modslurbcrosssection, only : initslurbcrosssection, slurbcrosssection
   use moddepcrosssection, only : initdepcrosssection, depcrosssection,exitdepcrosssection
   use modcloudfield,   only : initcloudfield, cloudfield
@@ -454,7 +454,6 @@ program DALES
   call exitmsebudg
   !call exitstressbudget
   call exitAGScross
-  call exitlsmcrosssection
   call exitdepcrosssection
   call exitheterostats
   call exitcanopy
