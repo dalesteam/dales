@@ -583,7 +583,7 @@ contains
     nc_slice = 0.0
     !$acc end kernels
 
-    inc = get_tracer_index('nc')
+    inc = get_tracer_index('Nc')
 
     if (inc > 0) then
        !$acc parallel loop collapse(3) default(present) private(icol)
