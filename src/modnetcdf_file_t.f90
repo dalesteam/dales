@@ -157,6 +157,7 @@ contains
 
   !> Add a variable to a NetCDF file.
   subroutine netcdf_file_add_var(this, name, long_name, unit, dim)
+    use modstat_nc, only: print_netcdf_info
 
     class(netcdf_file_t), intent(inout) :: this
 
@@ -705,7 +706,7 @@ contains
 
   end subroutine cross_section_file_get_pointer
 
-  !> Constructor; initialize a NetCDF file containing time series data.
+  !> Constructor; initialize a NetCDF file containing 3d field dumps.
   function field_dump_file_init(filename, nz, nzs, ncoarse, klo, khi, lgpu) &
     result(this)
 
