@@ -132,14 +132,14 @@ contains
     ! belong to this processor
 
     do k = 1, size(crossplane)
-      crossplane(k) = crossplane(k) - myidy * jmax + 1 ! convert to local grid index
+      crossplane(k) = crossplane(k) - myidy * jmax ! convert to local grid index
       if (crossplane(k) >= 2 .and. crossplane(k) <= j1) then
         nxz = nxz + 1
       end if
     end do
 
     do k = 1, size(crossortho)
-      crossortho(k) = crossortho(k) - myidx * imax + 1 ! convert to local grid index
+      crossortho(k) = crossortho(k) - myidx * imax ! convert to local grid index
       if (crossortho(k) >= 2 .and. crossortho(k) <= i1) then
         nyz = nyz + 1
       end if
@@ -181,8 +181,8 @@ contains
     do k = 1, size(crossplane)
       if (crossplane(k) >= 2 .and. crossplane(k) <= j1) then
         ifile = ifile + 1
-        write(cloc, '(i4.4)') crossplane(k) - 1
-        loc = dy * (crossplane(k) - 2) + 0.5_field_r * dy
+        write(cloc, '(i4.4)') crossplane(k) + myidy * jmax
+        loc = dy * (crossplane(k) - 1) + 0.5_field_r * dy
         xz_files(ifile) = cross_section_file_t('crossxz.'//cloc, nx=itot, &
                                                nz=kmax, loc=loc, lgpu=.true.)
         call add_output_file(xz_files(ifile), dtav, xz_file_ids(ifile))
@@ -209,8 +209,8 @@ contains
     do k = 1, size(crossortho)
       if (crossortho(k) >= 2 .and. crossortho(k) <= i1) then
         ifile = ifile + 1
-        write(cloc, '(i4.4)') crossortho(k) - 1
-        loc = dx * (crossortho(k) - 2) + 0.5_field_r * dx
+        write(cloc, '(i4.4)') crossortho(k) + myidx * imax
+        loc = dx * (crossortho(k) - 1) + 0.5_field_r * dx
         yz_files(ifile) = cross_section_file_t('crossyz.'//cloc, ny=jtot, &
                                                nz=kmax, loc=loc, lgpu=.true.)
         call add_output_file(yz_files(ifile), dtav, yz_file_ids(ifile))
@@ -273,9 +273,7 @@ contains
           call xz_files(cross)%get_pointer('ql', ql)
           call xz_files(cross)%get_pointer('buoy', buoy)
           call xz_files(cross)%get_pointer('e120', e12)
-        end do
 
-        do cross = 1, nxz
           j = crossplane(cross) - 1
 
           !$acc kernels default(present) async
@@ -328,9 +326,7 @@ contains
         call xy_files(cross)%get_pointer('ql', ql)
         call xy_files(cross)%get_pointer('buoy', buoy)
         call xy_files(cross)%get_pointer('e120', e12)
-      end do
 
-      do cross = 1, nxy
         k = crossheight(cross)
 
         !$acc kernels default(present) async
@@ -383,9 +379,7 @@ contains
           call yz_files(cross)%get_pointer('ql', ql)
           call yz_files(cross)%get_pointer('buoy', buoy)
           call yz_files(cross)%get_pointer('e120', e12)
-        end do
 
-        do cross = 1, nyz
           i = crossortho(cross) - 1
 
           !$acc kernels default(present) async
@@ -403,7 +397,7 @@ contains
               thl(j,k) = thlm(i,j,k)
               thv(j,k) = calc_virt_pot_temp(thlm(i,j,k), qtm(i,j,k), &
                                             ql0(i,j,k), exnf(k))
-              buoy(j,k) = thv(i,j) - thvf(k)
+              buoy(j,k) = thv(j,k) - thvf(k)
             end do
           end do
         end do

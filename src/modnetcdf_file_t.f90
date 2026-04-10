@@ -178,7 +178,9 @@ contains
 
     integer :: id !< Index of variable in variable list of this file
 
-    logical :: found = .false.
+    !we explicitly don't set. found=.false. at the declaration as this will persist the result of a search across calls...
+    logical :: found
+    found = .false.
 
     do id = 1, this%nvar
       if (trim(name) == trim(this%names(id,1))) then
@@ -422,7 +424,7 @@ contains
 
   end subroutine profiles_file_get_pointer
 
-  !> Constructor; initialize a NetCDF file containing time series data.
+  !> Constructor; initialize a NetCDF file containing cross section data.
   function cross_section_file_init(filename, nx, ny, nz, nzs, loc, lgpu) &
     result(this)
 
@@ -484,35 +486,94 @@ contains
 
     class(cross_section_file_t), intent(inout) :: this
 
-    integer :: n1, n2, ivar
+    character(len=*), parameter :: routine = modname//'/cross_section_file_open'
 
+    integer :: n1, n2, n3, ns, n1_file, n2_file, ivar
+    integer :: buffer_dim1_len, buffer_dim2_len
     type(mpi_comm), pointer :: comm
 
+    n1 = 0
+    n1_file = 0
+    n2 = 0
+    n2_file = 0
+    n3 = 0
+    ns = 0
+
     if (this%nvals_x > 0 .and. this%nvals_y > 0) then
+      ! Horizontal (XY) cross section
       n1 = this%nvals_x
+      n1_file = this%nx
       n2 = this%nvals_y
+      n2_file = this%ny
+
+      buffer_dim1_len = this%nvals_x
+      buffer_dim2_len = this%nvals_y
       comm => comm3d
-    else
-      if (this%nvals_x > 0) then
-        n1 = this%nvals_x
-        comm => commrow
-      else
-        n1 = this%nvals_y
-        comm => commcol
+
+      ! Point-type files have a specific vertical location (loc); cap extent to 1 level.
+      ! Non-point XY files have no vertical dimension, so n3 and ns stay 0.
+      if (this%loc > 0) then
+        if (this%nz  > 0) n3 = 1
+        if (this%nzs > 0) ns = 1
       end if
+
+    else if (this%nvals_x > 0) then
+      ! Vertical (XZ) cross section, sliced at a fixed y-location
+      n1 = this%nvals_x
+      n1_file = this%nx
+      buffer_dim1_len = this%nvals_x
+      comm => commrow
+
+      ! Point type: the y dimension collapses to a single cell
+      if (this%loc > 0) then
+        n2 = 1
+        n2_file = 1
+      end if
+
       if (this%nz > 0) then
-        n2 = this%nz
+        n3 = this%nz
+        buffer_dim2_len = this%nz
+      else if (this%nzs > 0) then
+        ns = this%nzs
+        buffer_dim2_len = this%nzs
       else
-        n2 = this%nzs
+        call finish(routine, 'File type not supported: no vertical dimension specified')
       end if
+
+    else if (this%nvals_y > 0) then
+      ! Vertical (YZ) cross section, sliced at a fixed x-location
+      n2 = this%nvals_y
+      n2_file = this%ny
+      buffer_dim1_len = this%nvals_y
+      comm => commcol
+
+      ! Point type: the x dimension collapses to a single cell
+      if (this%loc > 0) then
+        n1 = 1
+        n1_file = 1
+      end if
+
+      if (this%nz > 0) then
+        n3 = this%nz
+        buffer_dim2_len = this%nz
+      else if (this%nzs > 0) then
+        ns = this%nzs
+        buffer_dim2_len = this%nzs
+      else
+        call finish(routine, 'File type not supported: no vertical dimension specified')
+      end if
+
+    else
+      call finish(routine, 'point type file has to have either x or y dimension')
     end if
 
+    
     if (NC_HAVE_PARALLEL) then
-      call open_nc(this%filename, this%ncid, this%nrec, n1=n1, &
-                   n2=n2, n3=this%nz, ns=this%nzs, comm=comm)
+      call open_nc(this%filename, this%ncid, this%nrec, n1=n1_file, &
+                   n2=n2_file, n3=n3, ns=ns, comm=comm)
     else
       call open_nc(this%filename, this%ncid, this%nrec, n1=n1, &
-                   n2=n2, n3=this%nz, ns=this%nzs)
+                   n2=n2, n3=n3, ns=ns)
     end if
 
     call nctiminfo(this%timeinfo(1,:))
@@ -539,7 +600,7 @@ contains
 
     call define_nc(this%ncid, this%nvar, this%names, lcollective=.true.)
 
-    allocate(this%buffer(n1,n2,this%nvar))
+    allocate(this%buffer(buffer_dim1_len, buffer_dim2_len, this%nvar))
 
     do ivar = 1, this%nvar
       do n2 = 1, size(this%buffer, dim=2)
