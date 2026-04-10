@@ -204,10 +204,9 @@ subroutine initslurb
     if (.not. enable_slurb) then
         return
     end if
-    call warning(routine, "SLUrb module enabled. Keep in mind that calculation of effective albedo is not implemented yet!")
     call warning(routine, "SLUrb module enabled. Keep in mind that different building drag parametrizations have not been tested yet!")
     call warning(routine, "SLUrb module enabled. Keep in mind that moist_physics=false has not been tested yet!")
-    call warning(routine, "SLUrb module enabled. Only rrtmgp radiation has been tested with SLUrb!")
+    call warning(routine, "SLUrb module enabled. Only rrtmgp or rte-rrtmgp radiation has been tested with SLUrb!")
 
     call check_array([deep_soil_temperature],"deep_soil_temperature", routine, &
     threshold=[real(100.0_field_r,rkind),real( 400.0_field_r,rkind)], &
