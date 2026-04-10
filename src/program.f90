@@ -172,7 +172,7 @@ program DALES
                               swap_fields, exit_precursor, &
                               lprecursor, Nsim, statid, turid, refid
   use modcloudstat,    only: init_cloudstat, do_cloudstat
-  use modstat_nc_files, only: stats_limit_timestep, init_output_files, write_output_files
+  use modstat_nc_files, only: stats_limit_timestep, init_output_files, write_output_files, close_output_files
 !----------------------------------------------------------------
 !     0.2     USE STATEMENTS FOR TIMER MODULE
 !----------------------------------------------------------------
@@ -459,6 +459,7 @@ program DALES
   call exitnudgeboundary  !cstep
   call exitmodules
   call exit_profiles
+  call close_output_files
   call exitlogging
 
 

@@ -668,6 +668,7 @@ module daleslib
             use modnudge,           only : exitnudge
             use modnudgeboundary,   only : exitnudgeboundary
             use modcanopy,          only : exitcanopy
+            use modstat_nc_files,   only : close_output_files
 
             implicit none
 
@@ -691,6 +692,7 @@ module daleslib
             call exitheterostats
             call exitcanopy
             call exitmodules
+            call close_output_files
             call exitdaleslib
 
         end subroutine finalize
