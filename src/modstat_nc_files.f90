@@ -17,6 +17,7 @@ module modstat_nc_files
   public :: add_output_file
   public :: init_output_files
   public :: write_output_files
+  public :: close_output_files
   public :: stats_limit_timestep
 
   integer, parameter :: MAX_FILES = 10 !< Max number of NetCDF files.
