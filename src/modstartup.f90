@@ -1949,6 +1949,7 @@ contains
 
   !> Check prognostic variables before simulation
   subroutine check_initial_state()
+    use modglobal, only: lopenbc, i1, j1, kmax
     use modthermodynamics, only: lmoist
     use modfields, only: u0, v0, w0, thl0, qt0, sv0
     use modchecksim, only: lstop
@@ -1965,8 +1966,13 @@ contains
                      threshold=[real(-100, rkind), real(100, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
     call check_array(w0, 'w0', 'startup', &
                      threshold=[real(-30, rkind), real(30, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
-    call check_array(thl0, 'thl0', 'startup', &
-                     threshold=[real(150, rkind), real(2000, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
+    if (lopenbc) then
+      call check_array(thl0(2:i1,2:j1,1:kmax), 'thl0', 'startup', &
+                      threshold=[real(150, rkind), real(2000, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
+    else
+      call check_array(thl0, 'thl0', 'startup', &
+                      threshold=[real(150, rkind), real(2000, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
+    end if
     if (lmoist) call check_array(qt0, 'qt0', 'startup', &
                                  threshold=[real(0, rkind), real(1, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
 
