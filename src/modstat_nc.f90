@@ -1475,9 +1475,9 @@ contains
     integer, intent(in) :: status
 
     if(status /= nf90_noerr) then
-      ! print *, trim(nf90_strerror(status))
 #if defined(USE_NETCDF_DEBUG_ERRORS)
-      call print_netcdf_info(ncid)
+      ! in collective calls, this netcdf print info function can hang....
+      if (.not.NC_HAVE_PARALLEL) call print_netcdf_info(ncid)
 #endif
       call finish("modstat:", trim(nf90_strerror(status)))
     end if
@@ -1491,7 +1491,6 @@ contains
     integer, intent(in) :: status
 
     if(status /= nf90_noerr) then
-      ! print *, trim(nf90_strerror(status))
       call finish("modstat:", trim(nf90_strerror(status)))
     end if
 
@@ -1512,25 +1511,37 @@ contains
 
     integer :: ierr
     integer :: ndims, nvars, ngatts, unlimdimid
-    integer :: dimid, varid, vndims, i, dimlen
+    integer :: dimid, varid, vndims, i, dimlen, vnatts
+    integer :: attnum, atttype, attlen
     integer :: dimids(NF90_MAX_VAR_DIMS)
     character(len=NF90_MAX_NAME) :: dimname, varname
+    character(len=NF90_MAX_NAME) :: attname
     character(len=1024) :: dimlist
     character(len=1024) :: dimlenlist
     character(10) :: dimlenstr
 
     ierr = nf90_inquire(ncid, ndims, nvars, ngatts, unlimdimid)
     call nchandle_error(ierr)
+    write(*,'(a,i0)') 'Global attributes: ', ngatts
+    do attnum = 1, ngatts
+      ierr = nf90_inq_attname(ncid, NF90_GLOBAL, attnum, attname)
+      call nchandle_error(ierr)
+      ierr = nf90_inquire_attribute(ncid, NF90_GLOBAL, trim(attname), xtype=atttype, len=attlen)
+      call nchandle_error(ierr)
+      call print_attribute_summary(NF90_GLOBAL, trim(attname), atttype, attlen, '--')
+    end do
     write(*,'(a,i0)') 'Number of dimensions: ', ndims
     do dimid = 1, ndims
+      write(*,'(a,i0)') 'Inquiring dimension: ', dimid
       ierr = nf90_inquire_dimension(ncid, dimid, dimname, dimlen)
       call nchandle_error(ierr)
-      write(*,'(a,a,i0,a,i0)') trim(dimname), '(', dimlen, '), id=', dimid
+      write(*,'(a,a,a,i0,a,i0)') '  ', trim(dimname), '(', dimlen, '), id=', dimid
     end do
+    write(*,*) ''
     write(*,*) ''
     write(*,'(a,i0)') 'Number of variables: ', nvars
     do varid = 1, nvars
-      ierr = nf90_inquire_variable(ncid, varid, varname, ndims=vndims, dimids=dimids)
+      ierr = nf90_inquire_variable(ncid, varid, varname, ndims=vndims, dimids=dimids, natts=vnatts)
       call nchandle_error(ierr)
 
       dimlist = '('
@@ -1550,11 +1561,93 @@ contains
       dimlenlist = trim(dimlenlist) // ')'
 
       if (vndims > 0) then
-        write(*,'(a,a,a,a,i0)') trim(varname), trim(dimlist), trim(dimlenlist), ', id=', varid
+        write(*,'(a,a,a,a,a,i0)') '  ', trim(varname), trim(dimlist), trim(dimlenlist), ', id=', varid
       else
-        write(*,'(a,a,i0)') trim(varname), ', id=', varid
+        write(*,'(a,a,a,i0)') '  ', trim(varname), ', id=', varid
       end if
+      write(*,'(a,i0)') '    attributes: ', vnatts
+      do attnum = 1, vnatts
+        ierr = nf90_inq_attname(ncid, varid, attnum, attname)
+        call nchandle_error(ierr)
+        ierr = nf90_inquire_attribute(ncid, varid, trim(attname), xtype=atttype, len=attlen)
+        call nchandle_error(ierr)
+        call print_attribute_summary(varid, trim(attname), atttype, attlen, '------')
+      end do
     end do
+
+  contains
+
+    subroutine print_attribute_summary(target_varid, target_attname, attr_type, attr_len, indent)
+      implicit none
+      integer, intent(in) :: target_varid, attr_type, attr_len
+      character(*), intent(in) :: target_attname, indent
+
+      character(len=:), allocatable :: cval
+      real(real32), allocatable :: r4vals(:)
+      real(real64), allocatable :: r8vals(:)
+
+      write(*,'(a,a,a,a,a)') trim(indent), trim(target_attname), ' [', trim(nc_type_name(attr_type)), ']'
+
+      select case (attr_type)
+        case (NF90_CHAR)
+          if (attr_len > 0) then
+            allocate(character(len=attr_len) :: cval)
+            ierr = nf90_get_att(ncid, target_varid, target_attname, cval)
+            call nchandle_error(ierr)
+            write(*,'(a,a,a)') trim(indent)//'  = "', trim(cval), '"'
+            deallocate(cval)
+          else
+            write(*,'(a)') trim(indent)//'  = ""'
+          end if
+        case (NF90_FLOAT)
+          allocate(r4vals(attr_len))
+          ierr = nf90_get_att(ncid, target_varid, target_attname, r4vals)
+          call nchandle_error(ierr)
+          write(*,'(a)', advance='no') trim(indent)//'  = '
+          write(*,*) r4vals
+          deallocate(r4vals)
+        case (NF90_DOUBLE)
+          allocate(r8vals(attr_len))
+          ierr = nf90_get_att(ncid, target_varid, target_attname, r8vals)
+          call nchandle_error(ierr)
+          write(*,'(a)', advance='no') trim(indent)//'  = '
+          write(*,*) r8vals
+          deallocate(r8vals)
+      end select
+    end subroutine print_attribute_summary
+
+    function nc_type_name(xtype) result(name)
+      implicit none
+      integer, intent(in) :: xtype
+      character(len=16) :: name
+
+      select case (xtype)
+        case (NF90_CHAR)
+          name = 'char'
+        case (NF90_BYTE)
+          name = 'byte'
+        case (NF90_UBYTE)
+          name = 'ubyte'
+        case (NF90_SHORT)
+          name = 'short'
+        case (NF90_USHORT)
+          name = 'ushort'
+        case (NF90_INT)
+          name = 'int'
+        case (NF90_UINT)
+          name = 'uint'
+        case (NF90_INT64)
+          name = 'int64'
+        case (NF90_UINT64)
+          name = 'uint64'
+        case (NF90_FLOAT)
+          name = 'float'
+        case (NF90_DOUBLE)
+          name = 'double'
+        case default
+          name = 'unknown'
+      end select
+    end function nc_type_name
 
   end subroutine print_netcdf_info
   subroutine nctiminfo(info)
