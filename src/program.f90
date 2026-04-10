@@ -457,9 +457,9 @@ program DALES
   call exitcanopy
   call exittimestat
   call exitnudgeboundary  !cstep
+  call close_output_files
   call exitmodules
   call exit_profiles
-  call close_output_files
   call exitlogging
 
 

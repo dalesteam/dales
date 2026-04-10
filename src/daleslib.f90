@@ -691,8 +691,8 @@ module daleslib
             call exitlsmcrosssection
             call exitheterostats
             call exitcanopy
-            call exitmodules
             call close_output_files
+            call exitmodules
             call exitdaleslib
 
         end subroutine finalize
