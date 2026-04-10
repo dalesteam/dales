@@ -32,16 +32,16 @@ module modchecksim
   use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
 
   use fortran_support, only: int2string, real2string
-  use modprecision,   only: field_r
-  use modglobal,      only: longint, i1, j1,ih, jh, ijtot, kmax, dtmax, dx, dy, dzf, dzh, &
-                            dt_reason, ifnamopt, checknamelisterror, tres, btime, &
-                            ladaptive, timee, rtimee, rk3step, rdt, fname_options, timeleft, ntrun
-  use modfields,      only: u0, v0, w0, qt0, thl0, e120, qtp, thlp, rhobf, rhobh
-  use modsubgriddata, only: ekm
-  use modmpi,         only: myid, comm3d, mpierr, mpi_sum, mpi_max, D_MPI_ALLREDUCE, &
-                            D_MPI_BCAST, MPI_Wtime, nprocx, nprocy
+  use modprecision,    only: field_r
+  use modglobal,       only: longint, i1, j1,ih, jh, ijtot, kmax, dtmax, dx, dy, dzf, dzh, &
+                             dt_reason, ifnamopt, checknamelisterror, tres, btime, &
+                             ladaptive, timee, rtimee, rk3step, rdt, fname_options, timeleft, ntrun
+  use modfields,       only: u0, v0, w0, qt0, thl0, e120, qtp, thlp, rhobf, rhobh
+  use modsubgriddata,  only: ekm
+  use modmpi,          only: myid, comm3d, mpierr, mpi_sum, mpi_max, D_MPI_ALLREDUCE, &
+                             D_MPI_BCAST, MPI_Wtime, nprocx, nprocy
   use modtimer
-  use modlogging, only: finish
+  use modlogging,      only: finish
 
   implicit none
 
