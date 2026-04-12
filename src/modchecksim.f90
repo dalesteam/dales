@@ -31,17 +31,17 @@ module modchecksim
   use, intrinsic :: iso_fortran_env, only: real64, real32
   use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
 
-  use modprecision,   only: field_r
-  use modglobal,      only: longint, i1, j1,ih, jh, ijtot, kmax, dtmax, dx, dy, dzf, dzh, &
-                            dt_reason, ifnamopt, checknamelisterror, tres, btime, &
-                            ladaptive, timee, rtimee, rk3step, rdt, fname_options, timeleft, ntrun
-  use modfields,      only: u0, v0, w0, qt0, thl0, e120, qtp, thlp, rhobf, rhobh
-  use modsubgriddata, only: ekm
-  use modstringutils, only: number2string
-  use modmpi,         only: myid, comm3d, mpierr, mpi_sum, mpi_max, D_MPI_ALLREDUCE, &
-                            D_MPI_BCAST, MPI_Wtime, nprocx, nprocy
+  use fortran_support, only: int2string, real2string
+  use modprecision,    only: field_r
+  use modglobal,       only: longint, i1, j1,ih, jh, ijtot, kmax, dtmax, dx, dy, dzf, dzh, &
+                             dt_reason, ifnamopt, checknamelisterror, tres, btime, &
+                             ladaptive, timee, rtimee, rk3step, rdt, fname_options, timeleft, ntrun
+  use modfields,       only: u0, v0, w0, qt0, thl0, e120, qtp, thlp, rhobf, rhobh
+  use modsubgriddata,  only: ekm
+  use modmpi,          only: myid, comm3d, mpierr, mpi_sum, mpi_max, D_MPI_ALLREDUCE, &
+                             D_MPI_BCAST, MPI_Wtime, nprocx, nprocy
   use modtimer
-  use modlogging, only: finish
+  use modlogging,      only: finish
 
   implicit none
 
@@ -373,9 +373,9 @@ contains
     do i = 1, size(array, dim=1)
       val = array(i)
       if ((val < threshold(1) .or. val > threshold(2))) then
-        cval = number2string(val)
+        cval = int2string(val)
         call print_warning_out_of_range(name, step, [i], cval, &
-                [number2string(threshold(1)), number2string(threshold(2))])
+                [int2string(threshold(1)), int2string(threshold(2))])
       else
         cycle
       end if
@@ -409,13 +409,13 @@ contains
     do i = 1, size(array, dim=1)
       val = array(i)
       if (.not. ieee_is_finite(val)) then
-        cval = number2string(val)
+        cval = real2string(val)
         call print_warning_non_finite(name, step, [i], cval)
       else if (present(threshold)) then
         if (val < threshold(1) .or. val > threshold(2)) then
-          cval = number2string(val)
+          cval = real2string(val)
           call print_warning_out_of_range(name, step, [i], cval, &
-                  [number2string(threshold(1)), number2string(threshold(2))])
+                  [real2string(threshold(1)), real2string(threshold(2))])
           else
             cycle
           end if
@@ -452,13 +452,13 @@ contains
     do i = 1, size(array, dim=1)
       val = array(i)
       if (.not. ieee_is_finite(val)) then
-        cval = number2string(val)
+        cval = real2string(val)
         call print_warning_non_finite(name, step, [i], cval)
       else if (present(threshold)) then
         if (val < threshold(1) .or. val > threshold(2)) then
-          cval = number2string(val)
+          cval = real2string(val)
           call print_warning_out_of_range(name, step, [i], cval, &
-                  [number2string(threshold(1)), number2string(threshold(2))])
+                  [real2string(threshold(1)), real2string(threshold(2))])
           else
             cycle
           end if
@@ -495,9 +495,9 @@ contains
       do i = 1, size(array, dim=1)
         val = array(i,j)
         if ((val < threshold(1) .or. val > threshold(2))) then
-          cval = number2string(val)
+          cval = int2string(val)
           call print_warning_out_of_range(name, step, [i, j], cval, &
-                  [number2string(threshold(1)), number2string(threshold(2))])
+                  [int2string(threshold(1)), int2string(threshold(2))])
         else
           cycle
         end if
@@ -533,13 +533,13 @@ contains
       do i = 1, size(array, dim=1)
         val = array(i,j)
         if (.not. ieee_is_finite(val)) then
-          cval = number2string(val)
+          cval = real2string(val)
           call print_warning_non_finite(name, step, [i, j], cval)
         else if (present(threshold)) then
           if (val < threshold(1) .or. val > threshold(2)) then
-            cval = number2string(val)
+            cval = real2string(val)
             call print_warning_out_of_range(name, step, [i, j], cval, &
-                    [number2string(threshold(1)), number2string(threshold(2))])
+                    [real2string(threshold(1)), real2string(threshold(2))])
           else
             cycle
           end if
@@ -578,13 +578,13 @@ contains
       do i = 1, size(array, dim=1)
         val = array(i,j)
         if (.not. ieee_is_finite(val)) then
-          cval = number2string(val)
+          cval = real2string(val)
           call print_warning_non_finite(name, step, [i, j], cval)
         else if (present(threshold)) then
           if (val < threshold(1) .or. val > threshold(2)) then
-            cval = number2string(val)
+            cval = real2string(val)
             call print_warning_out_of_range(name, step, [i, j], cval, &
-                    [number2string(threshold(1)), number2string(threshold(2))])
+                    [real2string(threshold(1)), real2string(threshold(2))])
           else
             cycle
           end if
@@ -627,9 +627,9 @@ contains
         do i = 1, size(array, dim=1)
           val = array(i,j,k)
           if ((val < threshold(1) .or. val > threshold(2))) then
-            cval = number2string(val)
+            cval = int2string(val)
             call print_warning_out_of_range(name, step, [i, j, k], cval, &
-                    [number2string(threshold(1)), number2string(threshold(2))])
+                    [int2string(threshold(1)), int2string(threshold(2))])
           else
             cycle
           end if
@@ -674,13 +674,13 @@ contains
         do i = 1, size(array, dim=1)
           val = array(i,j,k)
           if (.not. ieee_is_finite(val)) then
-            cval = number2string(val)
+            cval = real2string(val)
             call print_warning_non_finite(name, step, [i, j, k], cval)
           else if (present(threshold)) then
             if (val < threshold(1) .or. val > threshold(2)) then
-              cval = number2string(val)
+              cval = real2string(val)
               call print_warning_out_of_range(name, step, [i, j, k], cval, &
-                      [number2string(threshold(1)), number2string(threshold(2))])
+                      [real2string(threshold(1)), real2string(threshold(2))])
             else
               cycle
             end if
@@ -728,13 +728,13 @@ contains
         do i = 1, size(array, dim=1)
           val = array(i,j,k)
           if (.not. ieee_is_finite(val)) then
-            cval = number2string(val)
+            cval = real2string(val)
             call print_warning_non_finite(name, step, [i, j, k], cval)
           else if (present(threshold)) then
             if (val < threshold(1) .or. val > threshold(2)) then
-              cval = number2string(val)
+              cval = real2string(val)
               call print_warning_out_of_range(name, step, [i, j, k], cval, &
-                      [number2string(threshold(1)), number2string(threshold(2))])
+                      [real2string(threshold(1)), real2string(threshold(2))])
             else
               cycle
             end if
@@ -798,12 +798,12 @@ contains
     k = loc(3)
 
     write(0, '(7(a,/))')"Prognostic variables:", &
-      & "u   = "//number2string(u0(i,j,k)), &
-      & "v   = "//number2string(v0(i,j,k)), &
-      & "w   = "//number2string(w0(i,j,k)), &
-      & "qt  = "//number2string(qt0(i,j,k)), &
-      & "thl = "//number2string(thl0(i,j,k)), &
-      & "e12 = "//number2string(e120(i,j,k))
+      & 'u   = '//real2string(u0(i,j,k)), &
+      & 'v   = '//real2string(v0(i,j,k)), &
+      & 'w   = '//real2string(w0(i,j,k)), &
+      & 'qt  = '//real2string(qt0(i,j,k)), &
+      & 'thl = '//real2string(thl0(i,j,k)), &
+      & 'e12 = '//real2string(e120(i,j,k))
 
   end subroutine dump_state
 
