@@ -176,7 +176,6 @@ contains
 ! +=+=+=+=+=+=+=+= End of reading and initialization stage =+=+=++=+=+=+=+=+=+=+=++ !
 
     ! initialize some RRTMG input arrays
-    emis = 0.95
     taucldlw = 0
     tauaerlw = 0
     taucldsw = 0
@@ -203,7 +202,7 @@ contains
     do j=2,j1
       call setupSlicesFromProfiles &
            ( j, npatch_start, &                                           !input
-           LWP_slice, IWP_slice, cloudFrac, liquidRe, iceRe )             !output
+           LWP_slice, IWP_slice, cloudFrac, liquidRe, iceRe, emis )             !output
 
       if (rad_longw) then
         call rrtmg_lw & !comments = corresponding variable names in the RRTMGP library
@@ -626,7 +625,7 @@ contains
 #ifdef USE_RRTMG
 
   subroutine setupSlicesFromProfiles(j,npatch_start, &
-           LWP_slice,IWP_slice,cloudFrac,liquidRe,iceRe)
+           LWP_slice,IWP_slice,cloudFrac,liquidRe,iceRe,emis)
   !=============================================================================!
   ! This subroutine sets up 2D (xz) slices of different variables:              !
   ! tabs,qv,qcl,qci(=0),tg,layerP,interfaceP,layerT,interfaceT,LWP,IWP(=0),     !
@@ -641,7 +640,7 @@ contains
 
       use modglobal, only: imax,jmax,kmax,i1,grav,kind_rb,rlv,cp,Rd,pref0,tup,tdn
       use modfields, only: thl0,ql0,qt0,exnf,rhof
-      use modsurfdata, only: tskin,ps,albedo
+      use modsurfdata, only: tskin,ps,albedo,emissivity
       use modmicrodata, only : Nc_0,sig_g
 
       implicit none
@@ -651,7 +650,8 @@ contains
                                            IWP_slice(imax,krad1), &
                                            cloudFrac(imax,krad1), &
                                            liquidRe (imax,krad1), &
-                                           iceRe    (imax,krad1)
+                                           iceRe    (imax,krad1), &
+                                           emis     (imax,krad1)
       integer :: i,k,ksounding,im
       real(KIND=kind_rb) :: exners
       real(KIND=kind_rb) :: layerMass(imax,krad1)
@@ -694,6 +694,11 @@ contains
         tg_slice  (im)   = tskin(i,j) * exners  ! Note: tskin = thlskin...
 
         do k=1,kmax
+          ! Surface emissivity for all bands set from modsurface.
+          ! Currently this is calculated every radiation call, want to move this to initradiation ideally,
+          ! but we need to allow modslurb to initialize to get the emissivity...
+           emis      (im,k) = emissivity(i,j)
+
            qv_slice  (im,k) = max(qt0(i,j,k) - ql0(i,j,k),1e-18_field_r) !avoid RRTMG reading negative initial values
 
            ilratio  = max(0.,min(1.,(tabs_slice(im,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning

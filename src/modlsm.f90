@@ -1044,9 +1044,9 @@ subroutine calc_bulk_bcs
     use modmpi,      only : excjs
     use modopenboundary, only : openboundary_excjs
     use modsurfdata, only : &
-        H, LE, G0, tskin, qskin, thlflux, qtflux, dthldz, dqtdz, &
+        H, LE, G0, tskin, tskin_radiative, qskin, thlflux, qtflux, dthldz, dqtdz, &
         dudz, dvdz, ustar, obl, cliq, ra, rsveg, rssoil, Qnet
-    use modslurb, only : fraction_slurb, slurb_tile
+    use modslurb, only : fraction_slurb, slurb_tile, enable_slurb
     implicit none
 
     integer :: i, j
@@ -1093,10 +1093,16 @@ subroutine calc_bulk_bcs
         do i=2,i1
             do ilu=1,nlu
                 if (tile(ilu)%lushort == "slb") then
+                    ! we treat the urban canyon and roof separately. SHF and LE have been aggregated in the urban tile already.
+                    ! we calculate thlskin/qtskin in slurb as the weighted average of roof and canyon skin temperature/humidity, which
+                    ! are each calculated like an individual LSM tile is calculated, with their own resistances.
+                    ! note that we will later subtract the urban contribution to the skin temperature, to later add the 
+                    ! urban radiative temperature instead.
                     H(i,j)      = H(i,j)     + fraction_slurb(i,j) * slurb_tile%shf_urb(i,j)
                     LE(i,j)     = LE(i,j)    + fraction_slurb(i,j) * slurb_tile%qsws_urb(i,j)
                     ! G0(i,j)     = G0(i,j)    + tile(ilu)%frac(i,j) * tile(ilu)%G(i,j)
-                    ustar(i,j)  = ustar(i,j) + fraction_slurb(i,j) * slurb_tile%us_urb(i,j)
+                    ustar(i,j)  = ustar(i,j) + fraction_slurb(i,j) * (slurb_tile%f_bld(i,j) * slurb_tile%us_roof(i,j) &
+                                                                + (1 - slurb_tile%f_bld(i,j)) * slurb_tile%us_can(i,j))
                     tskin(i,j)  = tskin(i,j) + fraction_slurb(i,j) * slurb_tile%thlskin(i,j)
                     qskin(i,j)  = qskin(i,j) + fraction_slurb(i,j) * slurb_tile%qtskin(i,j)
                     albedo(i,j) = albedo(i,j) + fraction_slurb(i,j) * slurb_tile%albedo_urb(i,j)
@@ -1114,6 +1120,15 @@ subroutine calc_bulk_bcs
         enddo
     enddo
 
+    if (enable_slurb) then
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=2,j1
+        do i=2,i1
+            ! we subtract the urban contribution to the skin temperature, to add the urban radiative temperature instead.
+            tskin_radiative(i,j) = tskin(i,j) - fraction_slurb(i,j) * slurb_tile%thlskin(i,j) + fraction_slurb(i,j) * slurb_tile%thl_rad_urb(i,j)
+        enddo
+    enddo
+    end if
     !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
         do i=2,i1
@@ -2418,9 +2433,10 @@ subroutine init_heterogeneous_nc
     use modmpi,      only : myid, myidx, myidy
     use modglobal,   only : imax, jmax, itot, jtot, ldrydep
 
-    use modsurfdata, only : tsoil, tskin, phiw, wl, wlm, wmax, albedoav
+    use modsurfdata, only : tsoil, tskin, tskin_radiative, phiw, wl, wlm, wmax, albedoav
     use modlogging, only : profile_output
     use modstat_nc, only: read_nc_field
+    use modslurb, only: enable_slurb
     implicit none
     character(len=*), parameter :: routine = modname//'/init_heterogeneous_nc'
 
@@ -2778,6 +2794,9 @@ subroutine init_heterogeneous_nc
         if (tile(ilu)%lushort == "slb") then; cycle; endif
        tskin(:,:) = tskin(:,:) + tile(ilu)%base_frac(:,:) * tile(ilu)%tskin(:,:)
     end do
+    if (enable_slurb) then
+        tskin_radiative(:,:) = tskin(:,:)
+    end if 
 
     ! initialize frac to base_frac (for now the dynamic wet skin is not done unless ldrydep is true)
     do ilu=1,nlu

@@ -60,11 +60,11 @@ module modslurbdata
         real(field_r), allocatable ::  t_2m_urb(:,:)        !< urban 2-metre temperature (extrapolated) (K)
         real(field_r), allocatable ::  t_c_urb(:,:)         !< complete (area-weighted) urban surface temperature (K)
         real(field_r), allocatable ::  t_h_urb(:,:)         !< effective urban surface temperature (K)
-        real(field_r), allocatable ::  t_rad_urb(:,:)       !< urban radiative surface temperature (K)
+        real(field_r), allocatable ::  thl_rad_urb(:,:)       !< urban radiative surface temperature (K)
         real(field_r), allocatable ::  usws_urb(:,:)        !< urban momentum flux (u-component) (kg m^-1 s^-2)
         real(field_r), allocatable ::  vsws_urb(:,:)        !< urban momentum flux (v-component) (kg m^-1 s^-2)
-        real(field_r), allocatable ::  thlskin(:,:)         !< urban skin liquid water potential temperature (K)
-        real(field_r), allocatable ::  qtskin(:,:)          !< urban skin specific humidity TODOSELF (kg kg^-1)
+        real(field_r), allocatable ::  thlskin(:,:)         !< weighted urban roof + canopy liquid water potential temperature (K)
+        real(field_r), allocatable ::  qtskin(:,:)          !< weighted urban roof + canopy specific humidity TODOSELF (kg kg^-1)
         !
         !--    Model prognostic variables.
         real(field_r), allocatable ::  m_liq_road_0(:,:)  !< liquid water reservoir on roads (m^3 m^-2)

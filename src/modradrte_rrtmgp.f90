@@ -250,7 +250,7 @@ contains
       ! Allocate source term and define emissivity
       call stop_on_err(sources_lw%alloc(ncol, nlay, k_dist_lw))
       allocate(emis(nbndlw,ncol))
-      emis=0.95
+      ! we set emis from the surface data now, so emis is initialized later on
       !$acc enter data copyin(emis, sources_lw)
       !$acc enter data create(sources_lw%lay_source, sources_lw%lev_source, &
       !$acc&                  sources_lw%sfc_source, sources_lw%sfc_source_Jac)
@@ -330,6 +330,7 @@ contains
       call setupColumnProfiles(ibatch)
 
       if(rad_longw) then
+        call setupEmis(ibatch)
         ! Compute optical properties and source
         call timer_tic('modradrte_rrtmgp/lwgasoptics', 0)
         call stop_on_err(k_dist_lw%gas_optics(layerP, interfaceP, & ! p_lay, p_lev (in, Pa)
@@ -783,5 +784,26 @@ contains
     end if
 
   end subroutine setupSW
+
+  subroutine setupEmis(ibatch)
+    use modglobal,   only : imax,jmax,i1
+    use modsurfdata, only : emissivity
+
+    implicit none
+
+    integer, intent(in) :: ibatch
+    integer :: jstart, jend
+    integer :: i, j, icol
+    ! Set up j indices to be treated. We need to set the emissivity correctly.
+    jstart = (ibatch-1) * jmax/nbatch + 2
+    jend   =  ibatch    * jmax/nbatch + 1
+      !$acc parallel loop collapse(2) default(present) private(icol)
+      do j=jstart, jend
+        do i=2,i1 !i1=imax+1
+          icol=i-1+(j-jstart)*imax
+          emis(:,icol) = emissivity(i,j)
+        enddo
+      enddo
+  end subroutine setupEmis
 
 end module modradrte_rrtmgp
