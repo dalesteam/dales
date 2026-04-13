@@ -291,8 +291,8 @@ end subroutine exitslurb
 
             du = 0.5*(u0(i,j,1) + u0(i+1,j,1)) + cu
             dv = 0.5*(v0(i,j,1) + v0(i,j+1,1)) + cv
-            slurb_tile%uv_abs1(i,j) = sqrt(du**2 + dv**2)
-            ! slurb_tile%uv_abs1(i,j) = max(0.1, sqrt(du**2 + dv**2)) DALES VERSION
+            ! slurb_tile%uv_abs1(i,j) = sqrt(du**2 + dv**2)
+            slurb_tile%uv_abs1(i,j) = max(0.1, sqrt(du**2 + dv**2))! DALES VERSION
 
 
 
@@ -318,7 +318,7 @@ end subroutine exitslurb
             ! m/s = (m^3 s^-3)^(1/3)
             ws = ( g / slurb_tile%pt1(i,j) * slurb_tile%z_mo(i,j) * vtws )**( 1.0_field_r / 3.0_field_r )  ! (m s^-1)
 
-            slurb_tile%uv_eff1(i, j) = sqrt(du**2 + dv**2 + ws**2)
+            slurb_tile%uv_eff1(i, j) = max(0.1, sqrt(du**2 + dv**2 + ws**2)) ! DALES VERSION
         enddo
     enddo
 
@@ -390,7 +390,7 @@ end subroutine slurb_update_external_vars
     !-- Urban surface and street canyon MOST heights.
     do j=2,j1
       do i=2,i1
-       slurb_tile%z_mo(i,j) = 0.5_field_r * (zf(2) - zf(1)) ! (m)
+       slurb_tile%z_mo(i,j) = zf(1) ! (m)
     !    slurb_tile%z_mo(i,j) = 0.5_field_r *  dzw(topo_top_ind(j,i,0)+1)
        slurb_tile%z_mo_can(i,j) = 0.5_field_r * slurb_tile%h_bld(i,j) ! (m)
       enddo
@@ -812,8 +812,8 @@ end subroutine slurb_update_external_vars
 
         du = 0.5*(u0(i,j,1) + u0(i+1,j,1)) + cu
         dv = 0.5*(v0(i,j,1) + v0(i,j+1,1)) + cv
-        slurb_tile%uv_abs1(i,j) = sqrt(du**2 + dv**2)
-        ! slurb_tile%uv_abs1(i,j) = max(0.1, sqrt(du**2 + dv**2)) DALES VERSION
+        ! slurb_tile%uv_abs1(i,j) = sqrt(du**2 + dv**2)
+        slurb_tile%uv_abs1(i,j) = max(0.1, sqrt(du**2 + dv**2))! DALES VERSION
         slurb_tile%uv_eff1(i,j) = slurb_tile%uv_abs1(i,j)
 
 
@@ -970,7 +970,6 @@ end subroutine slurb_update_external_vars
     !--    proper assignment by the model, the respective variable should be added to restart routines,
     !--    and given a proper intialization.
         slurb_tile%albedo_urb(i,j)     = 0.0_field_r
-        slurb_tile%emiss_urb(i,j)      = 1.0_field_r
         slurb_tile%rad_lw_in_urb(i,j)  = 0.0_field_r
         slurb_tile%rad_lw_out_urb(i,j) = 0.0_field_r
         slurb_tile%rad_sw_in_urb(i,j)  = 0.0_field_r
@@ -980,7 +979,7 @@ end subroutine slurb_update_external_vars
         slurb_tile%t_2m_urb(i,j)       = 0.0_field_r
         slurb_tile%t_c_urb(i,j)        = 0.0_field_r
         slurb_tile%t_h_urb(i,j)        = 0.0_field_r
-        slurb_tile%t_rad_urb(i,j)      = 0.0_field_r
+        slurb_tile%thl_rad_urb(i,j)    = 0.0_field_r
         slurb_tile%usws_urb(i,j)       = 0.0_field_r
         slurb_tile%vsws_urb(i,j)       = 0.0_field_r
 
@@ -1080,6 +1079,7 @@ END SUBROUTINE init_slurb_variables
 
     use modfields, only: rhof
     use modglobal, only: rhow, rlv, i1, j1, boltz
+    use modsurface, only: emissivity
     use modmpi, only: comm3d
 
     use modmpi, only: comm3d, mpierr,mpi_min, D_MPI_ALLREDUCE
@@ -1124,8 +1124,8 @@ END SUBROUTINE init_slurb_variables
                 slurb_tile%conductivity_win(k,i,j) = 2.0_field_r / ( slurb_tile%dz_win(k,i,j)   / slurb_tile%lambda_win(k,i,j) +      &
                                                         slurb_tile%dz_win(k+1,i,j) / slurb_tile%lambda_win(k+1,i,j) )
             ENDDO
-            slurb_tile%conductivity_win(nzb_wall,i,j) = 2.0_field_r * slurb_tile%lambda_wall(nzb_win,i,j) /                  &
-                                                slurb_tile%dz_wall(nzb_win,i,j)
+            slurb_tile%conductivity_win(nzb_win,i,j) = 2.0_field_r * slurb_tile%lambda_win(nzb_win,i,j) /                  &
+                                                slurb_tile%dz_win(nzb_win,i,j)
 
         !
         !--    For the road, the last conductance depends on the soil conductance, so we need to
@@ -1166,6 +1166,12 @@ END SUBROUTINE init_slurb_variables
         enddo
     ENDDO
 
+    ! apply the urban emissivity to the overall emissivity
+    do j=2,j1
+        do i=2,i1
+            emissivity(i,j) = fraction_slurb(i,j) * slurb_tile%emiss_urb(i,j) + ( 1.0_field_r - fraction_slurb(i,j) ) * emissivity(i,j)
+        end do
+    end do
     !
     !-- Preompute the longwave interaction coefficients for surface elements as these are
     !-- static in time. Based on Johnson et al. (1991) general formula. Absorption from reflected
@@ -1682,10 +1688,9 @@ SUBROUTINE slurb_canyon_model
 
         rhocp_i = 1. / (rhof(1) * cp)
         rholv_i = 1. / (rhof(1) * rlv)
-        ! Calculate surface values
-        slurb_tile%thlskin(i,j) = thl0(i,j,1) + (slurb_tile%shf_urb(i,j) * rhocp_i) * slurb_tile%ram_urb(i,j)
-        slurb_tile%qtskin (i,j) = qt0(i,j,1) + (slurb_tile%qsws_urb(i,j) * rholv_i) * slurb_tile%ram_urb(i,j)
-
+        ! Calculate surface values. These are weighted, to fit in the LSM tile construct
+        slurb_tile%thlskin(i,j) = slurb_tile%f_bld(i,j) * (thl0(i,j,1) + (slurb_tile%shf_roof(i,j) * rhocp_i) * slurb_tile%rah_roof(i,j)) + (1.0_field_r - slurb_tile%f_bld(i,j)) * (thl0(i,j,1) + (slurb_tile%shf_can(i,j) * rhocp_i) * slurb_tile%rah_can(i,j))
+        slurb_tile%qtskin(i,j) = slurb_tile%f_bld(i,j) * (qt0(i,j,1) + (slurb_tile%qsws_roof(i,j) * rholv_i) * slurb_tile%rah_roof(i,j)) + (1.0_field_r - slurb_tile%f_bld(i,j)) * (qt0(i,j,1) + (slurb_tile%qsws_can(i,j) * rholv_i) * slurb_tile%rah_can(i,j))
       enddo
     enddo
 
@@ -1707,6 +1712,7 @@ SUBROUTINE slurb_canyon_model
     !--------------------------------------------------------------------------------------------------!
  SUBROUTINE calc_urban_aggregated_temperatures
     use modglobal, only : boltz, rlv, cp
+    use modfields, only: exnh
     use modslurb_resistance_stability, only: psi_h, psi_m
     REAL(field_r) ::  c_h_roof    !< bulk heat transfer coefficient for roof (J kg^-1 K^-1)
     REAL(field_r) ::  c_h_wall_a  !< bulk heat transfer coefficient for wall a (J kg^-1 K^-1)
@@ -1770,7 +1776,7 @@ SUBROUTINE slurb_canyon_model
 
     !
     !-- 2) Radiative surface temperature T_rad.
-    slurb_tile%t_rad_urb(i,j) = SQRT( SQRT( slurb_tile%rad_lw_out_urb(i,j) / ( slurb_tile%emiss_urb(i,j) * boltz ) ) )
+    slurb_tile%thl_rad_urb(i,j) = SQRT( SQRT( slurb_tile%rad_lw_out_urb(i,j) / ( slurb_tile%emiss_urb(i,j) * boltz ) ) ) / exnh(1)
 
     !
     !-- 3) Complete surface temperature T_C, similarly to T_H but without the C_h weighting.

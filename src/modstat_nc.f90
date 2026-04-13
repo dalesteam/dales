@@ -52,6 +52,11 @@ module modstat_nc
 
     integer, save :: timeID=0, ztID=0, zmID=0, xtID=0, xmID=0, ytID=0, ymID=0,ztsID=0, zqID=0
     real(kind=4) :: nc_fillvalue = -999.
+
+    interface nchandle_error
+      module procedure nchandle_error_print
+      module procedure nchandle_error_noprint
+    end interface nchandle_error
 !> The only interface necessary to write data to netcdf, regardless of the dimensions.
     interface writestat_nc
       module procedure writestat_time_nc
@@ -102,6 +107,9 @@ module modstat_nc
 
     private :: modname
     private :: finish
+
+    private :: nchandle_error_noprint
+    private :: nchandle_error_print
 
 contains
 
@@ -179,61 +187,61 @@ contains
         end if
       end if
 
-      call nchandle_error(nf90_put_att(ncid,NF90_GLOBAL,'title',fname))
-      call nchandle_error(nf90_put_att(ncid,NF90_GLOBAL,'history','Created on '//trim(date)//' at '//trim(time)))
-      call nchandle_error(nf90_put_att(ncid, NF90_GLOBAL, 'Source',trim(version)//' git: '//trim(git_version)))
-      call nchandle_error(nf90_put_att(ncid, NF90_GLOBAL, 'Author',trim(author)))
-      call nchandle_error(nf90_def_dim(ncID, 'time', NF90_UNLIMITED, timeID))
+      call nchandle_error(ncid,nf90_put_att(ncid,NF90_GLOBAL,'title',fname))
+      call nchandle_error(ncid,nf90_put_att(ncid,NF90_GLOBAL,'history','Created on '//trim(date)//' at '//trim(time)))
+      call nchandle_error(ncid,nf90_put_att(ncid, NF90_GLOBAL, 'Source',trim(version)//' git: '//trim(git_version)))
+      call nchandle_error(ncid,nf90_put_att(ncid, NF90_GLOBAL, 'Author',trim(author)))
+      call nchandle_error(ncid,nf90_def_dim(ncID, 'time', NF90_UNLIMITED, timeID))
       if (present(n1)) then
         if (n1 > 0) then
-          call nchandle_error(nf90_def_dim(ncID, 'xt', n1, xtID))
-          call nchandle_error(nf90_def_dim(ncID, 'xm', n1, xmID))
-          call nchandle_error(nf90_def_var(ncID,'xt',NF90_FLOAT,xtID ,VarID))
-          call nchandle_error(nf90_put_att(ncID,VarID,'long_name','West-East displacement of cell centers'))
-          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
-          call nchandle_error(nf90_def_var(ncID,'xm',NF90_FLOAT,xmID,VarID))
-          call nchandle_error(nf90_put_att(ncID,VarID,'long_name','West-East displacement of cell edges'))
-          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+          call nchandle_error(ncid,nf90_def_dim(ncID, 'xt', n1, xtID))
+          call nchandle_error(ncid,nf90_def_dim(ncID, 'xm', n1, xmID))
+          call nchandle_error(ncid,nf90_def_var(ncID,'xt',NF90_FLOAT,xtID ,VarID))
+          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','West-East displacement of cell centers'))
+          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
+          call nchandle_error(ncid,nf90_def_var(ncID,'xm',NF90_FLOAT,xmID,VarID))
+          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','West-East displacement of cell edges'))
+          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
         end if
       end if
       if (present(n2)) then
         if (n2 > 0) then
-          call nchandle_error(nf90_def_dim(ncID, 'yt', n2, ytID))
-          call nchandle_error(nf90_def_dim(ncID, 'ym', n2, ymID))
-          call nchandle_error(nf90_def_var(ncID,'yt',NF90_FLOAT,ytID ,VarID))
-          call nchandle_error(nf90_put_att(ncID,VarID,'long_name','South-North displacement of cell centers'))
-          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
-          call nchandle_error(nf90_def_var(ncID,'ym',NF90_FLOAT,ymID,VarID))
-          call nchandle_error(nf90_put_att(ncID,VarID,'long_name','South-North displacement of cell edges'))
-          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+          call nchandle_error(ncid,nf90_def_dim(ncID, 'yt', n2, ytID))
+          call nchandle_error(ncid,nf90_def_dim(ncID, 'ym', n2, ymID))
+          call nchandle_error(ncid,nf90_def_var(ncID,'yt',NF90_FLOAT,ytID ,VarID))
+          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','South-North displacement of cell centers'))
+          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
+          call nchandle_error(ncid,nf90_def_var(ncID,'ym',NF90_FLOAT,ymID,VarID))
+          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','South-North displacement of cell edges'))
+          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
         end if
       end if
       if (present(n3)) then
         if (n3 > 0) then
-          call nchandle_error(nf90_def_dim(ncID, 'zt', n3, ztID))
-          call nchandle_error(nf90_def_dim(ncID, 'zm', n3, zmID))
-          call nchandle_error(nf90_def_var(ncID,'zt',NF90_FLOAT,(/ztID/) ,VarID))
-          call nchandle_error(nf90_put_att(ncID,VarID,'long_name','Vertical displacement of cell centers'))
-          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
-          call nchandle_error(nf90_def_var(ncID,'zm',NF90_FLOAT,(/zmID/),VarID))
-          call nchandle_error(nf90_put_att(ncID,VarID,'long_name','Vertical displacement of cell edges'))
-          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+          call nchandle_error(ncid,nf90_def_dim(ncID, 'zt', n3, ztID))
+          call nchandle_error(ncid,nf90_def_dim(ncID, 'zm', n3, zmID))
+          call nchandle_error(ncid,nf90_def_var(ncID,'zt',NF90_FLOAT,(/ztID/) ,VarID))
+          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','Vertical displacement of cell centers'))
+          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
+          call nchandle_error(ncid,nf90_def_var(ncID,'zm',NF90_FLOAT,(/zmID/),VarID))
+          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','Vertical displacement of cell edges'))
+          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
         end if
       end if
       if (present(ns)) then
         if (ns > 0) then
-          call nchandle_error(nf90_def_dim(ncID, 'zts', ns, ztsID))
-          call nchandle_error(nf90_def_var(ncID,'zts',NF90_FLOAT,(/ztsID/) ,VarID))
-          call nchandle_error(nf90_put_att(ncID,VarID,'long_name','Soil level depth of cell centers'))
-          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+          call nchandle_error(ncid,nf90_def_dim(ncID, 'zts', ns, ztsID))
+          call nchandle_error(ncid,nf90_def_var(ncID,'zts',NF90_FLOAT,(/ztsID/) ,VarID))
+          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','Soil level depth of cell centers'))
+          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
         end if
       end if
       if (present(nq)) then
         if (nq > 0) then
-          call nchandle_error(nf90_def_dim(ncID, 'zq', nq, zqID))
-          call nchandle_error(nf90_def_var(ncID,'zq',NF90_FLOAT,(/zqID/) ,VarID))
-          call nchandle_error(nf90_put_att(ncID,VarID,'long_name','Heights of interface levels'))
-          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+          call nchandle_error(ncid,nf90_def_dim(ncID, 'zq', nq, zqID))
+          call nchandle_error(ncid,nf90_def_var(ncID,'zq',NF90_FLOAT,(/zqID/) ,VarID))
+          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','Heights of interface levels'))
+          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
         end if
       end if
 
@@ -246,12 +254,12 @@ contains
        else
          call nchandle_error(nf90_open (trim(fname), NF90_WRITE, ncid))
        end if
-       call nchandle_error(nf90_inquire(ncid, unlimitedDimId = RecordDimID))
-       call nchandle_error(nf90_inquire_dimension(ncid, RecordDimID, len=nrec))
+       call nchandle_error(ncid,nf90_inquire(ncid, unlimitedDimId = RecordDimID))
+       call nchandle_error(ncid,nf90_inquire_dimension(ncid, RecordDimID, len=nrec))
        if (nrec>0) then
-        call nchandle_error(nf90_inq_varid(ncid,'time',timeID))
+        call nchandle_error(ncid,nf90_inq_varid(ncid,'time',timeID))
         allocate (xtimes(nrec))
-        call nchandle_error(nf90_get_var(ncid, timeId, xtimes(1:nrec)))
+        call nchandle_error(ncid,nf90_get_var(ncid, timeId, xtimes(1:nrec)))
 
         ! Find the index where writing should continue.
         ! The next record to be written is ncall+1
@@ -406,22 +414,22 @@ contains
 
       if (present(lcollective) .and. NC_HAVE_PARALLEL) then
         if (lcollective) then
-          call nchandle_error(nf90_var_par_access(ncid, varid, NF90_COLLECTIVE))
+          call nchandle_error(ncid,nf90_var_par_access(ncid, varid, NF90_COLLECTIVE))
         end if
       end if
 
       if (iret/=0) then
         write (*,*) 'nvar', nvar, sx(n,:)
-        call nchandle_error(iret)
+        call nchandle_error(ncid,iret)
       end if
 
       if (deflate > 0 .and. .not. lclassic) then
-         call nchandle_error(nf90_def_var_deflate(ncid,varID, 0, 1, deflate_level = deflate))
+         call nchandle_error(ncid,nf90_def_var_deflate(ncid,varID, 0, 1, deflate_level = deflate))
          ! NETCDF4 only
       end if
-      call nchandle_error(nf90_put_att(ncID,VarID,'long_name',sx(n,2)))
-      call nchandle_error(nf90_put_att(ncID,VarID,'units',sx(n,3)))
-      call nchandle_error(nf90_put_att(ncid, VarID, '_FillValue',nc_fillvalue))
+      call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name',sx(n,2)))
+      call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units',sx(n,3)))
+      call nchandle_error(ncid,nf90_put_att(ncid, VarID, '_FillValue',nc_fillvalue))
       !fails "NetCDF: Not a valid data type or _FillValue type mismatch"
       !on Fugaku with netCDF-Fortran 4.5.2, netCDF 4.7.3
 
@@ -432,7 +440,7 @@ contains
   subroutine redefine_nc(ncid)
   implicit none
     integer, intent(in) :: ncid
-    call nchandle_error(nf90_redef(ncid))
+    call nchandle_error(ncid,nf90_redef(ncid))
   end subroutine redefine_nc
 
   subroutine exitstat_nc(ncid)
@@ -442,7 +450,7 @@ contains
    integer status
 
    status = nf90_close(ncid)
-   call nchandle_error(status)
+   call nchandle_error(ncid,status)
  end subroutine exitstat_nc
 
  subroutine writestat_dims_nc(ncid, ncoarse, klow, proc, offset_x, offset_y, &
@@ -651,8 +659,8 @@ contains
       nrec = nrec+1
     end if
     do n=1,nvar
-       call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
-       call nchandle_error(nf90_put_var(ncid, VarID, vars(n), start=(/nrec/)))
+       call nchandle_error(ncid,nf90_inq_varid(ncid, ncname(n,1), VarID))
+       call nchandle_error(ncid,nf90_put_var(ncid, VarID, vars(n), start=(/nrec/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_time_nc
@@ -670,8 +678,8 @@ contains
       nrec = nrec+1
     end if
     do n=1,nvar
-       call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
-       call nchandle_error(nf90_put_var(ncid, VarID, vars(n), start=(/nrec/)))
+       call nchandle_error(ncid,nf90_inq_varid(ncid, ncname(n,1), VarID))
+       call nchandle_error(ncid,nf90_put_var(ncid, VarID, vars(n), start=(/nrec/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_time_nc_float
@@ -685,8 +693,8 @@ contains
 
     integer :: n,varid
     do n=1,nvar
-       call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
-       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,n),(/1,nrec/),(/dim1,1/)))
+       call nchandle_error(ncid,nf90_inq_varid(ncid, ncname(n,1), VarID))
+       call nchandle_error(ncid,nf90_put_var(ncid, VarID, vars(1:dim1,n),(/1,nrec/),(/dim1,1/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_1D_nc
@@ -700,8 +708,8 @@ contains
 
     integer :: n,varid
     do n=1,nvar
-       call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
-       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,n),(/1,nrec/),(/dim1,1/)))
+       call nchandle_error(ncid,nf90_inq_varid(ncid, ncname(n,1), VarID))
+       call nchandle_error(ncid,nf90_put_var(ncid, VarID, vars(1:dim1,n),(/1,nrec/),(/dim1,1/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_1D_nc_float
@@ -726,8 +734,8 @@ contains
     start(3) = nrec
 
     do n=1,nvar
-       call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
-       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,n),start,(/dim1,dim2,1/)))
+       call nchandle_error(ncid,nf90_inq_varid(ncid, ncname(n,1), VarID))
+       call nchandle_error(ncid,nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,n),start,(/dim1,dim2,1/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_2D_nc
@@ -751,8 +759,8 @@ contains
     start(3) = nrec
 
     do n=1,nvar
-       call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
-       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,n),start,(/dim1,dim2,1/)))
+       call nchandle_error(ncid,nf90_inq_varid(ncid, ncname(n,1), VarID))
+       call nchandle_error(ncid,nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,n),start,(/dim1,dim2,1/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_2D_nc_float
@@ -776,8 +784,8 @@ contains
     start(4) = nrec
 
     do n=1,nvar
-       call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
-       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),start,(/dim1,dim2,dim3,1/)))
+       call nchandle_error(ncid,nf90_inq_varid(ncid, ncname(n,1), VarID))
+       call nchandle_error(ncid,nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),start,(/dim1,dim2,dim3,1/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_3D_nc
@@ -801,8 +809,8 @@ contains
     start(4) = nrec
 
     do n=1,nvar
-       call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
-       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),start,(/dim1,dim2,dim3,1/)))
+       call nchandle_error(ncid,nf90_inq_varid(ncid, ncname(n,1), VarID))
+       call nchandle_error(ncid,nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),start,(/dim1,dim2,dim3,1/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_3D_nc_float
@@ -815,8 +823,8 @@ contains
 
     integer :: n,varid
     do n=1,nvar
-       call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
-       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),(/1,1,1,nrec/),(/dim1,dim2,dim3,1/)))
+       call nchandle_error(ncid,nf90_inq_varid(ncid, ncname(n,1), VarID))
+       call nchandle_error(ncid,nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),(/1,1,1,nrec/),(/dim1,dim2,dim3,1/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_3D_short_nc
@@ -867,15 +875,15 @@ contains
           if (present(fillvalue)) then
             array(:) = fillvalue
           else
-            call nchandle_error(ierr)
+            call nchandle_error(ncid,ierr)
           end if
         else
           return
         endif
       case (NF90_NOERR)
-        call nchandle_error(nf90_get_var(ncid, varid, array, start=start_, count=count_))
+        call nchandle_error(ncid,nf90_get_var(ncid, varid, array, start=start_, count=count_))
       case default
-        call nchandle_error(ierr)
+        call nchandle_error(ncid,ierr)
     end select
 
   end subroutine read_nc_field_1D_int
@@ -926,15 +934,15 @@ contains
           if (present(fillvalue)) then
             array(:) = fillvalue
           else
-            call nchandle_error(ierr)
+            call nchandle_error(ncid,ierr)
           end if
         else
           return
         endif
       case (NF90_NOERR)
-        call nchandle_error(nf90_get_var(ncid, varid, array, start=start_, count=count_))
+        call nchandle_error(ncid,nf90_get_var(ncid, varid, array, start=start_, count=count_))
       case default
-        call nchandle_error(ierr)
+        call nchandle_error(ncid,ierr)
     end select
 
   end subroutine read_nc_field_1D_real4
@@ -985,15 +993,15 @@ contains
           if (present(fillvalue)) then
             array(:) = fillvalue
           else
-            call nchandle_error(ierr)
+            call nchandle_error(ncid,ierr)
           end if
         else
           return
         endif
       case (NF90_NOERR)
-        call nchandle_error(nf90_get_var(ncid, varid, array, start=start_, count=count_))
+        call nchandle_error(ncid,nf90_get_var(ncid, varid, array, start=start_, count=count_))
       case default
-        call nchandle_error(ierr)
+        call nchandle_error(ncid,ierr)
     end select
 
   end subroutine read_nc_field_1D_real8
@@ -1044,15 +1052,15 @@ contains
           if (present(fillvalue)) then
             array(:,:) = fillvalue
           else
-            call nchandle_error(ierr)
+            call nchandle_error(ncid,ierr)
           end if
         else
           return
         endif
       case (NF90_NOERR)
-        call nchandle_error(nf90_get_var(ncid, varid, array, start=start_, count=count_))
+        call nchandle_error(ncid,nf90_get_var(ncid, varid, array, start=start_, count=count_))
       case default
-        call nchandle_error(ierr)
+        call nchandle_error(ncid,ierr)
     end select
 
   end subroutine read_nc_field_2D_real4
@@ -1103,15 +1111,15 @@ contains
           if (present(fillvalue)) then
             array(:,:) = fillvalue
           else
-            call nchandle_error(ierr)
+            call nchandle_error(ncid,ierr)
           end if
         else
           return
         endif
       case (NF90_NOERR)
-        call nchandle_error(nf90_get_var(ncid, varid, array, start=start_, count=count_))
+        call nchandle_error(ncid,nf90_get_var(ncid, varid, array, start=start_, count=count_))
       case default
-        call nchandle_error(ierr)
+        call nchandle_error(ncid,ierr)
     end select
 
   end subroutine read_nc_field_2D_real8
@@ -1163,15 +1171,15 @@ contains
           if (present(fillvalue)) then
             array(:,:) = fillvalue
           else
-            call nchandle_error(ierr)
+            call nchandle_error(ncid,ierr)
           end if
         else
           return
         endif
       case (NF90_NOERR)
-        call nchandle_error(nf90_get_var(ncid, varid, array, start=start_, count=count_))
+        call nchandle_error(ncid,nf90_get_var(ncid, varid, array, start=start_, count=count_))
       case default
-        call nchandle_error(ierr)
+        call nchandle_error(ncid,ierr)
     end select
 
   end subroutine read_nc_field_2D_int
@@ -1223,15 +1231,15 @@ contains
           if (present(fillvalue)) then
             array(:,:,:) = fillvalue
           else
-            call nchandle_error(ierr)
+            call nchandle_error(ncid,ierr)
           end if
         else
           return
         endif
       case (NF90_NOERR)
-        call nchandle_error(nf90_get_var(ncid, varid, array, start=start_, count=count_))
+        call nchandle_error(ncid,nf90_get_var(ncid, varid, array, start=start_, count=count_))
       case default
-        call nchandle_error(ierr)
+        call nchandle_error(ncid,ierr)
     end select
 
   end subroutine read_nc_field_3D_real4
@@ -1283,15 +1291,15 @@ contains
           if (present(fillvalue)) then
             array(:,:,:) = fillvalue
           else
-            call nchandle_error(ierr)
+            call nchandle_error(ncid,ierr)
           end if
         else
           return
         endif
       case (NF90_NOERR)
-        call nchandle_error(nf90_get_var(ncid, varid, array, start=start_, count=count_))
+        call nchandle_error(ncid,nf90_get_var(ncid, varid, array, start=start_, count=count_))
       case default
-        call nchandle_error(ierr)
+        call nchandle_error(ncid,ierr)
     end select
 
   end subroutine read_nc_field_3D_real8
@@ -1343,15 +1351,15 @@ contains
           if (present(fillvalue)) then
             array(:,:,:) = fillvalue
           else
-            call nchandle_error(ierr)
+            call nchandle_error(ncid,ierr)
           end if
         else
           return
         endif
       case (NF90_NOERR)
-        call nchandle_error(nf90_get_var(ncid, varid, array, start=start_, count=count_))
+        call nchandle_error(ncid,nf90_get_var(ncid, varid, array, start=start_, count=count_))
       case default
-        call nchandle_error(ierr)
+        call nchandle_error(ncid,ierr)
     end select
 
   end subroutine read_nc_field_3D_int
@@ -1370,7 +1378,7 @@ contains
     if (ierr == NF90_ENOTATT) then
       if (present(default)) value = default
     else
-      call nchandle_error(ierr)
+      call nchandle_error(ncid,ierr)
     end if
 
   end subroutine read_nc_attribute_char
@@ -1389,7 +1397,7 @@ contains
     if (ierr == NF90_ENOTATT) then
       if (present(default)) value = default
     else
-      call nchandle_error(ierr)
+      call nchandle_error(ncid,ierr)
     end if
 
   end subroutine read_nc_attribute_r4
@@ -1408,7 +1416,7 @@ contains
     if (ierr == NF90_ENOTATT) then
       if (present(default)) value = default
     else
-      call nchandle_error(ierr)
+      call nchandle_error(ncid,ierr)
     end if
 
   end subroutine read_nc_attribute_r8
@@ -1431,7 +1439,7 @@ contains
         if (present(default)) then
           value = default
         else
-          call nchandle_error(ierr)
+          call nchandle_error(ncid,ierr)
         end if
       case (NF90_NOERR)
         select case (value_)
@@ -1443,7 +1451,7 @@ contains
             call finish(routine, "Invalid value provided for ", attname)
         end select
       case default
-        call nchandle_error(ierr)
+        call nchandle_error(ncid,ierr)
     end select
     
   end subroutine read_nc_attribute_logical
@@ -1459,18 +1467,34 @@ contains
     out(4) = in4
   end subroutine ncinfo
 
-  subroutine nchandle_error(status)
+  subroutine nchandle_error_print(ncid, status)
+    use netcdf
+    implicit none
+
+    integer, intent(in) :: ncid
+    integer, intent(in) :: status
+
+    if(status /= nf90_noerr) then
+#if defined(USE_NETCDF_DEBUG_ERRORS)
+      ! in collective calls, this netcdf print info function can hang....
+      if (.not.NC_HAVE_PARALLEL) call print_netcdf_info(ncid)
+#endif
+      call finish("modstat:", trim(nf90_strerror(status)))
+    end if
+
+  end subroutine nchandle_error_print
+
+  subroutine nchandle_error_noprint(status)
     use netcdf
     implicit none
 
     integer, intent(in) :: status
 
     if(status /= nf90_noerr) then
-      ! print *, trim(nf90_strerror(status))
       call finish("modstat:", trim(nf90_strerror(status)))
     end if
 
-  end subroutine nchandle_error
+  end subroutine nchandle_error_noprint
 
   subroutine sync_nc(ncid)
     implicit none
@@ -1478,9 +1502,154 @@ contains
     integer :: iret
 
     iret = nf90_sync(ncid)
-    call nchandle_error(iret)
+    call nchandle_error(ncid,iret)
   end subroutine sync_nc
+  !> Print a human-readable summary of an open netCDF file.
+  subroutine print_netcdf_info(ncid)
+    implicit none
+    integer, intent(in) :: ncid
 
+    integer :: ierr
+    integer :: ndims, nvars, ngatts, unlimdimid
+    integer :: dimid, varid, vndims, i, dimlen, vnatts
+    integer :: attnum, atttype, attlen
+    integer :: dimids(NF90_MAX_VAR_DIMS)
+    character(len=NF90_MAX_NAME) :: dimname, varname
+    character(len=NF90_MAX_NAME) :: attname
+    character(len=1024) :: dimlist
+    character(len=1024) :: dimlenlist
+    character(10) :: dimlenstr
+
+    ierr = nf90_inquire(ncid, ndims, nvars, ngatts, unlimdimid)
+    call nchandle_error(ierr)
+    write(*,'(a,i0)') 'Global attributes: ', ngatts
+    do attnum = 1, ngatts
+      ierr = nf90_inq_attname(ncid, NF90_GLOBAL, attnum, attname)
+      call nchandle_error(ierr)
+      ierr = nf90_inquire_attribute(ncid, NF90_GLOBAL, trim(attname), xtype=atttype, len=attlen)
+      call nchandle_error(ierr)
+      call print_attribute_summary(NF90_GLOBAL, trim(attname), atttype, attlen, '--')
+    end do
+    write(*,'(a,i0)') 'Number of dimensions: ', ndims
+    do dimid = 1, ndims
+      write(*,'(a,i0)') 'Inquiring dimension: ', dimid
+      ierr = nf90_inquire_dimension(ncid, dimid, dimname, dimlen)
+      call nchandle_error(ierr)
+      write(*,'(a,a,a,i0,a,i0)') '  ', trim(dimname), '(', dimlen, '), id=', dimid
+    end do
+    write(*,*) ''
+    write(*,*) ''
+    write(*,'(a,i0)') 'Number of variables: ', nvars
+    do varid = 1, nvars
+      ierr = nf90_inquire_variable(ncid, varid, varname, ndims=vndims, dimids=dimids, natts=vnatts)
+      call nchandle_error(ierr)
+
+      dimlist = '('
+      dimlenlist = '('
+      dimlenstr = ''
+      do i = 1, vndims
+        dimid = dimids(i)
+        ierr = nf90_inquire_dimension(ncid, dimid, dimname, dimlen)
+        call nchandle_error(ierr)
+        if (i > 1) dimlist = trim(dimlist) // ', '
+        if (i > 1) dimlenlist = trim(dimlenlist) // ', '
+        dimlist = trim(dimlist) // trim(dimname)
+        write(dimlenstr,'(i0)') dimlen
+        dimlenlist = trim(dimlenlist) // trim(dimlenstr)
+      end do
+      dimlist = trim(dimlist) // ') '
+      dimlenlist = trim(dimlenlist) // ')'
+
+      if (vndims > 0) then
+        write(*,'(a,a,a,a,a,i0)') '  ', trim(varname), trim(dimlist), trim(dimlenlist), ', id=', varid
+      else
+        write(*,'(a,a,a,i0)') '  ', trim(varname), ', id=', varid
+      end if
+      write(*,'(a,i0)') '    attributes: ', vnatts
+      do attnum = 1, vnatts
+        ierr = nf90_inq_attname(ncid, varid, attnum, attname)
+        call nchandle_error(ierr)
+        ierr = nf90_inquire_attribute(ncid, varid, trim(attname), xtype=atttype, len=attlen)
+        call nchandle_error(ierr)
+        call print_attribute_summary(varid, trim(attname), atttype, attlen, '------')
+      end do
+    end do
+
+  contains
+
+    subroutine print_attribute_summary(target_varid, target_attname, attr_type, attr_len, indent)
+      implicit none
+      integer, intent(in) :: target_varid, attr_type, attr_len
+      character(*), intent(in) :: target_attname, indent
+
+      character(len=:), allocatable :: cval
+      real(real32), allocatable :: r4vals(:)
+      real(real64), allocatable :: r8vals(:)
+
+      write(*,'(a,a,a,a,a)') trim(indent), trim(target_attname), ' [', trim(nc_type_name(attr_type)), ']'
+
+      select case (attr_type)
+        case (NF90_CHAR)
+          if (attr_len > 0) then
+            allocate(character(len=attr_len) :: cval)
+            ierr = nf90_get_att(ncid, target_varid, target_attname, cval)
+            call nchandle_error(ierr)
+            write(*,'(a,a,a)') trim(indent)//'  = "', trim(cval), '"'
+            deallocate(cval)
+          else
+            write(*,'(a)') trim(indent)//'  = ""'
+          end if
+        case (NF90_FLOAT)
+          allocate(r4vals(attr_len))
+          ierr = nf90_get_att(ncid, target_varid, target_attname, r4vals)
+          call nchandle_error(ierr)
+          write(*,'(a)', advance='no') trim(indent)//'  = '
+          write(*,*) r4vals
+          deallocate(r4vals)
+        case (NF90_DOUBLE)
+          allocate(r8vals(attr_len))
+          ierr = nf90_get_att(ncid, target_varid, target_attname, r8vals)
+          call nchandle_error(ierr)
+          write(*,'(a)', advance='no') trim(indent)//'  = '
+          write(*,*) r8vals
+          deallocate(r8vals)
+      end select
+    end subroutine print_attribute_summary
+
+    function nc_type_name(xtype) result(name)
+      implicit none
+      integer, intent(in) :: xtype
+      character(len=16) :: name
+
+      select case (xtype)
+        case (NF90_CHAR)
+          name = 'char'
+        case (NF90_BYTE)
+          name = 'byte'
+        case (NF90_UBYTE)
+          name = 'ubyte'
+        case (NF90_SHORT)
+          name = 'short'
+        case (NF90_USHORT)
+          name = 'ushort'
+        case (NF90_INT)
+          name = 'int'
+        case (NF90_UINT)
+          name = 'uint'
+        case (NF90_INT64)
+          name = 'int64'
+        case (NF90_UINT64)
+          name = 'uint64'
+        case (NF90_FLOAT)
+          name = 'float'
+        case (NF90_DOUBLE)
+          name = 'double'
+        case default
+          name = 'unknown'
+      end select
+    end function nc_type_name
+
+  end subroutine print_netcdf_info
   subroutine nctiminfo(info)
     use modglobal, only: xyear, xday, xtime
     implicit none

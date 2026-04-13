@@ -75,7 +75,7 @@ contains
   subroutine initnudge
     use modmpi,     only: myid, mpierr, comm3d, D_MPI_BCAST
     use modglobal,  only: ifnamopt, fname_options, runtime, cexpnr, ifinput, &
-                               k1, kmax, checknamelisterror, iinput, input_netcdf, nsv
+                               kmax, checknamelisterror, iinput, input_netcdf, nsv
     use modtracers, only: tracer_prop
     use fortran_support, only: nnml_output
     use modstat_nc
@@ -131,7 +131,7 @@ contains
       call D_MPI_BCAST(timenudge, ntnudge + 1, 0, comm3d, mpierr)
       
       if (lunudge) then
-        allocate(unudge(k1,ntnudge), tunudge(k1,ntnudge))
+        allocate(unudge(kmax,ntnudge), tunudge(kmax,ntnudge))
         if (myid == 0) then
           call nchandle_error(nf90_inq_varid(ncid, "ua_nud", varid))
           call nchandle_error(nf90_get_var(ncid, varid, unudge(1:kmax,:)))
@@ -142,7 +142,7 @@ contains
       end if
 
       if (lvnudge) then
-        allocate(vnudge(k1,ntnudge), tvnudge(k1,ntnudge))
+        allocate(vnudge(kmax,ntnudge), tvnudge(kmax,ntnudge))
         if (myid == 0) then
           call nchandle_error(nf90_inq_varid(ncid, "va_nud", varid))
           call nchandle_error(nf90_get_var(ncid, varid, vnudge(1:kmax,:)))
@@ -153,18 +153,18 @@ contains
       end if
 
       if (lwnudge) then
-        allocate(wnudge(k1,ntnudge), twnudge(k1,ntnudge))
+        allocate(wnudge(kmax,ntnudge), twnudge(kmax,ntnudge))
         if (myid == 0) then
           call nchandle_error(nf90_inq_varid(ncid, "wa_nud", varid))
-          call nchandle_error(nf90_get_var(ncid, varid, wnudge))
+          call nchandle_error(nf90_get_var(ncid, varid, wnudge(1:kmax,:)))
           call nchandle_error(nf90_inq_varid(ncid, "nudging_constant_wa", &
                               varid))
-          call nchandle_error(nf90_get_var(ncid, varid, twnudge))
+          call nchandle_error(nf90_get_var(ncid, varid, twnudge(1:kmax,:)))
         end if
       end if
 
       if (lthlnudge) then
-        allocate(thlnudge(k1,ntnudge), tthlnudge(k1,ntnudge))
+        allocate(thlnudge(kmax,ntnudge), tthlnudge(kmax,ntnudge))
         if (myid == 0) then
           call nchandle_error(nf90_inq_varid(ncid, "thetal_nud", varid))
           call nchandle_error(nf90_get_var(ncid, varid, thlnudge(1:kmax,:)))
@@ -175,7 +175,7 @@ contains
       end if
 
       if (lqtnudge) then
-        allocate(qtnudge(k1,ntnudge), tqtnudge(k1,ntnudge))
+        allocate(qtnudge(kmax,ntnudge), tqtnudge(kmax,ntnudge))
         if (myid == 0) then
           call nchandle_error(nf90_inq_varid(ncid, "qt_nud", varid))
           call nchandle_error(nf90_get_var(ncid, varid, qtnudge(1:kmax,:)))
@@ -186,7 +186,7 @@ contains
       end if
 
       if (lsvnudge) then
-        allocate(svnudge(k1,ntnudge,nsv), tsvnudge(k1,ntnudge,nsv))
+        allocate(svnudge(kmax,ntnudge,nsv), tsvnudge(kmax,ntnudge,nsv))
         do n = 1, nsv
           if (tracer_prop(n) % lnudge .and. myid == 0) then
             write(6,*) "Nudging enabled for tracer ", tracer_prop(n) % tracname
@@ -210,12 +210,12 @@ contains
         call nchandle_error(nf90_close(ncid))
       end if
     else
-      allocate(tnudge(k1,ntnudge), unudge(k1,ntnudge), vnudge(k1,ntnudge), &
-               wnudge(k1,ntnudge), thlnudge(k1,ntnudge), qtnudge(k1,ntnudge))
-      allocate(tunudge(k1,ntnudge), tvnudge(k1,ntnudge), &
-               twnudge(k1,ntnudge), tthlnudge(k1,ntnudge), &
-               tqtnudge(k1,ntnudge))
-      allocate(timenudge(0:ntnudge), height(k1))
+      allocate(tnudge(kmax,ntnudge), unudge(kmax,ntnudge), vnudge(kmax,ntnudge), &
+               wnudge(kmax,ntnudge), thlnudge(kmax,ntnudge), qtnudge(kmax,ntnudge))
+      allocate(tunudge(kmax,ntnudge), tvnudge(kmax,ntnudge), &
+               twnudge(kmax,ntnudge), tthlnudge(kmax,ntnudge), &
+               tqtnudge(kmax,ntnudge))
+      allocate(timenudge(0:ntnudge), height(kmax))
 
       tnudge = 0
       unudge = 0
@@ -310,28 +310,28 @@ contains
 
     call D_MPI_BCAST(timenudge, ntnudge + 1, 0, comm3d, mpierr)
     if (lunudge) then
-      call D_MPI_BCAST(unudge, k1 * ntnudge, 0, comm3d, mpierr)
-      call D_MPI_BCAST(tunudge, k1 * ntnudge, 0, comm3d, mpierr)
+      call D_MPI_BCAST(unudge, kmax * ntnudge, 0, comm3d, mpierr)
+      call D_MPI_BCAST(tunudge, kmax * ntnudge, 0, comm3d, mpierr)
     end if
     if (lvnudge) then
-      call D_MPI_BCAST(vnudge, k1 * ntnudge, 0, comm3d, mpierr)
-      call D_MPI_BCAST(tvnudge, k1 * ntnudge, 0, comm3d, mpierr)
+      call D_MPI_BCAST(vnudge, kmax * ntnudge, 0, comm3d, mpierr)
+      call D_MPI_BCAST(tvnudge, kmax * ntnudge, 0, comm3d, mpierr)
     end if
     if (lwnudge) then
-      call D_MPI_BCAST(wnudge, k1 * ntnudge, 0, comm3d, mpierr)
-      call D_MPI_BCAST(twnudge, k1 * ntnudge, 0, comm3d, mpierr)
+      call D_MPI_BCAST(wnudge, kmax * ntnudge, 0, comm3d, mpierr)
+      call D_MPI_BCAST(twnudge, kmax * ntnudge, 0, comm3d, mpierr)
     end if
     if (lthlnudge) then
-      call D_MPI_BCAST(thlnudge, k1 * ntnudge, 0, comm3d, mpierr)
-      call D_MPI_BCAST(tthlnudge, k1 * ntnudge, 0, comm3d, mpierr)
+      call D_MPI_BCAST(thlnudge, kmax * ntnudge, 0, comm3d, mpierr)
+      call D_MPI_BCAST(tthlnudge, kmax * ntnudge, 0, comm3d, mpierr)
     end if
     if (lqtnudge) then
-      call D_MPI_BCAST(qtnudge, k1 * ntnudge, 0, comm3d, mpierr)
-      call D_MPI_BCAST(tqtnudge, k1 * ntnudge, 0, comm3d, mpierr)
+      call D_MPI_BCAST(qtnudge, kmax * ntnudge, 0, comm3d, mpierr)
+      call D_MPI_BCAST(tqtnudge, kmax * ntnudge, 0, comm3d, mpierr)
     end if
     if (lsvnudge) then
-      call D_MPI_BCAST(svnudge, nsv * k1 * ntnudge, 0, comm3d, mpierr)
-      call D_MPI_BCAST(tsvnudge, nsv * k1 * ntnudge, 0, comm3d, mpierr)
+      call D_MPI_BCAST(svnudge, nsv * kmax * ntnudge, 0, comm3d, mpierr)
+      call D_MPI_BCAST(tsvnudge, nsv * kmax * ntnudge, 0, comm3d, mpierr)
     end if
 
     !$acc enter data copyin(timenudge, unudge, vnudge, wnudge, thlnudge, &

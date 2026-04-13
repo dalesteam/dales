@@ -135,7 +135,8 @@ program DALES
   use modquadrant,     only : initquadrant, quadrant,exitquadrant
   use modcrosssection, only : initcrosssection, crosssection
   use modAGScross,     only : initAGScross, AGScross,exitAGScross
-  use modlsmcrosssection, only : initlsmcrosssection, lsmcrosssection,exitlsmcrosssection
+  use modlsmcrosssection, only : initlsmcrosssection, lsmcrosssection
+  use modslurbcrosssection, only : initslurbcrosssection, slurbcrosssection
   use moddepcrosssection, only : initdepcrosssection, depcrosssection,exitdepcrosssection
   use modcloudfield,   only : initcloudfield, cloudfield
   use modfielddump,    only : initfielddump, fielddump
@@ -172,7 +173,7 @@ program DALES
                               swap_fields, exit_precursor, &
                               lprecursor, Nsim, statid, turid, refid
   use modcloudstat,    only: init_cloudstat, do_cloudstat
-  use modstat_nc_files, only: stats_limit_timestep, init_output_files, write_output_files
+  use modstat_nc_files, only: stats_limit_timestep, init_output_files, write_output_files, close_output_files
 !----------------------------------------------------------------
 !     0.2     USE STATEMENTS FOR TIMER MODULE
 !----------------------------------------------------------------
@@ -213,6 +214,7 @@ program DALES
   call initcrosssection
   call initAGScross
   call initlsmcrosssection
+  call initslurbcrosssection
   call initdepcrosssection
   !call initprojection
   call initcloudfield
@@ -388,6 +390,7 @@ program DALES
           call crosssection
           call AGScross
           call lsmcrosssection
+          call slurbcrosssection
           call depcrosssection
           !call tanhfilter
           call docape
@@ -451,12 +454,12 @@ program DALES
   call exitmsebudg
   !call exitstressbudget
   call exitAGScross
-  call exitlsmcrosssection
   call exitdepcrosssection
   call exitheterostats
   call exitcanopy
   call exittimestat
   call exitnudgeboundary  !cstep
+  call close_output_files
   call exitmodules
   call exit_profiles
   call exitlogging

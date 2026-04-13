@@ -22,6 +22,7 @@ module modheterostats
 
 use modglobal, only: nsv, kmax,longint
 use modlogging, only: finish
+use modstat_nc, only: nchandle_error
 
 implicit none
 private
@@ -1165,21 +1166,5 @@ contains
     if (status /= nf90_noerr) call nchandle_error(status)
 
   end subroutine exitheterostats
-
-  subroutine nchandle_error(status)
-
-    use typeSizes
-    use netcdf
-    implicit none
-
-    character(len=*), parameter :: routine = modname//'/nchandle_error'
-
-    integer, intent(in) :: status
-
-    if(status /= nf90_noerr) then
-      call finish(routine, "Stopped due to netCDF error: ", trim(nf90_strerror(status)))
-    end if
-
-  end subroutine nchandle_error
 
 end module modheterostats

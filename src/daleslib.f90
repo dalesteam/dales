@@ -89,6 +89,7 @@ module daleslib
             use modquadrant,        only : initquadrant
             use modcrosssection,    only : initcrosssection 
             use modAGScross,        only : initAGScross
+            use modslurbcrosssection, only : initslurbcrosssection
             use modlsmcrosssection, only : initlsmcrosssection
             use modcloudfield,      only : initcloudfield
             use modfielddump,       only : initfielddump
@@ -162,6 +163,7 @@ module daleslib
             call initcrosssection
             call initAGScross
             call initlsmcrosssection
+            call initslurbcrosssection
             !call initprojection
             call initcloudfield
             call initradstat
@@ -451,6 +453,7 @@ module daleslib
             use modcrosssection,    only : crosssection
             use modAGScross,        only : AGScross
             use modlsmcrosssection, only : lsmcrosssection
+            use modslurbcrosssection, only: slurbcrosssection
             use modcloudfield,      only : cloudfield
             use modfielddump,       only : fielddump
             use modradfield,        only : radfield
@@ -565,6 +568,7 @@ module daleslib
             call crosssection
             call AGScross
             call lsmcrosssection
+            call slurbcrosssection
             !call tanhfilter
             call docape
             !call projection
@@ -652,7 +656,6 @@ module daleslib
             use modsampling,        only : exitsampling
             use modquadrant,        only : exitquadrant
             use modAGScross,        only : exitAGScross
-            use modlsmcrosssection, only : exitlsmcrosssection
             use modcloudfield,      only : cloudfield
             use modsamptend,        only : exitsamptend
 
@@ -668,6 +671,7 @@ module daleslib
             use modnudge,           only : exitnudge
             use modnudgeboundary,   only : exitnudgeboundary
             use modcanopy,          only : exitcanopy
+            use modstat_nc_files,   only : close_output_files
 
             implicit none
 
@@ -687,9 +691,9 @@ module daleslib
             call exitvarbudget
             !call exitstressbudget
             call exitAGScross
-            call exitlsmcrosssection
             call exitheterostats
             call exitcanopy
+            call close_output_files
             call exitmodules
             call exitdaleslib
 

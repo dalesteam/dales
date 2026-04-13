@@ -60,11 +60,11 @@ module modslurbdata
         real(field_r), allocatable ::  t_2m_urb(:,:)        !< urban 2-metre temperature (extrapolated) (K)
         real(field_r), allocatable ::  t_c_urb(:,:)         !< complete (area-weighted) urban surface temperature (K)
         real(field_r), allocatable ::  t_h_urb(:,:)         !< effective urban surface temperature (K)
-        real(field_r), allocatable ::  t_rad_urb(:,:)       !< urban radiative surface temperature (K)
+        real(field_r), allocatable ::  thl_rad_urb(:,:)       !< urban radiative surface temperature (K)
         real(field_r), allocatable ::  usws_urb(:,:)        !< urban momentum flux (u-component) (kg m^-1 s^-2)
         real(field_r), allocatable ::  vsws_urb(:,:)        !< urban momentum flux (v-component) (kg m^-1 s^-2)
-        real(field_r), allocatable ::  thlskin(:,:)         !< urban skin liquid water potential temperature (K)
-        real(field_r), allocatable ::  qtskin(:,:)          !< urban skin specific humidity TODOSELF (kg kg^-1)
+        real(field_r), allocatable ::  thlskin(:,:)         !< weighted urban roof + canopy liquid water potential temperature (K)
+        real(field_r), allocatable ::  qtskin(:,:)          !< weighted urban roof + canopy specific humidity TODOSELF (kg kg^-1)
         !
         !--    Model prognostic variables.
         real(field_r), allocatable ::  m_liq_road_0(:,:)  !< liquid water reservoir on roads (m^3 m^-2)
@@ -239,7 +239,7 @@ module modslurbdata
         real(field_r), allocatable ::  c_road(:,:,:)          !< total (specific c * layer depth) heat capacity of the road (J m^-2 K^-1)
         real(field_r), allocatable ::  c_roof(:,:,:)          !< total (specific c * layer depth) heat capacity of the roof (J m^-2 K^-1)
         real(field_r), allocatable ::  c_wall(:,:,:)          !< total (specific c * layer depth) heat capacity of the wall (J m^-2 K^-1)
-        real(field_r), allocatable ::  c_win(:,:,:)           !< total (specific c * layer depth) heat heat capacity of the window (J m^-2 K^-1)
+        real(field_r), allocatable ::  c_win(:,:,:)           !< total (specific c * layer depth) heat capacity of the window (J m^-2 K^-1)
         real(field_r), allocatable ::  lambda_road(:,:,:)     !< thermal conductivity of the road (W m^-1 K^-1)
         real(field_r), allocatable ::  lambda_roof(:,:,:)     !< thermal conductivity of the roof (W m^-1 K^-1)
         real(field_r), allocatable ::  lambda_wall(:,:,:)     !< thermal conductivity of the wall (W m^-1 K^-1)
@@ -366,6 +366,15 @@ module modslurbdata
     logical :: calc_t_2m = .true.
     logical :: calc_t_c = .true.
     logical :: calc_t_h = .true.
+    real    :: dtav_slurb = -1.0_field_r
+    logical :: output_slurb_bc = .false.
+    logical :: output_slurb_constants = .false.
+    logical :: slurb_cross_output = .true.
+    logical :: slurb_cross_output_roof = .true.
+    logical :: slurb_cross_output_road = .true.
+    logical :: slurb_cross_output_wall_win = .true.
+    logical :: slurb_cross_output_tendencies = .true.
+    logical :: slurb_cross_output_radiation = .true.
 
     logical :: enable_slurb = .false. !< switch to enable slurb model. Is set to true if any slurb tile found.
 

@@ -1,7 +1,7 @@
 !> Type definitions for various NetCDF file types.
 module modnetcdf_file_t
 
-  use fortran_support, only: finish
+  use modlogging, only: finish, warning
   use modglobal,       only: imax, jmax, kmax, itot, jtot, rtimee, cexpnr
   use modmpi,          only: comm3d, myidx, myidy, cmyid, nprocx, nprocy, &
                              mpi_comm, commrow, commcol
@@ -19,6 +19,7 @@ module modnetcdf_file_t
   public :: profiles_file_t
   public :: cross_section_file_t
   public :: field_dump_file_t
+  public :: slurb_3d_file_t
 
   interface time_series_file_t
     procedure :: time_series_file_init
@@ -35,6 +36,10 @@ module modnetcdf_file_t
   interface field_dump_file_t
     procedure :: field_dump_file_init
   end interface field_dump_file_t
+
+  interface slurb_3d_file_t
+    procedure :: slurb_3d_file_init
+  end interface slurb_3d_file_t
 
   !> Base NetCDF file type.
   type, abstract :: netcdf_file_t
@@ -130,10 +135,29 @@ module modnetcdf_file_t
     procedure :: get_pointer => field_dump_file_get_pointer
   end type field_dump_file_t
 
+  !> File containing SLURB 3D dumps with dimensions ordered as nzs,nx,ny.
+  type, extends(netcdf_file_t) :: slurb_3d_file_t
+    private
+    integer :: nx = 0      !< Number of cells in the x-direction.
+    integer :: ny = 0      !< Number of cells in the y-direction.
+    integer :: nzs = 0     !< Number of vertical levels in the soil grid.
+    integer :: ncoarse = 1 !< Coarse graining factor.
+    integer :: x_start = 0 !< Writing offset in the x-direction.
+    integer :: y_start = 0 !< Writing offset in the y-direction.
+    integer :: nvals_x = 0 !< Number of values that will be written by calling process in the x-direction.
+    integer :: nvals_y = 0 !< Number of values that will be written by calling process in the y-direction.
+    real(field_r), allocatable :: buffer(:,:,:,:) !< Memory for variable data (nzs,nx,ny,nvar).
+  contains
+    procedure :: open => slurb_3d_file_open
+    procedure :: write => slurb_3d_file_write
+    procedure :: get_pointer => slurb_3d_file_get_pointer
+  end type slurb_3d_file_t
+
 contains
 
   !> Add a variable to a NetCDF file.
   subroutine netcdf_file_add_var(this, name, long_name, unit, dim)
+    use modstat_nc, only: print_netcdf_info
 
     class(netcdf_file_t), intent(inout) :: this
 
@@ -178,7 +202,9 @@ contains
 
     integer :: id !< Index of variable in variable list of this file
 
-    logical :: found = .false.
+    !we explicitly don't set. found=.false. at the declaration as this will persist the result of a search across calls...
+    logical :: found
+    found = .false.
 
     do id = 1, this%nvar
       if (trim(name) == trim(this%names(id,1))) then
@@ -422,7 +448,7 @@ contains
 
   end subroutine profiles_file_get_pointer
 
-  !> Constructor; initialize a NetCDF file containing time series data.
+  !> Constructor; initialize a NetCDF file containing cross section data.
   function cross_section_file_init(filename, nx, ny, nz, nzs, loc, lgpu) &
     result(this)
 
@@ -484,35 +510,92 @@ contains
 
     class(cross_section_file_t), intent(inout) :: this
 
-    integer :: n1, n2, ivar
+    character(len=*), parameter :: routine = modname//'/cross_section_file_open'
 
+    integer :: n1, n2, n3, ns, n1_file, n2_file, ivar
+    integer :: buffer_dim1_len, buffer_dim2_len
     type(mpi_comm), pointer :: comm
 
+    n1 = 0
+    n1_file = 0
+    n2 = 0
+    n2_file = 0
+    n3 = 0
+    ns = 0
+
     if (this%nvals_x > 0 .and. this%nvals_y > 0) then
+      ! Horizontal (XY) cross section
       n1 = this%nvals_x
+      n1_file = this%nx
       n2 = this%nvals_y
+      n2_file = this%ny
+
+      buffer_dim1_len = this%nvals_x
+      buffer_dim2_len = this%nvals_y
       comm => comm3d
-    else
-      if (this%nvals_x > 0) then
-        n1 = this%nvals_x
-        comm => commrow
-      else
-        n1 = this%nvals_y
-        comm => commcol
+
+      if (this%loc > 0) then
+        if (this%nz  > 0) n3 = 1
+        if (this%nzs > 0) ns = 1
       end if
+
+    else if (this%nvals_x > 0) then
+      ! Vertical (XZ) cross section, sliced at a fixed y-location
+      n1 = this%nvals_x
+      n1_file = this%nx
+      buffer_dim1_len = this%nvals_x
+      comm => commrow
+
+      ! y dimension is 1 long
+      if (this%loc > 0) then
+        n2 = 1
+        n2_file = 1
+      end if
+
       if (this%nz > 0) then
-        n2 = this%nz
+        n3 = this%nz
+        buffer_dim2_len = this%nz
+      else if (this%nzs > 0) then
+        ns = this%nzs
+        buffer_dim2_len = this%nzs
       else
-        n2 = this%nzs
+        call finish(routine, 'File type not supported: no vertical dimension specified')
       end if
+
+    else if (this%nvals_y > 0) then
+      ! Vertical (YZ) cross section, sliced at a fixed x-location
+      n2 = this%nvals_y
+      n2_file = this%ny
+      buffer_dim1_len = this%nvals_y
+      comm => commcol
+
+      ! x dimension is 1 long
+      if (this%loc > 0) then
+        n1 = 1
+        n1_file = 1
+      end if
+
+      if (this%nz > 0) then
+        n3 = this%nz
+        buffer_dim2_len = this%nz
+      else if (this%nzs > 0) then
+        ns = this%nzs
+        buffer_dim2_len = this%nzs
+      else
+        call finish(routine, 'File type not supported: no vertical dimension specified')
+      end if
+
+    else
+      call finish(routine, 'point type file has to have either x or y dimension')
     end if
 
+    
     if (NC_HAVE_PARALLEL) then
-      call open_nc(this%filename, this%ncid, this%nrec, n1=n1, &
-                   n2=n2, n3=this%nz, ns=this%nzs, comm=comm)
+      call open_nc(this%filename, this%ncid, this%nrec, n1=n1_file, &
+                   n2=n2_file, n3=n3, ns=ns, comm=comm)
     else
       call open_nc(this%filename, this%ncid, this%nrec, n1=n1, &
-                   n2=n2, n3=this%nz, ns=this%nzs)
+                   n2=n2, n3=n3, ns=ns)
     end if
 
     call nctiminfo(this%timeinfo(1,:))
@@ -539,7 +622,7 @@ contains
 
     call define_nc(this%ncid, this%nvar, this%names, lcollective=.true.)
 
-    allocate(this%buffer(n1,n2,this%nvar))
+    allocate(this%buffer(buffer_dim1_len, buffer_dim2_len, this%nvar))
 
     do ivar = 1, this%nvar
       do n2 = 1, size(this%buffer, dim=2)
@@ -621,7 +704,7 @@ contains
 
   end subroutine cross_section_file_get_pointer
 
-  !> Constructor; initialize a NetCDF file containing time series data.
+  !> Constructor; initialize a NetCDF file containing 3d field dumps.
   function field_dump_file_init(filename, nz, nzs, ncoarse, klo, khi, lgpu) &
     result(this)
 
@@ -782,5 +865,146 @@ contains
     ptr(2:,2:,1:) => this%buffer(:,:,:,id)
 
   end subroutine field_dump_file_get_pointer
+
+  !> Constructor; initialize a NetCDF file containing SLURB 3D data. (z,x,y) instead of (x,y,z)!
+  function slurb_3d_file_init(filename, nzs, ncoarse, lgpu) &
+    result(this)
+
+    character(len=*), intent(in) :: filename !< Name of the file.
+
+    integer, intent(in), optional :: nzs     !< Number of vertical levels in the soil grid.
+    integer, intent(in), optional :: ncoarse !< Coarse graining factor.
+    logical, intent(in), optional :: lgpu    !< Allocate buffer on GPU.
+
+    type(slurb_3d_file_t) :: this !< New slurb 3D file object.
+
+    character(len=*), parameter :: routine = modname//'/slurb_3d_file_init'
+
+    if (.not. present(nzs)) then
+      call finish(routine, 'slurb 3d file needs nzs vertical dimension')
+    end if
+
+    if (present(ncoarse)) this%ncoarse = ncoarse
+
+    if (present(lgpu)) this%lgpu = lgpu
+
+    if (NC_HAVE_PARALLEL) then
+      call this%set_filename(filename)
+      this%nx = itot
+      this%ny = jtot
+      this%x_start = myidx * (imax / this%ncoarse) + 1
+      this%y_start = myidy * (jmax / this%ncoarse) + 1
+    else
+      call this%set_filename(filename, suffix=cmyid)
+      this%nx = imax
+      this%ny = jmax
+      this%x_start = 1
+      this%y_start = 1
+    end if
+
+    this%nx = this%nx / this%ncoarse
+    this%ny = this%ny / this%ncoarse
+    this%nvals_x = imax / this%ncoarse
+    this%nvals_y = jmax / this%ncoarse
+
+    this%nzs = nzs
+
+  end function slurb_3d_file_init
+
+  !> Open the NetCDF file, define dimensions and allocate memory.
+  subroutine slurb_3d_file_open(this)
+
+    class(slurb_3d_file_t), intent(inout) :: this
+
+    integer :: n1, n2, nlev, ivar
+
+    if (NC_HAVE_PARALLEL) then
+      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
+                   n2=this%ny, ns=this%nzs, comm=comm3d)
+    else
+      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
+                   n2=this%ny, ns=this%nzs)
+    end if
+
+    call nctiminfo(this%timeinfo)
+
+    if (this%nrec == 0) then
+      call define_nc(this%ncid, 1, this%timeinfo, lcollective=.true.)
+      call writestat_dims_nc(this%ncid, ncoarse=this%ncoarse, &
+                             offset_x=this%x_start, offset_y=this%y_start)
+    end if
+
+    call define_nc(this%ncid, this%nvar, this%names, lcollective=.true.)
+
+    nlev = this%nzs
+    allocate(this%buffer(nlev,this%nvals_x,this%nvals_y,this%nvar))
+
+    do ivar = 1, this%nvar
+      do n2 = 1, this%nvals_y
+        do n1 = 1, this%nvals_x
+          do nlev = 1, size(this%buffer, dim=1)
+            this%buffer(nlev,n1,n2,ivar) = 0.0_field_r
+          end do
+        end do
+      end do
+    end do
+
+    !$acc enter data copyin(this, this%buffer) if(this%lgpu)
+
+  end subroutine slurb_3d_file_open
+
+  !> Write data to disk.
+  subroutine slurb_3d_file_write(this)
+
+    class(slurb_3d_file_t), intent(inout) :: this
+
+    integer :: n1, n2, nlev, ivar
+
+    !$acc update host(this%buffer) if(this%lgpu)
+
+    call writestat_nc(this%ncid, 1, this%timeinfo, [rtimee], this%nrec, &
+                      lraise=.true.)
+    call writestat_nc(this%ncid, this%nvar, this%names, this%buffer, &
+                      this%nrec, dim1=size(this%buffer, dim=1), &
+                      dim2=this%nvals_x, dim3=this%nvals_y, &
+                      offsets=[1, this%x_start, this%y_start])
+
+    !$acc parallel loop collapse(4) default(present) if(this%lgpu)
+    do ivar = 1, this%nvar
+      do n2 = 1, this%nvals_y
+        do n1 = 1, this%nvals_x
+          do nlev = 1, size(this%buffer, dim=1)
+            this%buffer(nlev,n1,n2,ivar) = 0.0_field_r
+          end do
+        end do
+      end do
+    end do
+
+  end subroutine slurb_3d_file_write
+
+  !> Setup a pointer to the buffer of a variable.
+  !!
+  !! @note Lower bounds of horizontal pointer dimensions are set to 2.
+  subroutine slurb_3d_file_get_pointer(this, name, ptr)
+
+    class(slurb_3d_file_t), target, intent(in) :: this
+    character(len=*),              intent(in) :: name
+
+    real(field_r), pointer, intent(out) :: ptr(:,:,:)
+
+    character(len=*), parameter :: routine = &
+      modname//'/slurb_3d_file_get_pointer'
+
+    integer :: id
+
+    id = this%get_var_id(name)
+
+    if (id < 0) then
+      call finish(routine, 'variable '//trim(name)//' not found')
+    end if
+
+    ptr(1:,2:,2:) => this%buffer(:,:,:,id)
+
+  end subroutine slurb_3d_file_get_pointer
 
 end module modnetcdf_file_t

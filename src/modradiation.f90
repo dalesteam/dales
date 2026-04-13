@@ -230,6 +230,9 @@ contains
     use modradfull,only : radfull
     use modradrrtmg, only : radrrtmg
     use modradrte_rrtmgp, only : radrte_rrtmgp
+    use modslurb, only: enable_slurb
+    use modsurfdata, only: tskin, tskin_radiative
+    use modprecursor, only: swap
     implicit none
     real wtime
 
@@ -245,6 +248,12 @@ contains
       !$acc kernels default(present)
       thlprad = 0.0
       !$acc end kernels
+
+      if (enable_slurb) then
+        ! tskin_radiative has been modified by modslurb to take into account the longwave radiation
+        ! transfer in the urban canyon. We use tskin_radiative instead of tskin in radiation.
+        call swap(tskin, tskin_radiative)
+      end if
 
       select case (iradiation)
           case (irad_none)
@@ -269,6 +278,9 @@ contains
             call rad_user
 
       end select
+      if (enable_slurb) then
+        call swap(tskin, tskin_radiative)
+      end if
       if (rad_ls) then
         call radprof
       endif
