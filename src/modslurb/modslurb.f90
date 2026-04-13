@@ -204,10 +204,9 @@ subroutine initslurb
     if (.not. enable_slurb) then
         return
     end if
-    call warning(routine, "SLUrb module enabled. Keep in mind that calculation of effective albedo is not implemented yet!")
     call warning(routine, "SLUrb module enabled. Keep in mind that different building drag parametrizations have not been tested yet!")
     call warning(routine, "SLUrb module enabled. Keep in mind that moist_physics=false has not been tested yet!")
-    call warning(routine, "SLUrb module enabled. Only rrtmgp radiation has been tested with SLUrb!")
+    call warning(routine, "SLUrb module enabled. Only rrtmgp or rte-rrtmgp radiation has been tested with SLUrb!")
 
     call check_array([deep_soil_temperature],"deep_soil_temperature", routine, &
     threshold=[real(100.0_field_r,rkind),real( 400.0_field_r,rkind)], &
@@ -347,6 +346,7 @@ end subroutine slurb_update_external_vars
     integer, parameter :: rkind = kind( 1.0_field_r )
     INTEGER, DIMENSION(:,:), ALLOCATABLE ::  type_tmp  !< array to contain building type temporarily
     integer i,j,k, ncid
+    character(len=100) :: errstr
     
     if (lread_from_netcdf) then
         call nchandle_error(nf90_open('inslurb.'//cexpnr//'.nc', NF90_NOWRITE, ncid))
@@ -367,6 +367,10 @@ end subroutine slurb_update_external_vars
     call check_array(slurb_tile%f_bld(2:i1,2:j1), "f_bld", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real(  1.0_field_r ,rkind)], stop_if_invalid=.true.)
     do j=2,j1
       do i=2,i1
+        if ( slurb_tile%f_bld(i,j) > fraction_slurb(i, j) ) then
+            write(errstr,*), "Building fraction f_bld(",i,",",j,")=",slurb_tile%f_bld(i,j)," cannot be larger than the urban surface fraction=", fraction_slurb(i, j), ". Check your input file. f_bld represents the building plan area fraction of the total surface."
+            call finish(routine, errstr)
+        endif
         if ( fraction_slurb(i,j) /= 0) then
             slurb_tile%f_bld(i, j) = slurb_tile%f_bld(i, j) / fraction_slurb(i, j)
         endif

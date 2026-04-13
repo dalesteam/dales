@@ -2702,6 +2702,13 @@ subroutine init_heterogeneous_nc
       end if
     end do
 
+    ! we fill the temperature and moisture fields with 0.
+    ! we later write these including halo cells in writerestartfiles
+    ! which is a write with uninitialized values which can sometimes cause
+    ! a crash. so we initialize to 0 here to avoid that.
+    tsoil(:,:,:) = 0
+    phiw(:,:,:) = 0
+
     ! 3D soil fields
     ! soil index
     call check( nf90_inq_varid( ncid, 'index_soil', varid) )
