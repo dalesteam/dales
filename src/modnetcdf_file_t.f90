@@ -534,8 +534,6 @@ contains
       buffer_dim2_len = this%nvals_y
       comm => comm3d
 
-      ! Point-type files have a specific vertical location (loc); cap extent to 1 level.
-      ! Non-point XY files have no vertical dimension, so n3 and ns stay 0.
       if (this%loc > 0) then
         if (this%nz  > 0) n3 = 1
         if (this%nzs > 0) ns = 1
@@ -548,7 +546,7 @@ contains
       buffer_dim1_len = this%nvals_x
       comm => commrow
 
-      ! Point type: the y dimension collapses to a single cell
+      ! y dimension is 1 long
       if (this%loc > 0) then
         n2 = 1
         n2_file = 1
@@ -571,7 +569,7 @@ contains
       buffer_dim1_len = this%nvals_y
       comm => commcol
 
-      ! Point type: the x dimension collapses to a single cell
+      ! x dimension is 1 long
       if (this%loc > 0) then
         n1 = 1
         n1_file = 1

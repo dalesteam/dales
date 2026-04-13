@@ -67,8 +67,8 @@ contains
   !> Initializing lsmcrosssection. Read out the namelist, initializing the variables
   subroutine initlsmcrosssection
     use modmpi,     only : myid, myidy, mpierr, comm3d, D_MPI_BCAST
-        use modglobal,  only : ifnamopt, fname_options, dtmax, dtav_glob, ladaptive, &
-          j1, jmax, dy, y0, dt_lim, tres, btime, checknamelisterror, itot, jtot
+    use modglobal,  only : ifnamopt, fname_options, dtmax, dtav_glob, ladaptive, &
+      j1, jmax, dy, y0, dt_lim, tres, btime, checknamelisterror, itot, jtot
     use modstat_nc, only : lnetcdf
     use modsurfdata, only : isurf
     use modlsm,     only : lags

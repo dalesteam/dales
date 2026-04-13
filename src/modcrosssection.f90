@@ -132,17 +132,17 @@ contains
       end if
     end do
     
-    ! crossplane / crossortho: 1-indexed global output-cell numbers (user input,
-    !   range 1..jtot / 1..itot).  Never modified.
+    ! crossplane / crossortho: 1-indexed global output-cell numbers
+    ! (range 1..jtot / 1..itot).
     !
-    ! crossplane_j_all / crossortho_i_all: 2-indexed local model-array indices for
-    !   every entry (may be < 2 or > j1/i1 for cells not owned by this rank).
-    !   Index 1 = halo, index 2 = first physical cell.
-    !   Conversion: local = global - myidy*jmax + 1
-    !   e.g. global=1, rank 0 (myidy=0) → 1 - 0 + 1 = 2  (first physical cell)
+    ! crossplane_j_all / crossortho_i_all: 2-indexed local model-array indices 
+    ! may be < 2 or > j1/i1 for cells not owned by this rank.
+    ! Index 1 = halo, index 2 = first physical cell.
+    ! Conversion: local = global - myidy*jmax + 1
     !
-    ! crossplane_local / crossortho_local: compacted 2-indexed arrays containing
-    !   only the entries that are on this rank (2 <= local <= j1/i1).
+    ! crossplane_local / crossortho_local: 2-indexed arrays containing
+    ! only the entries that are on this rank
+    ! (2 <= local <= j1/i1).
 
     allocate(crossplane_j_all(size(crossplane)), crossortho_i_all(size(crossortho)))
     crossplane_j_all = crossplane - myidy * jmax + 1  ! 2-indexed, all entries
@@ -193,7 +193,7 @@ contains
       if (crossplane_j_all(k) >= 2 .and. crossplane_j_all(k) <= j1) then
         ifile = ifile + 1
         crossplane_local(ifile) = crossplane_j_all(k)  ! 2-indexed; used by wrtvert
-        write(cloc, '(i4.4)') crossplane(k)  ! 1-indexed global number → filename
+        write(cloc, '(i4.4)') crossplane(k)  ! 1-indexed global number
         loc = y0 + dy * (crossplane(k) - 1) + 0.5_field_r * dy  ! cell centre
         xz_files(ifile) = cross_section_file_t('crossxz.'//cloc, nx=itot, &
                                                nz=kmax, loc=loc, lgpu=.true.)
@@ -222,7 +222,7 @@ contains
       if (crossortho_i_all(k) >= 2 .and. crossortho_i_all(k) <= i1) then
         ifile = ifile + 1
         crossortho_local(ifile) = crossortho_i_all(k)  ! 2-indexed; used by wrtorth
-        write(cloc, '(i4.4)') crossortho(k)  ! 1-indexed global number → filename
+        write(cloc, '(i4.4)') crossortho(k)  ! 1-indexed global number
         loc = x0 + dx * (crossortho(k) - 1) + 0.5_field_r * dx  ! cell centre
         yz_files(ifile) = cross_section_file_t('crossyz.'//cloc, ny=jtot, &
                                                nz=kmax, loc=loc, lgpu=.true.)
