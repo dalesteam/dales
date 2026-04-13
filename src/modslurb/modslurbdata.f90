@@ -366,7 +366,7 @@ module modslurbdata
     logical :: calc_t_2m = .true.
     logical :: calc_t_c = .true.
     logical :: calc_t_h = .true.
-    real(field_r) :: dtav_slurb = -1.0_field_r
+    real    :: dtav_slurb = -1.0_field_r
     logical :: output_slurb_bc = .false.
     logical :: output_slurb_constants = .false.
     logical :: slurb_cross_output = .true.
