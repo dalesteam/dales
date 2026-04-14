@@ -47,7 +47,6 @@ module modprecursor
     module procedure :: swap_1d_r4
     module procedure :: swap_1d_r8
   end interface swap
-
   logical :: lprecursor = .false. !< Switch for enabling the precursor method
   logical :: lstatref = .false.   !< Output statistics of the reference simulation
   integer :: nudgedepthgr = 10    !< Depth of the nudging layer
@@ -253,7 +252,7 @@ contains
       !$acc                   sv0save(2-ih:i1+ih,2-jh:j1+jh,1:k1,1:nsv), &
       !$acc                   sv0avsave(1:k1,1:nsv), &
       !$acc                   presfsave(1:k1), preshsave(1:k1), thvhsave(1:k1), &
-      !$acc                   u0avsave(1:k1), v0avsave(1:k1), thl0av(1:k1), &
+      !$acc                   u0avsave(1:k1), v0avsave(1:k1), thl0avsave(1:k1), &
       !$acc                   qt0avsave(1:k1))
 
     end if
