@@ -3,6 +3,7 @@
 !! \param rho Air density.
 !! \return Mu.
 pure function calc_mur(qr, rho) result(mu)
+!!$omp declare target
 
   real(field_r), intent(in) :: qr, rho
 
@@ -25,6 +26,7 @@ end function calc_mur
 !! \param xrmax Upper bound of mass.
 !! \return Droplet mass.
 pure function calc_xr(rho, qr, nr, xrmin, xrmax) result(xr)
+!!$omp declare target
 
   real(field_r), intent(in) :: rho, qr, nr, xrmin, xrmax
 
@@ -40,6 +42,7 @@ end function calc_xr
 !! \param xr Mass of droplet.
 !! \return Droplet diameter.
 pure function calc_dvr(xr) result(d)
+!!$omp declare target
 
   real(field_r), intent(in) :: xr
 
@@ -55,6 +58,7 @@ end function calc_dvr
 !! \param dr Mean droplet diameter.
 !! \return Lambda.
 pure function calc_lbdr(mur, dr) result(lambda)
+!!$omp declare target
 
   real(field_r), intent(in) :: mur, dr
 

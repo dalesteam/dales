@@ -45,6 +45,7 @@ save
       integer ::  j2
       integer ::  nsv = 0       !< Number of additional scalar fields
       !$acc declare create (imax, jmax, itot, jtot)
+!!$omp declare target (imax,jmax,itot,jtot)
 
       integer ::  ih=3
       integer ::  jh=3
@@ -200,6 +201,51 @@ save
         real(field_r), allocatable, dimension(:,:,:,:) :: eigvec
         character (len=:), allocatable :: name
       end type
+!!$omp declare mapper (boundary_type::x) map ( &
+!!$omp  x%nx1 &
+!!$omp , x%nx2 &
+!!$omp , x%nx1patch &
+!!$omp , x%nx2patch &
+!!$omp , x%nx1u &
+!!$omp , x%nx2u &
+!!$omp , x%nx1v &
+!!$omp , x%nx2v &
+!!$omp , x%nx1w &
+!!$omp , x%nx2w &
+!!$omp , x%nx1turb &
+!!$omp , x%nx2turb &
+!!$omp , x%u &
+!!$omp , x%v &
+!!$omp , x%w &
+!!$omp , x%thl &
+!!$omp , x%qt &
+!!$omp , x%e12 &
+!!$omp , x%u2 &
+!!$omp , x%v2 &
+!!$omp , x%w2 &
+!!$omp , x%uv &
+!!$omp , x%uw &
+!!$omp , x%vw &
+!!$omp , x%thl2 &
+!!$omp , x%qt2 &
+!!$omp , x%wthl &
+!!$omp , x%wqt &
+!!$omp , x%ci &
+!!$omp , x%svturb &
+!!$omp , x%sv &
+!!$omp , x%radcorr &
+!!$omp , x%uphase &
+!!$omp , x%uphasesingle &
+!!$omp , x%radcorrsingle &
+!!$omp , x%uturb &
+!!$omp , x%vturb &
+!!$omp , x%wturb &
+!!$omp , x%thlturb &
+!!$omp , x%qtturb &
+!!$omp , x%e12turb &
+!!$omp , x%eigvec &
+!!$omp , x%name &
+!!$omp )
       type(boundary_type), dimension(5) :: boundary
       logical, dimension(5) :: lboundary = .false.
       logical, dimension(5) :: lperiodic =  (/.true., .true., .true., .true., .false./)
@@ -463,12 +509,15 @@ contains
 !     timeleft=ceiling(runtime/tres)
 
     !$acc enter data copyin(dzf, dzh, dzfi, dzhi, zh, zf, delta, deltai)
+!!$omp target enter data map(to:dzf,dzh,dzfi,dzhi,zh,zf,delta,deltai)
     !$acc update device (imax, jmax, itot, jtot)
+!!$omp target update to(imax,jmax,itot,jtot)
 
   end subroutine initglobal
 !> Clean up when leaving the run
   subroutine exitglobal
     !$acc exit data delete(dzf, dzh, zh, zf, delta, deltai)
+!!$omp target exit data map(delete:dzf,dzh,zh,zf,delta,deltai)
 
     deallocate(dzf,dzh,dzfi,dzhi,zh,zf,delta,deltai)
   end subroutine exitglobal

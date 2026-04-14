@@ -114,6 +114,12 @@ contains
     !$acc                   gamma_inc_n(1:dims_inc(1),1:dims_inc(2)), &
     !$acc                   gamma_blc_m(1:dims_blc(1),1:dims_blc(2)), &
     !$acc                   gamma_blc_n(1:dims_blc(1),1:dims_blc(2)))
+!!$omp target enter data map(to:log_rp_inc(1:dims_inc(2)),&
+!!$omp log_rp_blc(1:dims_blc(2)),log_rr(1:dims_blc(1)),&
+!!$omp log_rc(1:dims_inc(1)),gamma_inc_m(1:dims_inc(1),1:dims_inc(2)),&
+!!$omp gamma_inc_n(1:dims_inc(1),1:dims_inc(2)),&
+!!$omp gamma_blc_m(1:dims_blc(1),1:dims_blc(2)),&
+!!$omp gamma_blc_n(1:dims_blc(1),1:dims_blc(2)))
 
   end subroutine init_scavenging
 
@@ -158,6 +164,9 @@ contains
 
     !$acc parallel loop collapse(3) default(present) &
     !$acc private(sed_qr, rm, gamma_n, gamma_m, st)
+!!$omp target teams loop private(sed_qr,rm,gamma_n,gamma_m,st)&
+!!$omp collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
@@ -233,6 +242,9 @@ contains
 
     !$acc parallel loop collapse(3) default(present) &
     !$acc private(rc, rm, gamma_n, gamma_m, limit, st)
+!!$omp target teams loop private(rc,rm,gamma_n,gamma_m,limit,st)&
+!!$omp collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1

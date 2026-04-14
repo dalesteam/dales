@@ -144,6 +144,7 @@ contains
     allocate(courx(kmax), coury(kmax), courz(kmax), courtot(kmax), peclettot(kmax))
 
     !$acc enter data create(courx, coury, courz, courtot, peclettot)
+!!$omp target enter data map(alloc:courx,coury,courz,courtot,peclettot)
 
     call initETA_stat
     call timer_toc(routine)
@@ -162,6 +163,7 @@ contains
   subroutine exitchecksim
 
     !$acc exit data delete(courx, coury, courz, courtot, peclettot)
+!!$omp target exit data map(delete:courx,coury,courz,courtot,peclettot)
 
     deallocate(courx, coury, courz, courtot, peclettot)
 
@@ -261,6 +263,9 @@ contains
 
     !$acc parallel loop gang default(present) &
     !$acc private(velx_max, vely_max, velz_max, velmag_max, ekm_max)
+!!$omp target teams loop private(velx_max,vely_max,velz_max,velmag_max,&
+!!$omp ekm_max) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, kmax
       velx_max = 0
       vely_max = 0
@@ -269,6 +274,8 @@ contains
       ekm_max = 0
       !$acc loop collapse(2) &
       !$acc reduction(max:velx_max, vely_max, velz_max, velmag_max, ekm_max)
+!!$omp loop reduction(max:velx_max,vely_max,velz_max,velmag_max,&
+!!$omp ekm_max) collapse(2)
       do j = 2, j1
         do i = 2, i1
           velx_max = max(velx_max, abs(u0(i,j,k)))
@@ -288,6 +295,7 @@ contains
     end do
 
     !$acc update self(courx, coury, courz, courtot, peclettot)
+!!$omp target update from(courx,coury,courz,courtot,peclettot)
 
     call D_MPI_ALLREDUCE(courx, kmax, MPI_MAX, comm3d, mpierr)
     call D_MPI_ALLREDUCE(coury, kmax, MPI_MAX, comm3d, mpierr)
@@ -319,6 +327,9 @@ contains
 
     !$acc parallel loop collapse(3) default(present) private(div) &
     !$acc reduction(max:divmax) reduction(+:divtot)
+!!$omp target teams loop private(div) reduction(max:divmax)&
+!!$omp reduction(+:divtot) collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k=1,kmax
       do j=2,j1
         do i=2,i1

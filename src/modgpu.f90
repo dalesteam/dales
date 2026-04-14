@@ -67,6 +67,20 @@ contains
     !$acc&              LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &
     !$acc&              LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA, &
     !$acc&              fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p)
+!!$omp target update to(um,u0,up,vm,v0,vp,wm,w0,wp,thlm,thl0,thlp,qtm,&
+!!$omp qt0,qtp,e12m,e120,e12p,svm,sv0,svp,rhobf,rhobh,ql0,tmp0,ql0h,&
+!!$omp thv0h,thl0h,qt0h,presf,presh,exnf,exnh,thvh,thvf,rhof,qt0av,&
+!!$omp ql0av,thl0av,u0av,v0av,sv0av,ug,vg,dpdxl,dpdyl,wfls,whls,thlpcar,&
+!!$omp dthldxls,dthldyls,dthldtls,dqtdxls,dqtdyls,dqtdtls,dudxls,dudyls,&
+!!$omp dudtls,dvdxls,dvdyls,dvdtls,dthvdz,qvsl,qvsi,esl,qsat,dzf,dzh,zh,&
+!!$omp zf,delta,deltai,z0m,z0h,obl,tskin,qskin,cm,cs,ustar,dudz,dvdz,&
+!!$omp thlflux,qtflux,dqtdz,dthldz,svflux,svs,horv,ra,rs,wsvsurf,ekm,&
+!!$omp ekh,zlt,sbdiss,sbshr,sbbuo,csz,anis_fac,tsc,thlpcar,presf,presh,&
+!!$omp exnf,exnh,thetah,qvsl,qvsi,esl,qsat,qth,qlh,th0av,thv0,thetah,&
+!!$omp qth,qlh,precep,thlpmcr,qtpmcr,thlprad,lwd,lwu,swd,swu,lwc,swdir,&
+!!$omp swdif,lwdca,lwuca,swdca,swuca,lw_dn_toa,lw_up_toa,sw_dn_toa,&
+!!$omp sw_up_toa,lw_dn_ca_toa,lw_up_ca_toa,sw_dn_ca_toa,sw_up_ca_toa,&
+!!$omp fluid_mask,iobst,ixw_p,ixw_m,iyw_p,iyw_m,izw_p)
 
   end subroutine update_gpu
 
@@ -78,6 +92,7 @@ contains
     implicit none
 
     !$acc update device(tskin, qskin, ra, rs, obl)
+!!$omp target update to(tskin,qskin,ra,rs,obl)
 
   end subroutine update_gpu_surface
   
@@ -140,6 +155,20 @@ contains
     !$acc&            LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &
     !$acc&            LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA, &
     !$acc&            fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p)
+!!$omp target update from(um,u0,up,vm,v0,vp,wm,w0,wp,thlm,thl0,thlp,qtm,&
+!!$omp qt0,qtp,e12m,e120,e12p,svm,sv0,svp,rhobf,rhobh,ql0,tmp0,ql0h,&
+!!$omp thv0h,thl0h,qt0h,presf,presh,exnf,exnh,thvh,thvf,rhof,qt0av,&
+!!$omp ql0av,thl0av,u0av,v0av,sv0av,ug,vg,dpdxl,dpdyl,wfls,whls,thlpcar,&
+!!$omp dthldxls,dthldyls,dthldtls,dqtdxls,dqtdyls,dqtdtls,dudxls,dudyls,&
+!!$omp dudtls,dvdxls,dvdyls,dvdtls,dthvdz,qvsl,qvsi,esl,qsat,dzf,dzh,zh,&
+!!$omp zf,delta,deltai,z0m,z0h,obl,tskin,qskin,cm,cs,ustar,dudz,dvdz,&
+!!$omp thlflux,qtflux,dqtdz,dthldz,svflux,svs,horv,ra,rs,wsvsurf,ekm,&
+!!$omp ekh,zlt,sbdiss,sbshr,sbbuo,csz,anis_fac,tsc,thlpcar,presf,presh,&
+!!$omp exnf,exnh,thetah,qvsl,qvsi,esl,qsat,qth,qlh,th0av,thv0,thetah,&
+!!$omp qth,qlh,precep,thlpmcr,qtpmcr,thlprad,lwd,lwu,swd,swu,lwc,swdir,&
+!!$omp swdif,lwdca,lwuca,swdca,swuca,lw_dn_toa,lw_up_toa,sw_dn_toa,&
+!!$omp sw_up_toa,lw_dn_ca_toa,lw_up_ca_toa,sw_dn_ca_toa,sw_up_ca_toa,&
+!!$omp fluid_mask,iobst,ixw_p,ixw_m,iyw_p,iyw_m,izw_p)
 
     host_is_updated = .true.
 
@@ -153,6 +182,7 @@ contains
     implicit none
 
     !$acc update self(tskin, qskin, obl)
+!!$omp target update from(tskin,qskin,obl)
 
   end subroutine update_host_surface
 
@@ -166,12 +196,14 @@ contains
     allocate(workspace_0(n))
     workspace_0 = 0
     !$acc enter data copyin(workspace_0)
+!!$omp target enter data map(to:workspace_0)
 
     ! Allocate another workspace for the all-to-all operations
     if (nprocs > 1) then
       allocate(workspace_1(n))
       workspace_1 = 0
       !$acc enter data copyin(workspace_1)
+!!$omp target enter data map(to:workspace_1)
     end if
 
   end subroutine allocate_workspace
@@ -182,10 +214,12 @@ contains
     implicit none
 
     !$acc exit data delete(workspace_0)
+!!$omp target exit data map(delete:workspace_0)
     deallocate(workspace_0)
 
     if (nprocs > 1) then
       !$acc exit data delete (workspace_1)
+!!$omp target exit data map(delete:workspace_1)
       deallocate(workspace_1)
     end if
 

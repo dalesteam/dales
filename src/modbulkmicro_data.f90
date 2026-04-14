@@ -28,12 +28,14 @@ module modbulkmicro_data
     l_lognormal = .false.   !< Use lognormal distribution for rain terminal velocities.
 
   !$acc declare create(l_mur_cst)
+!!$omp declare target (l_mur_cst)
 
   real(field_r) :: &
     mur_cst = 5,   & !< Mu value if l_mur_cst = .true.
     sig_gr = 1.5     !< GSD of rain droplet DSD.
 
   !$acc declare create(mur_cst)
+!!$omp declare target (mur_cst)
 
   integer :: &
     qcbase,  & !< Lowest model layer with cloud.
@@ -54,5 +56,6 @@ module modbulkmicro_data
     mygamma251(-100:4000)
 
   !$acc declare create(mygamma21, mygamma251)
+!!$omp declare target (mygamma21,mygamma251)
 
 end module modbulkmicro_data
