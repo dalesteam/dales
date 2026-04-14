@@ -101,6 +101,7 @@ module modbulkmicro
       Ncp(:,:,:) = 0.0_field_r
 
       !$acc enter data copyin(Ncp(2:i1,2:j1,1:k1))
+!!$omp target enter data map(to:ncp(2:i1,2:j1,1:k1))
     end if
 
                                         ! Fields accessed by:
@@ -139,9 +140,11 @@ module modbulkmicro
       end do
 
       !$acc update device(mygamma21, mygamma251)
+!!$omp target update to(mygamma21,mygamma251)
     end if
 
     !$acc enter data copyin(Nr, qr, Nrp, qrp, precep, thlpmcr, qtpmcr, Nc)
+!!$omp target enter data map(to:nr,qr,nrp,qrp,precep,thlpmcr,qtpmcr,nc)
 
     if (lstat) call init_bulkmicro_stat
 
@@ -157,6 +160,7 @@ module modbulkmicro
     implicit none
 
     !$acc exit data delete(Nr, qr, Nrp, qrp, precep, thlpmcr, qtpmcr)
+!!$omp target exit data map(delete:nr,qr,nrp,qrp,precep,thlpmcr,qtpmcr)
 
     deallocate(Nr,Nrp,qr,qrp,thlpmcr,qtpmcr)
     deallocate(precep)
@@ -186,6 +190,8 @@ module modbulkmicro
     real(field_r), allocatable :: qrp_tmp(:,:,:), nrp_tmp(:,:,:), ncp_tmp(:,:,:), qlp_tmp(:,:,:)
 
     !$acc parallel loop collapse(3) default(present)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
@@ -201,6 +207,8 @@ module modbulkmicro
 
     if (laerosol) then
       !$acc parallel loop collapse(3) default(present)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = 1, k1
         do j = 2, j1
           do i = 2, i1
@@ -229,6 +237,9 @@ module modbulkmicro
       Nrsum_neg = 0.0
       Nrsum = 0.00
       !$acc parallel loop collapse(3) default(present) reduction(+: qrsum_neg, qrsum, Nrsum_neg, Nrsum)
+!!$omp target teams loop reduction(+:qrsum_neg,qrsum,nrsum_neg,nrsum)&
+!!$omp collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = 1, k1
         do j = 2, j1
           do i = 2, i1
@@ -265,6 +276,8 @@ module modbulkmicro
     qcbase = k1 + 1
     qcroof = 1 - 1
     !$acc parallel loop collapse(3) default(present) reduction(min:qrbase,qcbase)
+!!$omp target teams loop reduction(min:qrbase,qcbase) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
@@ -283,6 +296,8 @@ module modbulkmicro
 
     if (qrbase.le.k1 .or. qcbase.le.k1) then
       !$acc parallel loop collapse(3) default(present) reduction(max:qrroof,qcroof)
+!!$omp target teams loop reduction(max:qrroof,qcroof) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do k = min(qrbase,qcbase), k1
         do j = 2, j1
           do i = 2, i1
@@ -303,6 +318,7 @@ module modbulkmicro
       allocate(ncp_tmp(2:i1,2:j1,1:k1), qlp_tmp(2:i1,2:j1,1:k1))
 
       !$acc enter data create(ncp_tmp, qlp_tmp)
+!!$omp target enter data map(alloc:ncp_tmp,qlp_tmp)
 
       call zero_field(ncp_tmp)
       call zero_field(qlp_tmp)
@@ -337,6 +353,7 @@ module modbulkmicro
       allocate(qrp_tmp(2:i1,2:j1,1:k1), nrp_tmp(2:i1,2:j1,1:k1))
 
       !$acc enter data create(qrp_tmp, nrp_tmp)
+!!$omp target enter data map(alloc:qrp_tmp,nrp_tmp)
 
       call zero_field(qrp_tmp)
       call zero_field(nrp_tmp)
@@ -445,6 +462,8 @@ module modbulkmicro
       ! remove negative values and non physical low values
       !*********************************************************************
       !$acc parallel loop collapse(3) default(present) private(qr_cor, Nr_cor)
+!!$omp target teams loop private(qr_cor,nr_cor) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do k = 1, k1
         do j = 2, j1
           do i = 2, i1
@@ -475,12 +494,15 @@ module modbulkmicro
       if(laerosol) call aerosol_scavenging_rain(qr, nr, rhof, delt)
 
       !$acc exit data delete(qrp_tmp, nrp_tmp)
+!!$omp target exit data map(delete: qrp_tmp, nrp_tmp)
 
       deallocate(qrp_tmp, nrp_tmp)
     
     end if
 
     !$acc parallel loop collapse(3) default(present)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
@@ -497,6 +519,8 @@ module modbulkmicro
       call aerosol_finish
 
       !$acc parallel loop collapse(3) default(present)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = 1, k1
         do j = 2, j1
           do i = 2, i1
@@ -509,6 +533,7 @@ module modbulkmicro
 
     if (laerosol) then
       !$acc exit data delete(ncp_tmp, qlp_tmp)
+!!$omp target exit data map(delete:ncp_tmp,qlp_tmp)
       deallocate(ncp_tmp, qlp_tmp)
     end if
 
@@ -551,6 +576,8 @@ module modbulkmicro
     csed = c_St*(3./(4.*pi*rhow))**(2./3.)*exp(5.*log(sig_g)**2.)
 
     !$acc parallel loop collapse(3) default(present)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = qcbase, qcroof
       do j = 2, j1
         do i = 2, i1
@@ -558,14 +585,18 @@ module modbulkmicro
             sedc = csed*nc(i,j,k)**(-2./3.)*(ql(i,j,k)*rhof(k))**(5./3.)
 
             !$acc atomic update
+!!$omp atomic update
             qtpmcr(i,j,k)  = qtpmcr (i,j,k) - sedc /(dzf(k)*rhof(k))
             !$acc atomic update
+!!$omp atomic update
             thlpmcr(i,j,k) = thlpmcr(i,j,k) + sedc * (rlv/(cp*exnf(k)))/(dzf(k)*rhof(k))
 
             if (k > 1) then
               !$acc atomic update
+!!$omp atomic update
               qtpmcr(i,j,k-1)  = qtpmcr(i,j,k-1) + sedc / (dzf(k-1)*rhof(k-1))
               !$acc atomic update
+!!$omp atomic update
               thlpmcr(i,j,k-1) = thlpmcr(i,j,k-1) - sedc * (rlv/(cp*exnf(k-1)))/(dzf(k-1)*rhof(k-1))
             end if
           endif
@@ -606,8 +637,11 @@ module modbulkmicro
     allocate(qr_spl(2:i1,2:j1,1:k1), nr_spl(2:i1,2:j1,1:k1))
 
     !$acc enter data create(qr_spl, nr_spl)
+!!$omp target enter data map(alloc:qr_spl,nr_spl)
 
     !$acc parallel loop collapse(3) default(present)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
@@ -620,6 +654,8 @@ module modbulkmicro
     do ts = 1, n_spl ! Time splitting loop
       ! TODO: check if compiler succesfully unswitches and inlines function calls.
       !$acc parallel loop gang vector collapse(3) default(present)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = qrbase, qrroof
         do j = 2, j1
           do i = 2, i1
@@ -632,14 +668,18 @@ module modbulkmicro
                 sed_nr = calc_sed_nr_kk(qr_spl(i,j,k), nr_spl(i,j,k), rho(k))
               end if
               !$acc atomic update
+!!$omp atomic update
               qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr * dt_spl / (dzf(k) * rho(k))
               !$acc atomic update
+!!$omp atomic update
               nr_spl(i,j,k) = nr_spl(i,j,k) - sed_nr * dt_spl / dzf(k)
               if (k > 1) then
                 !$acc atomic update
+!!$omp atomic update
                 qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr * dt_spl &
                                   / (dzf(k-1) * rho(k-1))
                 !$acc atomic update
+!!$omp atomic update
                 nr_spl(i,j,k-1) = nr_spl(i,j,k-1) + sed_nr * dt_spl / dzf(k-1)
               end if
               if (ts == 1) then
@@ -655,6 +695,8 @@ module modbulkmicro
     end do
 
     !$acc parallel loop collapse(3) default(present)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = qrbase, qrroof
       do j = 2, j1
         do i = 2, i1
@@ -665,6 +707,7 @@ module modbulkmicro
     end do
 
     !$acc exit data delete(qr_spl, nr_spl)
+!!$omp target exit data map(delete:qr_spl,nr_spl)
 
     deallocate(qr_spl, nr_spl)
 

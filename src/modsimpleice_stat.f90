@@ -69,8 +69,11 @@ contains
       allocate(is_precip(2:i1,2:j1,1:k1))
 
       !$acc data create(is_cloud, is_rain, is_precip)
+!!$omp target data map(alloc:is_cloud,is_rain,is_precip)
 
       !$acc parallel loop collapse(3) default(present)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = 1, kmax
         do j = 2, j1
           do i = 2, i1
@@ -88,6 +91,7 @@ contains
       call sample_field('precmn', precip)
 
       !$acc end data
+!!$omp end target data
 
       deallocate(is_cloud, is_rain, is_precip)
 

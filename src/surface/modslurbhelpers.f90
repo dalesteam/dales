@@ -839,6 +839,7 @@ end subroutine slurb_bulk_deallocations
     !$ACC ROUTINE SEQ
 
     IMPLICIT NONE
+!!$omp declare target
 
     real(field_r), intent(in) ::  t  !< temperature (K)
 

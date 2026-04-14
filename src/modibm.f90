@@ -344,6 +344,8 @@ contains
     deallocate(tiobst, tixw_p, tixw_m, tiyw_p, tiyw_m, tizw_p)
 
     !$acc enter data copyin(fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p)
+!!$omp target enter data map(to:fluid_mask,iobst,ixw_p,ixw_m,iyw_p,&
+!!$omp iyw_m,izw_p)
 
     call timer_toc('modibm/initibm')
 
@@ -356,6 +358,8 @@ contains
     if (.not. (lapply_ibm)) return
 
     !$acc exit data delete(fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p)
+!!$omp target exit data map(delete:fluid_mask,iobst,ixw_p,ixw_m,iyw_p,&
+!!$omp iyw_m,izw_p)
 
     deallocate(iobst)
     deallocate(ixw_p)
@@ -450,6 +454,8 @@ contains
 
     ! Set tendencies inside obstacles (i.e., correct for any drift from previous integration step)
     !$acc parallel loop gang vector default(present)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do nn = 1,Nobst_wide  !1!< Svdldit werkt niet..
       i = iobst(nn,1)
       j = iobst(nn,2)
@@ -476,6 +482,8 @@ contains
 
     ! Correct tendencies for walls in positive z-direction (only works when k>1, which should be the case for vertical walls [see initibm])
     !$acc parallel loop gang vector default(present)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do nn = 1,Nzwalls_plus
       i = izw_p(nn,1)
       j = izw_p(nn,2)
@@ -552,6 +560,8 @@ contains
 
     ! Correct tendencies for walls in positive x-direction
     !$acc parallel loop gang vector default(present)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do nn = 1,Nxwalls_plus
       i = ixw_p(nn,1)
       j = ixw_p(nn,2)
@@ -620,6 +630,8 @@ contains
 
     ! Correct tendencies for walls in negative x-direction
     !$acc parallel loop gang vector default(present)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do nn = 1,Nxwalls_min
       i = ixw_m(nn,1)
       j = ixw_m(nn,2)
@@ -684,6 +696,8 @@ contains
 
     ! Correct tendencies for walls in positive y-direction
     !$acc parallel loop gang vector default(present)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do nn = 1,Nywalls_plus
       i = iyw_p(nn,1)
       j = iyw_p(nn,2)
@@ -748,6 +762,8 @@ contains
 
     ! Correct tendencies for walls in negative y-direction
     !$acc parallel loop gang vector default(present)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do nn = 1,Nywalls_min
       i = iyw_m(nn,1)
       j = iyw_m(nn,2)
@@ -850,6 +866,7 @@ contains
 
   !> Calculate drag using logarithmic law-of-wall.
   function log_wallaw(u1,u2,Cm_hor_wall) result(tau)
+!!$omp declare target
 
     !$acc routine seq
     real(field_r), intent(in) :: u1,u2,Cm_hor_wall

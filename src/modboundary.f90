@@ -93,7 +93,9 @@ contains
    allocate(dsv(nsv))
 
    !$acc enter data copyin(tsc) async
+!!$omp target enter data map(to:tsc)
    !$acc enter data create(dsv) async
+!!$omp target enter data map(alloc:dsv)
 
    call timer_toc('modboundary/initboundary')
 
@@ -130,6 +132,7 @@ contains
     implicit none
     
     !$acc exit data delete(tsc, dsv)
+!!$omp target exit data map(delete:tsc,dsv)
     deallocate(tsc, dsv)
   end subroutine exitboundary
 
@@ -216,6 +219,8 @@ contains
   case(0) !do nothing
   case(1)
     !$acc kernels default(present) async(1)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     do k=ksp,kmax
       up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(u0av(k)-cu))*tsc(k)
       vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(v0av(k)-cv))*tsc(k)
@@ -224,16 +229,22 @@ contains
       qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
     end do
     !$acc end kernels
+!!$omp end target
     if(lcoriol) then
       !$acc kernels default(present) async(1)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
       do k=ksp,kmax
         up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(ug(k)-cu))*((1./(geodamptime*rnu0))*tsc(k))
         vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(vg(k)-cv))*((1./(geodamptime*rnu0))*tsc(k))
       end do
       !$acc end kernels
+!!$omp end target
     end if
   case(2)
     !$acc kernels default(present) async(1)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     do k=ksp,kmax
       up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(ug(k)-cu))*tsc(k)
       vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(vg(k)-cv))*tsc(k)
@@ -242,8 +253,11 @@ contains
       qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
     end do
     !$acc end kernels
+!!$omp end target
   case(3)
     !$acc kernels default(present) async(1)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     do k=ksp,kmax
       up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(u0av(k)-cu))*tsc(k)
       vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(v0av(k)-cv))*tsc(k)
@@ -252,11 +266,15 @@ contains
       qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
     end do
     !$acc end kernels
+!!$omp end target
   case(-1)
     !$acc kernels default(present) async(1)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     up(:,:,:) = up(:,:,:) - unudge * ( sum((u0av(1:kmax) - ug(1:kmax)) * dzf(1:kmax)) / sum(dzf(1:kmax)) ) / rdt
     vp(:,:,:) = vp(:,:,:) - unudge * ( sum((v0av(1:kmax) - vg(1:kmax)) * dzf(1:kmax)) / sum(dzf(1:kmax)) ) / rdt
     !$acc end kernels
+!!$omp end target
   case default
     call finish(routine, "no gravity wave damping option selected")
   end select
@@ -267,16 +285,22 @@ contains
 
   if ( .not. lopenbc ) then
     !$acc kernels default(present) async(1)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     thl0(2:i1,2:j1,kmax) = thl0av(kmax)
     qt0 (2:i1,2:j1,kmax) = qt0av(kmax)
     !$acc end kernels
+!!$omp end target
 
     if (nsv > 0) then
       !$acc kernels default(present) async(1)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
       do n=1,nsv
         sv0(2:i1,2:j1,kmax,n) = sv0av(kmax,n)
       end do
       !$acc end kernels
+!!$omp end target
     end if
 
     !$acc wait
@@ -308,14 +332,19 @@ contains
   ! to extrapolate thl and qt to level k1 !JvdD
   
   !$acc serial default(present)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
   dtheta = sum((thl0av(kmax-kav+1:kmax)-thl0av(kmax-kav:kmax-1))/ &
              dzh(kmax-kav+1:kmax))/kav
   dqt    = sum((qt0av (kmax-kav+1:kmax)-qt0av (kmax-kav:kmax-1))/ &
              dzh(kmax-kav+1:kmax))/kav
   !$acc end serial
+!!$omp end target
 
   if ( nsv > 0 ) then
     !$acc parallel loop default(present)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do n=1,nsv
       dsv(n) = sum((sv0av(kmax-kav+1:kmax,n)-sv0av(kmax-kav:kmax-1,n))/ &
                  dzh(kmax-kav:kmax-1))/kav
@@ -323,20 +352,26 @@ contains
   endif
   
   !$acc kernels default(present) 
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
   thl0(:,:,k1) = thl0(:,:,kmax) + dtheta*dzh(k1)
   qt0(:,:,k1)  = qt0 (:,:,kmax) + dqt*dzh(k1)
 
   thlm(:,:,k1) = thlm(:,:,kmax) + dtheta*dzh(k1)
   qtm(:,:,k1)  = qtm (:,:,kmax) + dqt*dzh(k1)
   !$acc end kernels
+!!$omp end target
   
   if ( nsv > 0) then
     !$acc kernels default(present)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     do n=1,nsv
       sv0(:,:,k1,n) = sv0(:,:,kmax,n) + dsv(n)*dzh(k1)
       svm(:,:,k1,n) = svm(:,:,kmax,n) + dsv(n)*dzh(k1)
     enddo
     !$acc end kernels
+!!$omp end target
   endif
 
   return
@@ -348,29 +383,41 @@ contains
     use modfields, only : u0,v0,w0,e120,um,vm,wm,e12m
     implicit none
     !$acc kernels default(present)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     u0(:,:,k1)   = u0(:,:,kmax)
     v0(:,:,k1)   = v0(:,:,kmax)
     w0(:,:,k1)   = 0.0
     e120(:,:,k1) = e12min
     !$acc end kernels
+!!$omp end target
 
     if (lrigidlid) then
         !$acc kernels default(present)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
         e120(:,:,k1) = e120(:,:,kmax)
         !$acc end kernels
+!!$omp end target
     endif
     
     !$acc kernels default(present)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     um(:,:,k1)   = um(:,:,kmax)
     vm(:,:,k1)   = vm(:,:,kmax)
     wm(:,:,k1)   = 0.0
     e12m(:,:,k1) = e12min
     !$acc end kernels
+!!$omp end target
 
     if (lrigidlid) then
         !$acc kernels default(present)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
         e12m(:,:,k1) = e12m(:,:,kmax)
         !$acc end kernels
+!!$omp end target
     endif
 
   return

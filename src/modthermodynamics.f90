@@ -69,6 +69,7 @@ module modthermodynamics
   real(field_r), protected :: esatmtab(1:2000)
 
   !$acc declare create(ttab, esatltab, esatitab, esatmtab)
+!!$omp declare target (ttab,esatltab,esatitab,esatmtab)
 
 contains
 
@@ -125,6 +126,7 @@ contains
     th0av(:) = 0.
 
     !$acc enter data copyin(th0av, thv0, thetah, qth, qlh)
+!!$omp target enter data map(to:th0av,thv0,thetah,qth,qlh)
 
     ! esatltab(m) gives the saturation vapor pressure over water at T corresponding to m
     ! esatitab(m) is the same over ice
@@ -148,6 +150,7 @@ contains
     end do
 
     !$acc update device(ttab, esatltab, esatitab, esatmtab)
+!!$omp target update to(ttab,esatltab,esatitab,esatmtab)
 
   end subroutine initthermodynamics
 
@@ -179,15 +182,20 @@ contains
 
       !$acc parallel loop collapse(3) default(present) async(1) private(T) &
       !$acc firstprivate(too_cold, too_hot)
+!!$omp target teams loop private(t) collapse(3) firstprivate(too_cold,&
+!!$omp too_hot) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = 1, k1
         do j = 2, j1
           do i = 2, i1
             T = thl0(i,j,k) * exnf(k)
             if (T < 150) then
               !$acc atomic write
+!!$omp atomic write
               too_cold = .true.
             else if (T > 550) then
               !$acc atomic write
+!!$omp atomic write
               too_hot = .true.
             end if
           end do
@@ -240,6 +248,8 @@ contains
     call calthv
 
     !$acc parallel loop collapse(3) default(present) async(1)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
@@ -250,11 +260,15 @@ contains
     end do
 
     !$acc parallel loop gang(static:1) default(present) async wait(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       thvh(k) = 0.0_field_r
     end do
 
     !$acc parallel loop gang(static:1) default(present) async wait(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       thvf(k) = 0.0_field_r
     end do
@@ -270,10 +284,15 @@ contains
     end if
 
     !$acc serial default(present) async(1)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
     !$acc end serial
+!!$omp end target
 
     !$acc parallel loop default(present) async(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       rhof(k) = presf(k)/(rd*thvf(k)*exnf(k))
     end do
@@ -287,6 +306,7 @@ contains
   !> Cleans up after the run
   subroutine exitthermodynamics
     !$acc exit data delete(th0av, thv0, thetah, qth, qlh)
+!!$omp target exit data map(delete:th0av,thv0,thetah,qth,qlh)
     deallocate(th0av, thv0, thetah, qth, qlh)
   end subroutine exitthermodynamics
 
@@ -295,6 +315,8 @@ contains
     integer :: i, j, k
 
     !$acc parallel loop collapse(3) default(present) async(1)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1,k1
        do j = 2,j1
           do i = 2,i1
@@ -321,6 +343,8 @@ contains
 
     if (lmoist) then
       !$acc parallel loop collapse(3) default(present) async(1)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = 2, k1
         do j = 2, j1
           do i = 2, i1
@@ -335,6 +359,10 @@ contains
       !$acc private(a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, &
       !$acc         chi_sat, chi, dthv, del_thv_dry, del_thv_sat, temp, qs, dq, dth) &
       !$acc async(1)
+!!$omp target teams loop private(a_dry,b_dry,a_moist,b_moist,c_liquid,&
+!!$omp epsilon,eps_i,chi_sat,chi,dthv,del_thv_dry,del_thv_sat,temp,qs,&
+!!$omp dq,dth) collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = 2, kmax
         do j = 2 , j1
           do i = 2, i1
@@ -383,6 +411,8 @@ contains
       end do
 
       !$acc parallel loop collapse(2) default(present) private(temp, qs, a_surf, b_surf) async(1)
+!!$omp target teams loop private(temp,qs,a_surf,b_surf) collapse(2)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do j=2,j1
         do i=2,i1
           if(ql0(i,j,1)>0) then
@@ -405,6 +435,8 @@ contains
 
     else
       !$acc parallel loop collapse(3) default(present) async(1)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = 2, k1
         do j = 2, j1
           do i = 2, i1
@@ -414,6 +446,8 @@ contains
       end do
 
       !$acc parallel loop collapse(3) default(present) async(1)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = 2, kmax
         do j = 2, j1
           do i = 2, i1
@@ -423,6 +457,8 @@ contains
       end do
 
       !$acc parallel loop collapse(2) default(present) async(1)
+!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do j = 2, j1
         do i = 2, i1
           dthvdz(i,j,1) = dthldz(i,j)
@@ -431,6 +467,8 @@ contains
     end if
 
     !$acc parallel loop collapse(3) default(present) async(1)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
@@ -457,36 +495,50 @@ contains
     ! 1. Compute slab averaged fields
 
     !$acc parallel loop gang(static:1) default(present) async wait(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       u0av(k) = 0.0_field_r
     end do
 
     !$acc parallel loop gang(static:1) default(present) async wait(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       v0av(k) = 0.0_field_r
     end do
 
     !$acc parallel loop gang(static:1) default(present) async wait(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       thl0av(k) = 0.0_field_r
     end do
 
     !$acc parallel loop gang(static:1) default(present) async wait(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       th0av(k) = 0.0_field_r
     end do
 
     !$acc parallel loop gang(static:1) default(present) async wait(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       qt0av(k) = 0.0_field_r
     end do
 
     !$acc parallel loop gang(static:1) default(present) async wait(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       ql0av(k) = 0.0_field_r
     end do
 
     !$acc parallel loop gang vector collapse(2) default(present) async wait(1)
+!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       do n = 1, nsv
         sv0av(k,n) = 0.0_field_r
@@ -518,6 +570,8 @@ contains
 
     if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
       !$acc parallel loop gang(static:1) default(present)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = 1, k1
         exnf(k) = 1 - grav * zf(k) / (cp * thls)
         exnh(k) = 1 - grav * zh(k) / (cp * thls)
@@ -525,6 +579,8 @@ contains
     endif
 
     !$acc parallel loop gang(static:1) default(present) async(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
     end do
@@ -536,12 +592,16 @@ contains
     call fromztop
 
     !$acc parallel loop gang(static:1) default(present) async(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
     end do
 
     if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
       !$acc parallel loop gang(static:1) default(present) async(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = 1, k1
         exnf(k) = (presf(k) / pref0)**(rd / cp)
       end do
@@ -555,11 +615,16 @@ contains
 
     if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
       !$acc serial default(present) async(1)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       exnh(1) = (ps/pref0)**(rd/cp)
       exnf(1) = (presf(1)/pref0)**(rd/cp)
       !$acc end serial
+!!$omp end target
 
       !$acc parallel loop default(present) async(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k=2,k1
         exnf(k) = (presf(k)/pref0)**(rd/cp)
         exnh(k) = (presh(k)/pref0)**(rd/cp)
@@ -567,6 +632,8 @@ contains
     endif
 
     !$acc parallel loop default(present) async(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k=1,k1
       thvf(k) = th0av(k)*exnf(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
       rhof(k) = presf(k)/(rd*thvf(k))
@@ -591,6 +658,8 @@ contains
     ! Interpolate theta and qt to half levels
 
     !$acc parallel loop default(present) async(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k=2,k1
       thetah(k) = (th0av(k)*dzf(k-1) + th0av(k-1)*dzf(k))/(2*dzh(k))
       qth   (k) = (qt0av(k)*dzf(k-1) + qt0av(k-1)*dzf(k))/(2*dzh(k))
@@ -601,6 +670,7 @@ contains
     ! Do this on the CPU for now; these loops are serial so GPU is very slow!
 
     !$acc update self(thetah, qth, qlh, th0av, qt0av, ql0av) async(1)
+!!$omp target update from(thetah,qth,qlh,th0av,qt0av,ql0av)
     !$acc wait
 
     thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
@@ -627,6 +697,7 @@ contains
     end do
 
     !$acc update device(thvh, presf, thvf, presh) async(1)
+!!$omp target update to(thvh,presf,thvf,presh)
 
     call timer_toc(routine)
 
@@ -677,6 +748,7 @@ contains
 
   !> Compute the saturation vapor pressure via table lookup.
   pure function esat_tab(T) result(es)
+!!$omp declare target
     
     !$acc routine seq
     real(field_r), intent(in) :: T
@@ -693,6 +765,7 @@ contains
 
   !> Computes the saturation specific humidity via table lookup.
   pure function qsat_tab(T, p) result(qsat)
+!!$omp declare target
     
     !$acc routine seq
     real(field_r), intent(in) :: T, p
@@ -755,6 +828,8 @@ contains
 
     !$acc parallel loop gang default(present) async(stream) &
     !$acc private(b, qli, qsat, qti, Tl)
+!!$omp target teams loop private(b,qli,qsat,qti,tl)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 1, k1
       ! Find lowest thl and highest qt in the slab.
       ! If they in combination are not saturated, the whole slab is below saturation.
@@ -765,6 +840,7 @@ contains
       qsat = qsat_tab(TL_min, pres(k))
       if (qt_max > qsat) then
         !$acc loop vector collapse(2)
+!!$omp loop collapse(2)
         do j = 2, j1
           do i = 2, i1
             qti = qt(i,j,k)
@@ -829,6 +905,8 @@ contains
 
     !$acc parallel loop gang vector collapse(3) default(present) async(stream) &
     !$acc private(b, qli, qsat, qti, Tl)
+!!$omp target teams loop private(b,qli,qsat,qti,tl) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
@@ -886,6 +964,8 @@ contains
 
     !$acc parallel loop collapse(3) default(present) async(1) &
     !$acc private(qsat, T, interp_w, tlo, esi)
+!!$omp target teams loop private(qsat,t,interp_w,tlo,esi) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
@@ -938,6 +1018,8 @@ contains
       call halflev_kappa(phi, phi_half)
     else
       !$acc parallel loop collapse(3) default(present) async(stream)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = 2, k1
         do j = 2, j1
           do i = 2, i1
@@ -949,6 +1031,8 @@ contains
     end if
 
     !$acc parallel loop collapse(2) default(present) async(stream)
+!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do j = 2, j1
       do i = 2, i1
         phi_half(i,j,1) = phi_surf

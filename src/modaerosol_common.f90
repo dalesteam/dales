@@ -5,6 +5,7 @@ module modaerosol_common
   use modglobal,    only: pi
 
   implicit none
+!!$omp declare target
 
   public
 

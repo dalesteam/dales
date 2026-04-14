@@ -205,6 +205,7 @@ contains
     call initmpi
 
     !$acc update device (myidx,myidy)
+!!$omp target update to(myidx,myidy)
 
     ! Ignore user-provided nsv, we take care of it ourselves
     nsv = 0
