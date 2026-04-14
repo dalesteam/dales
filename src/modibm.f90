@@ -256,7 +256,7 @@ contains
     !! xwall plus yes/no    :   F     F     F     F     T
 
     ! Preset (temporary) arrays for internal buildings and wall indices [Nobst+2*ih*k1+2*jh*k1+4*ih*jh] provides upper bound)
-    allocate(tiobst(Nobst+2*ih*k1+2*jh*k1+4*ih*jh,3))                                                                           ! for internal building points
+    allocate(tiobst(Nobst+2*ih*j1*k1+2*i1*jh*k1+4*ih*jh,3))                                                                     ! for internal building points
     allocate(tixw_p(Nobst+i2*k1,3), tixw_m(Nobst+i2*k1,3), tiyw_p(Nobst+j2*k1,3), tiyw_m(Nobst+j2*k1,3), tizw_p(Nobst+j2*k1,3)) ! for x- and y-walls in positive and negative directions
 
     Nxwalls_plus = 0; Nxwalls_min = 0; Nywalls_plus = 0; Nywalls_min = 0; Nzwalls_plus = 0
@@ -530,7 +530,7 @@ contains
       end if
 
       up(i  ,j,k) = up(i  ,j,k) - 0.25_field_r * rhobh(k)/rhobf(k) * Cm_zwall * ( u0(i,j,k) + u0(i+1,j,k) ) * uspeed * dzfi(k)
-      up(i+1,j,k) = up(i+1,j,k) - 0.25_field_r * rhobh(k)/rhobf(k) * Cm_zwall * ( u0(i,j,k) + v0(i+1,j,k) ) * uspeed * dzfi(k)
+      up(i+1,j,k) = up(i+1,j,k) - 0.25_field_r * rhobh(k)/rhobf(k) * Cm_zwall * ( u0(i,j,k) + u0(i+1,j,k) ) * uspeed * dzfi(k)
       vp(i,j  ,k) = vp(i,j  ,k) - 0.25_field_r * rhobh(k)/rhobf(k) * Cm_zwall * ( v0(i,j,k) + v0(i,j+1,k) ) * uspeed * dzfi(k)
       vp(i,j+1,k) = vp(i,j+1,k) - 0.25_field_r * rhobh(k)/rhobf(k) * Cm_zwall * ( v0(i,j,k) + v0(i,j+1,k) ) * uspeed * dzfi(k)
 
@@ -586,10 +586,9 @@ contains
                 dzf(k)  * ( ekm(i,j,k-1) + ekm(i-1,j,k-1) ) ) / &
                 ( 4.0_field_r * dzh(k) )
         v_at_w_plus = 0.25_field_r * ( v0(i,j,k-1) + v0(i,j,k) + v0(i,j+1,k-1) + v0(i,j+1,k) )
-        tau_wu_plus = log_wallaw(w0(i  ,j,k),v_at_w_plus,Cm_xwall)
+        tau_wu_plus = log_wallaw(w0(i  ,j,k), v_at_w_plus, Cm_xwall)
 
         wp(i,j,k  ) = wp(i,j,k  ) + 0.5_field_r * emom * ( (w0(i,j,k  ) - w0(i-1,j,  k)) / dx ) / dx - 0.5_field_r * tau_wu_plus / dx
-
       end if
 
       ! for w(i,j,k+1):
@@ -718,7 +717,6 @@ contains
         tau_wv_plus = log_wallaw(w0(i  ,j,k), u_at_w_plus, Cm_ywall)
 
         wp(i,j,k  ) = wp(i,j,k  ) + 0.5_field_r * emom * ( (w0(i,j,k  ) - w0(i,j-1,  k)) / dy ) / dy - 0.5_field_r * tau_wv_plus / dy
-
       end if
 
       ! for w(i,j,k+1):
@@ -781,7 +779,7 @@ contains
                 dzf(k)  * ( ekm(i,j+1,k-1) + ekm(i,j,k-1) ) ) / &
                 ( 4.0_field_r * dzh(k) )
         u_at_w_min = 0.25_field_r * ( u0(i,j,k-1) + u0(i,j,k) + u0(i+1,j,k-1) + u0(i+1,j,k) )
-        tau_wv_min = log_wallaw(w0(i,j,k), v_at_w_min , Cm_ywall)
+        tau_wv_min = log_wallaw(w0(i,j,k), u_at_w_min , Cm_ywall)
 
         wp(i,j,k  ) = wp(i,j,k  ) - 0.5_field_r * emom * ( (w0(i,j+1,k  ) - w0(i,j,  k)) / dy ) / dy - 0.5_field_r * tau_wv_min / dy
       end if
