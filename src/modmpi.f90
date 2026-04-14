@@ -38,6 +38,7 @@ use modmpiinterface
 use ieee_exceptions
 #if defined(_OPENACC)
 use openacc
+use omp_lib
 #endif
 implicit none
   character(len=*), parameter, private :: modname = 'modmpi'
@@ -59,6 +60,7 @@ save
   integer  :: mpierr
   logical  :: periods(2) = .true.
   !$acc declare create (myidx, myidy)
+!!$omp declare target (myidx,myidy)
 
   real     :: CPU_program    !end time
   real     :: CPU_program0   !start time
@@ -435,8 +437,11 @@ contains
     !   Allocate send / receive buffers
     allocate(sendn(nssize),sends(nssize),recvn(nssize),recvs(nssize))
     !$acc enter data copyin(sendn, sends, recvn, recvs)
+!!$omp target enter data map(to:sendn,sends,recvn,recvs)
 
     !$acc parallel loop collapse(3) default(present) private(ii)
+!!$omp target teams loop private(ii) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 1, zl
       do j = 1, jh
         do i = 1, xl
@@ -461,6 +466,8 @@ contains
 
     ! Write back buffers
     !$acc parallel loop collapse(3) default(present) private(ii)
+!!$omp target teams loop private(ii) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 1, zl
       do j = 1, jh
         do i = 1, xl
@@ -475,9 +482,12 @@ contains
 
     ! Single processor, make sure the field is periodic
     !$acc kernels default(present) async
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     a(:,sy-jh:sy-1,:) = a(:,ey-jh+1:ey,:)
     a(:,ey+1:ey+jh,:) = a(:,sy:sy+jh-1,:)
     !$acc end kernels
+!!$omp end target
 
   endif
 
@@ -486,8 +496,11 @@ contains
     !   Allocate send / receive buffers
     allocate(sende(ewsize),sendw(ewsize),recve(ewsize),recvw(ewsize))
     !$acc enter data copyin(sende, sendw, recve, recvw)
+!!$omp target enter data map(to:sende,sendw,recve,recvw)
 
     !$acc parallel loop collapse(3) default(present) private(ii)
+!!$omp target teams loop private(ii) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 1, zl
       do j = 1, yl
         do i = 1, ih
@@ -512,6 +525,8 @@ contains
 
     ! Write back buffers
     !$acc parallel loop collapse(3) default(present) private(ii)
+!!$omp target teams loop private(ii) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 1, zl
       do j = 1, yl
         do i = 1, ih
@@ -526,9 +541,12 @@ contains
 
     ! Single processor, make sure the field is periodic
     !$acc kernels default(present) async
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     a(sx-ih:sx-1,:,:) = a(ex-ih+1:ex,:,:)
     a(ex+1:ex+ih,:,:) = a(sx:sx+ih-1,:,:)
     !$acc end kernels
+!!$omp end target
 
   endif
 
@@ -539,6 +557,7 @@ contains
     call MPI_WAIT(reqs, status, mpierr)
 
     !$acc exit data delete(sendn, sends, recvn, recvs)
+!!$omp target exit data map(delete:sendn,sends,recvn,recvs)
     deallocate (sendn, sends)
     deallocate (recvn, recvs)
 
@@ -552,6 +571,7 @@ contains
 
     ! Deallocate buffers
     !$acc exit data delete(sende, sendw, recve, recvw)
+!!$omp target exit data map(delete:sende,sendw,recve,recvw)
     deallocate (sende, sendw)
     deallocate (recve, recvw)
 
@@ -819,8 +839,11 @@ contains
     ! TODO: allocate these once
     allocate(sendn(nssize),sends(nssize),recvn(nssize),recvs(nssize))
     !$acc enter data copyin(sendn, sends, recvn, recvs)
+!!$omp target enter data map(to:sendn,sends,recvn,recvs)
 
     !$acc parallel loop collapse(3) default(present) private(ii)
+!!$omp target teams loop private(ii) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 1, zl
       do j = 1, jh
         do i = 1, xl
@@ -846,6 +869,8 @@ contains
 
     ! Write back buffers
     !$acc parallel loop collapse(3) default(present) private(ii)
+!!$omp target teams loop private(ii) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 1, zl
       do j = 1, jh
         do i = 1, xl
@@ -860,9 +885,12 @@ contains
 
     ! Single processor, make sure the field is periodic
     !$acc kernels default(present) async
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     a(:,sy-jh:sy-1,:) = a(:,ey-jh+1:ey,:)
     a(:,ey+1:ey+jh,:) = a(:,sy:sy+jh-1,:)
     !$acc end kernels
+!!$omp end target
 
   endif
 
@@ -871,8 +899,11 @@ contains
     !   Allocate send / receive buffers
     allocate(sende(ewsize),sendw(ewsize),recve(ewsize),recvw(ewsize))
     !$acc enter data copyin(sende, sendw, recve, recvw)
+!!$omp target enter data map(to:sende,sendw,recve,recvw)
 
     !$acc parallel loop collapse(3) default(present) private(ii)
+!!$omp target teams loop private(ii) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 1, zl
       do j = 1, yl
         do i = 1, ih
@@ -897,6 +928,8 @@ contains
 
     ! Write back buffers
     !$acc parallel loop collapse(3) default(present) private(ii)
+!!$omp target teams loop private(ii) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 1, zl
       do j = 1, yl
         do i = 1, ih
@@ -911,9 +944,12 @@ contains
 
     ! Single processor, make sure the field is periodic
     !$acc kernels default(present) async
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     a(sx-ih:sx-1,:,:) = a(ex-ih+1:ex,:,:)
     a(ex+1:ex+ih,:,:) = a(sx:sx+ih-1,:,:)
     !$acc end kernels
+!!$omp end target
   endif
 
   if(nprocy.gt.1)then
@@ -925,6 +961,7 @@ contains
     if (mpierr /= MPI_SUCCESS) call abort
 
     !$acc exit data delete(sendn, sends, recvn, recvs)
+!!$omp target exit data map(delete:sendn,sends,recvn,recvs)
     deallocate (sendn, sends)
     deallocate (recvn, recvs)
 
@@ -940,6 +977,7 @@ contains
 
     ! Deallocate buffers
     !$acc exit data delete(sende, sendw, recve, recvw)
+!!$omp target exit data map(delete:sende,sendw,recve,recvw)
     deallocate (sende, sendw)
     deallocate (recve, recvw)
 
@@ -1081,13 +1119,18 @@ contains
 
     if (present(on_gpu)) then
       !$acc kernels default(present)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
       do k = kbs, kes
         aver(k) = aver(k) + sum(var(ibs:ies, jbs:jes, k))
       end do
       !$acc end kernels
+!!$omp end target
       !$acc host_data use_device(aver)
+!!$omp target update from(aver)
       call MPI_ALLREDUCE(MPI_IN_PLACE, aver, kf-ks+1, MPI_REAL4, MPI_SUM, comm3d, mpierr)
       !$acc end host_data
+!!$omp target update to(aver)
     else
       averl       = 0.
       avers       = 0.
@@ -1117,13 +1160,18 @@ contains
 
     if (present(on_gpu)) then
       !$acc kernels default(present)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
       do k = kbs, kes
         aver(k) = aver(k) + sum(var(ibs:ies, jbs:jes, k))
       end do
       !$acc end kernels
+!!$omp end target
       !$acc host_data use_device(aver)
+!!$omp target update from(aver)
       call MPI_ALLREDUCE(MPI_IN_PLACE, aver, kf-ks+1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
       !$acc end host_data
+!!$omp target update to(aver)
     else
       averl       = 0.
       avers       = 0.
@@ -1164,7 +1212,11 @@ contains
     allocate(sum2d(kf-ks+1,5))
     if (present(on_gpu)) then
       !$acc enter data create(sum2d)
+!!$omp target enter data map(alloc:sum2d)
       !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4, sum_lcl5)
+!!$omp target teams loop private(sum_lcl1,sum_lcl2,sum_lcl3,sum_lcl4,&
+!!$omp sum_lcl5) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = kbs, kes
         sum_lcl1 = 0.0
         sum_lcl2 = 0.0
@@ -1172,6 +1224,8 @@ contains
         sum_lcl4 = 0.0
         sum_lcl5 = 0.0
         !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4, sum_lcl5)
+!!$omp loop reduction(+:sum_lcl1,sum_lcl2,sum_lcl3,sum_lcl4,sum_lcl5)&
+!!$omp collapse(2)
         do j = jbs, jes
           do i = ibs, ies
             sum_lcl1 = sum_lcl1 + var1(i, j, k)
@@ -1203,19 +1257,25 @@ contains
     endif
 
     !$acc host_data use_device(sum2d)
+!!$omp target update from(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*5, MPI_REAL4, MPI_SUM, comm3d, mpierr)
     !$acc end host_data
+!!$omp target update to(sum2d)
 
     !$acc kernels default(present)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     aver3(:) = sum2d(:,3)
     aver4(:) = sum2d(:,4)
     aver5(:) = sum2d(:,5)
     !$acc end kernels
+!!$omp end target
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
+!!$omp target exit data map(delete:sum2d)
       deallocate(sum2d)
     else
       deallocate(sum2d)
@@ -1246,13 +1306,18 @@ contains
     allocate(sum2d(kf-ks+1,4))
     if (present(on_gpu)) then
       !$acc enter data create(sum2d)
+!!$omp target enter data map(alloc:sum2d)
       !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4)
+!!$omp target teams loop private(sum_lcl1,sum_lcl2,sum_lcl3,sum_lcl4)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do k = kbs, kes
         sum_lcl1 = 0.0
         sum_lcl2 = 0.0
         sum_lcl3 = 0.0
         sum_lcl4 = 0.0
         !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4)
+!!$omp loop reduction(+:sum_lcl1,sum_lcl2,sum_lcl3,sum_lcl4)&
+!!$omp collapse(2)
         do j = jbs, jes
           do i = ibs, ies
             sum_lcl1 = sum_lcl1 + var1(i, j, k)
@@ -1281,18 +1346,24 @@ contains
     endif
 
     !$acc host_data use_device(sum2d)
+!!$omp target update from(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*4, MPI_REAL4, MPI_SUM, comm3d, mpierr)
     !$acc end host_data
+!!$omp target update to(sum2d)
 
     !$acc kernels default(present)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     aver3(:) = sum2d(:,3)
     aver4(:) = sum2d(:,4)
     !$acc end kernels
+!!$omp end target
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
+!!$omp target exit data map(delete:sum2d)
       deallocate(sum2d)
     else
       deallocate(sum2d)
@@ -1321,12 +1392,16 @@ contains
 
     if (present(on_gpu)) then
       !$acc enter data create(sum2d)
+!!$omp target enter data map(alloc:sum2d)
       !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3)
+!!$omp target teams loop private(sum_lcl1,sum_lcl2,sum_lcl3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do k = kbs, kes
         sum_lcl1 = 0.0
         sum_lcl2 = 0.0
         sum_lcl3 = 0.0
         !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2, sum_lcl3)
+!!$omp loop reduction(+:sum_lcl1,sum_lcl2,sum_lcl3) collapse(2)
         do j = jbs, jes
           do i = ibs, ies
             sum_lcl1 = sum_lcl1 + var1(i, j, k)
@@ -1352,17 +1427,23 @@ contains
     endif
 
     !$acc host_data use_device(sum2d)
+!!$omp target update from(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*3, MPI_REAL4, MPI_SUM, comm3d, mpierr)
     !$acc end host_data
+!!$omp target update to(sum2d)
 
     !$acc kernels default(present)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     aver3(:) = sum2d(:,3)
     !$acc end kernels
+!!$omp end target
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
+!!$omp target exit data map(delete:sum2d)
       deallocate(sum2d)
     else
       deallocate(sum2d)
@@ -1389,11 +1470,15 @@ contains
 
     if (present(on_gpu)) then
       !$acc enter data create(sum2d)
+!!$omp target enter data map(alloc:sum2d)
       !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2)
+!!$omp target teams loop private(sum_lcl1,sum_lcl2)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do k = kbs, kes
         sum_lcl1 = 0.0
         sum_lcl2 = 0.0
         !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2)
+!!$omp loop reduction(+:sum_lcl1,sum_lcl2) collapse(2)
         do j = jbs, jes
           do i = ibs, ies
             sum_lcl1 = sum_lcl1 + var1(i, j, k)
@@ -1416,16 +1501,22 @@ contains
     endif
 
     !$acc host_data use_device(sum2d)
+!!$omp target update from(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*2, MPI_REAL4, MPI_SUM, comm3d, mpierr)
     !$acc end host_data
+!!$omp target update to(sum2d)
 
     !$acc kernels default(present)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     !$acc end kernels
+!!$omp end target
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
+!!$omp target exit data map(delete:sum2d)
       deallocate(sum2d)
     else
       deallocate(sum2d)
@@ -1459,7 +1550,11 @@ contains
 
     if (present(on_gpu)) then
       !$acc enter data create(sum2d)
+!!$omp target enter data map(alloc:sum2d)
       !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4, sum_lcl5)
+!!$omp target teams loop private(sum_lcl1,sum_lcl2,sum_lcl3,sum_lcl4,&
+!!$omp sum_lcl5) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = kbs, kes
         sum_lcl1 = 0.0
         sum_lcl2 = 0.0
@@ -1467,6 +1562,8 @@ contains
         sum_lcl4 = 0.0
         sum_lcl5 = 0.0
         !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4, sum_lcl5)
+!!$omp loop reduction(+:sum_lcl1,sum_lcl2,sum_lcl3,sum_lcl4,sum_lcl5)&
+!!$omp collapse(2)
         do j = jbs, jes
           do i = ibs, ies
             sum_lcl1 = sum_lcl1 + var1(i, j, k)
@@ -1498,19 +1595,25 @@ contains
     endif
 
     !$acc host_data use_device(sum2d)
+!!$omp target update from(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*5, MPI_REAL8, MPI_SUM, comm3d, mpierr)
     !$acc end host_data
+!!$omp target update to(sum2d)
 
     !$acc kernels default(present)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     aver3(:) = sum2d(:,3)
     aver4(:) = sum2d(:,4)
     aver5(:) = sum2d(:,5)
     !$acc end kernels
+!!$omp end target
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
+!!$omp target exit data map(delete:sum2d)
       deallocate(sum2d)
     else
       deallocate(sum2d)
@@ -1542,13 +1645,18 @@ contains
 
     if (present(on_gpu)) then
       !$acc enter data create(sum2d)
+!!$omp target enter data map(alloc:sum2d)
       !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4)
+!!$omp target teams loop private(sum_lcl1,sum_lcl2,sum_lcl3,sum_lcl4)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do k = kbs, kes
         sum_lcl1 = 0.0
         sum_lcl2 = 0.0
         sum_lcl3 = 0.0
         sum_lcl4 = 0.0
         !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4)
+!!$omp loop reduction(+:sum_lcl1,sum_lcl2,sum_lcl3,sum_lcl4)&
+!!$omp collapse(2)
         do j = jbs, jes
           do i = ibs, ies
             sum_lcl1 = sum_lcl1 + var1(i, j, k)
@@ -1577,18 +1685,24 @@ contains
     endif
 
     !$acc host_data use_device(sum2d)
+!!$omp target update from(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*4, MPI_REAL8, MPI_SUM, comm3d, mpierr)
     !$acc end host_data
+!!$omp target update to(sum2d)
 
     !$acc kernels default(present)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     aver3(:) = sum2d(:,3)
     aver4(:) = sum2d(:,4)
     !$acc end kernels
+!!$omp end target
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
+!!$omp target exit data map(delete:sum2d)
       deallocate(sum2d)
     else
       deallocate(sum2d)
@@ -1617,12 +1731,16 @@ contains
 
     if (present(on_gpu)) then
       !$acc enter data create(sum2d)
+!!$omp target enter data map(alloc:sum2d)
       !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3)
+!!$omp target teams loop private(sum_lcl1,sum_lcl2,sum_lcl3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do k = kbs, kes
         sum_lcl1 = 0.0
         sum_lcl2 = 0.0
         sum_lcl3 = 0.0
         !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2, sum_lcl3)
+!!$omp loop reduction(+:sum_lcl1,sum_lcl2,sum_lcl3) collapse(2)
         do j = jbs, jes
           do i = ibs, ies
             sum_lcl1 = sum_lcl1 + var1(i, j, k)
@@ -1648,17 +1766,23 @@ contains
     endif
 
     !$acc host_data use_device(sum2d)
+!!$omp target update from(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*3, MPI_REAL8, MPI_SUM, comm3d, mpierr)
     !$acc end host_data
+!!$omp target update to(sum2d)
 
     !$acc kernels default(present)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     aver3(:) = sum2d(:,3)
     !$acc end kernels
+!!$omp end target
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
+!!$omp target exit data map(delete:sum2d)
       deallocate(sum2d)
     else
       deallocate(sum2d)
@@ -1685,11 +1809,15 @@ contains
 
     if (present(on_gpu)) then
       !$acc enter data create(sum2d)
+!!$omp target enter data map(alloc:sum2d)
       !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2)
+!!$omp target teams loop private(sum_lcl1,sum_lcl2)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do k = kbs, kes
         sum_lcl1 = 0.0
         sum_lcl2 = 0.0
         !$acc loop collapse(2) reduction(+:sum_lcl1, sum_lcl2)
+!!$omp loop reduction(+:sum_lcl1,sum_lcl2) collapse(2)
         do j = jbs, jes
           do i = ibs, ies
             sum_lcl1 = sum_lcl1 + var1(i, j, k)
@@ -1712,16 +1840,22 @@ contains
     endif
 
     !$acc host_data use_device(sum2d)
+!!$omp target update from(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*2, MPI_REAL8, MPI_SUM, comm3d, mpierr)
     !$acc end host_data
+!!$omp target update to(sum2d)
 
     !$acc kernels default(present)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     !$acc end kernels
+!!$omp end target
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
+!!$omp target exit data map(delete:sum2d)
       deallocate(sum2d)
     else
       deallocate(sum2d)
