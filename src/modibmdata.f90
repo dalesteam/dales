@@ -1,14 +1,10 @@
 !> \file modibmdata.f90
-!!  Provides variable and paramater values for the grid-conforming Immersed Boundary Method (IBM) 
+!! Provides variable and paramater values for the grid-conforming Immersed Boundary Method (IBM) 
 
-!> References:
-!! (1) Pourquie, M., W.-P. Breugem, and B. J. Boersma, 2009: Some issues related to the use of immersed boundary methods
-!! to represent square obstacles. International Journal for Multiscale Computational Engineering, 7 (6), 509–522.
-!! (2) Tomas, J., 2016: Obstacle-resolving large-eddy simulation of dispersion in urban environments: Effects of stability and roughness geometry, 
-!! Delft University of Technology, Delft, The Netherlands. https://doi.org/10.4233/uuid:5d93a697-be49-4f63-b871-b763bc327139
 !>
 !!  \author Michael Koene, Delft University of Technology, 2018-2019
 !!  \author Stephan de Roode, Delft University of Technology, 2018-2024
+!!  \author Steven van der Linden, Delft University of Technology, 2025-
 !  This file is part of DALES.
 !
 ! DALES is free software; you can redistribute it and/or modify
@@ -27,10 +23,8 @@
 ! Copyright 2025 Delft University of Technology
 !
 
-!! By Michael Koene (MK), TU Delft, section Atmospheric Physics, 28 January 2019
-!! cstep: subroutine airslabsum  moved from modmpi to here to avoid mutual dependencies
-
 module modibmdata
+  
   use modprecision, only: field_r
   implicit none
   save
@@ -40,13 +34,14 @@ module modibmdata
   logical :: lpoislast      = .true.         !< Switch to use the Poisson solver after the Immersed boundary method
                                              !  .false. will set the order to: ZeroVelocity -> PoissonSolver -> IBM
 
-  real(field_r)    :: thlwall        = 293.           !< Wall temperature for temperature flux at the sides of the buildings, needed for lateral flux
-  real(field_r)    :: thlroof        = 293.           !< Obstacle roof (top) temperature
-  real(field_r)    :: qtroof         = 0.             !< Obstacle roof specific humidity
-  real(field_r)    :: thlibm         = 293            !< Interior potential temperature of obstacle
-  real(field_r)    :: qtibm          = 0.             !< Wall specific humidity for the latent heat flux at the sides and top of the buildings
-                                             !< In modsurface it will be set to the saturation value (but this needs to be adapted)
-  real(field_r)    :: z0m_wall       = 0.03           !< compare with 0.03 m for open flat terrain, grass, few isolated obstacles
-  real(field_r)    :: z0h_wall       = 0.03           !< compare with 0.03 m for open flat terrain, grass, few isolated obstacles
+  real(field_r)    :: thlwall        = 293.           !< Wall temperature at the sides of the buildings [K]
+  real(field_r)    :: qtwall         = 0.             !< Wall specific humidity [kg/kg]
+  real(field_r)    :: thlroof        = 293.           !< Obstacle roof (top) temperature [K]
+  real(field_r)    :: qtroof         = 0.             !< Obstacle roof specific humidity [kg/kg]
+  real(field_r)    :: thlibm         = 293            !< Interior potential temperature of obstacle [K]
+  real(field_r)    :: qtibm          = 0.             !< Interior specific humidity of obstacle [kg/kg]
 
+  real(field_r)    :: z0m_wall       = 0.03           !< Roughness length for momentum at walls [m]
+  real(field_r)    :: z0h_wall       = 0.03           !< Roughness length for heat/scalars at walls [m]
+                                                      ! compare with 0.03 m for open flat terrain, grass, few isolated obstacles
 end module modibmdata

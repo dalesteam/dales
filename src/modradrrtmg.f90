@@ -176,7 +176,6 @@ contains
 ! +=+=+=+=+=+=+=+= End of reading and initialization stage =+=+=++=+=+=+=+=+=+=+=++ !
 
     ! initialize some RRTMG input arrays
-    emis = 0.95
     taucldlw = 0
     tauaerlw = 0
     taucldsw = 0
@@ -203,7 +202,7 @@ contains
     do j=2,j1
       call setupSlicesFromProfiles &
            ( j, npatch_start, &                                           !input
-           LWP_slice, IWP_slice, cloudFrac, liquidRe, iceRe )             !output
+           LWP_slice, IWP_slice, cloudFrac, liquidRe, iceRe, emis )             !output
 
       if (rad_longw) then
         call rrtmg_lw & !comments = corresponding variable names in the RRTMGP library
@@ -219,7 +218,7 @@ contains
         !if(myid==0) write(*,*) 'after call to rrtmg_lw'
       end if
       if (rad_shortw) then
-         call setupSW(sunUp)
+         call setupSW(sunUp,j)
          if (sunUp) then
            call rrtmg_sw & !comments = corresponding variable names in the RRTMGP library
                    (int(imax,kind_im), int(nzrad+1,kind_im), ioverlap, & !ncol, nlay, icld, (+ iaer in later versions !)
@@ -626,7 +625,7 @@ contains
 #ifdef USE_RRTMG
 
   subroutine setupSlicesFromProfiles(j,npatch_start, &
-           LWP_slice,IWP_slice,cloudFrac,liquidRe,iceRe)
+           LWP_slice,IWP_slice,cloudFrac,liquidRe,iceRe,emis)
   !=============================================================================!
   ! This subroutine sets up 2D (xz) slices of different variables:              !
   ! tabs,qv,qcl,qci(=0),tg,layerP,interfaceP,layerT,interfaceT,LWP,IWP(=0),     !
@@ -641,7 +640,7 @@ contains
 
       use modglobal, only: imax,jmax,kmax,i1,grav,kind_rb,rlv,cp,Rd,pref0,tup,tdn
       use modfields, only: thl0,ql0,qt0,exnf,rhof
-      use modsurfdata, only: tskin,ps
+      use modsurfdata, only: tskin,ps,albedo,emissivity
       use modmicrodata, only : Nc_0,sig_g
 
       implicit none
@@ -651,7 +650,8 @@ contains
                                            IWP_slice(imax,krad1), &
                                            cloudFrac(imax,krad1), &
                                            liquidRe (imax,krad1), &
-                                           iceRe    (imax,krad1)
+                                           iceRe    (imax,krad1), &
+                                           emis     (imax,16)
       integer :: i,k,ksounding,im
       real(KIND=kind_rb) :: exners
       real(KIND=kind_rb) :: layerMass(imax,krad1)
@@ -692,8 +692,12 @@ contains
 
         !tg_slice  (im)   = sst
         tg_slice  (im)   = tskin(i,j) * exners  ! Note: tskin = thlskin...
-
+        ! Surface emissivity for all bands set from modsurface.
+        ! Currently this is calculated every radiation call, want to move this to initradiation ideally,
+        ! but we need to allow modslurb to initialize to get the emissivity...
+        emis      (im,:) = emissivity(i,j)
         do k=1,kmax
+
            qv_slice  (im,k) = max(qt0(i,j,k) - ql0(i,j,k),1e-18_field_r) !avoid RRTMG reading negative initial values
 
            ilratio  = max(0.,min(1.,(tabs_slice(im,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
@@ -846,15 +850,17 @@ contains
 ! ==============================================================================;
 ! ==============================================================================;
 
-  subroutine setupSW(sunUp)
+  subroutine setupSW(sunUp,j)
 
-    use modglobal,   only : xday,xlat,xlon,xtime,rtimee
+    use modglobal,   only : xday,xlat,xlon,xtime,rtimee,i1
     use shr_orb_mod, only : shr_orb_decl
-    use modsurfdata, only : albedoav
+    use modsurfdata, only : albedo
 
     implicit none
 
     logical,intent(out) :: sunUp
+    integer,intent(in)  :: j
+    integer             :: i,im
     real                :: dayForSW
 
     if(doperpetual) then
@@ -891,12 +897,15 @@ contains
     if (all(solarZenithAngleCos(:) >= tiny(solarZenithAngleCos))) then
       sunUp = .true.
       if (lCnstAlbedo) then
-        aldir = albedoav
-        asdir = albedoav
-        aldif = albedoav        ! Specification of the diffuse albedo is also important for the
-        asdif = albedoav        ! total surface albedo
+        do i=2,i1
+          im=i-1
+          aldir     (im) = albedo(i,j)
+          asdir     (im) = albedo(i,j)
+          aldif     (im) = albedo(i,j)        ! Specification of the diffuse albedo is also important for the
+          asdif     (im) = albedo(i,j)        ! total surface albedo
+        end do
       else
-        call albedo             ! calculate albedo for the solarZenithAngleCos
+        call calc_albedo_zenith             ! calculate albedo for the solarZenithAngleCos
       end if
 
     end if
@@ -932,7 +941,7 @@ contains
 
 ! ==============================================================================;
 ! ==============================================================================;
-  subroutine albedo
+  subroutine calc_albedo_zenith
     !-----------------------------------------------------------------------
     ! Computes surface albedos over ocean
     ! and the surface (added by Marat Khairoutdinov)
@@ -983,7 +992,7 @@ contains
       end where
     endif
 
-  end subroutine albedo
+  end subroutine calc_albedo_zenith
 
 #endif
 

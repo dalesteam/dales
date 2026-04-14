@@ -677,10 +677,12 @@ contains
     end if
 
     allocate(albedo(i2,j2))
+    allocate(emissivity(i2,j2))
     allocate(z0m(i2,j2))
     allocate(z0h(i2,j2))
     allocate(obl(i2,j2))
     allocate(tskin(i2,j2))
+    allocate(tskin_radiative(i2,j2))
     allocate(qskin(i2,j2))
     allocate(Cm(i2,j2))
     allocate(Cs(i2,j2))
@@ -701,7 +703,10 @@ contains
       lwdavn =  0.
       lwuavn =  0.
     end if
-
+    ! emissivity was always set in (rte)rrtmg to 0.95, but we want to be able to change it for the urban tile.
+    ! Hence we set it in surface to be used later.
+    emissivity = 0.95
+  
     albedo     = albedoav
     if(lhetero) then
       do j=1,j2
@@ -789,7 +794,7 @@ contains
 
     !$acc enter data copyin(z0m, z0h, obl, tskin, qskin, Cm, Cs, &
     !$acc&                  ustar, dudz, dvdz, thlflux, qtflux, &
-    !$acc&                  dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf)
+    !$acc&                  dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf, albedo, emissivity)
 
     call timer_toc('modsurface/initsurface')
   end subroutine initsurface

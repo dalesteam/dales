@@ -9,6 +9,7 @@ module modnamelist
   use modprecursor,      only: precursor_read_namelist
   use modspraying,       only: spraying_read_namelist
   use modsurface,        only: surface_read_namelist
+  use modibm,            only: ibm_read_namelist
   use modthermodynamics, only: thermodynamics_read_namelist
   use modslurb,          only: slurb_read_namelist
 
@@ -37,6 +38,7 @@ contains
     call aerosol_read_namelist(nml_filename)
     call lateral_sponge_read_namelist(nml_filename)
     call microphysics_read_namelist(nml_filename)
+    call ibm_read_namelist(nml_filename)
     call precursor_read_namelist(nml_filename)
     call spraying_read_namelist(nml_filename)
   

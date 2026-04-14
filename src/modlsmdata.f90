@@ -95,6 +95,8 @@ module modlsmdata
       real, allocatable :: phiw_mean(:,:)
       ! Tile net radiation
       real, allocatable :: Qnet(:,:)
+      ! Tile albedo
+      real, allocatable :: albedo(:,:)
 
   ! LU dependent deposition parameters
       ! In-canopy resistance parameters

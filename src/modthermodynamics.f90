@@ -303,6 +303,7 @@ contains
   end subroutine calc_dry_tmp
 
   !> Calculate thetav and dthvdz
+  !> also calculates and stores tmp0 for statistics
   subroutine calthv
 
     character(len=*), parameter :: routine = modname//'/calthv'
@@ -314,8 +315,6 @@ contains
     real(field_r)    del_thv_sat, del_thv_dry
 
     call timer_tic(routine, 1)
-
-    dthvdz = 0
 
     if (lmoist) then
       !$acc parallel loop collapse(3) default(present) async(1)
@@ -355,6 +354,7 @@ contains
             if  (ql0(i,j,k)> 0) then  !include moist thermodynamics
 
                temp = thl0(i,j,k)*exnf(k)+(rlv/cp)*ql0(i,j,k)
+               tmp0(i,j,k) = temp !stored for statistics
                qs   = qt0(i,j,k) - ql0(i,j,k)
 
                a_moist = (1-qt0(i,j,k)+qs/epsilon*(1+rlv/(rv*temp))) &
@@ -370,6 +370,8 @@ contains
                if (chi < chi_sat) then  !mixed parcel is saturated
                  dthv = del_thv_sat
               end if
+            else
+                tmp0(i,j,k) = thl0(i,j,k)*exnf(k) !stored for statistics
             end if
 
             dthvdz(i,j,k) = dthv/(dzh(k+1)+dzh(k))
@@ -382,12 +384,14 @@ contains
         do i=2,i1
           if(ql0(i,j,1)>0) then
             temp = thl0(i,j,1)*exnf(1)+(rlv/cp)*ql0(i,j,1)
+            tmp0(i,j,1) = temp !stored for statistics
             qs   = qt0(i,j,1) - ql0(i,j,1)
             a_surf   = (1-qt0(i,j,1)+rv/rd*qs*(1+rlv/(rv*temp))) &
                       /(1+rlv**2*qs/(cp*rv*temp**2))
             b_surf   = a_surf*rlv/(temp*cp)-1
 
           else
+            tmp0(i,j,1) = thl0(i,j,1)*exnf(1) !stored for statistics
             a_surf = 1+(rv/rd-1)*qt0(i,j,1)
             b_surf = rv/rd-1
 
@@ -781,6 +785,8 @@ contains
             ql(i,j,k) = max(qt(i,j,k) - qsat, 0.0_field_r)
           end do
         end do
+      else
+        ql(:,:,k) = 0
       end if
     end do
 

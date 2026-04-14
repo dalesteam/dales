@@ -999,8 +999,9 @@ contains
       f2_av = 0
       f3_av = 0
       do ilu=1,nlu
-        !skip for ws
-        if (trim(tile(ilu)%lushort) == 'ws') cycle 
+        !skip for ws and slb
+        if (trim(tile(ilu)%lushort) == 'ws'.or. &
+            trim(tile(ilu)%lushort) == 'slb') cycle
         obuk_av(ilu)  = mean_2d(tile(ilu)%obuk)
         ustar_av(ilu) = mean_2d(tile(ilu)%ustar)
         ra_av(ilu)    = mean_2d(tile(ilu)%ra)
@@ -1009,9 +1010,10 @@ contains
       end do
 
       do ilu=1,nlu
-        !skip for ws and aq
+        !skip for ws, aq and slb
         if (trim(tile(ilu)%lushort) == 'ws' .or. &
-            trim(tile(ilu)%lushort) == 'aq') cycle 
+            trim(tile(ilu)%lushort) == 'aq' .or. &
+            trim(tile(ilu)%lushort) == 'slb') cycle 
         rs_av(ilu)    = mean_2d(tile(ilu)%rs)
       end do
 
@@ -1019,18 +1021,21 @@ contains
       f2b_av   = mean_2d(f2b)
 
       do ilu=1,nlu
+        ! skip for slb
+        if (trim(tile(ilu)%lushort) == 'slb') cycle
         c_av(ilu)       = mean_2d(tile(ilu)%frac)
         H_av(ilu)       = mean_2d(tile(ilu)%H)
         LE_av(ilu)      = mean_2d(tile(ilu)%LE)
         thlskin_av(ilu) = mean_2d(tile(ilu)%thlskin) 
-        qtskin_av(ilu)  = mean_2d(tile(ilu)%qtskin) 
+        qtskin_av(ilu)  = mean_2d(tile(ilu)%qtskin)  !TODO urb skin roof/can
       end do
 
       wlav = mean_2d(wl)
 
       do ilu=1,nlu
-        !skip for aq
-        if (trim(tile(ilu)%lushort) == 'aq') cycle
+        !skip for aq and slb
+        if (trim(tile(ilu)%lushort) == 'aq' .or. &
+            trim(tile(ilu)%lushort) == 'slb') cycle
         G_av(ilu)    = mean_2d(tile(ilu)%G)
       end do
 

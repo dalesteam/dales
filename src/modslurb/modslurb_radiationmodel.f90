@@ -27,8 +27,9 @@ module modslurb_radiationmodel
     use modslurbdata
     real(field_r) ::  azimuth        !< solar azimuth angle
     real(field_r) ::  tan_zenith     !< tangent of the solar zenith angle
-    real ::  zenith         !< solar zenith angle
-    real :: sun_dir_lon, sun_dir_lat, cos_zenith
+    real ::  cos_zenith              !< cosine of solar zenith angle
+    real ::  zenith                  !< solar zenith angle
+    real :: sun_dir_lon, sun_dir_lat
     contains
 
  !--------------------------------------------------------------------------------------------------!
@@ -51,11 +52,9 @@ module modslurb_radiationmodel
       !
       !-- Compute the solar zenith and azimuth angles for the current time and location. These are needed
       !-- for the shortwave radiation calculations
-    call zenith_lon_lat(xtime*3600_field_r + rtimee, xday, xlat, xlon, zenith, sun_dir_lon, sun_dir_lat)
+    call zenith_lon_lat(xtime*3600_field_r + rtimee, xday, xlat, xlon, cos_zenith, sun_dir_lon, sun_dir_lat)
     azimuth = ATAN2( sun_dir_lon, sun_dir_lat )
-    cos_zenith = COS(zenith)
-
-
+    zenith = ACOS( cos_zenith )
     !
     !-- Split the incoming SW radiation into direct and diffuse parts.
     !-- Direct-diffuse SW split is quite weirdly done in the radiation mod if radiation
@@ -193,7 +192,7 @@ module modslurb_radiationmodel
 
     !
     !-- Check if there is any shortwave radiation to take care of in the first place.
-    IF ( .NOT. ( cos_zenith > 0.0_field_r ) )  THEN
+    IF ( .NOT. ( cos_zenith > tiny(cos_zenith) ) )  THEN
        slurb_tile%rad_sw_in_urb(i,j)     = 0.0_field_r
        slurb_tile%rad_sw_net_urb(i,j)    = 0.0_field_r
        slurb_tile%rad_sw_net_roof(i,j)   = 0.0_field_r

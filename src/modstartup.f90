@@ -31,11 +31,11 @@
 
 module modstartup
 use iso_c_binding
+use fortran_support, only: int2string
 use modprecision,      only : field_r
 use modtimer
 use modstat_nc
 use modchecksim, only: check_array
-use modstringutils, only: number2string
 use modlogging, only: warning, finish, message
 
 implicit none
@@ -248,6 +248,7 @@ contains
     call D_MPI_BCAST(uvdamprate  ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lforce_user ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lmomsubs    ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(ntimedep    ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(ltimedep    ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(ltimedepuv  ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(ltimedepsv  ,1,0,commwrld,mpierr)
@@ -350,7 +351,6 @@ contains
     call initlsm
     call initdrydep
     call initsubgrid
-
 
     if (loutdirs) then
        output_prefix(1:3) = cmyidy
@@ -505,7 +505,7 @@ contains
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
                                   trestart, ladaptive,llsadv,tnextrestart,longint,lopenbc,linithetero, &
                                   iinput, input_netcdf, input_ascii, lcoriol, &
-                                  dzhi, iadv_thl, iadv_qt, iadv_kappa
+                                  dzhi, iadv_thl, iadv_qt, iadv_kappa, eps1
     use modthermodynamics, only : lconstexner,lbaseexner
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
@@ -796,7 +796,7 @@ contains
                 w0 (i,j,k:k+1)  = 0.
                 e12m(i,j,k)     = e12min
                 e120(i,j,k)     = e12min
-                if (nsv > 0) then !TODO: check this here..
+                if (nsv > 0) then
                   do n=1,nsv
                     sv0(i,j,k,n) = 0.
                     svm(i,j,k,n) = 0.
@@ -808,9 +808,12 @@ contains
         end do
       end if
 
-      !-----------------------------------------------------------------
-      !    2.2 Initialize surface layer and base profiles
-      !-----------------------------------------------------------------
+      !--------------------------------------------------------------------------
+      !    2.2 Check surface settings, initialize surface layer and base profiles
+      !--------------------------------------------------------------------------
+      
+      ! We call thermodynamics to calculate qtsurf, for which we need to know ps is set correctly.
+      if (ps < eps1) call finish(routine, 'ps out of range/not set')
 
       select case(isurf)
       case(1)
@@ -1946,6 +1949,7 @@ contains
 
   !> Check prognostic variables before simulation
   subroutine check_initial_state()
+    use modglobal, only: lopenbc, i1, j1, kmax
     use modthermodynamics, only: lmoist
     use modfields, only: u0, v0, w0, thl0, qt0, sv0
     use modchecksim, only: lstop
@@ -1962,13 +1966,18 @@ contains
                      threshold=[real(-100, rkind), real(100, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
     call check_array(w0, 'w0', 'startup', &
                      threshold=[real(-30, rkind), real(30, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
-    call check_array(thl0, 'thl0', 'startup', &
-                     threshold=[real(150, rkind), real(2000, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
+    if (lopenbc) then
+      call check_array(thl0(2:i1,2:j1,1:kmax), 'thl0', 'startup', &
+                      threshold=[real(150, rkind), real(2000, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
+    else
+      call check_array(thl0, 'thl0', 'startup', &
+                      threshold=[real(150, rkind), real(2000, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
+    end if
     if (lmoist) call check_array(qt0, 'qt0', 'startup', &
                                  threshold=[real(0, rkind), real(1, rkind)],stop_if_invalid=lstop, dump_if_invalid=.true.)
 
     do s = 1, size(sv0, dim=4)
-      call check_array(sv0(:,:,:,s), 'sv0('//number2string(s)//')', 'startup',stop_if_invalid=lstop, dump_if_invalid=.true.)
+      call check_array(sv0(:,:,:,s), 'sv0('//int2string(s)//')', 'startup',stop_if_invalid=lstop, dump_if_invalid=.true.)
     end do
 
   end subroutine check_initial_state

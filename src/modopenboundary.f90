@@ -302,8 +302,11 @@ contains
     use utils
 
     implicit none
+    character :: routine = modname//'/openboundary_readboundary'
     type(T_tracer), dimension(:), intent(in) :: tracer_prop
     integer :: ib
+    integer :: i_tboundary
+    real :: cur_boundary_time
     character(len = nf90_max_name) :: RecordDimName
     integer :: VARID,STATUS,NCID,timeID,n
     integer, dimension(3) :: istart
@@ -324,6 +327,16 @@ contains
     if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
     STATUS = NF90_GET_VAR (NCID, VARID, tboundary, start=(/1/), count=(/ntboundary/) )
     if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+
+    !--- check if boundaries are ascending in time...
+    cur_boundary_time = tboundary(1)
+    do i_tboundary = 2, ntboundary
+      if (tboundary(i_tboundary) <= cur_boundary_time) then
+        call finish(routine, 'Boundary times are not in ascending order: ', tboundary(i_tboundary), ' <= ', cur_boundary_time)
+      end if
+      cur_boundary_time = tboundary(i_tboundary)
+    end do
+
     do ib = 1,5 ! loop over boundaries
       ! Allocate input fields
       if(.not.lboundary(ib) .or. lperiodic(ib)) cycle ! Open boundary not present
@@ -513,35 +526,35 @@ contains
       do icalc=1,2
         ! Calculate divergence
         div = 0.
-        if(lboundary(1)) then
+        if(lboundary(1).and..not.lperiodic(1)) then
           do j = 1,jmax
             do k = 1,kmax
               div = div - rhobf(k)*boundary(1)%u(j,k,it)*dzf(k)*dy
             end do
           end do
         endif
-        if(lboundary(2)) then
+        if(lboundary(2).and..not.lperiodic(2)) then
           do j = 1,jmax
             do k = 1,kmax
               div = div + rhobf(k)*boundary(2)%u(j,k,it)*dzf(k)*dy
             end do
           end do
         endif
-        if(lboundary(3)) then
+        if(lboundary(3).and..not.lperiodic(3)) then
           do i = 1,imax
             do k = 1,kmax
               div = div - rhobf(k)*boundary(3)%v(i,k,it)*dzf(k)*dx
             end do
           end do
         endif
-        if(lboundary(4)) then
+        if(lboundary(4).and..not.lperiodic(4)) then
           do i = 1,imax
             do k = 1,kmax
               div = div + rhobf(k)*boundary(4)%v(i,k,it)*dzf(k)*dx
             end do
           end do
         endif
-        if(lboundary(5)) then
+        if(lboundary(5).and..not.lperiodic(5)) then
           do i = 1,imax
             do j = 1,jmax
               div = div + rhobh(k1)*boundary(5)%w(i,j,it)*dx*dy
@@ -557,25 +570,25 @@ contains
            exit
          endif
         ! Apply correction, spread divergence over lateral boundaries
-        if(lboundary(1)) then
+        if(lboundary(1).and..not.lperiodic(1)) then
           do k = 1,kmax
             divpart = sumdiv*ysize*dzf(k)/(2*xsize*zh(k1)+2*ysize*zh(k1))
             boundary(1)%u(:,k,it)=boundary(1)%u(:,k,it)+divpart/(rhobf(k)*ysize*dzf(k))
           end do
         endif
-        if(lboundary(2)) then
+        if(lboundary(2).and..not.lperiodic(2)) then
           do k = 1,kmax
             divpart = sumdiv*ysize*dzf(k)/(2*xsize*zh(k1)+2*ysize*zh(k1))
             boundary(2)%u(:,k,it)=boundary(2)%u(:,k,it)-divpart/(rhobf(k)*ysize*dzf(k))
           end do
         endif
-        if(lboundary(3)) then
+        if(lboundary(3).and..not.lperiodic(3)) then
           do k = 1,kmax
             divpart = sumdiv*xsize*dzf(k)/(2*xsize*zh(k1)+2*ysize*zh(k1))
             boundary(3)%v(:,k,it)=boundary(3)%v(:,k,it)+divpart/(rhobf(k)*dzf(k)*xsize)
           end do
         endif
-        if(lboundary(4)) then
+        if(lboundary(4).and..not.lperiodic(4)) then
           do k = 1,kmax
             divpart = sumdiv*xsize*dzf(k)/(2*xsize*zh(k1)+2*ysize*zh(k1))
             boundary(4)%v(:,k,it)=boundary(4)%v(:,k,it)-divpart/(rhobf(k)*xsize*dzf(k))
