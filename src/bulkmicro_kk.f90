@@ -91,7 +91,7 @@ contains
         do i = 2, i1
            if (ql0(i,j,k) > qcmin) then
               au = 1350 * ql0(i,j,k)**(2.47_field_r) &
-                   * (Nc_0 / 1E6)**(-1.79_field_r)
+                   * (nc(i,j,k) / 1E6)**(-1.79_field_r)
               au = min(ql0(i,j,k) / delt, au)
               qrp(i,j,k) = qrp(i,j,k) + au
               qtpmcr(i,j,k) = qtpmcr(i,j,k) - au
