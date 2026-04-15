@@ -156,7 +156,7 @@ contains
       end if
       call readTraceProfs
 
-      call message(routine, 'Trace gas profile have been read')
+      call message(routine, 'Trace gas profile have been read',all_print=.false.)
       isReadTraceProfiles = .true.
     end if
 

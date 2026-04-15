@@ -99,10 +99,10 @@ contains
     else
 #ifndef _OPENACC
       ! BUG: broken with nvhpc 25.11
-      call warning(routine, trim(file_profs)//' not found')
+      if (myid == 0) call warning(routine, trim(file_profs)//' not found')
 #else
       l = len(trim(file_profs))
-      call warning(routine, file_profs(1:l)//' not found')
+      if (myid == 0) call warning(routine, file_profs(1:l)//' not found')
 #endif
       nsv_user = 0
     end if
