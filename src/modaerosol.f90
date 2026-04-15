@@ -458,7 +458,7 @@ contains
       modname//'/aerosol_resuspend_rain'
 
     real(field_r), parameter :: &
-      Dc = 1E-9 ! Diameter separating the accumulation and coarse modes.
+      Dc = 1E-6 ! Diameter separating the accumulation and coarse modes.
 
     class(aerosol_mode_t), pointer :: &
       m_acs, & ! Soluble accumulation mode.
@@ -555,7 +555,7 @@ contains
       routine = modname//'/aero_resuspend_cloud'
 
     real(field_r), parameter :: &
-      Dc = 1E-9 ! Diameter separating the accumulation and coarse modes.
+      Dc = 1E-6 ! Diameter separating the accumulation and coarse modes.
 
     class(aerosol_mode_t), pointer :: &
       m_acs, & ! Soluble accumulation mode.
