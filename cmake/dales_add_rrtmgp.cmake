@@ -12,8 +12,8 @@ ecbuild_info( "Fetching RTE-RRTMGP" )
 
 FetchContent_Declare(
     rrtmgp
-    GIT_REPOSITORY "https://github.com/earth-system-radiation/rte-rrtmgp.git"
-    GIT_TAG 77ff83ccf645e5bc404c138ca4e7a6e3abf5d963 # v1.9.2
+    GIT_REPOSITORY "https://github.com/dindon-sournois/rte-rrtmgp.git"
+    GIT_TAG 71a100e3836fc511a7824bfb37490c1075ae62e8 # v1.9.2 with OpenMP fix
 )
 
 FetchContent_MakeAvailable( rrtmgp )
@@ -24,3 +24,11 @@ target_compile_options( rrtmgp PUBLIC ${OpenACC_Fortran_FLAGS} )
 target_compile_options( rrtmgpkernels PUBLIC ${OpenACC_Fortran_FLAGS} )
 target_compile_options( rte PUBLIC ${OpenACC_Fortran_FLAGS} )
 target_compile_options( rtekernels PUBLIC ${OpenACC_Fortran_FLAGS} )
+
+# remove SIMD from pure routine
+if( ${CMAKE_Fortran_COMPILER_ID} MATCHES Cray )
+  set(FILE_TO_PATCH ${rrtmgp_SOURCE_DIR}/rte-kernels/mo_rte_solver_kernels.F90)
+  file(READ ${FILE_TO_PATCH} FILE_CONTENTS)
+  string(REPLACE "!$OMP SIMD" "" FILE_CONTENTS "${FILE_CONTENTS}")
+  file(WRITE ${FILE_TO_PATCH} "${FILE_CONTENTS}")
+endif()
