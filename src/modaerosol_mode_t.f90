@@ -69,10 +69,12 @@ module modaerosol_mode_t
   end interface
 
   interface
-    subroutine mode_t_finish(this, svp)
+    subroutine mode_t_finish(this, svp, svm, delt)
       import :: mode_t, field_r
       class(mode_t), intent(inout) :: this
       real(field_r), intent(inout) :: svp(:,:,:,:)
+      real(field_r), intent(in) :: svm(:,:,:,:)
+      real(field_r), intent(in) :: delt
     end subroutine mode_t_finish
   end interface
 
@@ -81,7 +83,7 @@ module modaerosol_mode_t
     integer :: &
       itrac_n, &
       itrac_q(maxspecies)
-    real(field_r), pointer :: &
+    real(field_r), allocatable :: &
       n(:,:,:),               &
       np(:,:,:),              &
       q(:,:,:,:),             &
@@ -147,25 +149,28 @@ contains
     end do
 
     ! Define tracers
-    call add_tracer(this%name//'_n', isv=this%itrac_n)
+    if (this%nspecies > 0) then
+      call add_tracer(this%name//'_n', isv=this%itrac_n)
 
-    do s = 1, this%nspecies
-      this%rho(s) = aerosol_densities(this%itype(s))
-      call add_tracer(trim(aerosol_names(this%itype(s)))//'_'//this%name, &
-                      isv=this%itrac_q(s))
-    end do
+      do s = 1, this%nspecies
+        this%rho(s) = aerosol_densities(this%itype(s))
+        call add_tracer(trim(aerosol_names(this%itype(s)))//'_'//this%name, &
+                        isv=this%itrac_q(s))
+      end do
 
-    ! Allocate memory, to be replaced by pointers to sv0 array?
-    allocate(this%n(2:i1,2:j1,1:k1), &
-             this%np(2:i1,2:j1,1:k1), &
-             this%q(1:this%nspecies,2:i1,2:j1,1:k1), &
-             this%qp(1:this%nspecies,2:i1,2:j1,1:k1))
+      ! Allocate memory, to be replaced by pointers to sv0 array?
+      allocate(this%n(2:i1,2:j1,1:k1), &
+               this%np(2:i1,2:j1,1:k1), &
+               this%q(1:this%nspecies,2:i1,2:j1,1:k1), &
+               this%qp(1:this%nspecies,2:i1,2:j1,1:k1))
+
+    end if
 
     !$acc enter data copyin(this)
-    !$acc enter data create(this%n(2:i1,2:j1,1:k1), &
-    !$acc                   this%np(2:i1,2:j1,1:k1), &
-    !$acc                   this%q(1:this%nspecies,2:i1,2:j1,1:k1), &
-    !$acc                   this%qp(1:this%nspecies,2:i1,2:j1,1:k1))
+      !$acc enter data create(this%n(2:i1,2:j1,1:k1), &
+      !$acc                   this%np(2:i1,2:j1,1:k1), &
+      !$acc                   this%q(1:this%nspecies,2:i1,2:j1,1:k1), &
+      !$acc                   this%qp(1:this%nspecies,2:i1,2:j1,1:k1))
 
   end subroutine aerosol_mode_init
 
@@ -187,27 +192,31 @@ contains
 
     call timer_tic(routine, 3)
 
-    !$acc parallel loop collapse(3) default(present) async wait(1)
-    do k = 1, kmax
-      do j = 2, j1
-        do i = 2, i1
-          this%n(i,j,k) = max(sv(i,j,k,this%itrac_n), 0.0_field_r)
-          this%np(i,j,k) = 0
-        end do
-      end do
-    end do
+    if (this%nspecies > 0) then
 
-    !$acc parallel loop collapse(4) default(present) async wait(1)
-    do s = 1, this%nspecies 
-      do k = 1, kmax 
+      !$acc parallel loop collapse(3) default(present) async wait(1)
+      do k = 1, kmax
         do j = 2, j1
           do i = 2, i1
-            this%q(s,i,j,k) = max(sv(i,j,k,this%itrac_q(s)), 0.0_field_r)
-            this%qp(s,i,j,k) = 0
+            this%n(i,j,k) = max(sv(i,j,k,this%itrac_n), 0.0_field_r)
+            this%np(i,j,k) = 0
           end do
         end do
       end do
-    end do
+
+      !$acc parallel loop collapse(4) default(present) async wait(1)
+      do s = 1, this%nspecies 
+        do k = 1, kmax 
+          do j = 2, j1
+            do i = 2, i1
+              this%q(s,i,j,k) = max(sv(i,j,k,this%itrac_q(s)), 0.0_field_r)
+              this%qp(s,i,j,k) = 0
+            end do
+          end do
+        end do
+      end do
+
+    end if
 
     call timer_toc(routine)
 
@@ -216,7 +225,7 @@ contains
   !> Copy out tendencies.
   !!
   !! @param[inout] svp Tracer tendency array.
-  subroutine aerosol_mode_finish(this, svp)
+  subroutine aerosol_mode_finish(this, svp, svm, delt)
 
     class(aerosol_mode_t), intent(inout) :: &
       this
@@ -224,33 +233,50 @@ contains
     real(field_r), intent(inout) :: &
       svp(2-ih:,2-jh:,:,:)
 
+    real(field_r), intent(in) :: &
+      svm(2-ih:,2-jh:,:,:)
+
+    real(field_r), intent(in) :: delt
+
     character(len=*), parameter :: routine = modname//"/aerosol_mode_finish"
 
     integer :: &
       i, j, k, s ! Loop indices
 
+    real(field_r) :: sv_cor
+
     call timer_tic(routine, 3)
 
-    !$acc parallel loop collapse(3) default(present) async wait(1)
-    do k = 1, kmax
-      do j = 2, j1
-        do i = 2, i1
-          svp(i,j,k,this%itrac_n) = svp(i,j,k,this%itrac_n) + this%np(i,j,k)
-        end do
-      end do
-    end do
+    if (this%nspecies > 0) then
 
-    !$acc parallel loop collapse(4) default(present) async wait(1)
-    do s = 1, this%nspecies
+      !$acc parallel loop collapse(3) default(present) async wait(1)
       do k = 1, kmax
         do j = 2, j1
           do i = 2, i1
-            svp(i,j,k,this%itrac_q(s)) = svp(i,j,k,this%itrac_q(s)) &
-                                         + this%qp(s,i,j,k)
+            sv_cor = min(svp(i,j,k,this%itrac_n) + this%np(i,j,k) &
+                         + (svm(i,j,k,this%itrac_n) / delt), &
+                         0.0_field_r)
+            svp(i,j,k,this%itrac_n) = svp(i,j,k,this%itrac_n) + this%np(i,j,k) - sv_cor
           end do
         end do
       end do
-    end do
+
+      !$acc parallel loop collapse(4) default(present) async wait(1)
+      do s = 1, this%nspecies
+        do k = 1, kmax
+          do j = 2, j1
+            do i = 2, i1
+              sv_cor = min(svp(i,j,k,this%itrac_q(s)) + this%qp(s,i,j,k) &
+                           + (svm(i,j,k,this%itrac_q(s)) / delt), &
+                           0.0_field_r)
+              svp(i,j,k,this%itrac_q(s)) = svp(i,j,k,this%itrac_q(s)) &
+                                           + this%qp(s,i,j,k) - sv_cor
+            end do
+          end do
+        end do
+      end do
+
+    end if
 
     call timer_toc(routine)
 
@@ -344,18 +370,24 @@ contains
   !> Copy out tendencies.
   !!
   !! @param[inout] svp Tracer tendency array.
-  subroutine hydrometeor_mode_finish(this, svp)
+  subroutine hydrometeor_mode_finish(this, svp, svm, delt)
 
     class(hydrometeor_mode_t), intent(inout) :: &
       this
 
     real(field_r), intent(inout) :: &
       svp(2-ih:,2-jh:,:,:)
+    real(field_r), intent(in) :: &
+      svm(2-ih:,2-jh:,:,:)
+
+    real(field_r), intent(in) :: delt
 
     character(len=*), parameter :: routine = modname//'/hydrometeor_mode_finish'
 
     integer :: &
       i, j, k, s
+
+    real(field_r) :: sv_cor
 
     call timer_tic(routine, 3)
 
@@ -364,8 +396,11 @@ contains
       do k = 1, kmax
         do j = 2, j1
           do i = 2, i1
+            sv_cor = min(svp(i,j,k,this%itrac_q(s)) + this%qp(s,i,j,k) &
+                         + (svm(i,j,k,this%itrac_q(s)) / delt), &
+                         0.0_field_r)
             svp(i,j,k,this%itrac_q(s)) = svp(i,j,k,this%itrac_q(s)) &
-                                         + this%qp(s,i,j,k)
+                                         + this%qp(s,i,j,k) - sv_cor
           end do
         end do
       end do
