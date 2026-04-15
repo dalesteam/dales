@@ -440,9 +440,9 @@ contains
     !$acc enter data copyin(z0m, z0h, obl, tskin, qskin, Cm, Cs, &
     !$acc&                  ustar, dudz, dvdz, thlflux, qtflux, &
     !$acc&                  dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf, albedo, emissivity)
-!!$omp target enter data map(to:z0m,z0h,obl,tskin,qskin,cm,cs,ustar,&
-!!$omp dudz,dvdz,thlflux,qtflux,dqtdz,dthldz,svflux,svs,horv,ra,rs,&
-!!$omp wsvsurf,albedo,emissivity)
+!$omp target enter data map(to:z0m,z0h,obl,tskin,qskin,cm,cs,ustar,&
+!$omp dudz,dvdz,thlflux,qtflux,dqtdz,dthldz,svflux,svs,horv,ra,rs,&
+!$omp wsvsurf,albedo,emissivity)
 
     call timer_toc('modsurface/initsurface')
   end subroutine initsurface
@@ -1312,9 +1312,9 @@ contains
     !$acc exit data delete(z0m, z0h, obl, tskin, qskin, Cm, Cs, &
     !$acc&                 ustar, dudz, dvdz, thlflux, qtflux, &
     !$acc&                 dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf)
-!!$omp target exit data map(delete:z0m,z0h,obl,tskin,qskin,cm,cs,ustar,&
-!!$omp dudz,dvdz,thlflux,qtflux,dqtdz,dthldz,svflux,svs,horv,ra,rs,&
-!!$omp wsvsurf)
+!$omp target exit data map(delete:z0m,z0h,obl,tskin,qskin,cm,cs,ustar,&
+!$omp dudz,dvdz,thlflux,qtflux,dqtdz,dthldz,svflux,svs,horv,ra,rs,&
+!$omp wsvsurf)
 
     return
   end subroutine exitsurface

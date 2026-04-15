@@ -221,12 +221,12 @@ contains
    !$acc&                  thllwtendav, thltendav,thlswtendav, thllwtendcaav, thlswtendcaav, &
    !$acc&                  lwumn, lwdmn, swdmn, swdirmn, swdifmn, swumn, lwucamn, lwdcamn, swdcamn, swucamn, &
    !$acc&                  thllwtendmn, thltendmn, thlswtendmn, thlradlsmn, thllwtendcamn, thlswtendcamn)
-!!$omp target enter data map(to:lwuav,lwdav,swdav,swdirav,swdifav,swuav,&
-!!$omp lwucaav,lwdcaav,swdcaav,swucaav,thllwtendav,thltendav,&
-!!$omp thlswtendav,thllwtendcaav,thlswtendcaav,lwumn,lwdmn,swdmn,&
-!!$omp swdirmn,swdifmn,swumn,lwucamn,lwdcamn,swdcamn,swucamn,&
-!!$omp thllwtendmn,thltendmn,thlswtendmn,thlradlsmn,thllwtendcamn,&
-!!$omp thlswtendcamn)
+!$omp target enter data map(to:lwuav,lwdav,swdav,swdirav,swdifav,swuav,&
+!$omp lwucaav,lwdcaav,swdcaav,swucaav,thllwtendav,thltendav,&
+!$omp thlswtendav,thllwtendcaav,thlswtendcaav,lwumn,lwdmn,swdmn,&
+!$omp swdirmn,swdifmn,swumn,lwucamn,lwdcamn,swdcamn,swucamn,&
+!$omp thllwtendmn,thltendmn,thlswtendmn,thlradlsmn,thllwtendcamn,&
+!$omp thlswtendcamn)
 
   end subroutine initradstat
 !> General routine, does the timekeeping
@@ -577,12 +577,12 @@ contains
     !$acc&                 thllwtendav, thltendav,thlswtendav, thllwtendcaav, thlswtendcaav, &
     !$acc&                 lwumn, lwdmn, swdmn, swdirmn, swdifmn, swumn, lwucamn, lwdcamn, swdcamn, swucamn, &
     !$acc&                 thllwtendmn, thltendmn, thlswtendmn, thlradlsmn, thllwtendcamn, thlswtendcamn)
-!!$omp target exit data map(delete:lwuav,lwdav,swdav,swdirav,swdifav,&
-!!$omp swuav,lwucaav,lwdcaav,swdcaav,swucaav,thllwtendav,thltendav,&
-!!$omp thlswtendav,thllwtendcaav,thlswtendcaav,lwumn,lwdmn,swdmn,&
-!!$omp swdirmn,swdifmn,swumn,lwucamn,lwdcamn,swdcamn,swucamn,&
-!!$omp thllwtendmn,thltendmn,thlswtendmn,thlradlsmn,thllwtendcamn,&
-!!$omp thlswtendcamn)
+!$omp target exit data map(delete:lwuav,lwdav,swdav,swdirav,swdifav,&
+!$omp swuav,lwucaav,lwdcaav,swdcaav,swucaav,thllwtendav,thltendav,&
+!$omp thlswtendav,thllwtendcaav,thlswtendcaav,lwumn,lwdmn,swdmn,&
+!$omp swdirmn,swdifmn,swumn,lwucamn,lwdcamn,swdcamn,swucamn,&
+!$omp thllwtendmn,thltendmn,thlswtendmn,thlradlsmn,thllwtendcamn,&
+!$omp thlswtendcamn)
 
     deallocate(lwuav,lwdav,swdav,swdirav,swdifav,swuav)
     deallocate(lwucaav, lwdcaav, swucaav, swdcaav)

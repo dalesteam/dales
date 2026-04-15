@@ -133,9 +133,9 @@ contains
 
     allocate(a(kmax), b(kmax), c(kmax))
     !$acc enter data copyin(pup, pvp)
-!!$omp target enter data map(to:pup,pvp)
+!$omp target enter data map(to:pup,pvp)
     !$acc enter data create(pwp, a, b, c)
-!!$omp target enter data map(alloc:pwp,a,b,c)
+!$omp target enter data map(alloc:pwp,a,b,c)
 
   end subroutine initpois
 
@@ -155,7 +155,7 @@ contains
     else if (solver_id == 200) then
       call cufftexit(p, Fp, d, xyrt)
       !$acc exit data delete(pup, pvp, pwp, a, b, c)
-!!$omp target exit data map(delete:pup,pvp,pwp,a,b,c)
+!$omp target exit data map(delete:pup,pvp,pwp,a,b,c)
     else
       ! HYPRE based solver
       !call fft2dexit(p,Fp,d,xyrt)

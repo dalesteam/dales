@@ -57,7 +57,7 @@ module modcufft
       sz = transposer%get_buffer_size()
 
       !$acc enter data copyin(transposer)
-!!$omp target enter data map(to:transposer)
+!$omp target enter data map(to:transposer)
 
       konx = transposer%konx
       iony = transposer%iony
@@ -76,7 +76,7 @@ module modcufft
       allocate(p_nohalo(sz))
 
       !$acc enter data create(p_halo, p_nohalo)
-!!$omp target enter data map(alloc:p_halo,p_nohalo)
+!$omp target enter data map(alloc:p_halo,p_nohalo)
 
       p(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => p_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax) ! z-aligned
       px(1:nphix*2,1:jmax,1:konx) => p_nohalo(1:konx*jmax*(nphix*2)) ! x-aligned
@@ -234,7 +234,7 @@ module modcufft
       norm_fac = 1 / real((itot*jtot))
 
       !$acc enter data copyin(xyrt, d)
-!!$omp target enter data map(to:xyrt,d)
+!$omp target enter data map(to:xyrt,d)
 
     end subroutine cufftinit
 
