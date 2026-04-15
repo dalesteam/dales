@@ -1,7 +1,4 @@
 !> \file modstartup.f90
-!!  Initializes the run
-
-!>
 !! Initializes the run.
 !>
 !! Modstartup reads the namelists and initial data, sets the fields and calls
@@ -759,24 +756,29 @@ contains
 
       krand  = min(krand,kmax)
       negval = .False. ! No negative perturbations for qt (negative moisture is non physical)
-      do k = 1,krand
-        call randomnize(qtm ,k,randqt ,irandom,ih,jh,negval)
-        call randomnize(qt0 ,k,randqt ,irandom,ih,jh,negval)
-      end do
-      negval = .True. ! negative perturbations allowed
-      do k = 1,krand
-        call randomnize(thlm,k,randthl,irandom,ih,jh,negval)
-        call randomnize(thl0,k,randthl,irandom,ih,jh,negval)
-      end do
 
-      do k=krandumin,krandumax
-        call randomnize(um  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(u0  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(vm  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(v0  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(wm  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(w0  ,k,randu  ,irandom,ih,jh,negval)
-      end do
+      if (irandom < 0) then
+         call randomize_new(irandom)
+      else
+         do k = 1,krand
+            call randomnize(qtm ,k,randqt ,irandom,ih,jh,negval)
+            call randomnize(qt0 ,k,randqt ,irandom,ih,jh,negval)
+         end do
+         negval = .True. ! negative perturbations allowed
+         do k = 1,krand
+            call randomnize(thlm,k,randthl,irandom,ih,jh,negval)
+            call randomnize(thl0,k,randthl,irandom,ih,jh,negval)
+         end do
+
+         do k=krandumin,krandumax
+            call randomnize(um  ,k,randu  ,irandom,ih,jh,negval)
+            call randomnize(u0  ,k,randu  ,irandom,ih,jh,negval)
+            call randomnize(vm  ,k,randu  ,irandom,ih,jh,negval)
+            call randomnize(v0  ,k,randu  ,irandom,ih,jh,negval)
+            call randomnize(wm  ,k,randu  ,irandom,ih,jh,negval)
+            call randomnize(w0  ,k,randu  ,irandom,ih,jh,negval)
+         end do
+      end if
 
       ! when using ibm, overwrite randomnization inside obtacles (velocities, thl, qt)
       if (lapply_ibm) then
@@ -811,7 +813,7 @@ contains
       !--------------------------------------------------------------------------
       !    2.2 Check surface settings, initialize surface layer and base profiles
       !--------------------------------------------------------------------------
-      
+
       ! We call thermodynamics to calculate qtsurf, for which we need to know ps is set correctly.
       if (ps < eps1) call finish(routine, 'ps out of range/not set')
 
@@ -1583,7 +1585,7 @@ contains
   subroutine randomnize(field,klev,ampl,ir,ihl,jhl,negval)
     ! Adds (pseudo) random noise with given amplitude to the field at level k
     ! Use our own pseudo random function so results are reproducibly the same,
-    ! independent of parallization.
+    ! independent of parallelization.
 
     use modmpi,    only : myidx, myidy
     use modglobal, only : itot,jtot,imax,jmax,i1,j1,k1
@@ -1620,6 +1622,64 @@ contains
 
     return
   end subroutine randomnize
+
+  !> randomize fields using the system random number generator
+  !  the random perturbation is reproducible with the same seed only with the
+  !  same parallelization.
+  subroutine randomize_new (irandom)
+    use modglobal,  only : i1,j1,k1,ih,jh
+    use modfields,  only : u0,v0,w0,um,vm,wm,thlm,thl0,qtm,qt0
+    use modmpi,     only : myid
+
+    integer, intent(in) :: irandom
+    integer :: n
+    integer, allocatable :: seed(:)
+    real(field_r), allocatable :: noise(:,:,:)
+    character(len=*), parameter :: routine = modname//'/randomize_new'
+
+    call random_seed(size = n) ! query the seed size
+    if (n < 2) then
+       call finish(routine, "The random seed size on this system is too small", n)
+    end if
+    allocate(seed(n))
+    ! initialize the seed array with the random seed from the namelist and MPI rank
+    ! -> reproducible random numbers if parallelization is not changed
+    seed = 0
+    seed(1) = irandom
+    seed(2) = myid
+    call random_seed(put=seed)
+    deallocate(seed)
+
+    allocate(noise(2-ih:i1+ih,2-jh:j1+jh,krand))
+
+    call random_number(noise)
+    qtm(2:i1,2:j1,1:krand)  = qtm(2:i1,2:j1,1:krand)  + &
+         min(randqt,qtm(2:i1,2:j1,1:krand)) * 2 * (noise(2:i1,2:j1,1:krand)-0.5_field_r)  ! avoid negative q
+    call random_number(noise)                           
+    qt0(2:i1,2:j1,1:krand)  = qt0(2:i1,2:j1,1:krand)  + &
+         min(randqt,qt0(2:i1,2:j1,1:krand)) * 2 * (noise(2:i1,2:j1,1:krand)-0.5_field_r)
+    call random_number(noise)
+    thlm(2:i1,2:j1,1:krand) = thlm(2:i1,2:j1,1:krand) + 2*randthl * (noise(2:i1,2:j1,1:krand)-0.5_field_r)
+    call random_number(noise)
+    thl0(2:i1,2:j1,1:krand) = thl0(2:i1,2:j1,1:krand) + 2*randthl * (noise(2:i1,2:j1,1:krand)-0.5_field_r)
+
+    ! momentum is by default not ranomized with the old system
+    ! disabling for now because it seems to lead to bad divergence
+    !call random_number(noise)
+    !um(2:i1,2:j1,1:krand)   = um(2:i1,2:j1,1:krand)   + 2*randu   * (noise(2:i1,2:j1,1:krand)-0.5_field_r)
+    !call random_number(noise)
+    !u0(2:i1,2:j1,1:krand)   = u0(2:i1,2:j1,1:krand)   + 2*randu   * (noise(2:i1,2:j1,1:krand)-0.5_field_r)
+    !call random_number(noise)
+    !vm(2:i1,2:j1,1:krand)   = vm(2:i1,2:j1,1:krand)   + 2*randu   * (noise(2:i1,2:j1,1:krand)-0.5_field_r)
+    !call random_number(noise)
+    !v0(2:i1,2:j1,1:krand)   = v0(2:i1,2:j1,1:krand)   + 2*randu   * (noise(2:i1,2:j1,1:krand)-0.5_field_r)
+    !call random_number(noise)
+    !wm(2:i1,2:j1,1:krand)   = wm(2:i1,2:j1,1:krand)   + 2*randu   * (noise(2:i1,2:j1,1:krand)-0.5_field_r)
+    !call random_number(noise)
+    !w0(2:i1,2:j1,1:krand)   = w0(2:i1,2:j1,1:krand)   + 2*randu   * (noise(2:i1,2:j1,1:krand)-0.5_field_r)
+
+    deallocate(noise)
+  end subroutine randomize_new
 
   subroutine baseprofs
     ! Calculates the profiles corresponding to the base state
