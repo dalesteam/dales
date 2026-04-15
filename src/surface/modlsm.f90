@@ -29,7 +29,7 @@ module modlsm
 
     public :: initlsm, lsm, exitlsm, init_lsm_tiles
 
-#ifdef _OPENACC
+#ifdef DALES_GPU
     real :: rhocp_i(1), rholv_i(1)
 #endif
 
@@ -57,7 +57,7 @@ subroutine lsm
     ! warning: the wet surface tile has no z0h, z0m - will break in Obukhov length calculation
     if (ldrydep) then
        call timer_tic('lsm_calc_tile_fractions', 0)
-#ifdef _OPENACC
+#ifdef DALES_GPU
        stop "acc: unsupported calc_tile_fractions"
 #endif
        call calc_tile_fractions
@@ -77,7 +77,7 @@ subroutine lsm
     ! Calculate canopy/soil resistances.
     if (lags) then
         call timer_tic('lsm_calc_canopy_resistance_ags', 0)
-#ifdef _OPENACC
+#ifdef DALES_GPU
         stop "acc: unsupported lsm calc_canopy_resistance_ags"
 #endif
         call calc_canopy_resistance_ags
@@ -261,7 +261,7 @@ subroutine calc_liquid_reservoir
                 ! Tendency due to dewfall into vegetation/soil/liquid water tiles
                 wl_tend_dew = wl_tend_dew &
                   -( min(0., tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j) * to_ms) )
-#ifndef _OPENACC
+#ifndef DALES_GPU
               else
                 cycle
 #endif
@@ -890,7 +890,7 @@ subroutine calc_obuk_ustar_ra(tile)
                 thvs = tile%thlskin(i,j) * (1.+(rv/rd-1.)*tile%qtskin(i,j))
                 tile%db(i,j) = grav/thvs * (thv_1(i,j) - thvs)
 
-#ifndef _OPENACC
+#ifndef DALES_GPU
                 if (tile%z0m(i,j) < 1e-6 .or. tile%z0h(i,j) < 1e-6) then
                    write (*,*) 'z0 warning:', tile%lushort, i, j, tile%z0m(i,j), tile%z0h(i,j)
                 end if
@@ -933,7 +933,7 @@ subroutine calc_tile_bcs(tile)
     integer :: i, j
     real :: Ts, esats, qsats, desatdTs, dqsatdTs, &
         rs_lim, fH, fLE, fG, num, denom, Ta, qsat_new, Qnet
-#ifndef _OPENACC
+#ifndef DALES_GPU
     real :: rhocp_i(1), rholv_i(1)
 #endif
 
@@ -1084,7 +1084,7 @@ subroutine calc_bulk_bcs
 
     integer :: i, j
     real :: ucu, vcv, bflux
-#ifndef _OPENACC
+#ifndef DALES_GPU
     real :: rhocp_i(1), rholv_i(1)
 #endif
     real, pointer :: ustar_3D(:,:,:)
@@ -1276,7 +1276,7 @@ subroutine calc_bulk_bcs
     ! Cyclic BCs where needed.
     ustar_3D(1:i2,1:j2,1:1) => ustar
     if(lopenbc) then ! Only use periodicity for non-domain boundaries when openboundaries are used
-#ifdef _OPENACC
+#ifdef DALES_GPU
        stop "acc: unsupported lsm openboundary_excjs"
 #endif
        call openboundary_excjs(ustar_3D, 2,i1,2,j1,1,1,1,1, &
@@ -1759,6 +1759,46 @@ subroutine initlsm
     call allocate_on_device()
 
 end subroutine initlsm
+
+subroutine allocate_gpu_if_nonempty(a)
+  real, allocatable :: a(..) ! assumed-rank
+  integer :: l1,u1,l2,u2,l3,u3
+
+  select rank(a)
+
+  rank (1)
+  l1 = lbound(a,1)
+  u1 = ubound(a,1)
+  if (l1 <= u1) then
+     !$acc enter data copyin(a)
+     !$omp target enter data map(to:a)
+  endif
+
+  rank (2)
+  l1 = lbound(a,1)
+  l2 = lbound(a,2)
+  u1 = ubound(a,1)
+  u2 = ubound(a,2)
+  if (l1 <= u1 .and. l2 <= u2) then
+     !$acc enter data copyin(a)
+     !$omp target enter data map(to:a)
+  endif
+
+  rank (3)
+  l1 = lbound(a,1)
+  l2 = lbound(a,2)
+  l3 = lbound(a,3)
+  u1 = ubound(a,1)
+  u2 = ubound(a,2)
+  u3 = ubound(a,3)
+  if (l1 <= u1 .and. l2 <= u2 .and. l3 <= u3) then
+     !$acc enter data copyin(a)
+     !$omp target enter data map(to:a)
+  endif
+
+end select
+
+end subroutine allocate_gpu_if_nonempty
 
 subroutine allocate_on_device()
 
@@ -3355,7 +3395,7 @@ function calc_obuk_dirichlet(L_in, du, db_in, zsl, z0m, z0h) result(res)
     end do
 
     if (m > 1) then
-#ifndef _OPENACC
+#ifndef DALES_GPU
         print*,'WARNING: convergence has not been reached in Obukhov length iteration'
         print*,'Input: ', L_in, du, db_in, zsl, z0m, z0h
 #endif
