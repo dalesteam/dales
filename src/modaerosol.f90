@@ -224,8 +224,10 @@ contains
 
     call timer_tic(routine, 2)
 
+    !$acc wait
+
     do imod = 1, maxmodes
-      call modes(imod)%p%finish(svp)
+      call modes(imod)%p%finish(svp, svm, delt)
     end do
 
     !$acc wait
