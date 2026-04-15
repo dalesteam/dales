@@ -109,8 +109,8 @@ contains
 
     !$acc enter data copyin(ekm, ekh, zlt, csz, anis_fac, &
     !$acc&                  sbdiss, sbshr, sbbuo)
-!!$omp target enter data map(to:ekm,ekh,zlt,csz,anis_fac,sbdiss,sbshr,&
-!!$omp sbbuo)
+!$omp target enter data map(to:ekm,ekh,zlt,csz,anis_fac,sbdiss,sbshr,&
+!$omp sbbuo)
 
     call timer_toc('modsubgrid/initsubgrid')
   end subroutine initsubgrid
@@ -205,8 +205,8 @@ contains
     implicit none
     !$acc exit data delete(ekm, ekh, zlt, csz, anis_fac, &
     !$acc&                 sbdiss, sbshr, sbbuo)
-!!$omp target exit data map(delete:ekm,ekh,zlt,csz,anis_fac,sbdiss,&
-!!$omp sbshr,sbbuo)
+!$omp target exit data map(delete:ekm,ekh,zlt,csz,anis_fac,sbdiss,&
+!$omp sbshr,sbbuo)
     deallocate(ekm,ekh,zlt,sbdiss,sbbuo,sbshr,csz,anis_fac)
   end subroutine exitsubgrid
 

@@ -101,7 +101,7 @@ module modbulkmicro
       Ncp(:,:,:) = 0.0_field_r
 
       !$acc enter data copyin(Ncp(2:i1,2:j1,1:k1))
-!!$omp target enter data map(to:ncp(2:i1,2:j1,1:k1))
+      !$omp target enter data map(to:ncp(2:i1,2:j1,1:k1))
     end if
 
                                         ! Fields accessed by:
@@ -144,7 +144,7 @@ module modbulkmicro
     end if
 
     !$acc enter data copyin(Nr, qr, Nrp, qrp, precep, thlpmcr, qtpmcr, Nc)
-!!$omp target enter data map(to:nr,qr,nrp,qrp,precep,thlpmcr,qtpmcr,nc)
+    !$omp target enter data map(to:nr,qr,nrp,qrp,precep,thlpmcr,qtpmcr,nc)
 
     if (lstat) call init_bulkmicro_stat
 
@@ -160,7 +160,7 @@ module modbulkmicro
     implicit none
 
     !$acc exit data delete(Nr, qr, Nrp, qrp, precep, thlpmcr, qtpmcr)
-!!$omp target exit data map(delete:nr,qr,nrp,qrp,precep,thlpmcr,qtpmcr)
+    !$omp target exit data map(delete:nr,qr,nrp,qrp,precep,thlpmcr,qtpmcr)
 
     deallocate(Nr,Nrp,qr,qrp,thlpmcr,qtpmcr)
     deallocate(precep)
@@ -318,7 +318,7 @@ module modbulkmicro
       allocate(ncp_tmp(2:i1,2:j1,1:k1), qlp_tmp(2:i1,2:j1,1:k1))
 
       !$acc enter data create(ncp_tmp, qlp_tmp)
-!!$omp target enter data map(alloc:ncp_tmp,qlp_tmp)
+      !$omp target enter data map(alloc:ncp_tmp,qlp_tmp)
 
       call zero_field(ncp_tmp)
       call zero_field(qlp_tmp)
@@ -353,7 +353,7 @@ module modbulkmicro
       allocate(qrp_tmp(2:i1,2:j1,1:k1), nrp_tmp(2:i1,2:j1,1:k1))
 
       !$acc enter data create(qrp_tmp, nrp_tmp)
-!!$omp target enter data map(alloc:qrp_tmp,nrp_tmp)
+      !$omp target enter data map(alloc:qrp_tmp,nrp_tmp)
 
       call zero_field(qrp_tmp)
       call zero_field(nrp_tmp)
@@ -494,7 +494,7 @@ module modbulkmicro
       if(laerosol) call aerosol_scavenging_rain(qr, nr, rhof, delt)
 
       !$acc exit data delete(qrp_tmp, nrp_tmp)
-!!$omp target exit data map(delete: qrp_tmp, nrp_tmp)
+      !$omp target exit data map(delete: qrp_tmp, nrp_tmp)
 
       deallocate(qrp_tmp, nrp_tmp)
     
@@ -533,7 +533,7 @@ module modbulkmicro
 
     if (laerosol) then
       !$acc exit data delete(ncp_tmp, qlp_tmp)
-!!$omp target exit data map(delete:ncp_tmp,qlp_tmp)
+      !$omp target exit data map(delete:ncp_tmp,qlp_tmp)
       deallocate(ncp_tmp, qlp_tmp)
     end if
 
@@ -637,7 +637,7 @@ module modbulkmicro
     allocate(qr_spl(2:i1,2:j1,1:k1), nr_spl(2:i1,2:j1,1:k1))
 
     !$acc enter data create(qr_spl, nr_spl)
-!!$omp target enter data map(alloc:qr_spl,nr_spl)
+    !$omp target enter data map(alloc:qr_spl,nr_spl)
 
     !$acc parallel loop collapse(3) default(present)
 !!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
@@ -707,7 +707,7 @@ module modbulkmicro
     end do
 
     !$acc exit data delete(qr_spl, nr_spl)
-!!$omp target exit data map(delete:qr_spl,nr_spl)
+    !$omp target exit data map(delete:qr_spl,nr_spl)
 
     deallocate(qr_spl, nr_spl)
 

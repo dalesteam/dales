@@ -144,7 +144,7 @@ contains
     allocate(courx(kmax), coury(kmax), courz(kmax), courtot(kmax), peclettot(kmax))
 
     !$acc enter data create(courx, coury, courz, courtot, peclettot)
-!!$omp target enter data map(alloc:courx,coury,courz,courtot,peclettot)
+!$omp target enter data map(alloc:courx,coury,courz,courtot,peclettot)
 
     call initETA_stat
     call timer_toc(routine)
@@ -163,7 +163,7 @@ contains
   subroutine exitchecksim
 
     !$acc exit data delete(courx, coury, courz, courtot, peclettot)
-!!$omp target exit data map(delete:courx,coury,courz,courtot,peclettot)
+!$omp target exit data map(delete:courx,coury,courz,courtot,peclettot)
 
     deallocate(courx, coury, courz, courtot, peclettot)
 

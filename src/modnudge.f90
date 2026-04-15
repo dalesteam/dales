@@ -337,9 +337,9 @@ contains
     !$acc enter data copyin(timenudge, unudge, vnudge, wnudge, thlnudge, &
     !$acc&                  qtnudge, tunudge, tvnudge, twnudge, tthlnudge, &
     !$acc&                  tqtnudge, svnudge, tsvnudge)
-!!$omp target enter data map(to:timenudge,unudge,vnudge,wnudge,thlnudge,&
-!!$omp qtnudge,tunudge,tvnudge,twnudge,tthlnudge,tqtnudge,svnudge,&
-!!$omp tsvnudge)
+!$omp target enter data map(to:timenudge,unudge,vnudge,wnudge,thlnudge,&
+!$omp qtnudge,tunudge,tvnudge,twnudge,tthlnudge,tqtnudge,svnudge,&
+!$omp tsvnudge)
 
     call timer_toc(routine)
   end subroutine initnudge

@@ -160,7 +160,7 @@ contains
         class is (aerosol_mode_t)
           call connect_modes(mode, modes(iINC)%p, mode%to_hydro)
           !$acc enter data copyin(mode%to_hydro%cnct)
-!!$omp target enter data map(to:mode%to_hydro%cnct)
+!$omp target enter data map(to:mode%to_hydro%cnct)
       end select
     end do
 
@@ -171,15 +171,15 @@ contains
 
     !$acc enter data create(qr_spl(2:i1,2:j1,1:k1), nr_spl(2:i1,2:j1,1:k1), &
     !$acc                   qa_spl(1:modes_h(iINR)%nspecies,2:i1,2:j1,1:k1))
-!!$omp target enter data map(alloc:qr_spl(2:i1,2:j1,1:k1), nr_spl(2:i1,2:j1,1:k1), &
-!!$omp                   qa_spl(1:modes_h(iINR)%nspecies,2:i1,2:j1,1:k1))
+    !$omp target enter data map(alloc:qr_spl(2:i1,2:j1,1:k1), nr_spl(2:i1,2:j1,1:k1), &
+    !$omp                   qa_spl(1:modes_h(iINR)%nspecies,2:i1,2:j1,1:k1))
 
     sed_qr(:,:,:) = 0
     qlm(:,:,:) = 0
 
     !$acc enter data copyin(sed_qr(2:i1,2:j1,1:k1), qlm(2:i1,2:j1,1:k1))
-!!$omp target enter data map(to:sed_qr(2:i1,2:j1,1:k1),qlm(2:i1,2:j1,&
-!!$omp 1:k1))
+    !$omp target enter data map(to:sed_qr(2:i1,2:j1,1:k1),qlm(2:i1,2:j1,&
+    !$omp 1:k1))
 
     call init_scavenging()
 

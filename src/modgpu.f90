@@ -196,14 +196,14 @@ contains
     allocate(workspace_0(n))
     workspace_0 = 0
     !$acc enter data copyin(workspace_0)
-!!$omp target enter data map(to:workspace_0)
+!$omp target enter data map(to:workspace_0)
 
     ! Allocate another workspace for the all-to-all operations
     if (nprocs > 1) then
       allocate(workspace_1(n))
       workspace_1 = 0
       !$acc enter data copyin(workspace_1)
-!!$omp target enter data map(to:workspace_1)
+!$omp target enter data map(to:workspace_1)
     end if
 
   end subroutine allocate_workspace
@@ -214,12 +214,12 @@ contains
     implicit none
 
     !$acc exit data delete(workspace_0)
-!!$omp target exit data map(delete:workspace_0)
+!$omp target exit data map(delete:workspace_0)
     deallocate(workspace_0)
 
     if (nprocs > 1) then
       !$acc exit data delete (workspace_1)
-!!$omp target exit data map(delete:workspace_1)
+!$omp target exit data map(delete:workspace_1)
       deallocate(workspace_1)
     end if
 

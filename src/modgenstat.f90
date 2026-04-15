@@ -497,18 +497,18 @@ contains
     !$acc&                  w2av, w2subav, qt2av, thl2av, thv2av, th2av, svmav, svpav, svptav, sv2av, w3av, &
     !$acc&                  ql2av, thvmav, thmav, thv0, sv0h, hurav, clwav, cliav, plwav, pliav, taav, &
     !$acc&                  hurmn, clwmn, climn, plwmn, plimn, tamn)
-!!$omp target enter data map(to:umn,vmn,wmn,thlmn,thvmn,qtmn,qlmn,qlhmn,&
-!!$omp cfracmn,wthlsmn,wthlrmn,wthltmn,wthvsmn,wthvrmn,wthvtmn,wqtsmn,&
-!!$omp wqtrmn,wqttmn,wqlsmn,wqlrmn,wqltmn,uwtmn,vwtmn,uwrmn,vwrmn,uwsmn,&
-!!$omp vwsmn,u2mn,v2mn,w2mn,w2submn,skewmn,qt2mn,thl2mn,thv2mn,th2mn,&
-!!$omp ql2mn,svmmn,svpmn,svpav,svptmn,svptav,sv2mn,wsvsmn,wsvrmn,wsvtmn,&
-!!$omp cszav,cszmn,qlmnlast,wthvtmnlast,qlhav,wqlsub,wqlres,wthlsub,&
-!!$omp wthlres,wqtsub,wqtres,wthvsub,wthvres,wqttot,wqltot,wthltot,&
-!!$omp wthvtot,wsvsub,wsvres,wsvtot,uwres,vwres,uwsub,vwsub,uwtot,vwtot,&
-!!$omp umav,vmav,wmav,thvmav,thlmav,qtmav,qlmav,cfracav,u2av,v2av,w2av,&
-!!$omp w2subav,qt2av,thl2av,thv2av,th2av,svmav,svpav,svptav,sv2av,w3av,&
-!!$omp ql2av,thvmav,thmav,thv0,sv0h,hurav,clwav,cliav,plwav,pliav,taav,&
-!!$omp hurmn,clwmn,climn,plwmn,plimn,tamn)
+!$omp target enter data map(to:umn,vmn,wmn,thlmn,thvmn,qtmn,qlmn,qlhmn,&
+!$omp cfracmn,wthlsmn,wthlrmn,wthltmn,wthvsmn,wthvrmn,wthvtmn,wqtsmn,&
+!$omp wqtrmn,wqttmn,wqlsmn,wqlrmn,wqltmn,uwtmn,vwtmn,uwrmn,vwrmn,uwsmn,&
+!$omp vwsmn,u2mn,v2mn,w2mn,w2submn,skewmn,qt2mn,thl2mn,thv2mn,th2mn,&
+!$omp ql2mn,svmmn,svpmn,svpav,svptmn,svptav,sv2mn,wsvsmn,wsvrmn,wsvtmn,&
+!$omp cszav,cszmn,qlmnlast,wthvtmnlast,qlhav,wqlsub,wqlres,wthlsub,&
+!$omp wthlres,wqtsub,wqtres,wthvsub,wthvres,wqttot,wqltot,wthltot,&
+!$omp wthvtot,wsvsub,wsvres,wsvtot,uwres,vwres,uwsub,vwsub,uwtot,vwtot,&
+!$omp umav,vmav,wmav,thvmav,thlmav,qtmav,qlmav,cfracav,u2av,v2av,w2av,&
+!$omp w2subav,qt2av,thl2av,thv2av,th2av,svmav,svpav,svptav,sv2av,w3av,&
+!$omp ql2av,thvmav,thmav,thv0,sv0h,hurav,clwav,cliav,plwav,pliav,taav,&
+!$omp hurmn,clwmn,climn,plwmn,plimn,tamn)
 
     call timer_toc('modgenstat/initgenstat')
 

@@ -93,9 +93,9 @@ contains
    allocate(dsv(nsv))
 
    !$acc enter data copyin(tsc) async
-!!$omp target enter data map(to:tsc)
+!$omp target enter data map(to:tsc)
    !$acc enter data create(dsv) async
-!!$omp target enter data map(alloc:dsv)
+!$omp target enter data map(alloc:dsv)
 
    call timer_toc('modboundary/initboundary')
 
@@ -132,7 +132,7 @@ contains
     implicit none
     
     !$acc exit data delete(tsc, dsv)
-!!$omp target exit data map(delete:tsc,dsv)
+!$omp target exit data map(delete:tsc,dsv)
     deallocate(tsc, dsv)
   end subroutine exitboundary
 

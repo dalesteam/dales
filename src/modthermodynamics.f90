@@ -69,7 +69,7 @@ module modthermodynamics
   real(field_r), protected :: esatmtab(1:2000)
 
   !$acc declare create(ttab, esatltab, esatitab, esatmtab)
-!!$omp declare target (ttab,esatltab,esatitab,esatmtab)
+!$omp declare target (ttab,esatltab,esatitab,esatmtab)
 
 contains
 

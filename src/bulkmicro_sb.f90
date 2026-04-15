@@ -672,7 +672,7 @@ contains
     allocate(Nr_tmp(2:i1,2:j1,1:k1))
 
     !$acc enter data create(qr_spl, Nr_spl, qr_tmp, Nr_tmp)
-!!$omp target enter data map(alloc:qr_spl,nr_spl,qr_tmp,nr_tmp)
+!$omp target enter data map(alloc:qr_spl,nr_spl,qr_tmp,nr_tmp)
 
     n_spl = ceiling(wfallmax * delt / minval(dzf))
     dt_spl = delt / real(n_spl, kind=field_r)
@@ -924,7 +924,7 @@ contains
     end do
 
     !$acc exit data delete(qr_spl, Nr_spl, qr_tmp, Nr_tmp)
-!!$omp target exit data map(delete:qr_spl,nr_spl,qr_tmp,nr_tmp)
+!$omp target exit data map(delete:qr_spl,nr_spl,qr_tmp,nr_tmp)
 
     deallocate(qr_spl, Nr_spl, qr_tmp, Nr_tmp)
 

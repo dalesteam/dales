@@ -509,7 +509,7 @@ contains
 !     timeleft=ceiling(runtime/tres)
 
     !$acc enter data copyin(dzf, dzh, dzfi, dzhi, zh, zf, delta, deltai)
-!!$omp target enter data map(to:dzf,dzh,dzfi,dzhi,zh,zf,delta,deltai)
+!$omp target enter data map(to:dzf,dzh,dzfi,dzhi,zh,zf,delta,deltai)
     !$acc update device (imax, jmax, itot, jtot)
 !!$omp target update to(imax,jmax,itot,jtot)
 
@@ -517,7 +517,7 @@ contains
 !> Clean up when leaving the run
   subroutine exitglobal
     !$acc exit data delete(dzf, dzh, zh, zf, delta, deltai)
-!!$omp target exit data map(delete:dzf,dzh,zh,zf,delta,deltai)
+!$omp target exit data map(delete:dzf,dzh,zh,zf,delta,deltai)
 
     deallocate(dzf,dzh,dzfi,dzhi,zh,zf,delta,deltai)
   end subroutine exitglobal

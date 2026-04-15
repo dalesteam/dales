@@ -344,8 +344,8 @@ contains
     deallocate(tiobst, tixw_p, tixw_m, tiyw_p, tiyw_m, tizw_p)
 
     !$acc enter data copyin(fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p)
-!!$omp target enter data map(to:fluid_mask,iobst,ixw_p,ixw_m,iyw_p,&
-!!$omp iyw_m,izw_p)
+!$omp target enter data map(to:fluid_mask,iobst,ixw_p,ixw_m,iyw_p,&
+!$omp iyw_m,izw_p)
 
     call timer_toc('modibm/initibm')
 
@@ -358,8 +358,8 @@ contains
     if (.not. (lapply_ibm)) return
 
     !$acc exit data delete(fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p)
-!!$omp target exit data map(delete:fluid_mask,iobst,ixw_p,ixw_m,iyw_p,&
-!!$omp iyw_m,izw_p)
+!$omp target exit data map(delete:fluid_mask,iobst,ixw_p,ixw_m,iyw_p,&
+!$omp iyw_m,izw_p)
 
     deallocate(iobst)
     deallocate(ixw_p)
