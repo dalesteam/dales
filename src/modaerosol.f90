@@ -12,8 +12,9 @@ module modaerosol
                                    aerosol_scavenging_cloud_lut
   use modglobal,             only: ifnamopt, fname_options, &
                                    checknamelisterror, cexpnr, i1, j1, k1, ih, &
-                                   jh, pi, nsv, rhow, kmax, rk3step, rd, pirhow
-  use modfields,             only: sv0, svp
+                                   jh, pi, nsv, rhow, kmax, rk3step, rd, pirhow, &
+                                   timee, rk3step, cp, rlv
+  use modfields,             only: sv0, svp, svm, ql0
   use modmicrodata,          only: qcmin, delt
   use modmpi,                only: myid, D_MPI_BCAST, commwrld, mpierr
   use modprecision,          only: field_r
@@ -185,14 +186,26 @@ contains
     character(len=*), parameter :: &
       routine = modname//'/aerosol_prepare'
 
-    integer :: &
-      imod
+    integer :: i, j, k, imod
 
     call timer_tic(routine, 2)
+
+    !$acc wait
 
     do imod = 1, maxmodes
       call modes(imod)%p%prepare(sv0)
     end do
+
+    if (rk3step == 3 .or. timee < 0.01) then
+      !$acc parallel loop collapse(3) default(present)
+      do k = 1, k1
+        do j = 2, j1
+          do i = 2, i1
+            qlm(i,j,k) = ql0(i,j,k)
+          end do
+        end do
+      end do
+    end if
 
     !$acc wait
 
@@ -614,17 +627,6 @@ contains
         end do
       end do
     end do
-
-    if (rk3step == 3) then
-      !$acc parallel loop collapse(3) default(present)
-      do k = 1, k1
-        do j = 2, j1
-          do i = 2, i1
-            qlm(i,j,k) = ql(i,j,k)
-          end do
-        end do
-      end do
-    end if
 
     call timer_toc(routine)
 
