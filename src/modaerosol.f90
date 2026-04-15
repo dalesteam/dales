@@ -410,6 +410,8 @@ contains
     real(field_r) :: &
       dqadt ! Tendency of in-rain aerosol
 
+    real(field_r) :: frac
+
     call timer_tic(routine, 2)
 
     m_inc => modes_h(iINC)
@@ -421,6 +423,7 @@ contains
         do i = 2, i1
           do s = 1, m_inc%nspecies
             if (qrp(i,j,k) > 0) then
+              frac = min(max(qrp(i,j,k) / qc(i,j,k), 0.0_field_r), 1.0_field_r)
               dqadt = qrp(i,j,k) / qc(i,j,k) * m_inc%q(s,i,j,k)
               m_inc%qp(s,i,j,k) = m_inc%qp(s,i,j,k) - dqadt
               m_inr%qp(s,i,j,k) = m_inr%qp(s,i,j,k) + dqadt
@@ -514,6 +517,10 @@ contains
                                     / (log(1.5_field_r) * sqrt(2.0_field_r)))
             fm = 0.5_field_r * erfc(-log(dc/(dm + 1E-40)) &
                                     / (log(1.5_field_r) * sqrt(2.0_field_r)))
+
+
+            fn = min(max(fn, 0.0_field_r), 1.0_field_r)
+            fm = min(max(fm, 0.0_field_r), 1.0_field_r)
 
             m_acs%np(i,j,k) = m_acs%np(i,j,k) + fn * evapn
             m_cos%np(i,j,k) = m_cos%np(i,j,k) + (1 - fn) * evapn
@@ -713,8 +720,10 @@ contains
                                                rho(k))
                 sed_nr = calc_sed_nr_kk(qr_spl(i,j,k), nr_spl(i,j,k), rho(k))
               end if
+              !$acc atomic update
               qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr(i,j,k) * dt_spl &
                               / (dzf(k) * rho(k))
+              !$acc atomic update
               nr_spl(i,j,k) = nr_spl(i,j,k) - sed_nr * dt_spl / dzf(k)
               if (k > 1) then
                 !$acc atomic update
@@ -724,6 +733,7 @@ contains
                 nr_spl(i,j,k-1) = nr_spl(i,j,k-1) + sed_nr * dt_spl / dzf(k-1)
               end if
               do s = 1, m_inr%nspecies
+                !$acc atomic update
                 qa_spl(s,i,j,k) = qa_spl(s,i,j,k) - sed_qr(i,j,k) / qr_spl(i,j,k) &
                                   * qa_spl(s,i,j,k) * dt_spl / (dzf(k) * rho(k))
                 if (k > 1) then
