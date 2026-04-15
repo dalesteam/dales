@@ -1,7 +1,7 @@
 !> Type definitions for various NetCDF file types.
 module modnetcdf_file_t
 
-  use modlogging, only: finish, warning
+  use fortran_support, only: finish
   use modglobal,       only: imax, jmax, kmax, itot, jtot, rtimee, cexpnr
   use modmpi,          only: comm3d, myidx, myidy, cmyid, nprocx, nprocy, &
                              mpi_comm, commrow, commcol
