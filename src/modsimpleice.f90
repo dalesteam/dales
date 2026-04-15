@@ -121,9 +121,9 @@ contains
     !$acc&                  ilratio, rsgratio, sgratio, lambdar, lambdas, &
     !$acc&                  lambdag, precep, &
     !$acc&                  ccrz, ccsz, ccgz, ccrz2, ccsz2, ccgz2)
-!!$omp target enter data map(alloc:qrp,qr,thlpmcr,qtpmcr,sed_qr,qr_spl,&
-!!$omp ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag,precep,ccrz,&
-!!$omp ccsz,ccgz,ccrz2,ccsz2,ccgz2)
+!$omp target enter data map(alloc:qrp,qr,thlpmcr,qtpmcr,sed_qr,qr_spl,&
+!$omp ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag,precep,ccrz,&
+!$omp ccsz,ccgz,ccrz2,ccsz2,ccgz2)
 
     !$acc kernels default(present)
 !!$omp target defaultmap(present:aggregate)&
@@ -150,9 +150,9 @@ contains
     !$acc&                  ilratio, rsgratio, sgratio, lambdar, lambdas, &
     !$acc&                  lambdag, precep, &
     !$acc&                  ccrz, ccsz, ccgz, ccrz2, ccsz2, ccgz2)
-!!$omp target exit data map(delete:qrp,qr,thlpmcr,qtpmcr,sed_qr,qr_spl,&
-!!$omp ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag,precep,ccrz,&
-!!$omp ccsz,ccgz,ccrz2,ccsz2,ccgz2)
+!$omp target exit data map(delete:qrp,qr,thlpmcr,qtpmcr,sed_qr,qr_spl,&
+!$omp ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag,precep,ccrz,&
+!$omp ccsz,ccgz,ccrz2,ccsz2,ccgz2)
     deallocate(qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag)
     deallocate(precep)
     deallocate(ccrz,ccsz,ccgz)
@@ -316,7 +316,7 @@ contains
         allocate(qrp_tmp(2:i1,2:j1,1:k1))
 
         !$acc enter data create(qrp_tmp)
-!!$omp target enter data map(alloc:qrp_tmp)
+!$omp target enter data map(alloc:qrp_tmp)
 
         call zero_field(qrp_tmp)
 
@@ -354,7 +354,7 @@ contains
         call sample_field('qrptot', qrp)
 
         !$acc exit data delete(qrp_tmp)
-!!$omp target exit data map(delete:qrp_tmp)
+!$omp target exit data map(delete:qrp_tmp)
 
         deallocate(qrp_tmp)
 

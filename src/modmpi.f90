@@ -437,7 +437,7 @@ contains
     !   Allocate send / receive buffers
     allocate(sendn(nssize),sends(nssize),recvn(nssize),recvs(nssize))
     !$acc enter data copyin(sendn, sends, recvn, recvs)
-!!$omp target enter data map(to:sendn,sends,recvn,recvs)
+!$omp target enter data map(to:sendn,sends,recvn,recvs)
 
     !$acc parallel loop collapse(3) default(present) private(ii)
 !!$omp target teams loop private(ii) collapse(3)&
@@ -496,7 +496,7 @@ contains
     !   Allocate send / receive buffers
     allocate(sende(ewsize),sendw(ewsize),recve(ewsize),recvw(ewsize))
     !$acc enter data copyin(sende, sendw, recve, recvw)
-!!$omp target enter data map(to:sende,sendw,recve,recvw)
+!$omp target enter data map(to:sende,sendw,recve,recvw)
 
     !$acc parallel loop collapse(3) default(present) private(ii)
 !!$omp target teams loop private(ii) collapse(3)&
@@ -557,7 +557,7 @@ contains
     call MPI_WAIT(reqs, status, mpierr)
 
     !$acc exit data delete(sendn, sends, recvn, recvs)
-!!$omp target exit data map(delete:sendn,sends,recvn,recvs)
+!$omp target exit data map(delete:sendn,sends,recvn,recvs)
     deallocate (sendn, sends)
     deallocate (recvn, recvs)
 
@@ -571,7 +571,7 @@ contains
 
     ! Deallocate buffers
     !$acc exit data delete(sende, sendw, recve, recvw)
-!!$omp target exit data map(delete:sende,sendw,recve,recvw)
+!$omp target exit data map(delete:sende,sendw,recve,recvw)
     deallocate (sende, sendw)
     deallocate (recve, recvw)
 
@@ -839,7 +839,7 @@ contains
     ! TODO: allocate these once
     allocate(sendn(nssize),sends(nssize),recvn(nssize),recvs(nssize))
     !$acc enter data copyin(sendn, sends, recvn, recvs)
-!!$omp target enter data map(to:sendn,sends,recvn,recvs)
+!$omp target enter data map(to:sendn,sends,recvn,recvs)
 
     !$acc parallel loop collapse(3) default(present) private(ii)
 !!$omp target teams loop private(ii) collapse(3)&
@@ -899,7 +899,7 @@ contains
     !   Allocate send / receive buffers
     allocate(sende(ewsize),sendw(ewsize),recve(ewsize),recvw(ewsize))
     !$acc enter data copyin(sende, sendw, recve, recvw)
-!!$omp target enter data map(to:sende,sendw,recve,recvw)
+!$omp target enter data map(to:sende,sendw,recve,recvw)
 
     !$acc parallel loop collapse(3) default(present) private(ii)
 !!$omp target teams loop private(ii) collapse(3)&
@@ -961,7 +961,7 @@ contains
     if (mpierr /= MPI_SUCCESS) call abort
 
     !$acc exit data delete(sendn, sends, recvn, recvs)
-!!$omp target exit data map(delete:sendn,sends,recvn,recvs)
+!$omp target exit data map(delete:sendn,sends,recvn,recvs)
     deallocate (sendn, sends)
     deallocate (recvn, recvs)
 
@@ -977,7 +977,7 @@ contains
 
     ! Deallocate buffers
     !$acc exit data delete(sende, sendw, recve, recvw)
-!!$omp target exit data map(delete:sende,sendw,recve,recvw)
+!$omp target exit data map(delete:sende,sendw,recve,recvw)
     deallocate (sende, sendw)
     deallocate (recve, recvw)
 
@@ -1212,7 +1212,7 @@ contains
     allocate(sum2d(kf-ks+1,5))
     if (present(on_gpu)) then
       !$acc enter data create(sum2d)
-!!$omp target enter data map(alloc:sum2d)
+!$omp target enter data map(alloc:sum2d)
       !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4, sum_lcl5)
 !!$omp target teams loop private(sum_lcl1,sum_lcl2,sum_lcl3,sum_lcl4,&
 !!$omp sum_lcl5) defaultmap(present:aggregate)&
@@ -1275,7 +1275,7 @@ contains
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
-!!$omp target exit data map(delete:sum2d)
+!$omp target exit data map(delete:sum2d)
       deallocate(sum2d)
     else
       deallocate(sum2d)
@@ -1306,7 +1306,7 @@ contains
     allocate(sum2d(kf-ks+1,4))
     if (present(on_gpu)) then
       !$acc enter data create(sum2d)
-!!$omp target enter data map(alloc:sum2d)
+!$omp target enter data map(alloc:sum2d)
       !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4)
 !!$omp target teams loop private(sum_lcl1,sum_lcl2,sum_lcl3,sum_lcl4)&
 !!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
@@ -1363,7 +1363,7 @@ contains
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
-!!$omp target exit data map(delete:sum2d)
+!$omp target exit data map(delete:sum2d)
       deallocate(sum2d)
     else
       deallocate(sum2d)
@@ -1392,7 +1392,7 @@ contains
 
     if (present(on_gpu)) then
       !$acc enter data create(sum2d)
-!!$omp target enter data map(alloc:sum2d)
+!$omp target enter data map(alloc:sum2d)
       !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3)
 !!$omp target teams loop private(sum_lcl1,sum_lcl2,sum_lcl3)&
 !!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
@@ -1443,7 +1443,7 @@ contains
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
-!!$omp target exit data map(delete:sum2d)
+!$omp target exit data map(delete:sum2d)
       deallocate(sum2d)
     else
       deallocate(sum2d)
@@ -1470,7 +1470,7 @@ contains
 
     if (present(on_gpu)) then
       !$acc enter data create(sum2d)
-!!$omp target enter data map(alloc:sum2d)
+!$omp target enter data map(alloc:sum2d)
       !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2)
 !!$omp target teams loop private(sum_lcl1,sum_lcl2)&
 !!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
@@ -1516,7 +1516,7 @@ contains
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
-!!$omp target exit data map(delete:sum2d)
+!$omp target exit data map(delete:sum2d)
       deallocate(sum2d)
     else
       deallocate(sum2d)
@@ -1550,7 +1550,7 @@ contains
 
     if (present(on_gpu)) then
       !$acc enter data create(sum2d)
-!!$omp target enter data map(alloc:sum2d)
+!$omp target enter data map(alloc:sum2d)
       !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4, sum_lcl5)
 !!$omp target teams loop private(sum_lcl1,sum_lcl2,sum_lcl3,sum_lcl4,&
 !!$omp sum_lcl5) defaultmap(present:aggregate)&
@@ -1613,7 +1613,7 @@ contains
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
-!!$omp target exit data map(delete:sum2d)
+!$omp target exit data map(delete:sum2d)
       deallocate(sum2d)
     else
       deallocate(sum2d)
@@ -1645,7 +1645,7 @@ contains
 
     if (present(on_gpu)) then
       !$acc enter data create(sum2d)
-!!$omp target enter data map(alloc:sum2d)
+!$omp target enter data map(alloc:sum2d)
       !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3, sum_lcl4)
 !!$omp target teams loop private(sum_lcl1,sum_lcl2,sum_lcl3,sum_lcl4)&
 !!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
@@ -1702,7 +1702,7 @@ contains
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
-!!$omp target exit data map(delete:sum2d)
+!$omp target exit data map(delete:sum2d)
       deallocate(sum2d)
     else
       deallocate(sum2d)
@@ -1731,7 +1731,7 @@ contains
 
     if (present(on_gpu)) then
       !$acc enter data create(sum2d)
-!!$omp target enter data map(alloc:sum2d)
+!$omp target enter data map(alloc:sum2d)
       !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2, sum_lcl3)
 !!$omp target teams loop private(sum_lcl1,sum_lcl2,sum_lcl3)&
 !!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
@@ -1782,7 +1782,7 @@ contains
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
-!!$omp target exit data map(delete:sum2d)
+!$omp target exit data map(delete:sum2d)
       deallocate(sum2d)
     else
       deallocate(sum2d)
@@ -1809,7 +1809,7 @@ contains
 
     if (present(on_gpu)) then
       !$acc enter data create(sum2d)
-!!$omp target enter data map(alloc:sum2d)
+!$omp target enter data map(alloc:sum2d)
       !$acc parallel loop gang default(present) private(sum_lcl1, sum_lcl2)
 !!$omp target teams loop private(sum_lcl1,sum_lcl2)&
 !!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
@@ -1855,7 +1855,7 @@ contains
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
-!!$omp target exit data map(delete:sum2d)
+!$omp target exit data map(delete:sum2d)
       deallocate(sum2d)
     else
       deallocate(sum2d)

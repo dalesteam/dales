@@ -167,7 +167,7 @@ contains
     profiles = 0
 
     !$acc enter data copyin(profiles) create(slab_average) async
-!!$omp target enter data map(to:profiles) map(alloc:slab_average)
+!$omp target enter data map(to:profiles) map(alloc:slab_average)
 
     if (lprocblock) then
       my_task_writes = .true. ! All MPI ranks write to a file

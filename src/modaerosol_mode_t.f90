@@ -195,14 +195,14 @@ contains
     end if
 
     !$acc enter data copyin(this)
-!!$omp target enter data map(to:this)
+!$omp target enter data map(to:this)
     !$acc enter data create(this%n(2:i1,2:j1,1:k1), &
     !$acc                   this%np(2:i1,2:j1,1:k1), &
     !$acc                   this%q(1:this%nspecies,2:i1,2:j1,1:k1), &
     !$acc                   this%qp(1:this%nspecies,2:i1,2:j1,1:k1))
-!!$omp target enter data map(alloc:this%n(2:i1,2:j1,1:k1),this%np(2:i1,&
-!!$omp 2:j1,1:k1),this%q(1:this%nspecies,2:i1,2:j1,1:k1),&
-!!$omp this%qp(1:this%nspecies,2:i1,2:j1,1:k1))
+!$omp target enter data map(alloc:this%n(2:i1,2:j1,1:k1),this%np(2:i1,&
+!$omp 2:j1,1:k1),this%q(1:this%nspecies,2:i1,2:j1,1:k1),&
+!$omp this%qp(1:this%nspecies,2:i1,2:j1,1:k1))
 
   end subroutine aerosol_mode_init
 
@@ -369,8 +369,8 @@ contains
 
     !$acc enter data copyin(this, this%q(1:this%nspecies,2:i1,2:j1,1:k1), &
     !$acc                   this%qp(1:this%nspecies,2:i1,2:j1,1:k1))
-!!$omp target enter data map(to:this,this%q(1:this%nspecies,2:i1,2:j1,&
-!!$omp 1:k1),this%qp(1:this%nspecies,2:i1,2:j1,1:k1))
+!$omp target enter data map(to:this,this%q(1:this%nspecies,2:i1,2:j1,&
+!$omp 1:k1),this%qp(1:this%nspecies,2:i1,2:j1,1:k1))
 
   end subroutine hydrometeor_mode_init
 

@@ -296,7 +296,7 @@ contains
     end if
 
     !$acc enter data copyin(blh_fld, sv0h, profile, gradient, dgrad)
-!!$omp target enter data map(to:blh_fld,sv0h,profile,gradient,dgrad)
+!$omp target enter data map(to:blh_fld,sv0h,profile,gradient,dgrad)
 
     call timer_toc('modtimestat/inittimestat')
 
@@ -1249,7 +1249,7 @@ contains
     if(.not.ltimestat) return
 
     !$acc exit data delete(blh_fld, sv0h, profile, gradient, dgrad)
-!!$omp target exit data map(delete:blh_fld,sv0h,profile,gradient,dgrad)
+!$omp target exit data map(delete:blh_fld,sv0h,profile,gradient,dgrad)
 
     deallocate(blh_fld,sv0h)
     deallocate(profile,gradient,dgrad)
