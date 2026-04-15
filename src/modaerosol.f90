@@ -70,6 +70,11 @@ module modaerosol
   type(hydrometeor_mode_t), target :: &
     modes_h(iINC:iINR) ! List of in-hydrometeor modes. (currently only cloud and rain)
 
+  real(field_r), pointer :: &
+    qr_spl(:,:,:),          & ! Rain water content at sub-timesteps.
+    nr_spl(:,:,:),          & ! Rain number concentration at sub-timesteps.
+    qa_spl(:,:,:,:)           ! Aerosol mass at sub-timesteps.
+
 contains
 
   include 'erfcinv.inc'
@@ -158,6 +163,12 @@ contains
     end do
 
     allocate(sed_qr(2:i1,2:j1,k1), qlm(2:i1,2:j1,k1))
+
+    allocate(qr_spl(2:i1,2:j1,1:k1), nr_spl(2:i1,2:j1,1:k1), &
+             qa_spl(1:modes_h(iINR)%nspecies,2:i1,2:j1,1:k1))
+
+    !$acc enter data create(qr_spl(2:i1,2:j1,1:k1), nr_spl(2:i1,2:j1,1:k1), &
+    !$acc                   qa_spl(1:modes_h(iINR)%nspecies,2:i1,2:j1,1:k1))
 
     sed_qr(:,:,:) = 0
     qlm(:,:,:) = 0
@@ -656,20 +667,10 @@ contains
       dt_spl,        & ! Sub-timestep size.
       sed_nr           ! Sedimentation rate of number concentration.
 
-    real(field_r), pointer :: &
-      qr_spl(:,:,:),          & ! Rain water content at sub-timesteps.
-      nr_spl(:,:,:),          & ! Rain number concentration at sub-timesteps.
-      qa_spl(:,:,:,:)           ! Aerosol mass at sub-timesteps.
-
     call timer_tic(routine, 2)
 
     m_inr => modes_h(iINR)
 
-    allocate(qr_spl(2:i1,2:j1,1:k1), nr_spl(2:i1,2:j1,1:k1), &
-             qa_spl(1:m_inr%nspecies,2:i1,2:j1,1:k1))
-
-    !$acc enter data create(qr_spl(2:i1,2:j1,1:k1), nr_spl(2:i1,2:j1,1:k1), &
-    !$acc                   qa_spl(1:m_inr%nspecies,2:i1,2:j1,1:k1))
 
     n_spl = ceiling(9.9 * delt / minval(dzf))
     dt_spl = delt / real(n_spl, kind=field_r)
@@ -747,10 +748,6 @@ contains
         end do
       end do
     end do
-
-    !$acc exit data delete(qr_spl, nr_spl, qa_spl)
-
-    deallocate(qr_spl, nr_spl, qa_spl)
     
     call timer_toc(routine)
 
