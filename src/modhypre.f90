@@ -54,7 +54,7 @@ save
 ! for fortran
 interface
   subroutine HYPRE_Initialize( ierr) &
-    bind(c, name="hypre_initialize_")
+    bind(c, name="hypre_init_")
     use iso_c_binding
     implicit none
     integer(c_int) ierr
