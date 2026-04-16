@@ -53,6 +53,12 @@ save
 ! We need to append the _ and add bind(c, name) to call the c interface defined
 ! for fortran
 interface
+  subroutine HYPRE_Initialize( ierr) &
+    bind(c, name="hypre_init_")
+    use iso_c_binding
+    implicit none
+    integer(c_int) ierr
+  end subroutine
   subroutine HYPRE_StructBiCGSTABCreate ( comm, solver, ierr) &
     bind(c, name="hypre_structbicgstabcreate_")
     use iso_c_binding
@@ -825,6 +831,12 @@ contains
     ! Have hypre reuse the comm world
     mpi_comm_hypre = MPI_COMM_WORLD%MPI_VAL
 
+    !-----------------------------------------------------------------------
+    !     0. Call HYPRE_Initialize().
+    !-----------------------------------------------------------------------
+
+    call HYPRE_Initialize(ierr)
+    
     !-----------------------------------------------------------------------
     !     1. Set up the grid.
     !        Each processor describes the piece of the grid that it owns.
