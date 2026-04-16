@@ -231,6 +231,10 @@ contains
                          ! can consider calculating it only when needed
       call diagfld
 
+      ! Interpolate thl and qt to the half levels
+      call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
+      call calc_halflev(qt0, dzf, dzhi, qts, iadv_qt == iadv_kappa, qt0h)
+
     end if
 
     ! recalculate thv and rho on the basis of results
