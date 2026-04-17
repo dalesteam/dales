@@ -12,7 +12,6 @@ set( dales_srcs
 	daleslib.f90
 	debug.c
 	fftnew.f90
-	go.f90
 	le_drydepos_gas.f90
 	modAGScross.f90
 	modadvection.f90
