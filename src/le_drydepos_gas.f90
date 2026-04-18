@@ -416,7 +416,7 @@
 ! 
 !###############################################################################
 !
-#define TRACEBACK write (gol,'("in ",a," (",a,", line",i5,")")') rname, __FILE__, __LINE__; call goErr
+#define TRACEBACK call finish(rname, 'error in __FILE__ at line __LINE__')
 #define IF_NOTOK_RETURN(action) if (status/=0) then; TRACEBACK; action; return; end if
 #define IF_ERROR_RETURN(action) if (status> 0) then; TRACEBACK; action; return; end if
 !
@@ -425,9 +425,8 @@
 
 module LE_DryDepos_Gas
 
-  use GO, only : gol, goPr, goErr
+  use fortran_support, only: int2string, real2string, finish
   use modprecision, only : field_r
-  use modlogging, only: finish
   
   implicit none
   
@@ -715,8 +714,7 @@ select case ( trim(compnam) )
   case ( 'VBS_BSOG6', 'vbs_bsog6' )
     icmp = icmp_vbs_bsog6
   case default
-    write (gol,'("unsupported component `",a,"`")') trim(compnam); call goErr
-    TRACEBACK; status=1; return
+    call finish(mname, 'component ' // trim(compnam) // ' not supported') 
   
 end select
 
@@ -1499,7 +1497,7 @@ elseif (ipar_snow .eq. 2) then
       rc_tot = 70.*(2.-t)
    endif
 else
-   call finish(rname, 'Unknown value of ipar_snow: ', ipar_snow)
+   call finish(rname, 'Unknown value of ipar_snow: ' // trim(int2string(ipar_snow)))
 endif
 
 end subroutine rc_snow
@@ -1575,8 +1573,7 @@ else
             rsoil_eff = rsoil_wet(icmp) + rinc
          endif
       else
-           write (gol,'("unsupported nwet value ",i0," should 0 or 1")') nwet; call goErr
-           TRACEBACK; status=1; return
+            call finish(mname, 'Unsupported nwet value: ' // trim(int2string(nwet)) // ' should be 0 or 1')
       endif
    endif
 endif
@@ -1862,8 +1859,7 @@ subroutine rc_comp_point( compnam,lu,day_of_year,t,gw,gstom,gsoil_eff,gc_tot,&
           ! no compensation points:
           ccomp_tot  = 0.0
         else
-          write (gol,'("unsupported component `",a,"`")') trim(compnam); call goErr
-          TRACEBACK; status=1; return
+          call finish(mname, 'Unsupported component: ' // trim(compnam))
         end if
     end select
     
@@ -1965,6 +1961,8 @@ integer, intent(out)      :: status
 ! constants:
 character(len=*), parameter   ::  rname = mname//'/rc_comp_point_rc_eff'
 
+character(len=512) :: msg
+
 ! Compute effective resistance:
 if ( ccomp_tot == 0.0 ) then
   ! trace with no compensiation point ( or compensation point equal to zero)
@@ -1981,11 +1979,12 @@ else if ( ccomp_tot > 0 ) then
    
 else
    rc_eff = -999.
-   write (gol,*) 'This should not be possible:'; call goErr
-   write (gol,*) 'rc_tot     = ', rc_tot; call goErr
-   write (gol,*) 'ccompt_tot = ', ccomp_tot; call goErr
-   write (gol,*) 'catm       = ', catm; call goErr
-   TRACEBACK; status=1; return
+
+
+   write(msg, *) 'This should not be possible: rc_tot = ', real2string(rc_tot), &
+                 ' ccomp_tot = ', real2string(ccomp_tot), &
+                 ' catm = ', real2string(catm)
+   call finish(rname, msg)
 end if
 
 ! ok

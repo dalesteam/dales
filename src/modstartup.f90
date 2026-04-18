@@ -31,7 +31,7 @@
 
 module modstartup
 use iso_c_binding
-use fortran_support, only: int2string
+use fortran_support, only: int2string, split_string
 use modprecision,      only : field_r
 use modtimer
 use modstat_nc
@@ -524,7 +524,6 @@ contains
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
     use modopenboundary,   only : openboundary_ghost,openboundary_readboundary,openboundary_initfields
     use modtracers,        only : tracer_prop, tracer_profs_from_netcdf, nsv_user
-    use go,                only : goSplitString_s
     use utils,             only : to_lower
     use modslabaverage,    only : slabavg
     use modlogging,        only : profile_output
@@ -543,11 +542,15 @@ contains
     real(field_r), allocatable :: thv0(:,:,:)
 
     character(len=512) :: chmess
+    character(len=512) :: header_line
+    character(len=16)  :: header
     integer, parameter :: maxcol = 50
-    character(len=6)   :: headers(maxcol)
+    integer            :: header_pos(maxcol)
+    integer            :: header_len(maxcol)
     logical            :: found
     real               :: vals_at_lev(maxcol)
     integer            :: nheader
+    integer            :: start, end
 
     allocate (height(k1))
     allocate (th0av(k1))
@@ -652,13 +655,18 @@ contains
           read (ifinput,'(a512)') chmess
           read (ifinput,'(a512)') chmess
 
-          call goSplitString_s(chmess, nheader, headers, ierr, sep=" ")
+          header_line(:) = chmess(:)
+
+          call split_string(header_line, nheader, header_pos, header_len)
 
           ! Try to find profiles
           do isv = 1, nsv
             found = .false.
             do isv_u = 1, nheader
-              if (trim(tracer_prop(isv)%tracname) == trim(headers(isv_u))) then
+              start = header_pos(isv_u)
+              end = header_pos(isv_u) + header_len(isv_u) - 1
+              header = header_line(start:end)
+              if (trim(tracer_prop(isv)%tracname) == trim(header)) then
                 do k = 1, kmax
                   read(ifinput, *, iostat=ierr) vals_at_lev(1:nheader)
                   svprof(k,isv) = vals_at_lev(isv_u)
