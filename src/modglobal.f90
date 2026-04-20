@@ -122,9 +122,9 @@ save
       real(field_r) :: om23_gs                       !<    *2.*omega_earth*sin(lat)
       real          :: xlat    = 52.              !<    *latitude  in degrees.
       real          :: xlon    = 0.               !<    *longitude in degrees.
-      real          :: beta    = 0.               !< Rotation angle of local xy plane with respect to Easting vector (postive turning towards Northing vector) in degrees
-      real(field_r) :: corot                      !< cos(beta*pi/180)
-      real(field_r) :: sirot                      !< sin(beta*pi/180)
+      real          :: xyrot   = 0.               !< Rotation angle of local xy plane with respect to Easting vector (postive turning towards Northing vector) in degrees
+      real(field_r) :: corot                      !< cos(xyrot*pi/180)
+      real(field_r) :: sirot                      !< sin(xyrot*pi/180)
       logical       :: lrigidlid = .false. !< switch to enable simulations with a rigid lid
       real(field_r) :: unudge = 1.0   !< Nudging factor if igrw_damp == -1 (nudging mean wind fields to geostrophic values provided by lscale.inp)
 
@@ -336,7 +336,7 @@ contains
     colat  = cos(phi)
     silat  = sin(phi)
 
-    gamma = beta*pi/180. 
+    gamma = xyrot*pi/180. 
     corot = cos(gamma) 
     sirot = sin(gamma) 
 
