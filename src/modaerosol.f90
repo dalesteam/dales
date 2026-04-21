@@ -297,6 +297,7 @@ contains
       do j = 2, j1
         do i = 2, i1
           if (ql(i,j,k) > qcmin) then
+            n_act = 0
             if (m_ais%nspecies > 0) then
               dm = calc_median_diameter(m_ais%n(i,j,k), m_ais%q(:,i,j,k), &
                                         m_ais%rho, m_ais%sig_g)
@@ -304,10 +305,10 @@ contains
               fn = 1 - 0.5_field_r * erfc(-log(2 * r_crit / &
                    dm + 1E-30) / (sqrt(2.0_field_r) * log(m_ais%sig_g)))
               end if
+              n_act = 1E-6 * fn * m_ais%n(i,j,k)
             end if
 
-            n_act = 1E-6 * (m_acs%n(i,j,k) + m_cos%n(i,j,k) + &
-                            fn * m_ais%n(i,j,k))
+            n_act = n_act + 1E-6 * (m_acs%n(i,j,k) + m_cos%n(i,j,k))
 
             w0 = max(0.0_field_r, w(i,j,k))
             dncdt = 1E6 / delt * &
