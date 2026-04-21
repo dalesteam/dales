@@ -32,6 +32,7 @@ module modslabaverage
   character(len=*), parameter :: modname = 'modslabaverage'
 
   public :: slabavg
+  public :: slabavg_r8_gpu
 
   interface slabavg
     module procedure slabavg_r4
@@ -115,6 +116,79 @@ contains
   !!           \note For arrays with no ghost cells, pass nh=0!
   !! \param avg Slab averaged profile.
   !! \param local Only compute average on local MPI domain.
+  subroutine slabavg_r8_gpu(field, nh, avg, local)
+
+    real(real64), contiguous, intent(in)  :: field(:,:,:)
+    integer,      intent(in)  :: nh
+    real(real64), contiguous, intent(out) :: avg(:)
+
+    logical, optional, intent(in) :: local
+
+    integer      :: i, j, k
+    integer      :: is, ie, js, je, ks, ke
+    logical      :: do_global
+    real(real64) :: fld_sum, norm_fac
+
+    is = lbound(field, dim=1) + nh
+    ie = ubound(field, dim=1) - nh
+    js = lbound(field, dim=2) + nh
+    je = ubound(field, dim=2) - nh
+    ks = lbound(field, dim=3)
+    ke = ubound(field, dim=3)
+
+    if (present(local)) then
+      do_global = .not. local
+    else
+      do_global = .true.
+    end if
+
+    if (do_global) then
+      norm_fac = 1.0_real64 / ijtot
+    else
+      norm_fac = 1.0_real64 / (imax * jmax)
+    end if
+
+    ! do k = ks, ke
+    !   fld_sum = 0
+    !   do j = js, je
+    !     do i = is, ie
+    !       fld_sum = fld_sum + field(i,j,k)
+    !     end do
+    !   end do
+    !   avg(k) = fld_sum * norm_fac
+    ! end do
+    ! print *, ">>> avg1", sum(avg)
+
+    !$acc parallel loop gang default(present)
+    !!$omp target teams loop defaultmap(present:aggregate)&
+    !!$omp defaultmap(present:allocatable)
+    do k = ks, ke
+      fld_sum = 0
+      !$acc loop vector collapse(2) reduction(+: fld_sum)
+      !$omp target teams loop defaultmap(present:aggregate) defaultmap(present:allocatable)&
+      !$omp reduction(+:fld_sum) collapse(2)
+      !!$omp loop reduction(+:fld_sum) collapse(2)
+      do j = js, je
+        do i = is, ie
+          fld_sum = fld_sum + field(i,j,k)
+        end do
+      end do
+      avg(k) = fld_sum * norm_fac
+    end do
+
+    ! print *, ">>> avg2", sum(avg)
+
+    if (do_global) then
+      !$acc host_data use_device(avg)
+      !!$omp target data use_device_addr(avg)
+      call mpi_allreduce(mpi_in_place, avg, ke, mpi_real8, mpi_sum, &
+                         comm3d, mpierr)
+      !$acc end host_data
+      !!$omp end target data
+    end if
+    !$omp target update to(avg)
+
+  end subroutine slabavg_r8_gpu
   subroutine slabavg_r8(field, nh, avg, local)
 
     real(real64), intent(in)  :: field(:,:,:)
@@ -164,11 +238,9 @@ contains
 
     if (do_global) then
       !$acc host_data use_device(avg)
-!!$omp target update from(avg)
       call mpi_allreduce(mpi_in_place, avg, ke, mpi_real8, mpi_sum, &
                          comm3d, mpierr)
       !$acc end host_data
-!!$omp target update to(avg)
     end if
 
   end subroutine slabavg_r8
