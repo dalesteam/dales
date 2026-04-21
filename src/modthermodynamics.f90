@@ -37,6 +37,7 @@ module modthermodynamics
   use modmicrodata,    only: imicro, imicro_bulk3, imicro_none
   use modibmdata,      only: lapply_ibm, fluid_mask
   use modslabaverage,  only: slabavg
+  use modslabaverage,  only: slabavg_r8_gpu
   use advec_kappa,     only: halflev_kappa
   use modprecision,    only: field_r
   use modtimer,        only: timer_tic, timer_toc
@@ -69,7 +70,7 @@ module modthermodynamics
   real(field_r), protected :: esatmtab(1:2000)
 
   !$acc declare create(ttab, esatltab, esatitab, esatmtab)
-!$omp declare target (ttab,esatltab,esatitab,esatmtab)
+  !$omp declare target (ttab,esatltab,esatitab,esatmtab)
 
 contains
 
@@ -126,7 +127,7 @@ contains
     th0av(:) = 0.
 
     !$acc enter data copyin(th0av, thv0, thetah, qth, qlh)
-!!$omp target enter data map(to:th0av,thv0,thetah,qth,qlh)
+    !$omp target enter data map(to:th0av,thv0,thetah,qth,qlh)
 
     ! esatltab(m) gives the saturation vapor pressure over water at T corresponding to m
     ! esatitab(m) is the same over ice
@@ -150,7 +151,7 @@ contains
     end do
 
     !$acc update device(ttab, esatltab, esatitab, esatmtab)
-!!$omp target update to(ttab,esatltab,esatitab,esatmtab)
+    !$omp target update to(ttab,esatltab,esatitab,esatmtab)
 
   end subroutine initthermodynamics
 
@@ -180,22 +181,22 @@ contains
       too_cold = .false.
       too_hot = .false.
 
+      !$omp target update to(thl0, exnf, qt0, presf, exnf, ql0)
+
       !$acc parallel loop collapse(3) default(present) async(1) private(T) &
       !$acc firstprivate(too_cold, too_hot)
-!!$omp target teams loop private(t) collapse(3) firstprivate(too_cold,&
-!!$omp too_hot) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+      !$omp target teams loop private(T) collapse(3) reduction(.or.: too_cold,&
+      !$omp too_hot) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do k = 1, k1
         do j = 2, j1
           do i = 2, i1
             T = thl0(i,j,k) * exnf(k)
             if (T < 150) then
               !$acc atomic write
-!!$omp atomic write
               too_cold = .true.
             else if (T > 550) then
               !$acc atomic write
-!!$omp atomic write
               too_hot = .true.
             end if
           end do
@@ -216,18 +217,20 @@ contains
       call saturation_adjustment(qt0, thl0, presf, exnf, ql0, opt_stream=1)
 #endif
 
-      call diagfld
+      !$omp target update from(ql0)
+
+      call diagfld_gpu
 
       ! Interpolate thl and qt to the half levels
       call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
       call calc_halflev(qt0, dzf, dzhi, qts, iadv_qt == iadv_kappa, qt0h)
 
       ! Do saturation adjustment again on the half levels
-#if defined(DALES_GPU)
-      call saturation_adjustment_gpu(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1)
-#else
+! #if defined(DALES_GPU)
+!       call saturation_adjustment_gpu(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1)
+! #else
       call saturation_adjustment(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1)
-#endif
+! #endif
 
       if (imicro /= imicro_none) then
         call calc_saturation_humidities(qt0, ql0, thl0, presf, exnf, esl, &
@@ -306,7 +309,7 @@ contains
   !> Cleans up after the run
   subroutine exitthermodynamics
     !$acc exit data delete(th0av, thv0, thetah, qth, qlh)
-!!$omp target exit data map(delete:th0av,thv0,thetah,qth,qlh)
+    !$omp target exit data map(delete:th0av,thv0,thetah,qth,qlh)
     deallocate(th0av, thv0, thetah, qth, qlh)
   end subroutine exitthermodynamics
 
@@ -484,6 +487,169 @@ contains
   end subroutine calthv
 
   !> Diagnones slab averaged fields assuming hydrostatic equilibrium.
+  subroutine diagfld_gpu
+
+    character(len=*), parameter :: routine = modname//'/diagfld'
+
+    integer :: k,n
+
+    call timer_tic(routine, 1)
+
+    ! 1. Compute slab averaged fields
+
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
+    do k = 1, k1
+      u0av(k) = 0.0_field_r
+    end do
+
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
+    do k = 1, k1
+      v0av(k) = 0.0_field_r
+    end do
+
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
+    do k = 1, k1
+      thl0av(k) = 0.0_field_r
+    end do
+
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
+    do k = 1, k1
+      th0av(k) = 0.0_field_r
+    end do
+
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
+    do k = 1, k1
+      qt0av(k) = 0.0_field_r
+    end do
+
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
+    do k = 1, k1
+      ql0av(k) = 0.0_field_r
+    end do
+
+    !$acc parallel loop gang vector collapse(2) default(present) async wait(1)
+    !$omp target teams loop collapse(2)
+    do k = 1, k1
+      do n = 1, nsv
+        sv0av(k,n) = 0.0_field_r
+      end do
+    end do
+
+    !$omp target update from(u0av, v0av, thl0av, th0av, qt0av, ql0av, sv0av)
+    !$omp target update to(u0, v0, thl0, qt0, ql0, sv0)
+
+    !$acc wait
+
+    ! If the IBM is enabled, exclude the building cells from the averages
+    if (.not. lapply_ibm) then
+      call slabavg_r8_gpu(u0,ih,u0av)
+      call slabavg_r8_gpu(v0,ih,v0av)
+      call slabavg(thl0,ih,thl0av)
+      call slabavg(qt0,ih,qt0av)
+      call slabavg(ql0,ih,ql0av)
+      do n=1,nsv
+        call slabavg(sv0(:,:,:,n),ih,sv0av(:,n))
+      end do
+    else
+      stop
+      call slabavg(u0,fluid_mask,ih,u0av)
+      call slabavg(v0,fluid_mask,ih,v0av)
+      call slabavg(thl0,fluid_mask,ih,thl0av)
+      call slabavg(qt0,fluid_mask,ih,qt0av)
+      call slabavg(ql0,fluid_mask,ih,ql0av)
+      do n=1,nsv
+        call slabavg(sv0(:,:,:,n),fluid_mask,ih,sv0av(:,n))
+      end do
+    end if
+
+    !$omp target update from(u0av, v0av)!, thl0av, qt0av, ql0av, sv0av)
+
+    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
+      !$acc parallel loop gang(static:1) default(present)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
+      do k = 1, k1
+        exnf(k) = 1 - grav * zf(k) / (cp * thls)
+        exnh(k) = 1 - grav * zh(k) / (cp * thls)
+      end do
+    endif
+
+    !$acc parallel loop gang(static:1) default(present) async(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
+    do k = 1, k1
+      th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
+    end do
+
+    ! 2. Calculate the pressure profiles assuming hydrostatic equilibrium.
+
+    ! 2.1 Use first guess of theta, then recalculate theta
+
+    call fromztop
+
+    !$acc parallel loop gang(static:1) default(present) async(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
+    do k = 1, k1
+      th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
+    end do
+
+    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
+      !$acc parallel loop gang(static:1) default(present) async(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
+      do k = 1, k1
+        exnf(k) = (presf(k) / pref0)**(rd / cp)
+      end do
+    end if
+
+    ! 2.2 Use new updated value of theta for determination of pressure
+
+    call fromztop
+
+    ! 3. Construct density profiles and exner function
+
+    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
+      !$acc serial default(present) async(1)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
+      exnh(1) = (ps/pref0)**(rd/cp)
+      exnf(1) = (presf(1)/pref0)**(rd/cp)
+      !$acc end serial
+!!$omp end target
+
+      !$acc parallel loop default(present) async(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
+      do k=2,k1
+        exnf(k) = (presf(k)/pref0)**(rd/cp)
+        exnh(k) = (presh(k)/pref0)**(rd/cp)
+      end do
+    endif
+
+    !$acc parallel loop default(present) async(1)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
+    do k=1,k1
+      thvf(k) = th0av(k)*exnf(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
+      rhof(k) = presf(k)/(rd*thvf(k))
+    end do
+
+    call timer_toc(routine)
+
+  end subroutine diagfld_gpu
   subroutine diagfld
 
     character(len=*), parameter :: routine = modname//'/diagfld'
@@ -495,50 +661,36 @@ contains
     ! 1. Compute slab averaged fields
 
     !$acc parallel loop gang(static:1) default(present) async wait(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       u0av(k) = 0.0_field_r
     end do
 
     !$acc parallel loop gang(static:1) default(present) async wait(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       v0av(k) = 0.0_field_r
     end do
 
     !$acc parallel loop gang(static:1) default(present) async wait(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       thl0av(k) = 0.0_field_r
     end do
 
     !$acc parallel loop gang(static:1) default(present) async wait(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       th0av(k) = 0.0_field_r
     end do
 
     !$acc parallel loop gang(static:1) default(present) async wait(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       qt0av(k) = 0.0_field_r
     end do
 
     !$acc parallel loop gang(static:1) default(present) async wait(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       ql0av(k) = 0.0_field_r
     end do
 
     !$acc parallel loop gang vector collapse(2) default(present) async wait(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       do n = 1, nsv
         sv0av(k,n) = 0.0_field_r
@@ -697,7 +849,7 @@ contains
     end do
 
     !$acc update device(thvh, presf, thvf, presh) async(1)
-!!$omp target update to(thvh,presf,thvf,presh)
+    !$omp target update to(thvh,presf,thvf,presh)
 
     call timer_toc(routine)
 
@@ -764,9 +916,9 @@ contains
   end function esat_tab
 
   !> Computes the saturation specific humidity via table lookup.
+! #ifndef DALES_AMDGPU
   pure function qsat_tab(T, p) result(qsat)
-!!$omp declare target
-    
+    !$omp declare target
     !$acc routine seq
     real(field_r), intent(in) :: T, p
     real(field_r) :: qsat
@@ -781,6 +933,15 @@ contains
     ! convert saturation vapor pressure to saturation humidity
     qsat = (rd/rv) * es / (p - (1-rd/rv)*es)
   end function qsat_tab
+! #else
+#define QSAT_TAB_(T, P, QSAT)                                   \
+  interp_w = ((T) - 150.0_field_r) * 5.0_field_r ;             \
+  tlo = int(interp_w) ;                                        \
+  interp_w = interp_w - tlo ;                                  \
+  es = (1.0_field_r - interp_w) * esatmtab(tlo) +              \
+       interp_w * esatmtab(tlo+1) ;                            \
+  QSAT = (rd/rv) * es / ((P) - (1.0_field_r - rd/rv) * es)
+! #endif
 
   !> Compute the saturation specific humidity
   !!
@@ -905,8 +1066,9 @@ contains
 
     !$acc parallel loop gang vector collapse(3) default(present) async(stream) &
     !$acc private(b, qli, qsat, qti, Tl)
-!!$omp target teams loop private(b,qli,qsat,qti,tl) collapse(3)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+    ! FIXME: GPU divergence
+    !!$omp target teams loop private(b,qli,qsat,qti,tl) collapse(3)&
+    !!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
@@ -932,6 +1094,7 @@ contains
         end do
       end do
     end do
+    !$omp target update to(ql)
 
     call timer_toc(routine)
 

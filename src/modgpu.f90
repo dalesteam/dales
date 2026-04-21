@@ -67,20 +67,32 @@ contains
     !$acc&              LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &
     !$acc&              LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA, &
     !$acc&              fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p)
-!!$omp target update to(um,u0,up,vm,v0,vp,wm,w0,wp,thlm,thl0,thlp,qtm,&
-!!$omp qt0,qtp,e12m,e120,e12p,svm,sv0,svp,rhobf,rhobh,ql0,tmp0,ql0h,&
-!!$omp thv0h,thl0h,qt0h,presf,presh,exnf,exnh,thvh,thvf,rhof,qt0av,&
-!!$omp ql0av,thl0av,u0av,v0av,sv0av,ug,vg,dpdxl,dpdyl,wfls,whls,thlpcar,&
-!!$omp dthldxls,dthldyls,dthldtls,dqtdxls,dqtdyls,dqtdtls,dudxls,dudyls,&
-!!$omp dudtls,dvdxls,dvdyls,dvdtls,dthvdz,qvsl,qvsi,esl,qsat,dzf,dzh,zh,&
-!!$omp zf,delta,deltai,z0m,z0h,obl,tskin,qskin,cm,cs,ustar,dudz,dvdz,&
-!!$omp thlflux,qtflux,dqtdz,dthldz,svflux,svs,horv,ra,rs,wsvsurf,ekm,&
-!!$omp ekh,zlt,sbdiss,sbshr,sbbuo,csz,anis_fac,tsc,thlpcar,presf,presh,&
-!!$omp exnf,exnh,thetah,qvsl,qvsi,esl,qsat,qth,qlh,th0av,thv0,thetah,&
-!!$omp qth,qlh,precep,thlpmcr,qtpmcr,thlprad,lwd,lwu,swd,swu,lwc,swdir,&
-!!$omp swdif,lwdca,lwuca,swdca,swuca,lw_dn_toa,lw_up_toa,sw_dn_toa,&
-!!$omp sw_up_toa,lw_dn_ca_toa,lw_up_ca_toa,sw_dn_ca_toa,sw_up_ca_toa,&
-!!$omp fluid_mask,iobst,ixw_p,ixw_m,iyw_p,iyw_m,izw_p)
+    !$omp target update to(um, u0, up, vm, v0, vp, wm, w0, wp, &
+    !$omp&              thlm, thl0, thlp, qtm, qt0, qtp, &
+    !$omp&              e12m, e120, e12p, svm, sv0, svp, &
+    !$omp&              rhobf, rhobh, ql0, tmp0, ql0h, thv0h, &
+    !$omp&              thl0h, qt0h, presf, presh, exnf, exnh, &
+    !$omp&              thvh, thvf, rhof, qt0av, ql0av, thl0av, &
+    !$omp&              u0av, v0av, sv0av, ug, vg, dpdxl, dpdyl, &
+    !$omp&              wfls, whls, thlpcar, dthldxls, dthldyls, &
+    !$omp&              dthldtls, dqtdxls, dqtdyls, dqtdtls, &
+    !$omp&              dudxls, dudyls, dudtls, dvdxls, dvdyls, &
+    !$omp&              dvdtls, dthvdz, qvsl, qvsi, esl, qsat, &
+    !$omp&              dzf, dzh, zh, zf, delta, deltai, &
+    !$omp&              z0m, z0h, obl, tskin, qskin, Cm, Cs, &
+    !$omp&              ustar, dudz, dvdz, thlflux, qtflux, &
+    !$omp&              dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf, &
+    !$omp&              ekm, ekh, zlt, sbdiss, sbshr, sbbuo, csz, &
+    !$omp&              anis_fac, tsc, thlpcar, presf, &
+    !$omp&              presh, exnf, exnh, thetah, &
+    !$omp&              qvsl, qvsi, esl, qsat, qth, qlh, &
+    !$omp&              th0av, thv0, thetah, qth, qlh, &
+    !$omp&              precep, thlpmcr, qtpmcr, &
+    !$omp&              thlprad, lwd, lwu, swd, swu, lwc, swdir, swdif, &
+    !$omp&              lwdca, lwuca, swdca, swuca, &
+    !$omp&              LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &
+    !$omp&              LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA, &
+    !$omp&              fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p)
 
   end subroutine update_gpu
 
@@ -155,21 +167,32 @@ contains
     !$acc&            LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &
     !$acc&            LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA, &
     !$acc&            fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p)
-!!$omp target update from(um,u0,up,vm,v0,vp,wm,w0,wp,thlm,thl0,thlp,qtm,&
-!!$omp qt0,qtp,e12m,e120,e12p,svm,sv0,svp,rhobf,rhobh,ql0,tmp0,ql0h,&
-!!$omp thv0h,thl0h,qt0h,presf,presh,exnf,exnh,thvh,thvf,rhof,qt0av,&
-!!$omp ql0av,thl0av,u0av,v0av,sv0av,ug,vg,dpdxl,dpdyl,wfls,whls,thlpcar,&
-!!$omp dthldxls,dthldyls,dthldtls,dqtdxls,dqtdyls,dqtdtls,dudxls,dudyls,&
-!!$omp dudtls,dvdxls,dvdyls,dvdtls,dthvdz,qvsl,qvsi,esl,qsat,dzf,dzh,zh,&
-!!$omp zf,delta,deltai,z0m,z0h,obl,tskin,qskin,cm,cs,ustar,dudz,dvdz,&
-!!$omp thlflux,qtflux,dqtdz,dthldz,svflux,svs,horv,ra,rs,wsvsurf,ekm,&
-!!$omp ekh,zlt,sbdiss,sbshr,sbbuo,csz,anis_fac,tsc,thlpcar,presf,presh,&
-!!$omp exnf,exnh,thetah,qvsl,qvsi,esl,qsat,qth,qlh,th0av,thv0,thetah,&
-!!$omp qth,qlh,precep,thlpmcr,qtpmcr,thlprad,lwd,lwu,swd,swu,lwc,swdir,&
-!!$omp swdif,lwdca,lwuca,swdca,swuca,lw_dn_toa,lw_up_toa,sw_dn_toa,&
-!!$omp sw_up_toa,lw_dn_ca_toa,lw_up_ca_toa,sw_dn_ca_toa,sw_up_ca_toa,&
-!!$omp fluid_mask,iobst,ixw_p,ixw_m,iyw_p,iyw_m,izw_p)
-
+    !$omp target update from(um, u0, up, vm, v0, vp, wm, w0, wp, &
+    !$omp&            thlm, thl0, thlp, qtm, qt0, qtp, &
+    !$omp&            e12m, e120, e12p, svm, sv0, svp, &
+    !$omp&            rhobf, rhobh, ql0, tmp0, ql0h, thv0h, &
+    !$omp&            thl0h, qt0h, presf, presh, exnf, exnh, &
+    !$omp&            thvh, thvf, rhof, qt0av, ql0av, thl0av, &
+    !$omp&            u0av, v0av, sv0av, ug, vg, dpdxl, dpdyl, &
+    !$omp&            wfls, whls, thlpcar, dthldxls, dthldyls, &
+    !$omp&            dthldtls, dqtdxls, dqtdyls, dqtdtls, &
+    !$omp&            dudxls, dudyls, dudtls, dvdxls, dvdyls, &
+    !$omp&            dvdtls, dthvdz, qvsl, qvsi, esl, qsat, &
+    !$omp&            dzf, dzh, zh, zf, delta, deltai, &
+    !$omp&            z0m, z0h, obl, tskin, qskin, Cm, Cs, &
+    !$omp&            ustar, dudz, dvdz, thlflux, qtflux, &
+    !$omp&            dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf, &
+    !$omp&            ekm, ekh, zlt, sbdiss, sbshr, sbbuo, csz, &
+    !$omp&            anis_fac, tsc, thlpcar, presf, &
+    !$omp&            presh, exnf, exnh, thetah, &
+    !$omp&            qvsl, qvsi, esl, qsat, qth, qlh, &
+    !$omp&            th0av, thv0, thetah, qth, qlh, &
+    !$omp&            precep, thlpmcr, qtpmcr, &
+    !$omp&            thlprad, lwd, lwu, swd, swu, lwc, swdir, swdif, &
+    !$omp&            lwdca, lwuca, swdca, swuca, &
+    !$omp&            LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &
+    !$omp&            LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA, &
+    !$omp&            fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p)
     host_is_updated = .true.
 
   end subroutine update_host
