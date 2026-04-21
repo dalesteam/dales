@@ -88,8 +88,8 @@ module modchecksim
   character (len=15) :: dt_reasons(0:5) = [character(len=15) :: &
     "initial step", "timee", "dt_lim" , "idtmax", "velocity", "diffusion"]
 
-  logical :: lchecktend
-  logical :: lstop
+  logical :: lchecktend = .false.
+  logical :: lstop      = .false.
 
   real :: wtime
 

@@ -93,7 +93,7 @@ contains
     character(len=*), intent(in) :: nml_filename
 
     integer :: ierr
-    logical :: lqlnr
+    logical :: lqlnr = .true. !< deprecated and ignored, kept for compatibility
 
     namelist /thermodynamics/ lmoist, chi_half, lconstexner, lbaseexner, &
                               lnoclouds, lqlnr

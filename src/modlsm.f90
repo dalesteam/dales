@@ -2850,7 +2850,7 @@ subroutine check_value_validity
     use modchecksim, only: check_array
     implicit none
     integer i, j, k
-    integer, parameter :: rkind = kind(tile(ilu)%z0h)
+    integer, parameter :: rkind = kind(tile(1)%z0h)
     character(len=*), parameter :: routine = modname//'/check_value_validity'
 
     do ilu=1,nlu-1

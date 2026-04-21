@@ -115,12 +115,12 @@ contains
       end if
       if (lplw.or.lpli) then
         iqr = get_tracer_index("qr")
-      endif
-      if ((iqr == 0).and.((lplw.or.lpli))) then
-        print *, "lplw or lpli are true but there is no qr tracer. Turning plw and pli output off."
-        lplw = .false.
-        lpli = .false. 
-      endif
+        if (iqr == 0) then
+          print *, "lplw or lpli are true but there is no qr tracer. Turning plw and pli output off."
+          lplw = .false.
+          lpli = .false.
+        end if
+      end if
     end if
     call D_MPI_BCAST(ncoarse     ,1,0,comm3d,ierr)
     call D_MPI_BCAST(klow        ,1,0,comm3d,ierr)
