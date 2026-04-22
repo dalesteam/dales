@@ -18,6 +18,7 @@
 !
 !> Module for nudging prognostic fields to some provided profiles.
 module modnudge
+  use modglobal, only: i1, j1, ih, jh, kmax, rdt
   use modprecision, only: field_r
   use modtimer,     only: timer_tic, timer_toc
   use modlogging, only: finish
@@ -345,7 +346,7 @@ contains
   subroutine nudge
     use modglobal,  only: timee, rtimee, i1, j1, kmax, rdt, nsv
     use modfields,  only: up, vp, wp, thlp, qtp, u0av, v0av, qt0av, thl0av, &
-                          svp, sv0av
+                          svp, sv0av, w0av
     use modtracers, only: tracer_prop
 
     character(*), parameter :: routine = modname//"::nudge"
@@ -370,92 +371,17 @@ contains
     dtm = (rtimee - timenudge(t)) / (timenudge(t + 1) - timenudge(t))
     dtp = (timenudge(t + 1) - rtimee) / (timenudge(t + 1) - timenudge(t))
 
-    if (lunudge) then
-      !$acc parallel loop collapse(3) private(currtnudge) default(present) async
-      do k = 1, kmax
-        do j = 2, j1
-          do i = 2, i1
-            currtnudge = max(1.0_field_r * rdt, &
-                             tunudge(k,t) * dtp + tunudge(k,t + 1) * dtm)
-            up(i,j,k) = up(i,j,k) - (u0av(k) - (unudge(k,t) * dtp + &
-                        unudge(k,t + 1) * dtm)) / currtnudge
-          end do
-        end do
-      end do
-    end if
-
-    if (lvnudge) then
-      !$acc parallel loop collapse(3) default(present) private(currtnudge) async
-      do k = 1, kmax
-        do j = 2, j1
-          do i = 2, i1
-            currtnudge = max(1.0_field_r * rdt, &
-                             tvnudge(k,t) * dtp + tvnudge(k,t + 1) * dtm)
-            vp(i,j,k) = vp(i,j,k) - (v0av(k) - (vnudge(k,t) * dtp + &
-                        vnudge(k,t + 1) * dtm)) / currtnudge
-          end do
-        end do
-      end do
-    end if
-
-    if (lwnudge) then
-      !$acc parallel loop collapse(3) default(present) private(currtnudge) async
-      do k = 1, kmax
-        do j = 2, j1
-          do i = 2, i1
-            currtnudge = max(1.0_field_r * rdt, &
-                             twnudge(k,t) * dtp + twnudge(k,t + 1) * dtm)
-            wp(i,j,k) = wp(i,j,k) - ((wnudge(k,t) * dtp + wnudge(k,t + 1) &
-                        * dtm)) / currtnudge
-          end do
-        end do
-      end do
-    end if
-
-    if (lthlnudge) then
-      !$acc parallel loop collapse(3) default(present) private(currtnudge) async
-      do k = 1, kmax
-        do j = 2, j1
-          do i = 2, i1
-            currtnudge = max(1.0_field_r * rdt, &
-                             tthlnudge(k,t) * dtp + tthlnudge(k,t + 1) * dtm)
-            thlp(i,j,k) = thlp(i,j,k) - (thl0av(k) - (thlnudge(k,t) * dtp + &
-                          thlnudge(k,t + 1) * dtm)) / currtnudge
-          end do
-        end do
-      end do
-    end if
-
-    if (lqtnudge) then
-      !$acc parallel loop collapse(3) default(present) private(currtnudge) async
-      do k = 1, kmax
-        do j = 2, j1
-          do i = 2, i1
-            currtnudge = max(1.0_field_r * rdt, &
-                             tqtnudge(k,t) * dtp + tqtnudge(k,t + 1) * dtm)
-            qtp(i,j,k) = qtp(i,j,k) - (qt0av(k) - (qtnudge(k,t) * dtp + &
-                        qtnudge(k,t + 1) * dtm)) / currtnudge
-          end do
-        end do
-      end do
-    end if
+    if (lunudge) call nudge_field(u0av, unudge, tunudge, t, dtm, dtp, up)
+    if (lvnudge) call nudge_field(v0av, vnudge, tvnudge, t, dtm, dtp, vp)
+    if (lwnudge) call nudge_field(w0av, wnudge, twnudge, t, dtm, dtp, wp)
+    if (lthlnudge) call nudge_field(thl0av, thlnudge, tthlnudge, t, dtm, dtp, thlp)
+    if (lqtnudge) call nudge_field(qt0av, qtnudge, tqtnudge, t, dtm, dtp, qtp)
 
     if (lsvnudge) then
       do n = 1, nsv
         if (tracer_prop(n) % lnudge) then
-          !$acc parallel loop collapse(3) default(present) private(currtnudge) &
-          !$acc& async
-          do k = 1, kmax
-            do j = 2, j1
-              do i = 2, i1
-                currtnudge = max(1.0_field_r * rdt, &
-                                 tsvnudge(k,t,n) * dtp + &
-                                 tsvnudge(k,t + 1,n) * dtm)
-                svp(i,j,k,n) = svp(i,j,k,n) - (sv0av(k,n) - (svnudge(k,t,n) &
-                               * dtp + svnudge(k,t + 1,n) * dtm)) / currtnudge 
-              end do
-            end do
-          end do
+          call nudge_field(sv0av(:,n), svnudge(:,:,n), tsvnudge(:,:,n), t, dtm, dtp, &
+                   svp(:,:,:,n))
         end if
       end do
     end if
@@ -464,6 +390,36 @@ contains
 
     call timer_toc(routine)
   end subroutine nudge
+
+  subroutine nudge_field(phi_av, phi_tgt, timescale, t, &
+                         dtm, dtp, phi_p)
+    
+    real(field_r), intent(in) :: phi_av(:)      !< Slab average of the field to nudge.
+    real(field_r), intent(in) :: phi_tgt(:,:)   !< Target profile (dims: kmax, ntime).
+    real(field_r), intent(in) :: timescale(:,:) !< Nudging timescale (dims: kmax, ntime).
+    integer,       intent(in) :: t              !< Index of the current nudging time step.
+    real(field_r), intent(in) :: dtm            
+    real(field_r), intent(in) :: dtp
+
+    real(field_r), intent(inout) :: phi_p(2-ih:,2-jh:,:)
+
+    integer :: i, j, k
+
+    real(field_r) :: currtnudge
+
+    !$acc parallel loop collapse(3) default(present) private(currtnudge) async
+    do k = 1, kmax
+      do j = 2, j1
+        do i = 2, i1
+          currtnudge = max(1.0_field_r * rdt, &
+                           timescale(k,t) * dtp + timescale(k,t + 1) * dtm)
+          phi_p(i,j,k) = phi_p(i,j,k) - (phi_av(k) - (phi_tgt(k,t) * dtp + &
+                         phi_tgt(k,t + 1) * dtm)) / currtnudge
+        end do
+      end do
+    end do
+
+  end subroutine nudge_field 
 
   !> Deallocates memory.
   subroutine exitnudge
