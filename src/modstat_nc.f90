@@ -71,6 +71,7 @@ module modstat_nc
       module procedure read_nc_attribute_r4
       module procedure read_nc_attribute_r8
       module procedure read_nc_attribute_logical
+      module procedure read_nc_attribute_int
     end interface read_nc_attribute
 
     private :: read_nc_field_1D_real4
@@ -1215,6 +1216,41 @@ contains
     end select
     
   end subroutine read_nc_attribute_logical
+
+  subroutine read_nc_attribute_int(ncid, varid, attname, value, default)
+    integer,      intent(in)           :: ncid
+    integer,      intent(in)           :: varid
+    character(*), intent(in)           :: attname
+    integer,      intent(out)          :: value
+    integer,      intent(in), optional :: default
+
+    integer :: ierr, value_
+
+    character(len=*), parameter :: routine = modname//'/read_nc_attribute_logical'
+    
+    ierr = nf90_get_att(ncid, varid, attname, value_)
+
+    select case (ierr)
+      case (NF90_ENOTATT)
+        if (present(default)) then
+          value = default
+        else
+          call nchandle_error(ierr)
+        end if
+      case (NF90_NOERR)
+        select case (value_)
+          case (1)
+            value = .true.
+          case (0)
+            value = .false.
+          case default
+            call finish(routine, "Invalid value provided for ", attname)
+        end select
+      case default
+        call nchandle_error(ierr)
+    end select
+    
+  end subroutine read_nc_attribute_int
 
   subroutine ncinfo(out,in1,in2,in3,in4)
 

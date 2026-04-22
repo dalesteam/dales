@@ -17,6 +17,8 @@ module modtracer_type
     logical           :: lmicro = .false.   !< Boolean if in cloud microphysics
     real(field_r)     :: wsvsurf = 0        !< Kinematic surface flux (- m/s)
     logical           :: lnudge = .false.   !< Boolean if tracer is nudged
+    logical           :: lnudge_init = .true. !< Nudge to initial conditions (true) or to a profile (false).
+    integer           :: inudge_loc = 0     !< Location of nudging (see modnudge for options)
   contains
     procedure :: print_properties => tracer_print_properties
   end type T_tracer
@@ -37,6 +39,9 @@ contains
     write(*,*) "  lags       : ", self%lags
     write(*,*) "  lmicro     : ", self%lmicro
     write(*,*) "  wsvsurf    : ", self%wsvsurf
+    write(*,*) "  lnudge     : ", self%lnudge
+    write(*,*) "  lnudge_init: ", self%lnudge_init
+    write(*,*) "  inudge_loc : ", self%inudge_loc
   end subroutine tracer_print_properties
 
 end module modtracer_type
