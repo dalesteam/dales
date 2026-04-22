@@ -31,7 +31,7 @@ module modthermodynamics
   use modfields,       only: qt0, thl0, qt0h, thl0h, ql0, presf, exnf, thvh, &
                              thv0h, qt0av, ql0av, thvf, rhof, ql0h, presh, exnh, &
                              u0, v0, sv0, u0av, v0av, thl0av, ql0av, sv0av, &
-                             tmp0, dthvdz, thl0h, qt0h, esl, qvsl, qvsi
+                             tmp0, dthvdz, thl0h, qt0h, esl, qvsl, qvsi, w0av, w0
   use modsurfdata,     only: qts, thls, ps, dthldz, dqtdz
   use modmpi,          only: myid, d_mpi_bcast, commwrld, slabsum
   use modmicrodata,    only: imicro, imicro_bulk3, imicro_none
@@ -469,6 +469,11 @@ contains
 
     !$acc parallel loop gang(static:1) default(present) async wait(1)
     do k = 1, k1
+      w0av(k) = 0.0_field_r
+    end do
+
+    !$acc parallel loop gang(static:1) default(present) async wait(1)
+    do k = 1, k1
       thl0av(k) = 0.0_field_r
     end do
 
@@ -500,6 +505,7 @@ contains
     if (.not. lapply_ibm) then
       call slabavg(u0,ih,u0av)
       call slabavg(v0,ih,v0av)
+      call slabavg(w0,ih,w0av)
       call slabavg(thl0,ih,thl0av)
       call slabavg(qt0,ih,qt0av)
       call slabavg(ql0,ih,ql0av)
@@ -509,6 +515,7 @@ contains
     else
       call slabavg(u0,fluid_mask,ih,u0av)
       call slabavg(v0,fluid_mask,ih,v0av)
+      call slabavg(w0,fluid_mask,ih,w0av)
       call slabavg(thl0,fluid_mask,ih,thl0av)
       call slabavg(qt0,fluid_mask,ih,qt0av)
       call slabavg(ql0,fluid_mask,ih,ql0av)
