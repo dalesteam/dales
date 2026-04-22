@@ -86,6 +86,7 @@ save
   real(field_r), allocatable :: thl0av(:)                     !<   slab averaged th_liq
   real(field_r), allocatable :: u0av(:)                       !<   slab averaged u
   real(field_r), allocatable :: v0av(:)                       !<   slab averaged v
+  real(field_r), allocatable :: w0av(:)                       !<   slab averaged w
   real(field_r), allocatable :: ug(:)                       !<   geostrophic u-wind
   real(field_r), allocatable :: vg(:)                       !<   geostrophic v-wind
 
@@ -196,6 +197,7 @@ subroutine initfields
     allocate(thl0av       (k1))
     allocate(u0av         (k1))
     allocate(v0av         (k1))
+    allocate(w0av         (k1))
     allocate(ug           (k1))
     allocate(vg           (k1))
     allocate(dpdxl        (k1))
@@ -258,6 +260,8 @@ subroutine initfields
 
     surf_rain = 0
 
+    w0av = 0.
+
     !$acc enter data copyin(um, u0, up, vm, v0, vp, wm, w0, wp, &
     !$acc&                  thlm, thl0, thlp, qtm, qt0, qtp, &
     !$acc&                  e12m, e120, e12p, &
@@ -268,7 +272,7 @@ subroutine initfields
     !$acc&                  wfls, whls, thlpcar, dthldxls, dthldyls, &
     !$acc&                  dthldtls, dqtdxls, dqtdyls, dqtdtls, &
     !$acc&                  dudxls, dudyls, dudtls, dvdxls, dvdyls, &
-    !$acc&                  dvdtls, dthvdz, qvsl, qvsi, esl, qsat)
+    !$acc&                  dvdtls, dthvdz, qvsl, qvsi, esl, qsat, w0av)
 
   end subroutine initfields
 
@@ -285,13 +289,13 @@ subroutine initfields
     !$acc&                 wfls, whls, thlpcar, dthldxls, dthldyls, &
     !$acc&                 dthldtls, dqtdxls, dqtdyls, dqtdtls, &
     !$acc&                 dudxls, dudyls, dudtls, dvdxls, dvdyls, &
-    !$acc&                 dvdtls, dthvdz, qvsl, qvsi, esl, qsat)
+    !$acc&                 dvdtls, dthvdz, qvsl, qvsi, esl, qsat, w0av)
 
     deallocate(um,vm,wm,thlm,e12m,qtm,u0,v0,w0,thl0,thl0h,qt0h,e120,qt0)
     deallocate(up,vp,wp,thlp,e12p,qtp)
     deallocate(rhobf,rhobh)
     deallocate(drhobdzf,drhobdzh)
-    deallocate(ql0,tmp0,ql0h,thv0h,dthvdz,whls,presf,presh,initial_presf,initial_presh,exnf,exnh,thvh,thvf,rhof,qt0av,ql0av,thl0av,u0av,v0av)
+    deallocate(ql0,tmp0,ql0h,thv0h,dthvdz,whls,presf,presh,initial_presf,initial_presh,exnf,exnh,thvh,thvf,rhof,qt0av,ql0av,thl0av,u0av,v0av,w0av)
     deallocate(ug,vg,dpdxl,dpdyl,wfls)
     deallocate(dthldxls,dthldyls,dthldtls,dqtdxls,dqtdyls,dqtdtls)
     deallocate(dudxls,dudyls,dudtls,dvdxls,dvdyls,dvdtls)

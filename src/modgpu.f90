@@ -21,7 +21,7 @@ contains
                          wfls, whls, thlpcar, dthldxls, dthldyls, &
                          dthldtls, dqtdxls, dqtdyls, dqtdtls, &
                          dudxls, dudyls, dudtls, dvdxls, dvdyls, &
-                         dvdtls, dthvdz, qvsl, qvsi, esl, qsat
+                         dvdtls, dthvdz, qvsl, qvsi, esl, qsat, w0av
     use modglobal, only: dzf, dzh, zh, zf, delta, deltai, &
                          rd, rv
     use modsurfdata, only: z0m, z0h, obl, tskin, qskin, Cm, Cs, &
@@ -65,7 +65,8 @@ contains
     !$acc&              lwdca, lwuca, swdca, swuca, &
     !$acc&              LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &
     !$acc&              LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA, &
-    !$acc&              fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p)
+    !$acc&              fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p, &
+    !$acc&              w0av)
 
   end subroutine update_gpu
 
@@ -92,7 +93,7 @@ contains
                          wfls, whls, thlpcar, dthldxls, dthldyls, &
                          dthldtls, dqtdxls, dqtdyls, dqtdtls, &
                          dudxls, dudyls, dudtls, dvdxls, dvdyls, &
-                         dvdtls, dthvdz, qvsl, qvsi, esl, qsat
+                         dvdtls, dthvdz, qvsl, qvsi, esl, qsat, w0av
     use modglobal, only: dzf, dzh, zh, zf, delta, deltai, &
                          rd, rv
     use modsurfdata, only: z0m, z0h, obl, tskin, qskin, Cm, Cs, &
@@ -138,7 +139,8 @@ contains
     !$acc&            lwdca, lwuca, swdca, swuca, &
     !$acc&            LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &
     !$acc&            LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA, &
-    !$acc&            fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p)
+    !$acc&            fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p, &
+    !$acc&            w0av)
 
     host_is_updated = .true.
 
