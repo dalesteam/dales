@@ -37,7 +37,7 @@ module modthermodynamics
   use modmicrodata,    only: imicro, imicro_bulk3, imicro_none
   use modibmdata,      only: lapply_ibm, fluid_mask
   use modslabaverage,  only: slabavg
-  use modslabaverage,  only: slabavg_r8_gpu
+  use modslabaverage,  only: slabavg_r8_gpu, slabavg_r8_gpu2
   use advec_kappa,     only: halflev_kappa
   use modprecision,    only: field_r
   use modtimer,        only: timer_tic, timer_toc
@@ -498,7 +498,7 @@ contains
     call timer_tic(routine, 1)
 
     ! 1. Compute slab averaged fields
-
+    
     !$acc parallel loop gang(static:1) default(present) async wait(1)
     !$omp target teams loop defaultmap(present:aggregate)&
     !$omp defaultmap(present:allocatable)
@@ -549,15 +549,14 @@ contains
       end do
     end do
 
+    !XXX red on cpu
     !$omp target update from(u0av, v0av, thl0av, th0av, qt0av, ql0av, sv0av)
-    !$omp target update to(u0, v0, thl0, qt0, ql0, sv0)
-
     !$acc wait
 
     ! If the IBM is enabled, exclude the building cells from the averages
     if (.not. lapply_ibm) then
-      call slabavg_r8_gpu(u0,ih,u0av)
-      call slabavg_r8_gpu(v0,ih,v0av)
+      call slabavg(u0,ih,u0av)
+      call slabavg(v0,ih,v0av)
       call slabavg(thl0,ih,thl0av)
       call slabavg(qt0,ih,qt0av)
       call slabavg(ql0,ih,ql0av)
@@ -575,13 +574,15 @@ contains
         call slabavg(sv0(:,:,:,n),fluid_mask,ih,sv0av(:,n))
       end do
     end if
+    !XXX: red on cpu
+    !$omp target update to(u0av, v0av, thl0av, qt0av, ql0av, sv0av)
 
-    !$omp target update from(u0av, v0av)!, thl0av, qt0av, ql0av, sv0av)
+    !$omp target update to(zf, zh)
 
     if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
       !$acc parallel loop gang(static:1) default(present)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+       !$omp target teams loop defaultmap(present:aggregate)&
+       !$omp defaultmap(present:allocatable)
       do k = 1, k1
         exnf(k) = 1 - grav * zf(k) / (cp * thls)
         exnh(k) = 1 - grav * zh(k) / (cp * thls)
@@ -589,8 +590,8 @@ contains
     endif
 
     !$acc parallel loop gang(static:1) default(present) async(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k = 1, k1
       th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
     end do
@@ -599,6 +600,8 @@ contains
 
     ! 2.1 Use first guess of theta, then recalculate theta
 
+    !$omp target update to(dzf,dzh)
+    !$omp target update from(th0av, exnf, exnh)
     call fromztop
 
     !$acc parallel loop gang(static:1) default(present) async(1)
@@ -812,19 +815,20 @@ contains
     ! Interpolate theta and qt to half levels
 
     !$acc parallel loop default(present) async(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !!$omp target teams loop defaultmap(present:aggregate)&
+    !!$omp defaultmap(present:allocatable)
     do k=2,k1
       thetah(k) = (th0av(k)*dzf(k-1) + th0av(k-1)*dzf(k))/(2*dzh(k))
       qth   (k) = (qt0av(k)*dzf(k-1) + qt0av(k-1)*dzf(k))/(2*dzh(k))
       qlh   (k) = (ql0av(k)*dzf(k-1) + ql0av(k-1)*dzf(k))/(2*dzh(k))
     end do
+    !!$omp target update from(thetah, qth, qlh)
 
     ! Calculate pressures at full levels
     ! Do this on the CPU for now; these loops are serial so GPU is very slow!
 
     !$acc update self(thetah, qth, qlh, th0av, qt0av, ql0av) async(1)
-!!$omp target update from(thetah,qth,qlh,th0av,qt0av,ql0av)
+    !!$omp target update from(thetah,qth,qlh,th0av,qt0av,ql0av)
     !$acc wait
 
     thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
