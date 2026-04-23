@@ -259,7 +259,7 @@ end subroutine exitslurb
     !--------------------------------------------------------------------------------------------------!
  SUBROUTINE slurb_update_external_vars
 
-    use modglobal, only : cp, rlv, cu, cv, i1, j1
+    use modglobal, only : cp, rlv, cu, cv, i1, j1, rd, rv
     use modfields, only : ql0, u0, v0, qt0, exnf, thl0
     implicit none
     INTEGER ::  i      !< loop index
@@ -285,8 +285,9 @@ end subroutine exitslurb
 
             ! K = K + J/kg /(J/kg K^-1) * (kg/kg)
             slurb_tile%pt1(i,j)  = thl0(i, j, k_atm) + (rlv/(cp * exnf(k_atm)))  * ql0(i,j,k_atm)
-            slurb_tile%q1(i,j)   = qt0(i, j, k_atm) - ql0(i, j, k_atm) !TODOSELF BUG
-            slurb_tile%vpt1(i,j) = slurb_tile%pt1(i,j) * ( 1.0_field_r + 0.61_field_r * slurb_tile%q1(i,j) )
+            slurb_tile%q1(i,j)   = qt0(i, j, k_atm)! - ql0(i, j, k_atm) !TODOSELF BUG
+            ! slurb_tile%vpt1(i,j) = slurb_tile%pt1(i,j) * ( 1.0_field_r + 0.61_field_r * slurb_tile%q1(i,j) )
+            slurb_tile%vpt1(i,j) = thl0(i,j,1)  * (1.+(rv/rd-1.)*qt0(i,j,1))
 
             du = 0.5*(u0(i,j,1) + u0(i+1,j,1)) + cu
             dv = 0.5*(v0(i,j,1) + v0(i,j+1,1)) + cv
@@ -792,7 +793,7 @@ end subroutine slurb_update_external_vars
     !--------------------------------------------------------------------------------------------------!
  SUBROUTINE init_slurb_variables
     use modfields, only : thl0, ql0, qt0, u0, v0, exnf
-    use modglobal, only : cp, rlv, cu, cv, i1, j1, ep
+    use modglobal, only : cp, rlv, cu, cv, i1, j1, ep, rd, rv
     use modsurface, only : ps
     REAL(field_r) ::  bc_atm  !< initial atmospheric boundary condition for temperature
     REAL(field_r) ::  e_s     !< initial water vapor saturation pressure
@@ -809,8 +810,8 @@ end subroutine slurb_update_external_vars
         ! in PALM pt=liquid water potential temperature
         ! this implies slurb_tile%pt1 = pt+L/cpexn ql0, slurb_tile%q1 = q - ql, vpt1 = pt1 * (1+0.61q1)
         slurb_tile%pt1(i,j)  = thl0(i, j, k_atm) + (rlv/(cp * exnf(k_atm)))  * ql0(i,j,k_atm)
-        slurb_tile%q1(i,j)   = qt0(i, j, k_atm) - ql0(i, j, k_atm)
-        slurb_tile%vpt1(i,j) = slurb_tile%pt1(i,j) * ( 1.0_field_r + 0.61_field_r * slurb_tile%q1(i,j) )
+        slurb_tile%q1(i,j)   = qt0(i, j, k_atm)! - ql0(i, j, k_atm)
+        slurb_tile%vpt1(i,j) = thl0(i,j,1)  * (1.+(rv/rd-1.)*qt0(i,j,1))
 
         
 

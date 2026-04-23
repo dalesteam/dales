@@ -1101,8 +1101,7 @@ subroutine calc_bulk_bcs
                     H(i,j)      = H(i,j)     + fraction_slurb(i,j) * slurb_tile%shf_urb(i,j)
                     LE(i,j)     = LE(i,j)    + fraction_slurb(i,j) * slurb_tile%qsws_urb(i,j)
                     ! G0(i,j)     = G0(i,j)    + tile(ilu)%frac(i,j) * tile(ilu)%G(i,j)
-                    ustar(i,j)  = ustar(i,j) + fraction_slurb(i,j) * (slurb_tile%f_bld(i,j) * slurb_tile%us_roof(i,j) &
-                                                                + (1 - slurb_tile%f_bld(i,j)) * slurb_tile%us_can(i,j))
+                    ustar(i,j)  = ustar(i,j) + fraction_slurb(i,j) * slurb_tile%us_urb(i,j)
                     tskin(i,j)  = tskin(i,j) + fraction_slurb(i,j) * slurb_tile%thlskin(i,j)
                     qskin(i,j)  = qskin(i,j) + fraction_slurb(i,j) * slurb_tile%qtskin(i,j)
                     albedo(i,j) = albedo(i,j) + fraction_slurb(i,j) * slurb_tile%albedo_urb(i,j)
