@@ -343,9 +343,9 @@ module modslurbdata
     LOGICAL ::  facade_rah_kray      = .FALSE.  !< facade resistance parameterization using Krayenhoff&Voogt (2007)
     LOGICAL ::  facade_rah_rowley    = .FALSE.  !< facade resistance parameterization using Rowley (1932)
     LOGICAL ::  roughness_kanda      = .FALSE.  !< roughness parameterization of horizontal surfaces using Kanda et al. (2007)
-    LOGICAL ::  uv_can_factor_kray   = .TRUE.  !< street canyon wind speed factor following Krayenhoff&Voogt (2007)
+    LOGICAL ::  uv_can_factor_kray   = .FALSE.  !< street canyon wind speed factor following Krayenhoff&Voogt (2007)
     LOGICAL ::  uv_can_factor_masson = .FALSE.  !< street canyon wind speed factor following Masson (2000)
-    LOGICAL ::  uv_can_factor_surfex = .FALSE.  !< street canyon wind speed factor following the SURFEX model
+    LOGICAL ::  uv_can_factor_surfex = .TRUE.  !< street canyon wind speed factor following the SURFEX model
 
     !-- Default subsurface layer configuration.
     INTEGER ::  nzt_wall  !< top of the wall model (outer surface)
