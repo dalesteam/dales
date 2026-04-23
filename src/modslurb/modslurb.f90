@@ -347,7 +347,7 @@ end subroutine slurb_update_external_vars
     integer, parameter :: rkind = kind( 1.0_field_r )
     INTEGER, DIMENSION(:,:), ALLOCATABLE ::  type_tmp  !< array to contain building type temporarily
     integer i,j,k, ncid
-    character(len=100) :: errstr
+    character(len=400) :: errstr
     
     if (lread_from_netcdf) then
         call nchandle_error(nf90_open('inslurb.'//cexpnr//'.nc', NF90_NOWRITE, ncid))
