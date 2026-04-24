@@ -18,7 +18,8 @@
 !
 !> Module for nudging prognostic fields to some provided profiles.
 module modnudge
-  use modglobal, only: i1, j1, ih, jh, kmax, rdt
+  use fortran_support, only: int2string
+  use modglobal, only: i1, j1, ih, jh, kmax, rdt, dzh, pi
   use modprecision, only: field_r
   use modtimer,     only: timer_tic, timer_toc
   use modlogging, only: finish
@@ -41,6 +42,10 @@ module modnudge
 
   logical :: ltthlnudge = .false. ! in the ASCII input, expect an additional column with thl nudge times
   logical :: lsvnudge = .false.
+  
+  ! For these, we set no default values, as they are highly case-specific.
+  real(field_r) :: z_rlx_min = -1 !< Lower bound of the nudging relaxation layer.
+  real(field_r) :: z_rlx_max = -1 !< Upper bound of the nudging relaxation layer.
 
   ! Nudging profiles
   real(field_r), allocatable :: tnudge(:,:)
@@ -76,7 +81,8 @@ contains
   subroutine initnudge
     use modmpi,     only: myid, mpierr, comm3d, D_MPI_BCAST
     use modglobal,  only: ifnamopt, fname_options, runtime, cexpnr, ifinput, &
-                               kmax, checknamelisterror, iinput, input_netcdf, nsv
+                               kmax, checknamelisterror, iinput, input_netcdf, nsv, &
+                          zf
     use modtracers, only: tracer_prop
     use fortran_support, only: nnml_output
     use modstat_nc
@@ -89,7 +95,8 @@ contains
     real, allocatable, dimension(:) :: height
 
     namelist /NAMNUDGE/ lnudge, lunudge, lvnudge, lwnudge, lthlnudge, &
-                        lqtnudge, lsvnudge, tnudgefac, ltthlnudge
+                        lqtnudge, lsvnudge, tnudgefac, ltthlnudge, &
+                        z_rlx_min, z_rlx_max
 
     if (myid == 0) then
       open(ifnamopt, file=fname_options, status='old', iostat=ierr)
@@ -107,10 +114,23 @@ contains
     call D_MPI_BCAST(lqtnudge, 1, 0, comm3d, mpierr)
     call D_MPI_BCAST(tnudgefac, 1, 0, comm3d, mpierr)
     call D_MPI_BCAST(ltthlnudge, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(z_rlx_min, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(z_rlx_max, 1, 0, comm3d, mpierr)
 
     if (.not. lnudge) return
 
     call timer_tic(routine, 0)
+
+    if (z_rlx_min < zf(1) .or. z_rlx_max > zf(kmax)) then
+      call finish(routine, "Invalid nudging relaxation layer bounds: z_rlx_min = ", z_rlx_min, &
+                   " and z_rlx_max = ", z_rlx_max, " should be within the model domain (", &
+                   zf(1), "-", zf(kmax), ")")
+    end if
+
+    if (z_rlx_min >= z_rlx_max) then
+      call finish(routine, "Invalid nudging relaxation layer bounds: z_rlx_min = ", z_rlx_min, &
+                   " should be smaller than z_rlx_max = ", z_rlx_max)
+    end if
 
     if (iinput == input_netcdf) then
       if (myid == 0) then
@@ -344,7 +364,7 @@ contains
 
   !> Perform nudging of velocities, temperature and humidity fields.
   subroutine nudge
-    use modglobal,  only: timee, rtimee, i1, j1, kmax, rdt, nsv
+    use modglobal,  only: timee, rtimee, i1, j1, kmax, rdt, nsv, zf
     use modfields,  only: up, vp, wp, thlp, qtp, u0av, v0av, qt0av, thl0av, &
                           svp, sv0av, w0av
     use modtracers, only: tracer_prop
@@ -380,8 +400,14 @@ contains
     if (lsvnudge) then
       do n = 1, nsv
         if (tracer_prop(n) % lnudge) then
-          call nudge_field(sv0av(:,n), svnudge(:,:,n), tsvnudge(:,:,n), t, dtm, dtp, &
-                   svp(:,:,:,n))
+          if (tracer_prop(n)%lnudge_use_rlx) then
+            call nudge_field(sv0av(:,n), svnudge(:,:,n), tsvnudge(:,:,n), t, &
+                             dtm, dtp, svp(:,:,(2-ih):,n), lrlx=.true., &
+                             z_rlx_min=z_rlx_min, z_rlx_max=z_rlx_max)
+          else
+            call nudge_field(sv0av(:,n), svnudge(:,:,n), tsvnudge(:,:,n), t, dtm, dtp, &
+                     svp(:,:,:,n))
+          end if
         end if
       end do
     end if
@@ -391,35 +417,86 @@ contains
     call timer_toc(routine)
   end subroutine nudge
 
-  subroutine nudge_field(phi_av, phi_tgt, timescale, t, &
-                         dtm, dtp, phi_p)
+  subroutine nudge_field(phi_av, phi_tgt, timescale, t, dtm, dtp, phi_p, &
+                         lrlx, z_rlx_min, z_rlx_max)
     
     real(field_r), intent(in) :: phi_av(:)      !< Slab average of the field to nudge.
     real(field_r), intent(in) :: phi_tgt(:,:)   !< Target profile (dims: kmax, ntime).
     real(field_r), intent(in) :: timescale(:,:) !< Nudging timescale (dims: kmax, ntime).
     integer,       intent(in) :: t              !< Index of the current nudging time step.
-    real(field_r), intent(in) :: dtm            
+    real(field_r), intent(in) :: dtm
     real(field_r), intent(in) :: dtp
 
     real(field_r), intent(inout) :: phi_p(2-ih:,2-jh:,:)
 
+    logical,       intent(in), optional :: lrlx      !< Whether to apply a relaxation layer in the free troposphere.
+    real(field_r), intent(in), optional :: z_rlx_min !< Minimum index for nudging (1 for full domain nudging, inversion height + 1 for tropospheric nudging).
+    real(field_r), intent(in), optional :: z_rlx_max !< Top level of the relaxation layer
+
+    character(len=*), parameter :: routine = modname//"/nudge_field"
+
     integer :: i, j, k
 
     real(field_r) :: currtnudge
+    logical       :: do_relax
 
-    !$acc parallel loop collapse(3) default(present) private(currtnudge) async
-    do k = 1, kmax
-      do j = 2, j1
-        do i = 2, i1
-          currtnudge = max(1.0_field_r * rdt, &
-                           timescale(k,t) * dtp + timescale(k,t + 1) * dtm)
-          phi_p(i,j,k) = phi_p(i,j,k) - (phi_av(k) - (phi_tgt(k,t) * dtp + &
-                         phi_tgt(k,t + 1) * dtm)) / currtnudge
+    if (present(lrlx)) do_relax = lrlx
+
+    if (do_relax) then
+      if (.not. present(z_rlx_min) .or. .not. present(z_rlx_max)) then
+        call finish(routine, "If lrlx is set to true, z_rlx_min and z_rlx_max should be provided")
+      end if
+
+      !$acc parallel loop collapse(3) default(present) private(currtnudge) async
+      do k = 1, kmax
+        do j = 2, j1
+          do i = 2, i1
+            currtnudge = max(1.0_field_r * rdt, &
+                             timescale(k,t) * dtp + timescale(k,t + 1) * dtm)
+            phi_p(i,j,k) = phi_p(i,j,k) - (phi_av(k) - (phi_tgt(k,t) * dtp + &
+                           phi_tgt(k,t + 1) * dtm)) / (currtnudge * &
+                           gamma_nudge(zf(k), z_rlx_min, z_rlx_max))
+          end do
         end do
       end do
-    end do
+    else
+      !$acc parallel loop collapse(3) default(present) private(currtnudge) async
+      do k = 1, kmax
+        do j = 2, j1
+          do i = 2, i1
+            currtnudge = max(1.0_field_r * rdt, &
+                             timescale(k,t) * dtp + timescale(k,t + 1) * dtm)
+            phi_p(i,j,k) = phi_p(i,j,k) - (phi_av(k) - (phi_tgt(k,t) * dtp + &
+                           phi_tgt(k,t + 1) * dtm)) / currtnudge
+          end do
+        end do
+      end do
+    end if
 
-  end subroutine nudge_field 
+  end subroutine nudge_field
+
+  !> Compute the nudging rate in the nudging relaxation layer.
+  !!
+  !! See Blossey et al. (2013).
+  pure function gamma_nudge(z, z_rlx_min, z_rlx_max) result(gamma_n)
+    !$acc routine seq
+
+    real(field_r), intent(in) :: z
+    real(field_r), intent(in) :: z_rlx_min
+    real(field_r), intent(in) :: z_rlx_max
+
+    real(field_r) :: gamma_n
+
+    if (z <= z_rlx_min) then
+      gamma_n = 0
+    else if (z > z_rlx_min .and. z < z_rlx_max) then ! Note: kmax is *not* the top level of the model here.
+      gamma_n = 0.5_field_r &
+                * (1 - cos(pi * (z - z_rlx_min) / (z_rlx_max - z_rlx_min)))
+    else
+      gamma_n = 1
+    end if
+
+  end function gamma_nudge
 
   !> Deallocates memory.
   subroutine exitnudge
