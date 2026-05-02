@@ -450,8 +450,8 @@ program DALES
   call exitcanopy
   call exittimestat
   call exitnudgeboundary  !cstep
-  call exitmodules
   call exit_profiles
+  call exitmodules
   call exitlogging
 
 
