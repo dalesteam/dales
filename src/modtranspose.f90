@@ -34,11 +34,7 @@ module modtranspose
     procedure :: z_to_y => transpose_z_to_y
   end type t_transposer
 
-#if POIS_PRECISION == 64
-  type(MPI_DATATYPE), parameter :: MPI_DTYPE = MPI_REAL8
-#else
-  type(MPI_DATATYPE), parameter :: MPI_DTYPE = MPI_REAL4
-#endif
+  type(MPI_DATATYPE) :: MPI_DTYPE
 
 contains
 
@@ -100,6 +96,12 @@ contains
     integer :: i, j, k, n, ii
     integer :: n1, n2, n3
     integer :: mpierr
+
+#if POIS_PRECISION == 64
+     MPI_DTYPE = MPI_REAL8
+#else
+     MPI_DTYPE = MPI_REAL4
+#endif
 
     if (ltimer) call timer_tic(routine, 2)
 

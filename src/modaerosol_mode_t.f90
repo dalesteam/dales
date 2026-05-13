@@ -62,18 +62,18 @@ module modaerosol_mode_t
 
   interface
     subroutine mode_t_prepare(this, sv)
-      import :: mode_t, field_r
+      import :: mode_t, field_r, ih, jh
       class(mode_t), intent(inout) :: this
-      real(field_r), intent(in) :: sv(:,:,:,:)
+      real(field_r), intent(in) :: sv(2-ih:,2-jh:,:,:)
     end subroutine mode_t_prepare
   end interface
 
   interface
     subroutine mode_t_finish(this, svp, svm, delt)
-      import :: mode_t, field_r
+      import :: mode_t, field_r, ih, jh
       class(mode_t), intent(inout) :: this
-      real(field_r), intent(inout) :: svp(:,:,:,:)
-      real(field_r), intent(in) :: svm(:,:,:,:)
+      real(field_r), intent(inout) :: svp(2-ih:,2-jh:,:,:)
+      real(field_r), intent(in) :: svm(2-ih:,2-jh:,:,:)
       real(field_r), intent(in) :: delt
     end subroutine mode_t_finish
   end interface
