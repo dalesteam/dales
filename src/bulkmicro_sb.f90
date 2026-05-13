@@ -29,6 +29,8 @@ module bulkmicro_sb
 
   private
 
+  character(len=*), parameter :: modname = 'bulkmicro_sb'
+
   public :: autoconversion_sb
   public :: accretion_sb
   public :: evaporation_sb
@@ -104,6 +106,8 @@ contains
 
     real(field_r), intent(inout), optional :: Ncp(2:,2:,:)
 
+    character(len=*), parameter :: routine = modname//'/autoconversion_sb'
+
     ! CJ: we declare Ncp as an optional argument, because it may or may not be
     ! allocated depending whether or not prognositc CCN is enabled. If Ncp is
     ! not allocated, the expression present(Ncp) will equate to .false.
@@ -118,9 +122,12 @@ contains
       k_au, & !< Coefficient for autoconversion rate
       sc
 
-    if (qcbase > qcroof) return
+    call timer_tic(routine, 1)
 
-    call timer_tic('bulkmicro_sb/autoconversion', 1)
+    if (qcbase > qcroof) then
+      call timer_toc(routine)
+      return
+    end if
 
     k_au = k_c / (20 * x_s)
 
@@ -155,7 +162,7 @@ contains
       end do
     end do
 
-    call timer_toc('bulkmicro_sb/autoconversion')
+    call timer_toc(routine)
 
   end subroutine autoconversion_sb
 
@@ -194,6 +201,8 @@ contains
 
     real(field_r), intent(inout), optional :: Ncp(2:,2:,:)
 
+    character(len=*), parameter :: routine = modname//'/accretion_sb'
+
     integer :: i,j,k
 
     real(field_r) :: ac, sc, br
@@ -202,9 +211,12 @@ contains
     real(field_r) :: tau     !  internal time scale
     real(field_r) :: xr, dvr, mur, lbdr, xc
 
-    if (max(qrbase, qcbase) > min(qrroof, qcroof)) return
+    call timer_tic(routine, 1)
 
-    call timer_tic('bulkmicro_sb/accretion', 1)
+    if (max(qrbase, qcbase) > min(qrroof, qcroof)) then
+      call timer_toc(routine)
+      return
+    end if
 
     !$acc parallel loop collapse(3) default(present)
     do k = max(qrbase,qcbase), min(qrroof, qcroof)
@@ -229,7 +241,10 @@ contains
       end do
     end do
 
-    if (qrbase > qrroof) return
+    if (qrbase > qrroof) then
+      call timer_toc(routine)
+      return
+    end if
 
     !$acc parallel loop collapse(3) default(present)
     do k = qrbase, qrroof
@@ -256,7 +271,7 @@ contains
       end do
     end do
 
-    call timer_toc('bulkmicro_sb/accretion')
+    call timer_toc(routine)
 
   end subroutine accretion_sb
 
@@ -306,6 +321,8 @@ contains
     real(field_r), intent(inout) :: qtpmcr(2-ih:i1+ih,2-jh:j1+jh,1:k1)
     real(field_r), intent(inout) :: thlpmcr(2:i1,2:j1,1:k1)
 
+    character(len=*), parameter :: routine = modname//'/evaporation_sb'
+
     integer       :: i,j,k
     integer       :: numel
     real(field_r) :: F !< ventilation factor
@@ -314,9 +331,12 @@ contains
     real(field_r) :: evap, Nevap
     real(field_r) :: xr, dvr, mur, lbdr
 
-    if (qrbase > qrroof) return
+    call timer_tic(routine, 1)
 
-    call timer_tic('bulkmicro_sb/evaporation', 1)
+    if (qrbase > qrroof) then
+      call timer_toc(routine)
+      return
+    end if
 
     !$acc parallel loop collapse(3) default(present)
     do k = qrbase, qrroof
@@ -362,7 +382,7 @@ contains
       end do
     end do
 
-    call timer_toc('bulkmicro_sb/evaporation')
+    call timer_toc(routine)
 
   end subroutine evaporation_sb
 
@@ -455,6 +475,8 @@ contains
     real(field_r), intent(inout) :: Nrp(2:i1,2:j1,1:k1)
     real(field_r), intent(out)   :: precep(2:i1,2:j1,1:k1)
 
+    character(len=*), parameter :: routine = modname//'/sedimentation_rain_sb'
+
     integer       :: i, j, k, jn
     integer       :: n_spl      !<  sedimentation time splitting loop
     real(field_r) :: pwcont
@@ -469,12 +491,15 @@ contains
 
     real(field_r) :: dt_spl
 
-    call timer_tic('bulkmicro_sb/sedimentation_rain', 1)
+    call timer_tic(routine, 1)
 
     precep(:,:,:) = 0 ! zero the precipitation flux field
                       ! the update below is not always performed
 
-    if (qrbase > qrroof) return
+    if (qrbase > qrroof) then
+      call timer_toc(routine)
+      return
+    end if
 
     allocate(qr_spl(2:i1,2:j1,1:k1))
     allocate(Nr_spl(2:i1,2:j1,1:k1))
@@ -574,7 +599,7 @@ contains
 
     deallocate(qr_spl, Nr_spl)
 
-    call timer_toc('bulkmicro_sb/sedimentation_rain')
+    call timer_toc(routine)
 
   end subroutine sedimentation_rain_sb
 #else
@@ -594,6 +619,8 @@ contains
     real(field_r), intent(inout) :: qrp(2:i1,2:j1,1:k1)
     real(field_r), intent(inout) :: Nrp(2:i1,2:j1,1:k1)
     real(field_r), intent(out)   :: precep(2:i1,2:j1,1:k1)
+
+    character(len=*), parameter :: routine = modname//'/sedimentation_rain_sb'
 
     integer       :: i, j, k, jn, sedimbase
     integer       :: n_spl      !<  sedimentation time splitting loop
@@ -620,9 +647,12 @@ contains
       end do
     end do
 
-    if (qrbase > qrroof) return
+    call timer_tic(routine, 1)
 
-    call timer_tic('bulkmicro_sb/sedimentation_rain', 1)
+    if (qrbase > qrroof) then
+      call timer_toc(routine)
+      return
+    end if
 
     allocate(qr_spl(2:i1,2:j1,1:k1))
     allocate(Nr_spl(2:i1,2:j1,1:k1))
@@ -858,7 +888,7 @@ contains
 
     deallocate(qr_spl, Nr_spl, qr_tmp, Nr_tmp)
 
-    call timer_toc('bulkmicro_sb/sedimentation_rain')
+    call timer_toc(routine)
 
   end subroutine sedimentation_rain_sb
 #endif
