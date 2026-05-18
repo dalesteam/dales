@@ -35,7 +35,7 @@ module modstat_profiles
   end interface sample_field
 
   ! Namelist options
-  logical :: lstat
+  logical :: lstat = .false.
   logical :: lprocblock = .false.
   real    :: dtav, timeav
 

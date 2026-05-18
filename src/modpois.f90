@@ -108,11 +108,12 @@ contains
     else
       ! HYPRE based solver
 
-      ! using FFT based solver as fallback
+      ! by default, DALES does not fallback on FFT based solver when HYPRE doesn't converge. If you do want that:
+      ! (1) uncomment this line, and
       !call fft2dinit(p, Fp, d, xyrt, ps,pe,qs,qe)
 
-      !NOTE: If you don't want to do that, you will need the line below
-      !allocate(p(2-ih:i1+ih,2-jh:j1+jh,kmax))
+      ! 2) comment out this line
+      allocate(p(2-ih:i1+ih,2-jh:j1+jh,kmax))
 
       call inithypre_grid
       call inithypre_solver(psolver,solver_id,maxiter,tolerance,precond_id,n_pre,n_post,maxiter_precond)

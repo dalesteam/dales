@@ -91,11 +91,13 @@ contains
       dt_lim = minval((/dt_lim,timepulse-timee/))
       return
     end if
-    if (timee>=timepulse) then
+    if (abs(timee-timepulse)<1e-3) then
       if (myid==0) then
         print *, 'Performing scalar pulse...'
       end if
       call do_scalarpulse
+      lscalarpulse = .false.
+    elseif (timee>timepulse) then
       lscalarpulse = .false.
     end if
 
@@ -133,9 +135,6 @@ contains
         exit
       end if
     end do
-    if (myid == 0) then
-      print *, 'kstart, kend', kstart, kend
-    end if
 
     ! Apply the perturbation
     if (lcpmip) then
@@ -159,9 +158,9 @@ contains
           else
             qtpulse = 0
           end if
-          if (myid == 0) then
-            print *, 'x, y, qtpulse', xf, yf, qtpulse
-          end if
+          !if (myid == 0) then
+          !  print *, 'x, y, qtpulse', xf, yf, qtpulse
+          !end if
           do k=kstart,kend
             qtm(i,j,k) = qtm(i,j,k) + qtpulse
           end do

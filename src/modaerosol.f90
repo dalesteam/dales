@@ -12,8 +12,9 @@ module modaerosol
                                    aerosol_scavenging_cloud_lut
   use modglobal,             only: ifnamopt, fname_options, &
                                    checknamelisterror, cexpnr, i1, j1, k1, ih, &
-                                   jh, pi, nsv, rhow, kmax, rk3step, rd, pirhow
-  use modfields,             only: sv0, svp
+                                   jh, pi, nsv, rhow, kmax, rk3step, rd, pirhow, &
+                                   timee, rk3step, cp, rlv
+  use modfields,             only: sv0, svp, svm, ql0
   use modmicrodata,          only: qcmin, delt
   use modmpi,                only: myid, D_MPI_BCAST, commwrld, mpierr
   use modprecision,          only: field_r
@@ -69,6 +70,11 @@ module modaerosol
 
   type(hydrometeor_mode_t), target :: &
     modes_h(iINC:iINR) ! List of in-hydrometeor modes. (currently only cloud and rain)
+
+  real(field_r), pointer :: &
+    qr_spl(:,:,:),          & ! Rain water content at sub-timesteps.
+    nr_spl(:,:,:),          & ! Rain number concentration at sub-timesteps.
+    qa_spl(:,:,:,:)           ! Aerosol mass at sub-timesteps.
 
 contains
 
@@ -159,6 +165,12 @@ contains
 
     allocate(sed_qr(2:i1,2:j1,k1), qlm(2:i1,2:j1,k1))
 
+    allocate(qr_spl(2:i1,2:j1,1:k1), nr_spl(2:i1,2:j1,1:k1), &
+             qa_spl(1:modes_h(iINR)%nspecies,2:i1,2:j1,1:k1))
+
+    !$acc enter data create(qr_spl(2:i1,2:j1,1:k1), nr_spl(2:i1,2:j1,1:k1), &
+    !$acc                   qa_spl(1:modes_h(iINR)%nspecies,2:i1,2:j1,1:k1))
+
     sed_qr(:,:,:) = 0
     qlm(:,:,:) = 0
 
@@ -174,14 +186,26 @@ contains
     character(len=*), parameter :: &
       routine = modname//'/aerosol_prepare'
 
-    integer :: &
-      imod
+    integer :: i, j, k, imod
 
     call timer_tic(routine, 2)
+
+    !$acc wait
 
     do imod = 1, maxmodes
       call modes(imod)%p%prepare(sv0)
     end do
+
+    if (rk3step == 3 .or. timee < 0.01) then
+      !$acc parallel loop collapse(3) default(present)
+      do k = 1, k1
+        do j = 2, j1
+          do i = 2, i1
+            qlm(i,j,k) = ql0(i,j,k)
+          end do
+        end do
+      end do
+    end if
 
     !$acc wait
 
@@ -200,8 +224,10 @@ contains
 
     call timer_tic(routine, 2)
 
+    !$acc wait
+
     do imod = 1, maxmodes
-      call modes(imod)%p%finish(svp)
+      call modes(imod)%p%finish(svp, svm, delt)
     end do
 
     !$acc wait
@@ -271,6 +297,7 @@ contains
       do j = 2, j1
         do i = 2, i1
           if (ql(i,j,k) > qcmin) then
+            n_act = 0
             if (m_ais%nspecies > 0) then
               dm = calc_median_diameter(m_ais%n(i,j,k), m_ais%q(:,i,j,k), &
                                         m_ais%rho, m_ais%sig_g)
@@ -278,10 +305,10 @@ contains
               fn = 1 - 0.5_field_r * erfc(-log(2 * r_crit / &
                    dm + 1E-30) / (sqrt(2.0_field_r) * log(m_ais%sig_g)))
               end if
+              n_act = 1E-6 * fn * m_ais%n(i,j,k)
             end if
 
-            n_act = 1E-6 * (m_acs%n(i,j,k) + m_cos%n(i,j,k) + &
-                            fn * m_ais%n(i,j,k))
+            n_act = n_act + 1E-6 * (m_acs%n(i,j,k) + m_cos%n(i,j,k))
 
             w0 = max(0.0_field_r, w(i,j,k))
             dncdt = 1E6 / delt * &
@@ -386,6 +413,8 @@ contains
     real(field_r) :: &
       dqadt ! Tendency of in-rain aerosol
 
+    real(field_r) :: frac
+
     call timer_tic(routine, 2)
 
     m_inc => modes_h(iINC)
@@ -397,6 +426,7 @@ contains
         do i = 2, i1
           do s = 1, m_inc%nspecies
             if (qrp(i,j,k) > 0) then
+              frac = min(max(qrp(i,j,k) / qc(i,j,k), 0.0_field_r), 1.0_field_r)
               dqadt = qrp(i,j,k) / qc(i,j,k) * m_inc%q(s,i,j,k)
               m_inc%qp(s,i,j,k) = m_inc%qp(s,i,j,k) - dqadt
               m_inr%qp(s,i,j,k) = m_inr%qp(s,i,j,k) + dqadt
@@ -434,7 +464,7 @@ contains
       modname//'/aerosol_resuspend_rain'
 
     real(field_r), parameter :: &
-      Dc = 1E-9 ! Diameter separating the accumulation and coarse modes.
+      Dc = 1E-6 ! Diameter separating the accumulation and coarse modes.
 
     class(aerosol_mode_t), pointer :: &
       m_acs, & ! Soluble accumulation mode.
@@ -491,6 +521,10 @@ contains
             fm = 0.5_field_r * erfc(-log(dc/(dm + 1E-40)) &
                                     / (log(1.5_field_r) * sqrt(2.0_field_r)))
 
+
+            fn = min(max(fn, 0.0_field_r), 1.0_field_r)
+            fm = min(max(fm, 0.0_field_r), 1.0_field_r)
+
             m_acs%np(i,j,k) = m_acs%np(i,j,k) + fn * evapn
             m_cos%np(i,j,k) = m_cos%np(i,j,k) + (1 - fn) * evapn
 
@@ -531,7 +565,7 @@ contains
       routine = modname//'/aero_resuspend_cloud'
 
     real(field_r), parameter :: &
-      Dc = 1E-9 ! Diameter separating the accumulation and coarse modes.
+      Dc = 1E-6 ! Diameter separating the accumulation and coarse modes.
 
     class(aerosol_mode_t), pointer :: &
       m_acs, & ! Soluble accumulation mode.
@@ -604,17 +638,6 @@ contains
       end do
     end do
 
-    if (rk3step == 3) then
-      !$acc parallel loop collapse(3) default(present)
-      do k = 1, k1
-        do j = 2, j1
-          do i = 2, i1
-            qlm(i,j,k) = ql(i,j,k)
-          end do
-        end do
-      end do
-    end if
-
     call timer_toc(routine)
 
   end subroutine aerosol_resuspend_cloud
@@ -656,20 +679,10 @@ contains
       dt_spl,        & ! Sub-timestep size.
       sed_nr           ! Sedimentation rate of number concentration.
 
-    real(field_r), pointer :: &
-      qr_spl(:,:,:),          & ! Rain water content at sub-timesteps.
-      nr_spl(:,:,:),          & ! Rain number concentration at sub-timesteps.
-      qa_spl(:,:,:,:)           ! Aerosol mass at sub-timesteps.
-
     call timer_tic(routine, 2)
 
     m_inr => modes_h(iINR)
 
-    allocate(qr_spl(2:i1,2:j1,1:k1), nr_spl(2:i1,2:j1,1:k1), &
-             qa_spl(1:m_inr%nspecies,2:i1,2:j1,1:k1))
-
-    !$acc enter data create(qr_spl(2:i1,2:j1,1:k1), nr_spl(2:i1,2:j1,1:k1), &
-    !$acc                   qa_spl(1:m_inr%nspecies,2:i1,2:j1,1:k1))
 
     n_spl = ceiling(9.9 * delt / minval(dzf))
     dt_spl = delt / real(n_spl, kind=field_r)
@@ -710,8 +723,10 @@ contains
                                                rho(k))
                 sed_nr = calc_sed_nr_kk(qr_spl(i,j,k), nr_spl(i,j,k), rho(k))
               end if
+              !$acc atomic update
               qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr(i,j,k) * dt_spl &
                               / (dzf(k) * rho(k))
+              !$acc atomic update
               nr_spl(i,j,k) = nr_spl(i,j,k) - sed_nr * dt_spl / dzf(k)
               if (k > 1) then
                 !$acc atomic update
@@ -721,6 +736,7 @@ contains
                 nr_spl(i,j,k-1) = nr_spl(i,j,k-1) + sed_nr * dt_spl / dzf(k-1)
               end if
               do s = 1, m_inr%nspecies
+                !$acc atomic update
                 qa_spl(s,i,j,k) = qa_spl(s,i,j,k) - sed_qr(i,j,k) / qr_spl(i,j,k) &
                                   * qa_spl(s,i,j,k) * dt_spl / (dzf(k) * rho(k))
                 if (k > 1) then
@@ -747,10 +763,6 @@ contains
         end do
       end do
     end do
-
-    !$acc exit data delete(qr_spl, nr_spl, qa_spl)
-
-    deallocate(qr_spl, nr_spl, qa_spl)
     
     call timer_toc(routine)
 

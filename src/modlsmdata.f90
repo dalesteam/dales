@@ -123,7 +123,7 @@ module modlsmdata
   end type T_lsm_tile
 
   !Tiles for all LU types
-  integer :: ilu, nlu, ilu_ws
+  integer :: ilu, nlu = 0, ilu_ws
   type(T_lsm_tile), allocatable :: tile(:)
 
   ! Land-surface / van Genuchten parameters from NetCDF input table.

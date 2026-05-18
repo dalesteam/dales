@@ -25,12 +25,12 @@
 
 module modtracers
 
+  use fortran_support, only: split_string
   use modglobal,      only: nsv, i1, ih, j1, jh, k1, kmax, cexpnr, iinput, &
                             input_ascii
   use modprecision,   only: field_r
   use modfields,      only: svm, sv0, svp, sv0av, svprof, dsvdtls
   use modmpi,         only: myid, comm3d, d_mpi_bcast, print_info_stderr
-  use go,             only: goSplitString_s
   use modstat_nc
   use utils
   use modtracer_type, only: T_tracer  ! Use the type from modtracer_type
@@ -99,10 +99,10 @@ contains
     else
 #ifndef _OPENACC
       ! BUG: broken with nvhpc 25.11
-      call warning(routine, trim(file_profs)//' not found')
+      if (myid == 0) call warning(routine, trim(file_profs)//' not found')
 #else
       l = len(trim(file_profs))
-      call warning(routine, file_profs(1:l)//' not found')
+      if (myid == 0) call warning(routine, file_profs(1:l)//' not found')
 #endif
       nsv_user = 0
     end if
@@ -281,10 +281,14 @@ contains
     integer,          parameter :: max_tracs = 100 !< Max. number of tracers that can be defined
 
     character(len=512) :: line
-    character(len=7)   :: headers(max_tracs)
+    character(len=512) :: header_line
+    character(len=16)  :: header
+    integer            :: header_pos(max_tracs)
+    integer            :: header_len(max_tracs)
     integer            :: ierr
     integer            :: nheader
     integer            :: isv, n
+    integer            :: start, end
 
     ! Buffers for tracer properties
     character(len=10) :: tracname_short(max_tracs) = 'NA'
@@ -304,11 +308,11 @@ contains
       call finish(routine, 'Error opening '//trim(file_profiles))
     end if
 
-    read(1, '(a512)') line
-    read(1, '(a512)') line
+    read(1, '(a512)') header_line
+    read(1, '(a512)') header_line
 
     ! Determine the number of tracers from the header
-    call goSplitString_s(line, nheader, headers, ierr, sep=' ')
+    call split_string(header_line, nheader, header_pos, header_len)
 
     nsv_user = nheader - 1
 
@@ -349,26 +353,29 @@ contains
 
     ! For every tracer, find the properties
     do n = 2, nheader ! Skip the first column, containing the heights
+      start = header_pos(n)
+      end = header_pos(n) + header_len(n) - 1
+      header = header_line(start:end)
       call add_tracer( &
-        name=trim(headers(n)), &
-        long_name=trim(findval(headers(n), tracname_short, tracname_long, &
-                               defltvalue='dummy longname')), & ! Default is 'dummy '
-        unit=trim(findval(headers(n), tracname_short, &
-                    tracer_unit, defltvalue='dummy unit')), & ! Default is 'dummy unit'
-        molar_mass=findval(headers(n), tracname_short, &
-                     molar_mass, defltvalue=-999._field_r), & ! Default is -999.
-        lemis=findval(headers(n), tracname_short, &
-                tracer_is_emitted, defltvalue=.false.), & ! Default is False
-        lreact=findval(headers(n), tracname_short, &
-                 tracer_is_reactive, defltvalue=.false.), & ! Default is False
-        ldep=findval(headers(n), tracname_short, &
+        name=trim(header), &
+        long_name=trim(findval(header, tracname_short, tracname_long, &
+                   defltvalue='dummy longname')), & ! Default is 'dummy '
+        unit=trim(findval(header, tracname_short, &
+              tracer_unit, defltvalue='dummy unit')), & ! Default is 'dummy unit'
+        molar_mass=findval(header, tracname_short, &
+               molar_mass, defltvalue=-999._field_r), & ! Default is -999.
+        lemis=findval(header, tracname_short, &
+          tracer_is_emitted, defltvalue=.false.), & ! Default is False
+        lreact=findval(header, tracname_short, &
+           tracer_is_reactive, defltvalue=.false.), & ! Default is False
+        ldep=findval(header, tracname_short, &
                tracer_is_deposited, defltvalue=.false.), & ! Default is False
-        lags=findval(headers(n), tracname_short, &
+        lags=findval(header, tracname_short, &
                tracer_is_photosynth, defltvalue=.false.), & ! Default is False
-        lmicro=findval(headers(n), tracname_short, &
-                 tracer_is_microphys, defltvalue=.false.), & ! Default is False
-        wsvsurf=findval(headers(n), tracname_short, &
-                  wsvsurf, defltvalue=0.0_field_r) &
+        lmicro=findval(header, tracname_short, &
+           tracer_is_microphys, defltvalue=.false.), & ! Default is False
+        wsvsurf=findval(header, tracname_short, &
+            wsvsurf, defltvalue=0.0_field_r) &
       )
     end do
 

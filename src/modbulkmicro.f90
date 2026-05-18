@@ -473,6 +473,10 @@ module modbulkmicro
       end if
 
       if(laerosol) call aerosol_scavenging_rain(qr, nr, rhof, delt)
+
+      !$acc exit data delete(qrp_tmp, nrp_tmp)
+
+      deallocate(qrp_tmp, nrp_tmp)
     
     end if
 
@@ -502,10 +506,6 @@ module modbulkmicro
       end do
 
     end if
-
-    !$acc exit data delete(qrp_tmp, nrp_tmp)
-
-    if (l_rain) deallocate(qrp_tmp, nrp_tmp)
 
     if (laerosol) then
       !$acc exit data delete(ncp_tmp, qlp_tmp)

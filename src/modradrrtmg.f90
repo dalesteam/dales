@@ -156,7 +156,7 @@ contains
       end if
       call readTraceProfs
 
-      call message(routine, 'Trace gas profile have been read')
+      call message(routine, 'Trace gas profile have been read',all_print=.false.)
       isReadTraceProfiles = .true.
     end if
 
@@ -651,7 +651,7 @@ contains
                                            cloudFrac(imax,krad1), &
                                            liquidRe (imax,krad1), &
                                            iceRe    (imax,krad1), &
-                                           emis     (imax,krad1)
+                                           emis     (imax,16)
       integer :: i,k,ksounding,im
       real(KIND=kind_rb) :: exners
       real(KIND=kind_rb) :: layerMass(imax,krad1)
@@ -692,7 +692,10 @@ contains
 
         !tg_slice  (im)   = sst
         tg_slice  (im)   = tskin(i,j) * exners  ! Note: tskin = thlskin...
-
+        ! Surface emissivity for all bands set from modsurface.
+        ! Currently this is calculated every radiation call, want to move this to initradiation ideally,
+        ! but we need to allow modslurb to initialize to get the emissivity...
+        emis      (im,:) = emissivity(i,j)
         do k=1,kmax
           ! Surface emissivity for all bands set from modsurface.
           ! Currently this is calculated every radiation call, want to move this to initradiation ideally,

@@ -162,7 +162,7 @@ contains
       do j = 2, j1
         do i = 2, i1
           sed_qr = calc_sed_qr_sb(qr(i,j,k), nr(i,j,k), rho(k)) * 3600
-          if (qr(i,j,k) > qrmin .and. sed_qr > 0.01) then
+          if (qr(i,j,k) > qrmin .and. sed_qr > 0.01 .and. f_mode%nspecies > 0) then
             sed_qr = log(sed_qr)
             sed_qr = min(max(sed_qr, -4.60517_field_r), 4.60517_field_r)
 
@@ -236,7 +236,7 @@ contains
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
-          if (qc(i,j,k) > qcmin) then
+          if (qc(i,j,k) > qcmin .and. f_mode%nspecies > 0) then
             rc = 1E6 * (3 * qc(i,j,k) * rho(k) &
                   / (4 * pi * nc(i,j,k) * rhow + 1E-16))**(1.0_field_r / 3)
             rc = log(rc)
