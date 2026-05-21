@@ -329,9 +329,16 @@ contains
     i = binary_search(xc, x)
     j = binary_search(yc, y)
 
+    if (i == size(xc)) then
+      i = i - 1
+    end if
+
+    if (j == size(yc)) then
+      j = j - 1
+    end if
+
     x1 = xc(i)
     x2 = xc(i+1)
-
     y1 = yc(j)
     y2 = yc(j+1)
 
