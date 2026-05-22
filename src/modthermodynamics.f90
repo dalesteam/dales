@@ -58,6 +58,7 @@ module modthermodynamics
   logical :: lnoclouds = .false.   !< Switch to enable/disable thl calculations.
   logical :: lconstexner = .false. !< Switch to use the initial pressure profile in the exner function.
   logical :: lbaseexner = .false.  !< Switch to use the base pressure profile in the exner function.
+  logical :: lexp_thl = .false.    !< Switch to do saturation adjustment with exponential thl expression.
 
   real, allocatable :: th0av(:)
   real(field_r), allocatable :: thv0(:,:,:)
@@ -96,7 +97,7 @@ contains
     logical :: lqlnr = .true. !< deprecated and ignored, kept for compatibility
 
     namelist /thermodynamics/ lmoist, chi_half, lconstexner, lbaseexner, &
-                              lnoclouds, lqlnr
+                              lnoclouds, lqlnr, lexp_thl
 
     if (myid == 0) then
       open(ifnamopt, file=nml_filename, status='old', action='read', &
@@ -111,6 +112,7 @@ contains
     call d_mpi_bcast(chi_half, 1, 0, commwrld, ierr)
     call d_mpi_bcast(lconstexner, 1, 0, commwrld, ierr)
     call d_mpi_bcast(lbaseexner, 1, 0, commwrld, ierr)
+    call d_mpi_bcast(lexp_thl, 1, 0, commwrld, ierr)
 
   end subroutine thermodynamics_read_namelist
 
@@ -206,7 +208,11 @@ contains
 #if defined(DALES_GPU)
       call saturation_adjustment_gpu(qt0, thl0, presf, exnf, ql0, opt_stream=1)
 #else
-      call saturation_adjustment(qt0, thl0, presf, exnf, ql0, opt_stream=1)
+      if (lexp_thl) then
+         call saturation_adjustment_exp(qt0, thl0, presf, exnf, ql0, opt_stream=1)
+      else
+         call saturation_adjustment(qt0, thl0, presf, exnf, ql0, opt_stream=1)
+      end if
 #endif
 
       call diagfld
@@ -219,7 +225,11 @@ contains
 #if defined(DALES_GPU)
       call saturation_adjustment_gpu(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1)
 #else
-      call saturation_adjustment(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1)
+      if (lexp_thl) then
+         call saturation_adjustment_exp(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1)
+      else
+         call saturation_adjustment(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1)
+      end if
 #endif
 
       if (imicro /= imicro_none) then
@@ -356,9 +366,13 @@ contains
             dthv = del_thv_dry
 
             if  (ql0(i,j,k)> 0) then  !include moist thermodynamics
+               if (.not. lexp_thl) then
+                  temp = thl0(i,j,k)*exnf(k)+(rlv/cp)*ql0(i,j,k)
+                  tmp0(i,j,k) = temp !stored for statistics
+               else
+                  temp = tmp0(i,j,k)
+               end if
 
-               temp = thl0(i,j,k)*exnf(k)+(rlv/cp)*ql0(i,j,k)
-               tmp0(i,j,k) = temp !stored for statistics
                qs   = qt0(i,j,k) - ql0(i,j,k)
 
                a_moist = (1-qt0(i,j,k)+qs/epsilon*(1+rlv/(rv*temp))) &
@@ -375,7 +389,9 @@ contains
                  dthv = del_thv_sat
               end if
             else
-                tmp0(i,j,k) = thl0(i,j,k)*exnf(k) !stored for statistics
+                if (.not. lexp_thl) then
+                   tmp0(i,j,k) = thl0(i,j,k)*exnf(k) !stored for statistics
+                end if
             end if
 
             dthvdz(i,j,k) = dthv/(dzh(k+1)+dzh(k))
@@ -387,15 +403,22 @@ contains
       do j=2,j1
         do i=2,i1
           if(ql0(i,j,1)>0) then
-            temp = thl0(i,j,1)*exnf(1)+(rlv/cp)*ql0(i,j,1)
-            tmp0(i,j,1) = temp !stored for statistics
+            if (.not. lexp_thl) then
+               temp = thl0(i,j,1)*exnf(1)+(rlv/cp)*ql0(i,j,1)
+               tmp0(i,j,1) = temp !stored for statistics
+            else
+               temp = tmp0(i,j,1)
+            end if
+
             qs   = qt0(i,j,1) - ql0(i,j,1)
             a_surf   = (1-qt0(i,j,1)+rv/rd*qs*(1+rlv/(rv*temp))) &
                       /(1+rlv**2*qs/(cp*rv*temp**2))
             b_surf   = a_surf*rlv/(temp*cp)-1
 
           else
-            tmp0(i,j,1) = thl0(i,j,1)*exnf(1) !stored for statistics
+            if (.not. lexp_thl) then
+               tmp0(i,j,1) = thl0(i,j,1)*exnf(1) !stored for statistics
+            end if
             a_surf = 1+(rv/rd-1)*qt0(i,j,1)
             b_surf = rv/rd-1
 
@@ -797,6 +820,152 @@ contains
     call timer_toc(routine)
 
   end subroutine saturation_adjustment
+
+  !> Compute the cloud water content via the saturation adjustment method.
+  !> this version does not use the liearized thl expression
+  subroutine saturation_adjustment_exp(qt, thl, pres, exn, ql, opt_stream)
+
+    real(field_r), intent(in) :: qt(2-ih:,2-jh:,:)  !< Total water specific humidity [kg/kg]
+    real(field_r), intent(in) :: thl(2-ih:,2-jh:,:) !< Liquid water potential temperature [K]
+    real(field_r), intent(in) :: pres(:)            !< Pressure [Pa]
+    real(field_r), intent(in) :: exn(:)             !< Exner function [-]
+
+    real(field_r), intent(inout) :: ql(2-ih:,2-jh:,:) !< Liquid water specific humidity [kg/kg].
+
+    integer, optional, intent(in) :: opt_stream !< (Optional) OpenACC stream ID.
+
+    character(len=*), parameter :: routine = modname//'saturation_adjustment_exp'
+
+    integer :: i, j, k
+    integer :: stream = 1 !< OpenACC stream ID.
+
+!    real(field_r) :: qli    !< Intermediate value of liquid water specific humidity [kg/kg]
+    real(field_r) :: qsat   !< Saturation specific humidity [kg/kg]
+    real(field_r) :: qti    !< Intermediate value of total water specific humditiy [kg/kg]
+    real(field_r) :: Tl     !< Liquid water temperature [K]
+    real(field_r) :: T      !< Temperature [K]
+    real(field_r) :: Tl_min !< Minimum value of the liquid water temperature [K]
+    real(field_r) :: qt_max !< Maximum value of the total water specific humidity [kg/kg]
+
+    if (present(opt_stream)) stream = opt_stream
+
+    call timer_tic(routine, 1)
+
+    !$acc parallel loop gang default(present) async(stream) &
+    !$acc private(qsat, qti, Tl, T, Tl_min, qt_max)
+    do k = 1, k1
+      ! Find lowest thl and highest qt in the slab.
+      ! If they in combination are not saturated, the whole slab is below saturation.
+      !
+      ! TODO: on GPU, test if it's cheaper to just do the computation instead.
+      TL_min = minval(thl(2:i1,2:j1,k)) * exn(k)
+      qt_max = maxval(qt(2:i1,2:j1,k))
+      qsat = qsat_tab(TL_min, pres(k))
+      if (qt_max > qsat) then
+        !$acc loop vector collapse(2)
+        do j = 2, j1
+          do i = 2, i1
+
+             Tl = exn(k) * thl(i,j,k)
+             qsat = qsat_tab(Tl, pres(k))
+             qti = qt(i,j,k)
+
+             ! First step
+             T = Tl + (qti - qsat) / ( (cp/rlv) + qsat * rlv / (rv * Tl**2))
+
+             ! Second step
+             qsat = qsat_tab(T, pres(k))
+             T = T - ( (T * log(T/Tl) - rlv/cp * (qti - qsat)) / &
+                  (1 + log(T/Tl) + rlv/cp * qsat * rlv/(rv*T**2) ))
+
+             ! Third step
+             qsat = qsat_tab(T, pres(k))
+             T = T - ( (T * log(T/Tl) - rlv/cp * (qti - qsat)) / &
+                  (1 + log(T/Tl) + rlv/cp * qsat * rlv/(rv*T**2) ))
+
+             qsat = qsat_tab(T, pres(k))
+             ! consider Taylor expansion here instead of qsat call
+             ql(i,j,k) = max(qti - qsat, 0.0_field_r)
+             tmp0(i,j,k) = max(T, Tl)
+          end do
+        end do
+      else
+        ql(:,:,k) = 0
+      end if
+    end do
+
+    call timer_toc(routine)
+  end subroutine saturation_adjustment_exp
+
+  !> half-level version of saturation_adjustment_exp
+  !> only difference is that it doesn't store tmp
+  subroutine saturation_adjustment_exph(qt, thl, pres, exn, ql, opt_stream)
+
+    real(field_r), intent(in) :: qt(2-ih:,2-jh:,:)  !< Total water specific humidity [kg/kg]
+    real(field_r), intent(in) :: thl(2-ih:,2-jh:,:) !< Liquid water potential temperature [K]
+    real(field_r), intent(in) :: pres(:)            !< Pressure [Pa]
+    real(field_r), intent(in) :: exn(:)             !< Exner function [-]
+
+    real(field_r), intent(inout) :: ql(2-ih:,2-jh:,:) !< Liquid water specific humidity [kg/kg].
+
+    integer, optional, intent(in) :: opt_stream !< (Optional) OpenACC stream ID.
+
+    character(len=*), parameter :: routine = modname//'saturation_adjustment_exph'
+
+    integer :: i, j, k
+    integer :: stream = 1 !< OpenACC stream ID.
+
+!    real(field_r) :: qli    !< Intermediate value of liquid water specific humidity [kg/kg]
+    real(field_r) :: qsat   !< Saturation specific humidity [kg/kg]
+    real(field_r) :: qti    !< Intermediate value of total water specific humditiy [kg/kg]
+    real(field_r) :: Tl     !< Liquid water temperature [K]
+    real(field_r) :: T      !< Temperature [K]
+    real(field_r) :: Tl_min !< Minimum value of the liquid water temperature [K]
+    real(field_r) :: qt_max !< Maximum value of the total water specific humidity [kg/kg]
+
+    if (present(opt_stream)) stream = opt_stream
+
+    call timer_tic(routine, 1)
+
+    !$acc parallel loop gang default(present) async(stream) &
+    !$acc private(b, qli, qsat, qti, Tl)
+    do k = 1, k1
+      ! Find lowest thl and highest qt in the slab.
+      ! If they in combination are not saturated, the whole slab is below saturation.
+      !
+      ! TODO: on GPU, test if it's cheaper to just do the computation instead.
+      TL_min = minval(thl(2:i1,2:j1,k)) * exn(k)
+      qt_max = maxval(qt(2:i1,2:j1,k))
+      qsat = qsat_tab(TL_min, pres(k))
+      if (qt_max > qsat) then
+        !$acc loop vector collapse(2)
+        do j = 2, j1
+          do i = 2, i1
+
+             Tl = exn(k) * thl(i,j,k)
+             qsat = qsat_tab(Tl, pres(k))
+             qti = qt(i,j,k)
+
+             ! First step
+             T = Tl + (qti - qsat) / ( (cp/rlv) + qsat * rlv / (rv * Tl**2))
+
+             ! Second step
+             qsat = qsat_tab(Tl, pres(k))
+             T = T - ( (T * log(T/Tl) - rlv/cp * (qti - qsat)) / &
+                  (1 + log(T/Tl) + rlv/cp * qsat * rlv/(rv*T**2) ))
+
+             qsat = qsat_tab(T, pres(k))
+             ql(i,j,k) = max(qti - qsat, 0.0_field_r)
+          end do
+        end do
+      else
+        ql(:,:,k) = 0
+      end if
+    end do
+
+    call timer_toc(routine)
+
+  end subroutine saturation_adjustment_exph
 
 #if defined(DALES_GPU)
   !> Compute the cloud water content via the saturation adjustment method.
