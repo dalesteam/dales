@@ -36,7 +36,8 @@ contains
     use modthermodynamics, only: th0av, thv0, thetah, qth, qlh
     use modboundary, only: tsc
     use modmicrodata, only: precep, thlpmcr, qtpmcr
-    use modibm,      only: fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p
+    use modibm,      only: iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p
+    use modibmdata,  only: fluid_mask
 
     implicit none
 
@@ -107,8 +108,8 @@ contains
     use modthermodynamics, only: th0av, thv0, thetah, qth, qlh
     use modboundary, only: tsc
     use modmicrodata, only: precep, thlpmcr, qtpmcr
-    use modibm,      only: fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p
-
+    use modibm,      only: iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p
+    use modibmdata,   only: fluid_mask
     implicit none
 
     if (host_is_updated) return

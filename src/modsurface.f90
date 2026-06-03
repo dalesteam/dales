@@ -68,6 +68,7 @@ module modsurface
   use modglobal,  only: ifnamopt, checknamelisterror, zf, i1, j1, i2, j2, &
                         grav, cu, cv, rd, rv
   use modmpi,     only: d_mpi_bcast, commwrld, myid
+  use modthermodynamics, only: lmoist
   use modlogging, only: finish
   use fortran_support, only: nnml_output
   implicit none
@@ -823,7 +824,7 @@ contains
         call calc_drag_coefficients
         call calc_aerodynamic_resistance
         call presc_skin_temperature
-        call qtsurf
+        if (lmoist) call qtsurf
         call calc_friction_velocity
         call calc_surface_flux
         call calc_surface_gradients
@@ -2631,7 +2632,7 @@ contains
       thls_patch = thls_patch / SNpatch
     endif
 
-    call qtsurf
+    if (lmoist) call qtsurf
 
   end subroutine do_lsm
 
