@@ -35,8 +35,7 @@ module modthermodynamics
   use modsurfdata,     only: qts, thls, ps, dthldz, dqtdz
   use modmpi,          only: myid, d_mpi_bcast, commwrld, slabsum
   use modmicrodata,    only: imicro, imicro_bulk3, imicro_none
-  use modibm,          only: fluid_mask
-  use modibmdata,      only: lapply_ibm
+  use modibmdata,      only: lapply_ibm, fluid_mask
   use modslabaverage,  only: slabavg
   use advec_kappa,     only: halflev_kappa
   use modprecision,    only: field_r

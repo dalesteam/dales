@@ -29,10 +29,11 @@ module modibmdata
   implicit none
   save
 
-  logical :: lapply_ibm     = .false.        !< Switch to enable immersed boundary method 
-  logical :: lwallheat      = .false.        !< Switch to apply lateral heat flux from buildings
-  logical :: lpoislast      = .true.         !< Switch to use the Poisson solver after the Immersed boundary method
-                                             !  .false. will set the order to: ZeroVelocity -> PoissonSolver -> IBM
+  logical               :: lapply_ibm     = .false.   !< Switch to enable immersed boundary method 
+  logical               :: lwallheat      = .false.   !< Switch to apply lateral heat flux from buildings
+  logical               :: lpoislast      = .true.    !< Switch to use the Poisson solver after the Immersed boundary method
+                                                            !  .false. will set the order to: ZeroVelocity -> PoissonSolver -> IBM
+  logical, allocatable  :: fluid_mask(:,:,:)          !< Logical which is .false. for internal building points
 
   real(field_r)    :: thlwall        = 293.           !< Wall temperature at the sides of the buildings [K]
   real(field_r)    :: qtwall         = 0.             !< Wall specific humidity [kg/kg]
