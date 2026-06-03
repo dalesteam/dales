@@ -34,7 +34,7 @@ module modibm
   use modsurface,      only : psim, psih, calc_obl_iter
   use modibmdata,      only : lapply_ibm,lpoislast, lwallheat, &
                             thlwall, qtwall, thlroof, qtroof, thlibm, qtibm, &
-                            z0m_wall, z0h_wall
+                            z0m_wall, z0h_wall, fluid_mask
   use modtimer
   use modlogging,      only : finish, warning, message
   
@@ -49,7 +49,6 @@ module modibm
   integer :: Nxwalls_plus, Nywalls_plus, Nzwalls_plus, Nxwalls_min, Nywalls_min, Nzwalls_min      !< Number of walls oriented in positve/negative x,y,z directions
   integer, allocatable :: ixw_p(:,:), ixw_m(:,:), iyw_p(:,:), iyw_m(:,:), izw_p(:,:)!, izw_m(:,:) !< Indices of walls oriented in positve/negative x,y,z directions
   integer, allocatable :: iobst(:,:)                                                              !< Indices of obstacles
-  logical, allocatable :: fluid_mask(:,:,:)                                                       !< Logical which is .false. for internal building points
   
   real(field_r) :: dx_half, dy_half, Cm_xwall, Cm_ywall, Cd_xwall, Cd_ywall, Cm_zwall, Cd_zwall, z_MO !< Additional variables/parameters
 
