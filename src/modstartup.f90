@@ -514,7 +514,8 @@ contains
     use modmpi,            only : slabsum,myid,comm3d,mpierr,D_MPI_BCAST, print_info_stderr
     use modthermodynamics, only : thermodynamics,calc_halflev, lmoist
     use moduser,           only : initsurf_user
-    use modibmdata,        only : thlibm, qtibm, lapply_ibm, fluid_mask
+    use modibm,            only : fluid_mask
+    use modibmdata,        only : thlibm, qtibm, lapply_ibm
 
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
