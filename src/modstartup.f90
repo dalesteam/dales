@@ -1693,7 +1693,7 @@ contains
     ! Calculates the profiles corresponding to the base state
     ! In the current implementation, neither the base pressure, nor the base virtual temperature plays a role in the dynamics
     ! They are nevertheless calculated and printed to the stdin/baseprof files for user convenience
-    use modfields,         only : rhobf,rhobh,drhobdzf,drhobdzh,exnf,exnh
+    use modfields,         only : rhobf,rhobh,exnf,exnh
     use modglobal,         only : k1,kmax,zf,zh,dzf,dzh,rv,rd,grav,cp,pref0,lwarmstart,ibas_prf,cexpnr,ifinput,ifoutput
     use modthermodynamics, only : lbaseexner
     use modsurfdata,       only : thls,ps,qts
@@ -1718,179 +1718,146 @@ contains
 
     if(myid==0)then
 
-      if((lwarmstart.eqv..true.).and.(ibas_prf /= 5)) then
+      if(.not. lwarmstart) then
+
+        if(ibas_prf <= 3 .and. thls < 0) then
+          call finish(routine, 'thls has not been initialized but is needed for setting up the base profiles.')
+        end if
+
+        if(ibas_prf==1) then !thv constant and hydrostatic balance
+          thvb=thls*(1+(rv/rd-1)*qts) ! using thls, q_l assumed to be 0 during first time step
+          do k=1,k1
+            prsb=(ps**(rd/cp)-(grav*zf(k)*pref0**(rd/cp))/(cp*thvb))**(cp/rd) !As in thermodynamics
+            rhobf(k)=prsb/(rd*thvb*((prsb/pref0)**(rd/cp)))
+          end do
+        else if(ibas_prf==2) then ! Quasi-Boussinesq (Similar to Dales 3, except for buoyancy term now depending on slab mean state)
+          thvb=thls*(1+(rv/rd-1)*qts)
+          rhobh(1)=ps/(rd*thvb*(ps/pref0)**(rd/cp))
+          do k=1,k1
+            rhobf(k)=rhobh(1)
+          end do
+        else if(ibas_prf==3) then! use standard atmospheric lapse rate with surface temperature offset
+          tsurf=thls*(ps/pref0)**(rd/cp)
+          pmat(1)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
+            log(tsurf+zmat(1)*lapserate(1))*grav)/(lapserate(1)*rd))
+          tmat(1)=tsurf+lapserate(1)*(zmat(1)-zsurf);
+          ! write(*,*)(*,*) 'make profiles'
+
+          do j=2,4
+            if(abs(lapserate(j))<1e-10) then
+              pmat(j)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zmat(j)*grav)/(tmat(j-1)*rd))
+            else
+              pmat(j)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
+                log(tmat(j-1)+zmat(j)*lapserate(j))*grav)/(lapserate(j)*rd))
+            endif
+            tmat(j)=tmat(j-1)+lapserate(j)*(zmat(j)-zmat(j-1));
+          enddo
+
+          do k=1,k1
+            if(zf(k)<zmat(1)) then
+              pb(k)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
+                log(tsurf+zf(k)*lapserate(1))*grav)/(lapserate(1)*rd))
+              tb(k)=tsurf+lapserate(1)*(zf(k)-zsurf)
+            else
+              j=1
+              do while(zf(k)>=zmat(j))
+                j=j+1
+              end do
+              tb(k)=tmat(j-1)+lapserate(j)*(zf(k)-zmat(j-1))
+              if(abs(lapserate(j))<1e-99) then
+                pb(k)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zf(k)*grav)/(tmat(j-1)*rd))
+              else
+                pb(k)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
+                  log(tmat(j-1)+zf(k)*lapserate(j))*grav)/(lapserate(j)*rd))
+              endif
+            endif
+            rhobf(k)=pb(k)/(rd*tb(k)) ! dry estimate
+          end do
+        else if(ibas_prf==4) then! use standard atmospheric lapse rate without surface temperature offset
+          tsurf=288.16
+          pmat(1)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
+            log(tsurf+zmat(1)*lapserate(1))*grav)/(lapserate(1)*rd))
+          tmat(1)=tsurf+lapserate(1)*(zmat(1)-zsurf);
+          ! write(*,*)(*,*) 'make profiles'
+
+          do j=2,4
+            if(abs(lapserate(j))<1e-10) then
+              pmat(j)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zmat(j)*grav)/(tmat(j-1)*rd))
+            else
+              pmat(j)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
+                log(tmat(j-1)+zmat(j)*lapserate(j))*grav)/(lapserate(j)*rd))
+            end if
+            tmat(j)=tmat(j-1)+lapserate(j)*(zmat(j)-zmat(j-1));
+          end do
+
+          do k=1,k1
+            if(zf(k)<zmat(1)) then
+              pb(k)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
+                log(tsurf+zf(k)*lapserate(1))*grav)/(lapserate(1)*rd))
+              tb(k)=tsurf+lapserate(1)*(zf(k)-zsurf)
+            else
+              j=1
+              do while(zf(k)>zmat(j))
+                j=j+1
+              end do
+              tb(k)=tmat(j-1)+lapserate(j)*(zf(k)-zmat(j-1))
+              if(abs(lapserate(j))<1e-99) then
+                pb(k)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zf(k)*grav)/(tmat(j-1)*rd))
+              else
+                pb(k)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
+                  log(tmat(j-1)+zf(k)*lapserate(j))*grav)/(lapserate(j)*rd))
+              end if
+            end if
+            rhobf(k)=pb(k)/(rd*tb(k)) ! dry estimate
+          end do
+        end if
+
+        ! Write background profiles in all cases
+        open (ifoutput,file='baseprof.inp.'//cexpnr)
+        write(ifoutput,*) '#baseprofiles'
+        write(ifoutput,*) '#height rhobf'
+        do k=1,kmax
+          write (ifoutput,'(1f7.1,E25.17)') &
+                zf (k), &
+                rhobf (k)
+        end do
+        close(ifoutput)
+
+      else ! lwarmstart
+
         ibas_prf = 5
         print *, 'WARNING: warm start requires input files for density. ibas_prf defaulted to 5'
-      endif
-      if(ibas_prf <= 3 .and. thls < 0) then
-         call finish(routine, 'thls has not been initialized but is needed for setting up the base profiles.')
-      end if
 
-      if(ibas_prf==1) then !thv constant and hydrostatic balance
-        thvb=thls*(1+(rv/rd-1)*qts) ! using thls, q_l assumed to be 0 during first time step
-        do k=1,k1
-          prsb=(ps**(rd/cp)-(grav*zf(k)*pref0**(rd/cp))/(cp*thvb))**(cp/rd) !As in thermodynamics
-          rhobf(k)=prsb/(rd*thvb*((prsb/pref0)**(rd/cp)))
-        enddo
-        open (ifoutput,file='baseprof.inp.'//cexpnr)
-        write(ifoutput,*) '#baseprofiles'
-        write(ifoutput,*) '#height rhobf'
-        do k=1,kmax
-          write (ifoutput,'(1f7.1,E25.17)') &
-                zf (k), &
-                rhobf (k)
-        enddo
-        close(ifoutput)
-      elseif(ibas_prf==2) then ! Quasi-Boussinesq (Similar to Dales 3, except for buoyancy term now depending on slab mean state)
-        thvb=thls*(1+(rv/rd-1)*qts)
-        rhobh(1)=ps/(rd*thvb*(ps/pref0)**(rd/cp))
-        do k=1,k1
-          rhobf(k)=rhobh(1)
-        enddo
-        open (ifoutput,file='baseprof.inp.'//cexpnr)
-        write(ifoutput,*) '#baseprofiles'
-        write(ifoutput,*) '#height rhobf'
-        do k=1,kmax
-          write (ifoutput,'(1f7.1,E25.17)') &
-                zf (k), &
-                rhobf (k)
-        enddo
-        close(ifoutput)
-      elseif(ibas_prf==3) then! use standard atmospheric lapse rate with surface temperature offset
-        tsurf=thls*(ps/pref0)**(rd/cp)
-        pmat(1)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
-          log(tsurf+zmat(1)*lapserate(1))*grav)/(lapserate(1)*rd))
-        tmat(1)=tsurf+lapserate(1)*(zmat(1)-zsurf);
-        ! write(*,*)(*,*) 'make profiles'
+        ! Read background profiles in case of warmstart
+        open (ifinput,file='baseprof.inp.'//cexpnr)
+        read (ifinput,'(a80)') chmess
+        read (ifinput,'(a80)') chmess
 
-        do j=2,4
-          if(abs(lapserate(j))<1e-10) then
-            pmat(j)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zmat(j)*grav)/(tmat(j-1)*rd))
-          else
-            pmat(j)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
-              log(tmat(j-1)+zmat(j)*lapserate(j))*grav)/(lapserate(j)*rd))
-          endif
-          tmat(j)=tmat(j-1)+lapserate(j)*(zmat(j)-zmat(j-1));
-        enddo
+        do k = 1, kmax
+          read (ifinput,*) &
+                  height(k), &
+                  rhobf (k)
+        end do
+        close(ifinput)
 
-        do k=1,k1
-          if(zf(k)<zmat(1)) then
-            pb(k)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
-              log(tsurf+zf(k)*lapserate(1))*grav)/(lapserate(1)*rd))
-            tb(k)=tsurf+lapserate(1)*(zf(k)-zsurf)
-          else
-            j=1
-            do while(zf(k)>=zmat(j))
-              j=j+1
-            end do
-            tb(k)=tmat(j-1)+lapserate(j)*(zf(k)-zmat(j-1))
-            if(abs(lapserate(j))<1e-99) then
-              pb(k)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zf(k)*grav)/(tmat(j-1)*rd))
-            else
-              pb(k)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
-                log(tmat(j-1)+zf(k)*lapserate(j))*grav)/(lapserate(j)*rd))
-            endif
-          endif
-          rhobf(k)=pb(k)/(rd*tb(k)) ! dry estimate
-        enddo
-        open (ifoutput,file='baseprof.inp.'//cexpnr)
-        write(ifoutput,*) '#baseprofiles'
-        write(ifoutput,*) '#height rhobf'
-        do k=1,kmax
-          write (ifoutput,'(1f7.1,E25.17)') &
-                zf (k), &
-                rhobf (k)
-        enddo
-        close(ifoutput)
-      elseif(ibas_prf==4) then! use standard atmospheric lapse rate without surface temperature offset
-        tsurf=288.16
-        pmat(1)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
-          log(tsurf+zmat(1)*lapserate(1))*grav)/(lapserate(1)*rd))
-        tmat(1)=tsurf+lapserate(1)*(zmat(1)-zsurf);
-        ! write(*,*)(*,*) 'make profiles'
-
-        do j=2,4
-          if(abs(lapserate(j))<1e-10) then
-            pmat(j)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zmat(j)*grav)/(tmat(j-1)*rd))
-          else
-            pmat(j)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
-              log(tmat(j-1)+zmat(j)*lapserate(j))*grav)/(lapserate(j)*rd))
-          endif
-          tmat(j)=tmat(j-1)+lapserate(j)*(zmat(j)-zmat(j-1));
-        enddo
-
-        do k=1,k1
-          if(zf(k)<zmat(1)) then
-            pb(k)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
-              log(tsurf+zf(k)*lapserate(1))*grav)/(lapserate(1)*rd))
-            tb(k)=tsurf+lapserate(1)*(zf(k)-zsurf)
-          else
-            j=1
-            do while(zf(k)>zmat(j))
-              j=j+1
-            end do
-            tb(k)=tmat(j-1)+lapserate(j)*(zf(k)-zmat(j-1))
-            if(abs(lapserate(j))<1e-99) then
-              pb(k)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zf(k)*grav)/(tmat(j-1)*rd))
-            else
-              pb(k)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
-                log(tmat(j-1)+zf(k)*lapserate(j))*grav)/(lapserate(j)*rd))
-            endif
-          endif
-          rhobf(k)=pb(k)/(rd*tb(k)) ! dry estimate
-        enddo
-        open (ifoutput,file='baseprof.inp.'//cexpnr)
-        write(ifoutput,*) '#baseprofiles'
-        write(ifoutput,*) '#height rhobf'
-        do k=1,kmax
-          write (ifoutput,'(1f7.1,E25.17)') &
-                zf (k), &
-                rhobf (k)
-        enddo
-        close(ifoutput)
-      end if
-
-      ! Reset all background profiles
-      rhobf=0.
-      rhobh=0.
-
-      ! Read background profiles in all cases
-      open (ifinput,file='baseprof.inp.'//cexpnr)
-      read (ifinput,'(a80)') chmess
-      read (ifinput,'(a80)') chmess
-
-      do k = 1, kmax
-        read (ifinput,*) &
-                height(k), &
-                rhobf (k)
-      end do
-      close(ifinput)
+      end if ! end if .not. lwarmstart
 
       ! Set height at k1 equal to kmax for the sake of printing to screen
       height(k1) = height(kmax)
 
       rhobf(k1)=rhobf(kmax)+(zf(k1)-zf(kmax))/(zf(kmax)-zf(kmax-1))*(rhobf(kmax)-rhobf(kmax-1))
-
       do k = 2, k1
         rhobh(k) = (rhobf(k)*dzf(k-1)+rhobf(k-1)*dzf(k))/(dzf(k)+dzf(k-1))
-        pbh(k)   = (   pb(k)*dzf(k-1)+   pb(k-1)*dzf(k))/(dzf(k)+dzf(k-1)) ! interpolate base half-level pressure like half-level base rho
       end do
-
       rhobh(1) = rhobf(1)-(rhobf(2)-rhobf(1))*(zf(1)-zh(1))/(zf(2)-zf(1))
-      pbh(1)   = ps
 
-      ! calculate derivatives
-      do k = 1, kmax
-        drhobdzf(k) = (rhobh(k+1) - rhobh(k))/dzf(k)
-      end do
-
-      drhobdzf(k1) = drhobdzf(kmax)
-
-      drhobdzh(1) = 2*(rhobf(1)-rhobh(1))/dzh(1)
-
-      do k = 2, k1
-        drhobdzh(k) = (rhobf(k)-rhobf(k-1))/dzh(k)
-      end do
+      ! pb is only available for ibas_prf >= 3
+      if (ibas_prf >= 3) then
+        pbh(1)   = ps
+        do k = 2, k1
+          pbh(k)   = (   pb(k)*dzf(k-1)+   pb(k-1)*dzf(k))/(dzf(k)+dzf(k-1)) ! interpolate base half-level pressure like half-level base rho
+        end do 
+      end if
 
       ! write profiles and derivatives to standard output
       write (profile_output,*) ' height   rhobf       rhobh'
@@ -1899,13 +1866,6 @@ contains
                 height (k), &
                 rhobf (k), &
                 rhobh (k)
-      end do
-      write (profile_output,*) ' height   drhobdzf    drhobdzh'
-      do k=k1,1,-1
-          write (profile_output,'(1f7.1,2E25.17)') &
-                height (k), &
-                drhobdzf (k), &
-                drhobdzh (k)
       end do
 
       ! exner function from base profiles
@@ -1920,8 +1880,6 @@ contains
     ! MPI broadcast variables
     call D_MPI_BCAST(rhobf       ,k1,0,comm3d,mpierr)
     call D_MPI_BCAST(rhobh       ,k1,0,comm3d,mpierr)
-    call D_MPI_BCAST(drhobdzf    ,k1,0,comm3d,mpierr)
-    call D_MPI_BCAST(drhobdzh    ,k1,0,comm3d,mpierr)
 
     if (lbaseexner) then
        call D_MPI_BCAST(exnf        ,k1,0,comm3d,mpierr)
