@@ -512,7 +512,7 @@ contains
     use modlsm,            only : init_lsm_tiles
     use modboundary,       only : boundary
     use modmpi,            only : slabsum,myid,comm3d,mpierr,D_MPI_BCAST, print_info_stderr
-    use modthermodynamics, only : thermodynamics,calc_halflev
+    use modthermodynamics, only : thermodynamics,calc_halflev, lmoist
     use moduser,           only : initsurf_user
     use modibm,            only : fluid_mask
     use modibmdata,        only : thlibm, qtibm, lapply_ibm
@@ -861,7 +861,7 @@ contains
 #if defined(_OPENACC)
       call update_gpu_surface
 #endif
-      call qtsurf
+      if (lmoist) call qtsurf
 
       dthldz(:,:) = (thlprof(1) - thls) / zf(1)
       thvs = thls * (1. + (rv/rd - 1.) * qts)
