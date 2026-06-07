@@ -1863,6 +1863,47 @@ contains
 
       rhobf(k1)=rhobf(kmax)+(zf(k1)-zf(kmax))/(zf(kmax)-zf(kmax-1))*(rhobf(kmax)-rhobf(kmax-1))
 
+      if(lwarmstart) then
+         ! hack to make pb available on warmstart, needed for lbaseexner
+         ! assumes ibas_prf = 3
+        tsurf=thls*(ps/pref0)**(rd/cp)
+        pmat(1)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
+          log(tsurf+zmat(1)*lapserate(1))*grav)/(lapserate(1)*rd))
+        tmat(1)=tsurf+lapserate(1)*(zmat(1)-zsurf);
+        ! write(*,*)(*,*) 'make profiles'
+
+        do j=2,4
+          if(abs(lapserate(j))<1e-10) then
+            pmat(j)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zmat(j)*grav)/(tmat(j-1)*rd))
+          else
+            pmat(j)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
+              log(tmat(j-1)+zmat(j)*lapserate(j))*grav)/(lapserate(j)*rd))
+          endif
+          tmat(j)=tmat(j-1)+lapserate(j)*(zmat(j)-zmat(j-1));
+        enddo
+
+        do k=1,k1
+          if(zf(k)<zmat(1)) then
+            pb(k)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
+              log(tsurf+zf(k)*lapserate(1))*grav)/(lapserate(1)*rd))
+            tb(k)=tsurf+lapserate(1)*(zf(k)-zsurf)
+          else
+            j=1
+            do while(zf(k)>=zmat(j))
+              j=j+1
+            end do
+            tb(k)=tmat(j-1)+lapserate(j)*(zf(k)-zmat(j-1))
+            if(abs(lapserate(j))<1e-99) then
+              pb(k)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zf(k)*grav)/(tmat(j-1)*rd))
+            else
+              pb(k)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
+                log(tmat(j-1)+zf(k)*lapserate(j))*grav)/(lapserate(j)*rd))
+            endif
+          endif
+          rhobf(k)=pb(k)/(rd*tb(k)) ! dry estimate
+        enddo
+      endif
+
       do k = 2, k1
         rhobh(k) = (rhobf(k)*dzf(k-1)+rhobf(k-1)*dzf(k))/(dzf(k)+dzf(k-1))
         pbh(k)   = (   pb(k)*dzf(k-1)+   pb(k-1)*dzf(k))/(dzf(k)+dzf(k-1)) ! interpolate base half-level pressure like half-level base rho
@@ -1901,7 +1942,7 @@ contains
       end do
 
       ! exner function from base profiles
-      ! TODO: pb is not available here on warm start
+      ! TODO: pb is available here on warm start only thanks to the hack above
       if (lbaseexner) then
          exnf = (pb/pref0)**(rd/cp)
          exnh = (pbh/pref0)**(rd/cp)
