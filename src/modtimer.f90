@@ -183,7 +183,6 @@ contains
                timing_results_max)
   end subroutine timer_write
   subroutine timer_tic(timer_name,nvtx_id_fix,nvtx_color,nvtx_id_inc,nvtx_gpu_stream)
-    !@cuf use cudafor
     character(*), intent(in) :: timer_name
     integer         , intent(in   ), optional :: nvtx_id_fix     ! if <= 0, only label and no color
     character(len=1), intent(in   ), optional :: nvtx_color      ! g/b/y/m/c/r/w following matplotlib's convention
@@ -191,7 +190,6 @@ contains
     integer         , intent(in   ), optional :: nvtx_gpu_stream ! to optionally sync host/device over a stream/queue (asynchronous if < 0)
     integer :: idx,nvtx_id
     logical :: is_nvtx,is_gpu_sync
-    !@cuf integer :: istat
 
     if (.not. ltimer) return
 
@@ -245,14 +243,10 @@ contains
         if(.not.present(nvtx_gpu_stream)) then
 #if   defined(_OPENACC)
           !$acc wait
-#elif defined(_CUDA)
-          !@cuf istat=cudaDeviceSynchronize()
 #endif
         else
 #if   defined(_OPENACC)
           !$acc wait(nvtx_gpu_stream)
-#elif defined(_CUDA)
-          !@cuf istat=cudaStreamSynchronize(nvtx_gpu_stream)
 #endif
         end if
       end if
@@ -268,13 +262,11 @@ contains
 #endif
   end subroutine timer_tic
   subroutine timer_toc(timer_name,nvtx_gpu_stream,ierror)
-    !@cuf use cudafor
     character(*), intent(in) :: timer_name
     integer, intent(in), optional :: nvtx_gpu_stream
     integer, intent(out), optional :: ierror
     integer :: idx
     logical :: is_gpu_sync
-    !@cuf integer :: istat
 
     if (.not. ltimer) return
     
@@ -298,14 +290,10 @@ contains
           if(.not.present(nvtx_gpu_stream)) then
 #if   defined(_OPENACC)
             !$acc wait
-#elif defined(_CUDA)
-            !@cuf istat=cudaDeviceSynchronize()
 #endif
           else
 #if   defined(_OPENACC)
             !$acc wait(nvtx_gpu_stream)
-#elif defined(_CUDA)
-            !@cuf istat=cudaStreamSynchronize(nvtx_gpu_stream)
 #endif
           end if
         end if
