@@ -203,7 +203,6 @@ program DALES
         call timedep
         call scalarpulse
         call samptend(tend_start,firstterm=.true.)
-        call datetime
 
         ! Check if we have to sample profiles this time step
         call sample_profiles
