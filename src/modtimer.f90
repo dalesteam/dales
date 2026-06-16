@@ -241,13 +241,9 @@ contains
       end if
       if(is_gpu_sync) then
         if(.not.present(nvtx_gpu_stream)) then
-#if   defined(_OPENACC)
           !$acc wait
-#endif
         else
-#if   defined(_OPENACC)
           !$acc wait(nvtx_gpu_stream)
-#endif
         end if
       end if
       if(     present(nvtx_color)) then
@@ -288,13 +284,9 @@ contains
         end if
         if(is_gpu_sync) then
           if(.not.present(nvtx_gpu_stream)) then
-#if   defined(_OPENACC)
             !$acc wait
-#endif
           else
-#if   defined(_OPENACC)
             !$acc wait(nvtx_gpu_stream)
-#endif
           end if
         end if
 #if defined(USE_NVTX)
