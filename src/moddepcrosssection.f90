@@ -1,6 +1,4 @@
 !> \file moddepcrosssection.f90
-!!  Dumps fields of deposition data of scalars
-!!
 !!  Dumps fields of deposition data of scalars to depo_*.myidx.myidy.expnr
 !! If netcdf is true, this module leads the depcross.myidx.myidy.expnr.nc output
 !!
@@ -22,7 +20,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !
-!  Copyright 1993-2023 Delft University of Technology, Wageningen University, Utrecht University, KNMI, TNO
+!  Copyright 1993-2026 Delft University of Technology, Wageningen University, Utrecht University, KNMI, TNO
 !
 module moddepcrosssection
   use modlsm, only : llsm

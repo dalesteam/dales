@@ -21,7 +21,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !
-! Copyright 2025 Delft University of Technology
+! Copyright 2025-2026 Delft University of Technology
 !
 
 module modibm

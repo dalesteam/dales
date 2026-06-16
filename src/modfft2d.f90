@@ -20,7 +20,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !
-!  Copyright 2014 Netherlands eScience Center
+!  Copyright 2014-2026 Netherlands eScience Center
 !
 module modfft2d
 use modprecision, only : pois_r

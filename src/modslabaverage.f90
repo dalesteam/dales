@@ -13,7 +13,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !
-! Copyright 1993-2025, The DALES Team.
+! Copyright 1993-2026, The DALES Team.
 !
 
 !> Routines for computing (masked) slab averaged profiles.

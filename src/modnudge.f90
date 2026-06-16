@@ -14,7 +14,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !
-! Copyright 1993-2024 The DALES team.
+! Copyright 1993-2026 The DALES team.
 !
 !> Module for nudging prognostic fields to some provided profiles.
 module modnudge

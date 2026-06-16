@@ -1,8 +1,5 @@
 !> \file modemisdata.f90
 !! Variable definitions and auxilary routines for emissions
-
-!>
-!! Variable definitions and auxilary routines for emission
 !>
 !! This routine should have no dependency on any other routine, save
 !perhaps modglobal or modfields.
@@ -24,7 +21,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !
-!  Copyright 1993-2020 Delft University of Technology, Wageningen
+!  Copyright 1993-2026 Delft University of Technology, Wageningen
 !  University, Utrecht University, KNMI, Vrije Universiteit Amsterdam
 !
 ! TODO INTEGRATION WITH MODCHEM, possibly switch?
