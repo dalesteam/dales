@@ -91,9 +91,10 @@ module modlogging
     character(len=*), intent(in) :: name !< the name of the routine which caused an error
     class(*), intent(in), optional :: text1, text2, text3, text4, text5
     class(*), intent(in), optional :: text6, text7, text8, text9, text10
-  
-    call fs_finish(name=name, text=convertstring(text1, text2, text3, text4, text5, text6, text7, text8, text9, text10))
+    character(len=4096)        :: buffer
 
+    buffer = convertstring(text1, text2, text3, text4, text5, text6, text7, text8, text9, text10)
+    call fs_finish(name=name, text=buffer)
   end subroutine finish
 
   !>
@@ -103,22 +104,29 @@ module modlogging
     character(len=*), intent(in) :: name !< the name of the routine which sends this warning
     class(*), intent(in), optional :: text1, text2, text3, text4, text5
     class(*), intent(in), optional :: text6, text7, text8, text9, text10
+    character(len=4096)        :: buffer
 
-    call fs_warning(name, text=convertstring(text1, text2, text3, text4, text5, text6, text7, text8, text9, text10))
-
+    buffer = convertstring(text1, text2, text3, text4, text5, text6, text7, text8, text9, text10)
+    call fs_warning(name, text=buffer)
   end subroutine warning
 
   !>
   ! wrapper around the fortran-support message function that enables writing also numbers without having to format and define an extra character array
   subroutine message(name, text1, text2, text3, text4, text5, text6, text7, text8, text9, text10, all_print)
+    use modmpi, only : myid
     implicit none
     character(len=*), intent(in) :: name !< the name of the routine which sends this message
     logical, intent(in), optional :: all_print
     class(*), intent(in), optional :: text1, text2, text3, text4, text5
     class(*), intent(in), optional :: text6, text7, text8, text9, text10
+    logical :: lprint = .false.
+    character(len=4096)        :: buffer
 
-    call fs_message(name, text=convertstring(text1, text2, text3, text4, text5, text6, text7, text8, text9, text10), all_print=all_print)
+    if (present(all_print)) lprint = all_print
 
+    buffer = convertstring(text1, text2, text3, text4, text5, text6, text7, text8, text9, text10)
+    call fs_message(name, text=buffer, all_print=lprint)
+    
   end subroutine message
 
   !> converts up to 10 optional arguments and returns a line with all of them concatenated
