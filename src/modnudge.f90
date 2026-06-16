@@ -14,13 +14,13 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !
-! Copyright 1993-2024 The DALES team.
+! Copyright 1993-2026 The DALES team.
 !
 !> Module for nudging prognostic fields to some provided profiles.
 module modnudge
   use modprecision, only: field_r
   use modtimer,     only: timer_tic, timer_toc
-  use modlogging, only: finish
+  use modlogging,   only: finish, profile_output
 
   implicit none
 
@@ -245,8 +245,8 @@ contains
             end if
 
           end do
-          write(6, *) 'time', timenudge(t)
-          write(6, *) ' height    t_nudge    u_nudge    v_nudge    w_nudge    &
+          write(profile_output, *) 'time', timenudge(t)
+          write(profile_output, *) ' height    t_nudge    u_nudge    v_nudge    w_nudge    &
           &thl_nudge    qt_nudge'
           if (.not. ltthlnudge) then
              do k = 1, kmax
@@ -274,7 +274,7 @@ contains
           end if
 
           do k = kmax, 1, -1
-            write(6, '(f7.1,6e12.4)') &
+            write(profile_output, '(f7.1,6e12.4)') &
               height(k), &
               tnudge(k,t), &
               unudge(k,t), &

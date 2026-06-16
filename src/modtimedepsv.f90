@@ -25,7 +25,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !
-!  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
+!  Copyright 1993-2026 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 
 

@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !
-!  Copyright 1993-2014 Delft University of Technology, Wageningen University, Utrecht University, KNMI, MPIC
+!  Copyright 1993-2026 Delft University of Technology, Wageningen University, Utrecht University, KNMI, MPIC
 !
 module modcanopy
   use modprecision, only : field_r

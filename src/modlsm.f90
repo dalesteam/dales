@@ -1,5 +1,5 @@
 !
-! Copyright (c) 2020-2020 Wageningen University and Research (WUR)
+! Copyright (c) 2020-2026 Wageningen University and Research (WUR)
 !
 ! This file is part of DALES
 !

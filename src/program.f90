@@ -21,62 +21,6 @@
 !! Steef B\"oing
 !! (TU Delft)
 !>
-!! \section Log Change log
-!! \par New Features
-!! \par Main Changes
-!! \todo
-
-!! Notes
-!! This subversion
-!! Huug:
-!! - Included heterosurf routine
-!! - Statistics for heterosurf routine
-!! Steef:
-!! - Important note; adapted by Huug: ekm and ekh is again set to just Kh for right calculation of subgrid fluxes
-!!   mosts statistic have been adjusted accordingly, however, budgets still need full update
-!! - Anelastic baseprofile maker
-!! - Anelastic advection
-!! - Anelastic poisson solver
-!! - Anelastic diffusion
-!! - Resolved buoyancy (based on theta_l,q_l -> theta_v), using mean theta_v in divisor
-!!   Subtracting mean state theta_v before Poisson solver
-!! - Rainwater loading included in buoyancy (modforces)
-!! - Simple ice microphysics scheme (Grabowski 98, with switches for autoconversion and graupel)
-!! - Updated microstat for bulk and ice scheme
-!! - Diagnostic temperature and saturation fields included, used to speed up micro (adjusted restart files accordingly)
-!! - Speeded up gamma functions in bulkmicro and ice-micro using tabulation
-!! - Reviewed saturation pressure with table lookup formula (Murphy and Koop, unified water/ice)
-!! - Analytical functions for surface forcing (currently hard-coded)
-!! - Larger fielddump range for temperatures
-!! - Fixed statistics for heights above 10000 m
-!! - Combined sampling/tendency routine (experimental)
-!! - CAPE/CIN etc routine (experimental)
-!! - CFL criterion based on pythagorean CFL
-!! - Sampling written to separate netcdf files
-!! - Modsampling update
-!! - Radiation and bulkmicro tendencies exner function correction
-!! - Consistent notation of theta_v in output
-!! - Radiation negative qt crash
-!! - Integrate WENO advection (Johan)
-!! - Removed tqaver
-!! - Subsidence with local values
-!! - top boundary conditions (thl,qt-gradients) time-dependent
-!! \par todo (this release)
-!! - Scalasca CMake and Marmot options (Johan)
-!! - Consistent modbudget and modgenstat with anelastic dynamics (Steef)
-!! \par todo (future)
-!! - General code cleanup
-!! - Unified and simpler diagnostics
-!! - Fielddump timing (Johan)
-!! - Input header detection (Steef)
-!! - Cleanup namoptions, remove dtav and timeav from some of the namoptions
-!! - Check warm startup for interactive radiation cases
-!! - 2D Parallelization
-!! - Use more complicated theta_l formulation, include latent heat of freezing
-!! - Adjust buoyancy and subgrid accordingly
-!! - Integrate precipitation loading in theta_v
-!! - Add 2-moment scheme? (Thijs working on complicated scheme, use Grabowski/Morrison?)
-!!
 !! \section License License
 !!  This file is part of DALES.
 !!
@@ -92,7 +36,7 @@
 !!  You should have received a copy of the GNU General Public License along with
 !! this program.  If not, see <http://www.gnu.org/licenses/>.
 !!
-!!  Copyright 1993-2009 Delft University of Technology, Wageningen University,
+!!  Copyright 1993-2026 Delft University of Technology, Wageningen University,
 !! Utrecht University, KNMI
 !!
 program DALES
@@ -116,7 +60,6 @@ program DALES
   use modpois,           only : poisson
   use tstep,             only : tstep_update,  tstep_integrate, reset_tendencies
   use modlogging,        only : initlogging, exitlogging
-  !use modedgecold,       only : coldedge
 
 !----------------------------------------------------------------
 !     0.1     USE STATEMENTS FOR ADDONS STATISTICAL ROUTINES
@@ -254,19 +197,18 @@ program DALES
 
       do rk3step = 1, 3
         call timer_tic('program/timestep', istep)
-    
-    
+
+
         ! Calculate new timestep, and reset tendencies to 0.
         call timedep
         call scalarpulse
         call samptend(tend_start,firstterm=.true.)
-        call datetime
-    
+
         ! Check if we have to sample profiles this time step
         call sample_profiles
-    
+
         call datetime
-    
+
     !-----------------------------------------------------
     !   3.1   Openboundaries
     !-----------------------------------------------------
@@ -275,20 +217,20 @@ program DALES
           call openboundary_ghost
           call openboundary_tend
         endif
-    
+
     !-----------------------------------------------------
     !   3.2   RADIATION
     !-----------------------------------------------------
         call radiation !radiation scheme
         call samptend(tend_rad)
-    
+
     !-----------------------------------------------------
     !   3.3   THE SURFACE LAYER / LAND-SURFACE
     !-----------------------------------------------------
         call lsm
         call drydep
         call surface
-    
+
     !-----------------------------------------------------
     !   3.4   ADVECTION AND DIFFUSION
     !-----------------------------------------------------
@@ -296,7 +238,7 @@ program DALES
         call subgrid
         call canopy
         call samptend(tend_subg)
-    
+
     !-----------------------------------------------------
     !   3.5   REMAINING TERMS
     !-----------------------------------------------------
@@ -304,13 +246,13 @@ program DALES
         call samptend(tend_coriolis)
         call forces !remaining terms of ns equation
         call samptend(tend_force)
-    
+
         call lstend !large scale forcings
         call samptend(tend_ls)
         call microphysics
         call samptend(tend_micro)
         call emission
-    
+
     !------------------------------------------------------
     !   3.6   EXECUTE ADD ONS
     !------------------------------------------------------
@@ -320,32 +262,32 @@ program DALES
         if (simid == turid) call spraying
     !    call dospecs
     !    call tiltedgravity
-    
+
         call samptend(tend_addon)
-    
+
         if (lprecursor .and. simid == turid) call precursor_nudge_boundary
-    
+
     !-----------------------------------------------------------------------
     !   3.7  PRESSURE FLUCTUATIONS, TIME INTEGRATION AND BOUNDARY CONDITIONS
     !-----------------------------------------------------------------------
         call grwdamp !damping at top of the model
     !JvdD    call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
         call samptend(tend_topbound)
-    
+
         ! either apply ibm before or after poisson solver
         if (lpoislast .eqv.  .true.) call applyibm
         if (lpoislast .eqv. .false.) call zerowallvelocity ! put wall velocities to zero before Poisson
         call poisson
-    
+
         if (lpoislast .eqv. .false.) call applyibm ! then only apply IBM after Poisson
-    
+
         call samptend(tend_pois,lastterm=.true.)
         if(lopenbc) call openboundary_phasevelocity()
-    
+
         call lateral_sponge
-    
+
         call tstep_integrate                        ! Apply tendencies to all variables
-    
+
         call msebudg1
         ! NOTE: the tendencies are not zeroed yet, but kept for analysis and statistcis
         !       Do not change them below this point.
@@ -354,8 +296,8 @@ program DALES
         else
           call boundary
         endif
-    
-    
+
+
         !call tiltedboundary
     !-----------------------------------------------------
     !   3.8   LIQUID WATER CONTENT AND DIAGNOSTIC FIELDS
@@ -389,13 +331,13 @@ program DALES
           call fielddump
           call radfield
           !call particles
-    
+
           call budgetstat
           call varbudget
           call msebudg2
           !call stressbudgetstat
           call heterostats
-    
+
           call testwctime
           call writerestartfiles
         end if
