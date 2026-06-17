@@ -15,7 +15,7 @@ module modtimer
                              d_mpi_allreduce, mpi_min, mpi_max, mpi_sum, &
                              mpi_wtime
   use modglobal,       only: checknamelisterror, ifnamopt, fname_options
-  use fortran_support, only: nnml_output
+  use fortran_support, only: nnml_output, nout
 #if defined(USE_NVTX)
   use modnvtx
 #endif
@@ -121,35 +121,35 @@ contains
     timing_results_max(:,3) = timing_results_max(:,3)/nprocs
     !
     if(myid == 0) then
-      write(stdo,*) ''
-      write(stdo,*) '*** timing results [s] ***'
-      write(stdo,*) ''
+      write(nout,*) ''
+      write(nout,*) '*** timing results [s] ***'
+      write(nout,*) ''
       if(nprocs == 1.or..not.is_verbose_level_1) then
         do i = 1,ntimers
-          write(stdo,'(3A)'      ) 'Label: "',trim(timer_names(i)), '"'
-          write(stdo,'(A,3E15.7)') 'Elapsed time:', timing_results_acc(i,3:3)
-          write(stdo,'(A,I7)'    ) 'Number of calls:', timer_counts(i)
-          write(stdo,'(A,1E15.7)') 'Average elapsed time per task (per call average):',timing_results_acc(i,3:3)/timer_counts(i)
+          write(nout,'(3A)'      ) 'Label: "',trim(timer_names(i)), '"'
+          write(nout,'(A,3E15.7)') 'Elapsed time:', timing_results_acc(i,3:3)
+          write(nout,'(A,I7)'    ) 'Number of calls:', timer_counts(i)
+          write(nout,'(A,1E15.7)') 'Average elapsed time per task (per call average):',timing_results_acc(i,3:3)/timer_counts(i)
           if(is_verbose_level_2) then
-            write(stdo,'(A,1E15.7)') 'Average elapsed time per task (per call minimum):',timing_results_min(i,3:3)
-            write(stdo,'(A,1E15.7)') 'Average elapsed time per task (per call maximum):',timing_results_max(i,3:3)
+            write(nout,'(A,1E15.7)') 'Average elapsed time per task (per call minimum):',timing_results_min(i,3:3)
+            write(nout,'(A,1E15.7)') 'Average elapsed time per task (per call maximum):',timing_results_max(i,3:3)
           endif
-          write(stdo,*) ''
+          write(nout,*) ''
         end do
       else
         do i = 1,ntimers
-          write(stdo,'(3A)'      ) 'Label: "',trim(timer_names(i)), '"'
-          write(stdo,'(A,3E15.7)') 'Maximum, minimum, average elapsed time per task:', timing_results_acc(i,1:3)
-          write(stdo,'(A,I7)'    ) 'Number of calls:', timer_counts(i)
-          write(stdo,'(A,3E15.7)') 'Maximum, minimum, average elapsed time per task (per call average):', &
+          write(nout,'(3A)'      ) 'Label: "',trim(timer_names(i)), '"'
+          write(nout,'(A,3E15.7)') 'Maximum, minimum, average elapsed time per task:', timing_results_acc(i,1:3)
+          write(nout,'(A,I7)'    ) 'Number of calls:', timer_counts(i)
+          write(nout,'(A,3E15.7)') 'Maximum, minimum, average elapsed time per task (per call average):', &
                                     timing_results_acc(i,1:3)/timer_counts(i)
           if(is_verbose_level_2) then
-            write(stdo,'(A,3E15.7)') 'Maximum, minimum, average elapsed time per task (per call minimum):', &
+            write(nout,'(A,3E15.7)') 'Maximum, minimum, average elapsed time per task (per call minimum):', &
                                       timing_results_min(i,1:3)
-            write(stdo,'(A,3E15.7)') 'Maximum, minimum, average elapsed time per task (per call maximum):', &
+            write(nout,'(A,3E15.7)') 'Maximum, minimum, average elapsed time per task (per call maximum):', &
                                       timing_results_max(i,1:3)
           endif
-          write(stdo,*) ''
+          write(nout,*) ''
         end do
       end if
     end if
