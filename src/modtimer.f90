@@ -9,7 +9,7 @@
 !
 module modtimer
   use, intrinsic :: iso_fortran_env, only: dp => real64
-  use modmpi
+  use modmpi, only: myid, d_mpi_bcast, comm3d, nprocs, d_mpi_allreduce, mpi_min, mpi_max, mpi_sum, mpi_wtime
   use modglobal, only : checknamelisterror, ifnamopt, fname_options
   use fortran_support, only: nnml_output
 #if defined(USE_NVTX)
@@ -35,12 +35,9 @@ module modtimer
   logical :: ltimer_write = .false. ! Switch for writing timing results to a csv file
 contains
   subroutine inittimer
-    use modmpi, only : comm3d, D_MPI_BCAST
     implicit none
-    integer :: myid, ierr
+    integer :: ierr
     namelist /TIMER/ ltimer, ltimer_print, ltimer_write
-
-    call MPI_COMM_RANK(MPI_COMM_WORLD, myid, ierr)
 
     if (myid == 0) then
       open(ifnamopt, file=fname_options, status='old', iostat=ierr)
@@ -64,34 +61,28 @@ contains
     real(dp), allocatable :: timing_results_acc(:,:), &
                              timing_results_min(:,:), &
                              timing_results_max(:,:)
-    integer  :: i,myid,nproc,ierr,iend
+    integer  :: i,nproc,ierr,iend
     !
     if (.not. ltimer) return
     if (.not. ltimer_print) return
 
-    if(present(myid_arg)) then
-      myid = myid_arg
-    else
-      call MPI_COMM_RANK(MPI_COMM_WORLD,myid,ierr)
-    end if
     allocate(timing_results_acc(ntimers,3), &
              timing_results_min(ntimers,3), &
              timing_results_max(ntimers,3))
-    call MPI_COMM_SIZE(MPI_COMM_WORLD,nproc,ierr)
-    call MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,1),ntimers,MPI_DOUBLE_PRECISION,MPI_MIN,MPI_COMM_WORLD,ierr)
-    call MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,2),ntimers,MPI_DOUBLE_PRECISION,MPI_MAX,MPI_COMM_WORLD,ierr)
-    call MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,3),ntimers,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
-    timing_results_acc(:,3) = timing_results_acc(:,3)/nproc
-    call MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,1),ntimers,MPI_DOUBLE_PRECISION,MPI_MIN,MPI_COMM_WORLD,ierr)
-    call MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,2),ntimers,MPI_DOUBLE_PRECISION,MPI_MAX,MPI_COMM_WORLD,ierr)
-    call MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,3),ntimers,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
-    timing_results_min(:,3) = timing_results_min(:,3)/nproc
-    call MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,1),ntimers,MPI_DOUBLE_PRECISION,MPI_MIN,MPI_COMM_WORLD,ierr)
-    call MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,2),ntimers,MPI_DOUBLE_PRECISION,MPI_MAX,MPI_COMM_WORLD,ierr)
-    call MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,3),ntimers,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
-    timing_results_max(:,3) = timing_results_max(:,3)/nproc
+    call D_MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,1),ntimers,MPI_MIN,comm3d,ierr)
+    call D_MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,2),ntimers,MPI_MAX,comm3d,ierr)
+    call D_MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,3),ntimers,MPI_SUM,comm3d,ierr)
+    timing_results_acc(:,3) = timing_results_acc(:,3)/nprocs
+    call D_MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,1),ntimers,MPI_MIN,comm3d,ierr)
+    call D_MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,2),ntimers,MPI_MAX,comm3d,ierr)
+    call D_MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,3),ntimers,MPI_SUM,comm3d,ierr)
+    timing_results_min(:,3) = timing_results_min(:,3)/nprocs
+    call D_MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,1),ntimers,MPI_MIN,comm3d,ierr)
+    call D_MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,2),ntimers,MPI_MAX,comm3d,ierr)
+    call D_MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,3),ntimers,MPI_SUM,comm3d,ierr)
+    timing_results_max(:,3) = timing_results_max(:,3)/nprocs
     !
-    if(myid == MYID_PRINT) then
+    if(myid == 0) then
       write(stdo,*) ''
       write(stdo,*) '*** timing results [s] ***'
       write(stdo,*) ''
@@ -136,35 +127,29 @@ contains
     real(dp), allocatable :: timing_results_acc(:,:), &
                              timing_results_min(:,:), &
                              timing_results_max(:,:)
-    integer  :: i,myid,nproc,ierr,iend
+    integer  :: i,nproc,ierr,iend
     integer :: file
     !
     if (.not. ltimer) return
     if (.not. ltimer_write) return
 
-    if(present(myid_arg)) then
-      myid = myid_arg
-    else
-      call MPI_COMM_RANK(MPI_COMM_WORLD,myid,ierr)
-    end if
     allocate(timing_results_acc(ntimers,3), &
              timing_results_min(ntimers,3), &
              timing_results_max(ntimers,3))
-    call MPI_COMM_SIZE(MPI_COMM_WORLD,nproc,ierr)
-    call MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,1),ntimers,MPI_DOUBLE_PRECISION,MPI_MIN,MPI_COMM_WORLD,ierr)
-    call MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,2),ntimers,MPI_DOUBLE_PRECISION,MPI_MAX,MPI_COMM_WORLD,ierr)
-    call MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,3),ntimers,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
-    timing_results_acc(:,3) = timing_results_acc(:,3)/nproc
-    call MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,1),ntimers,MPI_DOUBLE_PRECISION,MPI_MIN,MPI_COMM_WORLD,ierr)
-    call MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,2),ntimers,MPI_DOUBLE_PRECISION,MPI_MAX,MPI_COMM_WORLD,ierr)
-    call MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,3),ntimers,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
-    timing_results_min(:,3) = timing_results_min(:,3)/nproc
-    call MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,1),ntimers,MPI_DOUBLE_PRECISION,MPI_MIN,MPI_COMM_WORLD,ierr)
-    call MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,2),ntimers,MPI_DOUBLE_PRECISION,MPI_MAX,MPI_COMM_WORLD,ierr)
-    call MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,3),ntimers,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
-    timing_results_max(:,3) = timing_results_max(:,3)/nproc
+    call D_MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,1),ntimers,MPI_MIN,comm3d,ierr)
+    call D_MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,2),ntimers,MPI_MAX,comm3d,ierr)
+    call D_MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,3),ntimers,MPI_SUM,comm3d,ierr)
+    timing_results_acc(:,3) = timing_results_acc(:,3)/nprocs
+    call D_MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,1),ntimers,MPI_MIN,comm3d,ierr)
+    call D_MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,2),ntimers,MPI_MAX,comm3d,ierr)
+    call D_MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,3),ntimers,MPI_SUM,comm3d,ierr)
+    timing_results_min(:,3) = timing_results_min(:,3)/nprocs
+    call D_MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,1),ntimers,MPI_MIN,comm3d,ierr)
+    call D_MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,2),ntimers,MPI_MAX,comm3d,ierr)
+    call D_MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,3),ntimers,MPI_SUM,comm3d,ierr)
+    timing_results_max(:,3) = timing_results_max(:,3)/nprocs
 
-    if (myid == MYID_PRINT) then
+    if (myid == 0) then
 
       open(newunit=file, file="timing.csv")
       write(file, '(A)') "Label;Elapsed time;Number of calls;Time per call"
