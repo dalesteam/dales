@@ -24,12 +24,13 @@ module modtimer
 
   private
 
+  public :: timer_read_namelist
+  public :: timer_init
   public :: timer_tic
   public :: timer_toc
   public :: timer_print
   public :: timer_cleanup
   public :: timer_write
-  public :: inittimer
   public :: ltimer
 
   logical, parameter :: GPU_DEFAULT_SYNC = .true.
@@ -51,14 +52,16 @@ module modtimer
 
 contains
 
-  subroutine inittimer
+  subroutine timer_read_namelist(nml_filename)
+
+    character(len=*), intent(in) :: nml_filename
 
     integer :: ierr
 
     namelist /timer/ ltimer, ltimer_print, ltimer_write
 
     if (myid == 0) then
-      open(ifnamopt, file=fname_options, status="old", iostat=ierr)
+      open(ifnamopt, file=nml_filename, status="old", iostat=ierr)
       read(ifnamopt, timer, iostat=ierr)
       call checknamelisterror(ierr, ifnamopt , "timer")
       write(nnml_output, timer)
@@ -69,7 +72,20 @@ contains
     call D_MPI_BCAST(ltimer_print, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(ltimer_write, 1, 0, comm3d, ierr)
 
-  end subroutine inittimer
+  end subroutine timer_read_namelist
+
+  subroutine timer_init()
+
+    allocate(timer_names(0), &
+             timer_counts(0), &
+             timer_counter(0), &
+             timer_tictoc(0), &
+             timer_elapsed_acc(0), &
+             timer_elapsed_min(0), &
+             timer_elapsed_max(0), &
+             timer_is_nvtx(0))
+
+  end subroutine timer_init
 
   subroutine timer_print(myid_arg)
 
@@ -209,16 +225,6 @@ contains
 
     if (.not. ltimer) return
 
-    if(.not.allocated(timer_names)) then
-      allocate(timer_names(      0), &
-               timer_counts(     0), &
-               timer_counter(    0), &
-               timer_tictoc(     0), &
-               timer_elapsed_acc(0), &
-               timer_elapsed_min(0), &
-               timer_elapsed_max(0), &
-               timer_is_nvtx(    0))
-    end if
     !
     idx = timer_search(timer_name)
     if (idx <= 0) then
