@@ -449,7 +449,7 @@ contains
       do ilu_idx = 1, nlu
         do j = 2, j1
           do i = 2, i1
-            db_ptr(i-1,j-1) = db_ptr(i-1,j-1) + tile(ilu_idx)%frac(i,j) * tile(ilu_idx)%db(i,j)
+            db_ptr(i,j) = db_ptr(i,j) + tile(ilu_idx)%frac(i,j) * tile(ilu_idx)%db(i,j)
           end do
         end do
       end do
