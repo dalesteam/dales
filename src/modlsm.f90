@@ -2171,10 +2171,12 @@ subroutine init_lsm_tiles
       tile(ilu) % thlskin(:,:) = thlprof(1)
       tile(ilu) % qtskin (:,:) = qtprof(1)
       tile(ilu) % obuk   (:,:) = -0.1
+      tile(ilu) % db     (:,:) = 0.0
 
       !$acc update device(tile(ilu)%thlskin)
       !$acc update device(tile(ilu)%qtskin)
       !$acc update device(tile(ilu)%obuk)
+      !$acc update device(tile(ilu)%db)
     end do
 
 end subroutine init_lsm_tiles
