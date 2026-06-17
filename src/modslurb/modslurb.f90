@@ -373,6 +373,10 @@ end subroutine slurb_update_external_vars
             call finish(routine, errstr)
         endif
         if ( fraction_slurb(i,j) /= 0) then
+            if ( slurb_tile%f_bld(i,j) > fraction_slurb(i, j) ) then
+                write(errstr,*), "Building fraction f_bld(",i,",",j,")=",slurb_tile%f_bld(i,j)," cannot be larger than the urban surface fraction=", fraction_slurb(i, j), ". Check your input file. f_bld represents the building plan area fraction of the total surface."
+                call finish(routine, errstr)
+            endif
             slurb_tile%f_bld(i, j) = slurb_tile%f_bld(i, j) / fraction_slurb(i, j)
         endif
         enddo
