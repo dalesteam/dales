@@ -8,42 +8,60 @@
 ! a simple timer, see https://github.com/p-costa/first-timer
 !
 module modtimer
+
   use, intrinsic :: iso_fortran_env, only: dp => real64
-  use modmpi, only: myid, d_mpi_bcast, comm3d, nprocs, d_mpi_allreduce, mpi_min, mpi_max, mpi_sum, mpi_wtime
-  use modglobal, only : checknamelisterror, ifnamopt, fname_options
+
+  use modmpi,          only: myid, d_mpi_bcast, comm3d, nprocs, &
+                             d_mpi_allreduce, mpi_min, mpi_max, mpi_sum, &
+                             mpi_wtime
+  use modglobal,       only: checknamelisterror, ifnamopt, fname_options
   use fortran_support, only: nnml_output
 #if defined(USE_NVTX)
   use modnvtx
 #endif
+
   implicit none
+
   private
-  public :: timer_tic,timer_toc,timer_print,timer_cleanup, timer_write, inittimer
+
+  public :: timer_tic
+  public :: timer_toc
+  public :: timer_print
+  public :: timer_cleanup
+  public :: timer_write
+  public :: inittimer
   public :: ltimer
-  !
+
   logical, parameter :: GPU_DEFAULT_SYNC = .true.
   integer, parameter :: max_name_len = 50
+
   character(max_name_len), allocatable :: timer_names(:)
-  integer , allocatable :: timer_counts(:)
-  integer , allocatable :: timer_counter(:)
-  real(dp), allocatable :: timer_tictoc(:),timer_elapsed_acc(:), &
-                                           timer_elapsed_min(:), &
-                                           timer_elapsed_max(:)
-  logical , allocatable :: timer_is_nvtx(:)
+  integer,                 allocatable :: timer_counts(:)
+  integer,                 allocatable :: timer_counter(:)
+  real(dp),                allocatable :: timer_tictoc(:)
+  real(dp),                allocatable :: timer_elapsed_acc(:)
+  real(dp),                allocatable :: timer_elapsed_min(:)
+  real(dp),                allocatable :: timer_elapsed_max(:)
+  logical,                 allocatable :: timer_is_nvtx(:)
+
   integer :: ntimers = 0
-  logical, protected :: ltimer = .false. ! Switch for enabling/disabling timings
-  logical :: ltimer_print = .true. ! Switch for printing timing results to std out
-  logical :: ltimer_write = .false. ! Switch for writing timing results to a csv file
+  logical :: ltimer = .false.       !< Switch for enabling/disabling timings
+  logical :: ltimer_print = .true.  !< Switch for printing timing results to std out
+  logical :: ltimer_write = .false. !< Switch for writing timing results to a csv file
+
 contains
+
   subroutine inittimer
-    implicit none
+
     integer :: ierr
-    namelist /TIMER/ ltimer, ltimer_print, ltimer_write
+
+    namelist /timer/ ltimer, ltimer_print, ltimer_write
 
     if (myid == 0) then
-      open(ifnamopt, file=fname_options, status='old', iostat=ierr)
-      read(ifnamopt, TIMER, iostat=ierr)
-      call checknamelisterror(ierr, ifnamopt , 'TIMER')
-      write(nnml_output, TIMER)
+      open(ifnamopt, file=fname_options, status="old", iostat=ierr)
+      read(ifnamopt, timer, iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt , "timer")
+      write(nnml_output, timer)
       close(ifnamopt)
     end if
 
@@ -52,17 +70,21 @@ contains
     call D_MPI_BCAST(ltimer_write, 1, 0, comm3d, ierr)
 
   end subroutine inittimer
+
   subroutine timer_print(myid_arg)
-    use, intrinsic :: iso_fortran_env, only: stdo => output_unit
-    integer , parameter :: MYID_PRINT = 0
-    logical , parameter :: is_verbose_level_1 = .false.
-    logical , parameter :: is_verbose_level_2 = .false.
-    integer , intent(in), optional :: myid_arg
+
+    integer, intent(in), optional :: myid_arg
+
+    integer, parameter :: MYID_PRINT = 0
+    logical, parameter :: is_verbose_level_1 = .false.
+    logical, parameter :: is_verbose_level_2 = .false.
+
     real(dp), allocatable :: timing_results_acc(:,:), &
                              timing_results_min(:,:), &
                              timing_results_max(:,:)
-    integer  :: i,nproc,ierr,iend
-    !
+
+    integer  :: i, ierr, iend
+
     if (.not. ltimer) return
     if (.not. ltimer_print) return
 
@@ -86,7 +108,7 @@ contains
       write(stdo,*) ''
       write(stdo,*) '*** timing results [s] ***'
       write(stdo,*) ''
-      if(nproc == 1.or..not.is_verbose_level_1) then
+      if(nprocs == 1.or..not.is_verbose_level_1) then
         do i = 1,ntimers
           write(stdo,'(3A)'      ) 'Label: "',trim(timer_names(i)), '"'
           write(stdo,'(A,3E15.7)') 'Elapsed time:', timing_results_acc(i,3:3)
@@ -118,18 +140,24 @@ contains
     deallocate(timing_results_acc, &
                timing_results_min, &
                timing_results_max)
+
   end subroutine timer_print
+
   subroutine timer_write(myid_arg)
-    integer , parameter :: MYID_PRINT = 0
-    logical , parameter :: is_verbose_level_1 = .false.
-    logical , parameter :: is_verbose_level_2 = .false.
-    integer , intent(in), optional :: myid_arg
+
+    integer, intent(in), optional :: myid_arg
+
+    integer, parameter :: MYID_PRINT = 0
+    logical, parameter :: is_verbose_level_1 = .false.
+    logical, parameter :: is_verbose_level_2 = .false.
+
     real(dp), allocatable :: timing_results_acc(:,:), &
                              timing_results_min(:,:), &
                              timing_results_max(:,:)
-    integer  :: i,nproc,ierr,iend
+
+    integer :: i, ierr, iend
     integer :: file
-    !
+
     if (.not. ltimer) return
     if (.not. ltimer_write) return
 
@@ -166,9 +194,12 @@ contains
     deallocate(timing_results_acc, &
                timing_results_min, &
                timing_results_max)
+
   end subroutine timer_write
+
   subroutine timer_tic(timer_name,nvtx_id_fix,nvtx_color,nvtx_id_inc,nvtx_gpu_stream)
-    character(*), intent(in) :: timer_name
+
+    character(len=*), intent(in) :: timer_name
     integer         , intent(in   ), optional :: nvtx_id_fix     ! if <= 0, only label and no color
     character(len=1), intent(in   ), optional :: nvtx_color      ! g/b/y/m/c/r/w following matplotlib's convention
     integer         , intent(inout), optional :: nvtx_id_inc     ! to increment the id, e.g.: call timer_tic(name,nvtx_id_inc=i_nvtx)
@@ -281,8 +312,11 @@ contains
     else
       if(present(ierror)) ierror = 1
     end if
+
   end subroutine timer_toc
+
   subroutine timer_cleanup
+
     integer :: i
     do i = 1,ntimers
       if (timer_counter(i) .ne. 0) then
@@ -292,8 +326,11 @@ contains
     if (allocated(timer_names)) then
       deallocate(timer_names,timer_counts,timer_counter,timer_elapsed_acc,timer_elapsed_min,timer_elapsed_max)
     end if
+
   end subroutine timer_cleanup
+
   integer function timer_search(timer_name)
+
     character(*), intent(in) :: timer_name
     integer :: i
     timer_search = -1
@@ -302,8 +339,11 @@ contains
         timer_search = i
       end if
     end do
+
   end function timer_search
+
   real(dp) function timer_time(timer_name,ierror)
+
     character(*), intent(in) :: timer_name
     integer, intent(out), optional :: ierror
     integer :: idx
@@ -315,8 +355,11 @@ contains
     else
       if(present(ierror)) ierror = 1
     end if
+
   end function timer_time
+
   subroutine concatenate_c(arr,val)
+
     character(*), intent(inout), allocatable, dimension(:) :: arr
     character(*), intent(in   ) :: val
     character(:), allocatable, dimension(:) :: arr_tmp
@@ -325,5 +368,7 @@ contains
     allocate(arr_tmp,source=arr)
     deallocate(arr); allocate(arr(n+1))
     arr(1:n) = arr_tmp(:); arr(n+1) = val
+
   end subroutine concatenate_c
+
 end module modtimer
