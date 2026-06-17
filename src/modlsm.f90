@@ -2796,6 +2796,7 @@ subroutine init_heterogeneous_nc
 
     ! initialize tskin
     tskin(:,:) = 0
+    tskin_radiative(:,:) = 0
     do ilu=1,nlu
         if (tile(ilu)%lushort == "slb") then; cycle; endif
        tskin(:,:) = tskin(:,:) + tile(ilu)%base_frac(:,:) * tile(ilu)%tskin(:,:)
