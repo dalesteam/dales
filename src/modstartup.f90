@@ -1692,7 +1692,7 @@ contains
     ! In the current implementation, neither the base pressure, nor the base virtual temperature plays a role in the dynamics
     ! They are nevertheless calculated and printed to the stdin/baseprof files for user convenience
     use modfields,         only : rhobf,rhobh,exnf,exnh
-    use modglobal,         only : k1,kmax,zf,zh,dzf,dzh,rv,rd,grav,cp,pref0,lwarmstart,ibas_prf,cexpnr,ifinput,ifoutput
+    use modglobal,         only : k1,kmax,zf,zh,dzf,dzh,rv,rd,grav,cp,pref0,lwarmstart,ibas_prf,cexpnr,ifinput,ifoutput, ibas_usr
     use modthermodynamics, only : lbaseexner
     use modsurfdata,       only : thls,ps,qts
     use modmpi,            only : myid,comm3d,mpierr,D_MPI_BCAST
@@ -1716,7 +1716,7 @@ contains
 
     if(myid==0)then
 
-      if(.not. lwarmstart) then
+      if( (.not. lwarmstart) .and. (ibas_prf /= ibas_usr) ) then
 
         if(ibas_prf <= 3 .and. thls < 0) then
           call finish(routine, 'thls has not been initialized but is needed for setting up the base profiles.')
@@ -1821,12 +1821,14 @@ contains
         end do
         close(ifoutput)
 
-      else ! lwarmstart
+      else ! lwarmstart or user-specified baseprof
 
-        ibas_prf = 5
-        print *, 'WARNING: warm start requires input files for density. ibas_prf defaulted to 5'
+        if (lwarmstart) then
+          ibas_prf = ibas_usr
+          print *, 'WARNING: warm start requires input files for density. ibas_prf defaulted to 5'
+        end if
 
-        ! Read background profiles in case of warmstart
+        ! Read background profiles in case of warmstart or user-provided input
         open (ifinput,file='baseprof.inp.'//cexpnr)
         read (ifinput,'(a80)') chmess
         read (ifinput,'(a80)') chmess
@@ -1838,7 +1840,7 @@ contains
         end do
         close(ifinput)
 
-      end if ! end if .not. lwarmstart
+      end if ! end if .not. lwarmstart .and. .not.user-specified baseprof
 
       ! Set height at k1 equal to kmax for the sake of printing to screen
       height(k1) = height(kmax)
