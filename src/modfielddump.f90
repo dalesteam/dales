@@ -594,7 +594,7 @@ contains
     if(lbinary) then
       if (myid==0) then
         open(ifoutput, file='wbthls.'//cexpnr,form='formatted',position='append')
-        write(ifoutput,'(F12.1 3F12.5)') timee,thls, qts,thvs
+        write(ifoutput,'(F12.1, 3F12.5)') timee,thls, qts,thvs
         close(ifoutput)
       end if
     endif
