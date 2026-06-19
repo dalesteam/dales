@@ -128,11 +128,17 @@ if( ENABLE_ACC OR ENABLE_OMP_GPU )
 
   # For debug builds, enable accelerator info
   if( ${CMAKE_Fortran_COMPILER_ID} MATCHES PGI|NVHPC )
-    ecbuild_add_fortran_flags( "-Minfo=accel" BUILD DEBUG ) 
+    ecbuild_add_fortran_flags( "-Minfo=accel" BUILD DEBUG )
   endif()
 
   add_compile_definitions( DALES_GPU )
 
+  if( ${CMAKE_Fortran_COMPILER_ID} MATCHES LLVMFlang )
+    add_compile_definitions( DALES_AMDGPU )
+    if( ENABLE_OMP_GPU )
+      ecbuild_add_fortran_flags( "-fopenmp --offload-arch=gfx90a" )
+    endif()
+  endif()
   # Disable automatic asynchronious kernel execution on Cray
   if( ${CMAKE_Fortran_COMPILER_ID} MATCHES Cray )
     add_compile_definitions( DALES_AMDGPU )
@@ -140,7 +146,6 @@ if( ENABLE_ACC OR ENABLE_OMP_GPU )
     if( ENABLE_OMP_GPU )
       ecbuild_add_fortran_flags( "-h noacc" )
       ecbuild_add_fortran_flags( "-h omp" )
-      #ecbuild_add_fortran_flags( "-g" )
     endif()
   endif()
 endif()
