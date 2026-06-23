@@ -15,7 +15,10 @@ module modtimer
                              d_mpi_allreduce, mpi_min, mpi_max, mpi_sum, &
                              mpi_wtime
   use modglobal,       only: checknamelisterror, ifnamopt, fname_options
-  use fortran_support, only: nnml_output, nout
+  use fortran_support, only: nnml_output, nout, t_table, add_table_column, &
+                             set_table_entry, print_table, initialize_table, &
+                             find_next_free_unit, real2string, int2string, &
+                             finish
 #if defined(USE_NVTX)
   use modnvtx
 #endif
@@ -28,10 +31,11 @@ module modtimer
   public :: timer_init
   public :: timer_tic
   public :: timer_toc
-  public :: timer_print
   public :: timer_cleanup
-  public :: timer_write
   public :: ltimer
+  public :: output_timings
+
+  character(len=*), parameter :: modname = "modtimer"
 
   logical, parameter :: GPU_DEFAULT_SYNC = .true.
   integer, parameter :: max_name_len = 50
@@ -45,10 +49,7 @@ module modtimer
   real(dp),                allocatable :: timer_elapsed_max(:)
   logical,                 allocatable :: timer_is_nvtx(:)
 
-  integer :: ntimers = 0
-  logical :: ltimer = .false.       !< Switch for enabling/disabling timings
-  logical :: ltimer_print = .true.  !< Switch for printing timing results to std out
-  logical :: ltimer_write = .false. !< Switch for writing timing results to a csv file
+  logical :: lverbose = .false.     !< Switch for printing per-rank statistics.
 
 contains
 
@@ -87,131 +88,99 @@ contains
 
   end subroutine timer_init
 
-  subroutine timer_print(myid_arg)
+  subroutine output_timings()
 
-    integer, intent(in), optional :: myid_arg
+    character(len=*), parameter :: routine = modname//"/output_timings"
 
-    integer, parameter :: MYID_PRINT = 0
-    logical, parameter :: is_verbose_level_1 = .false.
-    logical, parameter :: is_verbose_level_2 = .false.
+    character(len=64), parameter :: column_names(12) = [character(len=64) :: &
+      "label", &
+      "calls", &
+      "total elapsed time [s]", &
+      "avg elapsed time per call [s]", &
+      "min time per call [s]", &
+      "max time per call [s]", &
+      "avg elapsed time per call (minimum across tasks) [s]", &
+      "avg elapsed time per call (maximum across tasks) [s]", &
+      "min time per call (minimum across tasks) [s]", &
+      "min time per call (maximum across tasks) [s]", &
+      "max time per call (minimum across tasks) [s]", &
+      "max time per call (maximum across tasks) [s]" &
+    ]
 
-    real(dp), allocatable :: timing_results_acc(:,:), &
-                             timing_results_min(:,:), &
-                             timing_results_max(:,:)
+    integer :: itable_out
+    integer :: ierr
+    integer :: i
 
-    integer  :: i, ierr, iend
+    real(dp), allocatable :: timing_results_acc(:,:)
+    real(dp), allocatable :: timing_results_min(:,:)
+    real(dp), allocatable :: timing_results_max(:,:)
+
+    type(t_table) :: table
 
     if (.not. ltimer) return
-    if (.not. ltimer_print) return
 
+    ! Accumulate timing results across all MPI tasks
     allocate(timing_results_acc(ntimers,3), &
              timing_results_min(ntimers,3), &
              timing_results_max(ntimers,3))
-    call D_MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,1),ntimers,MPI_MIN,comm3d,ierr)
-    call D_MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,2),ntimers,MPI_MAX,comm3d,ierr)
-    call D_MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,3),ntimers,MPI_SUM,comm3d,ierr)
-    timing_results_acc(:,3) = timing_results_acc(:,3)/nprocs
-    call D_MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,1),ntimers,MPI_MIN,comm3d,ierr)
-    call D_MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,2),ntimers,MPI_MAX,comm3d,ierr)
-    call D_MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,3),ntimers,MPI_SUM,comm3d,ierr)
-    timing_results_min(:,3) = timing_results_min(:,3)/nprocs
-    call D_MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,1),ntimers,MPI_MIN,comm3d,ierr)
-    call D_MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,2),ntimers,MPI_MAX,comm3d,ierr)
-    call D_MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,3),ntimers,MPI_SUM,comm3d,ierr)
-    timing_results_max(:,3) = timing_results_max(:,3)/nprocs
-    !
-    if(myid == 0) then
-      write(nout,*) ''
-      write(nout,*) '*** timing results [s] ***'
-      write(nout,*) ''
-      if(nprocs == 1.or..not.is_verbose_level_1) then
-        do i = 1,ntimers
-          write(nout,'(3A)'      ) 'Label: "',trim(timer_names(i)), '"'
-          write(nout,'(A,3E15.7)') 'Elapsed time:', timing_results_acc(i,3:3)
-          write(nout,'(A,I7)'    ) 'Number of calls:', timer_counts(i)
-          write(nout,'(A,1E15.7)') 'Average elapsed time per task (per call average):',timing_results_acc(i,3:3)/timer_counts(i)
-          if(is_verbose_level_2) then
-            write(nout,'(A,1E15.7)') 'Average elapsed time per task (per call minimum):',timing_results_min(i,3:3)
-            write(nout,'(A,1E15.7)') 'Average elapsed time per task (per call maximum):',timing_results_max(i,3:3)
-          endif
-          write(nout,*) ''
-        end do
-      else
-        do i = 1,ntimers
-          write(nout,'(3A)'      ) 'Label: "',trim(timer_names(i)), '"'
-          write(nout,'(A,3E15.7)') 'Maximum, minimum, average elapsed time per task:', timing_results_acc(i,1:3)
-          write(nout,'(A,I7)'    ) 'Number of calls:', timer_counts(i)
-          write(nout,'(A,3E15.7)') 'Maximum, minimum, average elapsed time per task (per call average):', &
-                                    timing_results_acc(i,1:3)/timer_counts(i)
-          if(is_verbose_level_2) then
-            write(nout,'(A,3E15.7)') 'Maximum, minimum, average elapsed time per task (per call minimum):', &
-                                      timing_results_min(i,1:3)
-            write(nout,'(A,3E15.7)') 'Maximum, minimum, average elapsed time per task (per call maximum):', &
-                                      timing_results_max(i,1:3)
-          endif
-          write(nout,*) ''
-        end do
+
+    call D_MPI_ALLREDUCE(timer_elapsed_acc(:), timing_results_acc(:,1), ntimers, MPI_MIN, comm3d, &
+                         ierr)
+    call D_MPI_ALLREDUCE(timer_elapsed_acc(:), timing_results_acc(:,2), ntimers, MPI_MAX, comm3d, &
+                         ierr)
+    call D_MPI_ALLREDUCE(timer_elapsed_acc(:), timing_results_acc(:,3), ntimers, MPI_SUM, comm3d, &
+                         ierr)
+    timing_results_acc(:,3) = timing_results_acc(:,3) / nprocs
+
+    call D_MPI_ALLREDUCE(timer_elapsed_min(:), timing_results_min(:,1), ntimers, MPI_MIN, comm3d, &
+                         ierr)
+    call D_MPI_ALLREDUCE(timer_elapsed_min(:), timing_results_min(:,2), ntimers, MPI_MAX, comm3d, &
+                         ierr)
+    call D_MPI_ALLREDUCE(timer_elapsed_min(:), timing_results_min(:,3), ntimers, MPI_SUM, comm3d, &
+                         ierr)
+    timing_results_min(:,3) = timing_results_min(:,3) / nprocs
+
+    call D_MPI_ALLREDUCE(timer_elapsed_max(:), timing_results_max(:,1), ntimers, MPI_MIN, comm3d, &
+                         ierr)
+    call D_MPI_ALLREDUCE(timer_elapsed_max(:), timing_results_max(:,2), ntimers, MPI_MAX, comm3d, &
+                         ierr)
+    call D_MPI_ALLREDUCE(timer_elapsed_max(:), timing_results_max(:,3), ntimers, MPI_SUM, comm3d, &
+                         ierr)
+    timing_results_max(:,3) = timing_results_max(:,3) / nprocs
+
+    ! Format the timing results as a nice table
+    call initialize_table(table)
+
+    do i = 1, ntimers
+      call set_table_entry(table, i, column_names(1), timer_names(i))
+      call set_table_entry(table, i, column_names(2), int2string(timer_counts(i)))
+      call set_table_entry(table, i, column_names(3), real2string(timing_results_acc(i,3)))
+      call set_table_entry(table, i, column_names(4), &
+                           real2string(timing_results_acc(i,3) / timer_counts(i)))
+      call set_table_entry(table, i, column_names(5), real2string(timing_results_min(i,3)))
+      call set_table_entry(table, i, column_names(6), real2string(timing_results_max(i,3)))
+      if (lverbose) then
+        call set_table_entry(table, i, column_names(7), real2string(timing_results_acc(i,1)))
+        call set_table_entry(table, i, column_names(8), real2string(timing_results_acc(i,2)))
+        call set_table_entry(table, i, column_names(9), real2string(timing_results_min(i,1)))
+        call set_table_entry(table, i, column_names(10), real2string(timing_results_min(i,2)))
+        call set_table_entry(table, i, column_names(11), real2string(timing_results_max(i,1)))
+        call set_table_entry(table, i, column_names(12), real2string(timing_results_max(i,2)))
       end if
-    end if
-    deallocate(timing_results_acc, &
-               timing_results_min, &
-               timing_results_max)
-
-  end subroutine timer_print
-
-  subroutine timer_write(myid_arg)
-
-    integer, intent(in), optional :: myid_arg
-
-    integer, parameter :: MYID_PRINT = 0
-    logical, parameter :: is_verbose_level_1 = .false.
-    logical, parameter :: is_verbose_level_2 = .false.
-
-    real(dp), allocatable :: timing_results_acc(:,:), &
-                             timing_results_min(:,:), &
-                             timing_results_max(:,:)
-
-    integer :: i, ierr, iend
-    integer :: file
-
-    if (.not. ltimer) return
-    if (.not. ltimer_write) return
-
-    allocate(timing_results_acc(ntimers,3), &
-             timing_results_min(ntimers,3), &
-             timing_results_max(ntimers,3))
-    call D_MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,1),ntimers,MPI_MIN,comm3d,ierr)
-    call D_MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,2),ntimers,MPI_MAX,comm3d,ierr)
-    call D_MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,3),ntimers,MPI_SUM,comm3d,ierr)
-    timing_results_acc(:,3) = timing_results_acc(:,3)/nprocs
-    call D_MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,1),ntimers,MPI_MIN,comm3d,ierr)
-    call D_MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,2),ntimers,MPI_MAX,comm3d,ierr)
-    call D_MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,3),ntimers,MPI_SUM,comm3d,ierr)
-    timing_results_min(:,3) = timing_results_min(:,3)/nprocs
-    call D_MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,1),ntimers,MPI_MIN,comm3d,ierr)
-    call D_MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,2),ntimers,MPI_MAX,comm3d,ierr)
-    call D_MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,3),ntimers,MPI_SUM,comm3d,ierr)
-    timing_results_max(:,3) = timing_results_max(:,3)/nprocs
-
-    if (myid == 0) then
-
-      open(newunit=file, file="timing.csv")
-      write(file, '(A)') "Label;Elapsed time;Number of calls;Time per call"
-      do i = 1, ntimers
-        write(file, '(A,A,1E15.7,A,I7,A,1E15.7)') &
-              trim(timer_names(i)),  ";", &
-              timing_results_acc(i,3:3), ";", &
-              timer_counts(i) , ";", &
-              timing_results_acc(i,3:3)/timer_counts(i) 
       end do
-      close(file)
 
+    itable_out = find_next_free_unit(10, 20)
+
+    ! Write to file
+    open(unit=itable_out, file="timings.txt", status="replace", action="write", iostat=ierr)
+
+    if (ierr /= 0) then
+      call finish(routine, "could not open timings file for writing")
     end if
-    deallocate(timing_results_acc, &
-               timing_results_min, &
-               timing_results_max)
 
-  end subroutine timer_write
+    call print_table(table, opt_dstfile=itable_out)
+
+  end subroutine output_timings
 
   subroutine timer_tic(timer_name,nvtx_id_fix,nvtx_color,nvtx_id_inc,nvtx_gpu_stream)
 
