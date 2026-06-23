@@ -195,7 +195,7 @@ contains
     if (.not. ltimer) return
 
     !
-    idx = timer_search(timer_name)
+    idx = findloc(timer_names, timer_name, dim=1)
     if (idx <= 0) then
       ntimers = ntimers + 1
       call concatenate_c(timer_names,timer_name)
@@ -258,7 +258,7 @@ contains
     if (.not. ltimer) return
     
     if(present(ierror)) ierror = 0
-    idx = timer_search(timer_name)
+    idx = findloc(timer_names, timer_name, dim=1)
     if (idx > 0) then
       timer_tictoc(idx)      = MPI_WTIME() - timer_tictoc(idx)
       timer_elapsed_acc(idx) =    (timer_elapsed_acc(idx)+timer_tictoc(idx))
@@ -303,19 +303,6 @@ contains
     end if
 
   end subroutine timer_cleanup
-
-  integer function timer_search(timer_name)
-
-    character(*), intent(in) :: timer_name
-    integer :: i
-    timer_search = -1
-    do i = 1,ntimers
-      if (timer_names(i) == timer_name) then
-        timer_search = i
-      end if
-    end do
-
-  end function timer_search
 
   real(dp) function timer_time(timer_name,ierror)
 
