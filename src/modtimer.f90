@@ -304,22 +304,6 @@ contains
 
   end subroutine timer_cleanup
 
-  real(dp) function timer_time(timer_name,ierror)
-
-    character(*), intent(in) :: timer_name
-    integer, intent(out), optional :: ierror
-    integer :: idx
-    if(present(ierror)) ierror = 0
-    timer_time = -1._dp
-    idx = timer_search(timer_name)
-    if (idx > 0) then
-      timer_time = timer_elapsed_acc(idx)
-    else
-      if(present(ierror)) ierror = 1
-    end if
-
-  end function timer_time
-
   subroutine concatenate_c(arr,val)
 
     character(*), intent(inout), allocatable, dimension(:) :: arr
