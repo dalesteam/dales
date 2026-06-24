@@ -128,6 +128,12 @@ set( dales_srcs
 	utils.f90
 )
 
+if( ENABLE_LCM )
+	list( APPEND dales_srcs
+		modlcm_adapter.f90
+	)
+endif()
+
 # RRTMG - longwave
 set( rrtmg_lw_srcs
 	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_LW/modules/parkind.f90
@@ -224,12 +230,14 @@ ecbuild_add_executable( TARGET dales
                         DEPENDS tag_git_version
                         INCLUDES
                           ${NetCDF_Fortran_INCLUDE_DIR}
+                          $<$<BOOL:${ENABLE_LCM}>:${LCM_MODULE_DIR}>
                           $<$<BOOL:${ENABLE_FFTW}>:${FFTW_INCLUDE_DIRS}>
                           $<$<BOOL:${HAVE_HIP}>:${HIPFORT_INCLUDE_DIRS}>
                         LIBS
                           MPI::MPI_Fortran
                           NetCDF::NetCDF_Fortran
                           NetCDF::NetCDF_C
+                          $<$<BOOL:${ENABLE_LCM}>:${LCM_LIBRARY}>
 													fortran-support::fortran-support
 													rte-rrtmgp::rrtmgp
 													rte-rrtmgp::rte
@@ -254,10 +262,12 @@ ecbuild_add_library( TARGET libdales
                      DEPENDS tag_git_version
                      PUBLIC_INCLUDES
                        ${NetCDF_Fortran_INCLUDE_DIR}
+                       $<$<BOOL:${ENABLE_LCM}>:${LCM_MODULE_DIR}>
                        $<$<BOOL:${ENABLE_FFTW}>:${FFTW_INCLUDE_DIRS}>
                      PUBLIC_LIBS
                        MPI::MPI_Fortran
                        NetCDF::NetCDF_Fortran
+                       $<$<BOOL:${ENABLE_LCM}>:${LCM_LIBRARY}>
 											 rte-rrtmgp::rrtmgp
 											 rte-rrtmgp::rte
                        $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3>
