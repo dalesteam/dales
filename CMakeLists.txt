@@ -41,6 +41,10 @@ ecbuild_add_option( FEATURE DALESLIB
                     DESCRIPTION "Build DALES libraries for use with OMUSE"
                     DEFAULT OFF )
 
+ecbuild_add_option( FEATURE LCM
+                    DESCRIPTION "Build with an external LCM library"
+                    DEFAULT OFF )
+
 ecbuild_add_option( FEATURE ACC
                     DESCRIPTION "Build with GPU support through OpenACC"
                     DEFAULT OFF )
@@ -58,6 +62,40 @@ ecbuild_find_package( MPI REQUIRED COMPONENTS Fortran )
 # Check if the NetCDF library supports parallel operations
 include( dales_query_parallel_netcdf )
 dales_query_parallel_netcdf()
+
+set( LCM_ROOT "" CACHE PATH "Path to an LCM build tree or install prefix" )
+
+if( ENABLE_LCM )
+  if( NOT LCM_ROOT )
+    message( FATAL_ERROR "ENABLE_LCM requires LCM_ROOT to point to an LCM build tree or install prefix" )
+  endif()
+
+  find_path( LCM_MODULE_DIR
+              NAMES lcm_host_interface.mod
+             PATHS
+               "${LCM_ROOT}/mod"
+               "${LCM_ROOT}/build/mod"
+               "${LCM_ROOT}/include"
+             NO_DEFAULT_PATH )
+
+  find_library( LCM_LIBRARY
+                NAMES lcm
+                PATHS
+                  "${LCM_ROOT}"
+                  "${LCM_ROOT}/build"
+                  "${LCM_ROOT}/lib"
+                NO_DEFAULT_PATH )
+
+  if( NOT LCM_MODULE_DIR )
+    message( FATAL_ERROR "Could not find lcm_host_interface.mod below LCM_ROOT=${LCM_ROOT}" )
+  endif()
+
+  if( NOT LCM_LIBRARY )
+    message( FATAL_ERROR "Could not find the LCM library below LCM_ROOT=${LCM_ROOT}" )
+  endif()
+
+  add_compile_definitions( USE_LCM )
+endif()
 
 # Set precision
 
