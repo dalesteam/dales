@@ -49,6 +49,11 @@ module modtimer
   real(dp),                allocatable :: timer_elapsed_max(:)
   logical,                 allocatable :: timer_is_nvtx(:)
 
+  integer :: ntimers = 0            !< Number of timers.
+
+  logical :: ltimer = .false.       !< Switch for enabling/disabling timings.
+  logical :: ltimer_print = .true.  !< Switch for printing timing results to std out.
+  logical :: ltimer_write = .false. !< Switch for writing timing results to a csv file.
   logical :: lverbose = .false.     !< Switch for printing per-rank statistics.
 
 contains
