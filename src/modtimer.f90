@@ -39,29 +39,28 @@ module modtimer
 
   integer, parameter :: max_name_len = 50
 
-  character(max_name_len), allocatable :: timer_names(:)
-  integer,                 allocatable :: timer_counts(:)
-  integer,                 allocatable :: timer_counter(:)
-  real(dp),                allocatable :: timer_tictoc(:)
-  real(dp),                allocatable :: timer_elapsed_acc(:)
-  real(dp),                allocatable :: timer_elapsed_min(:)
-  real(dp),                allocatable :: timer_elapsed_max(:)
+  character(max_name_len), allocatable :: timer_names(:)       !< Names of the timers.
+  integer,                 allocatable :: timer_counts(:)      !< Number of calls to each timer.
+  integer,                 allocatable :: timer_counter(:)     !< Nesting level of timer.
+  real(dp),                allocatable :: timer_tictoc(:)      !< Elapsed time for the current tic/toc call [s].
+  real(dp),                allocatable :: timer_elapsed_acc(:) !< Total elapsed time accumulated for each timer [s].
+  real(dp),                allocatable :: timer_elapsed_min(:) !< Minimum elapsed time for each timer [s].
+  real(dp),                allocatable :: timer_elapsed_max(:) !< Maximum elapsed time for each timer [s].
 
-  integer :: ntimers = 0            !< Number of timers.
-  integer :: level = 0              !< Current level of nested timers.
+  integer :: ntimers = 0 !< Number of timers.
+  integer :: level = 0   !< Current level of nested timers.
 
-  logical :: ltimer = .false.       !< Switch for enabling/disabling timings.
-  logical :: ltimer_print = .true.  !< Switch for printing timing results to std out.
-  logical :: ltimer_write = .false. !< Switch for writing timing results to a csv file.
-  logical :: lverbose = .false.     !< Switch for printing per-rank statistics.
-  logical :: lnvtx = .true.         !< Switch for enabling NVTX regions.
-  integer :: max_level = 0          !< Maximum level of nested timers (if < 1, then no maximum).
+  logical, protected :: ltimer = .false.   !< Switch for enabling/disabling timings.
+  logical            :: lverbose = .false. !< Switch for printing per-rank statistics.
+  logical            :: lnvtx = .true.     !< Switch for enabling NVTX regions.
+  integer            :: max_level = 0      !< Maximum level of nested timers (if < 1, then no maximum).
 
 contains
 
+  !> Read the timer namelist.
   subroutine timer_read_namelist(nml_filename)
 
-    character(len=*), intent(in) :: nml_filename
+    character(len=*), intent(in) :: nml_filename !< Name of the namelist file.
 
     integer :: ierr
 
@@ -83,6 +82,7 @@ contains
 
   end subroutine timer_read_namelist
 
+  !> Initialize the timer module and allocate arrays.
   subroutine timer_init()
 
     allocate(timer_names(0), &
@@ -95,6 +95,7 @@ contains
 
   end subroutine timer_init
 
+  !> Accumulate timing results across all MPI tasks and print to file.
   subroutine output_timings()
 
     character(len=*), parameter :: routine = modname//"/output_timings"
@@ -189,11 +190,12 @@ contains
 
   end subroutine output_timings
 
+  !> Start the timer and record the start time.
   subroutine timer_tic(timer_name, opt_nvtx_id)
 
-    character(len=*), intent(in) :: timer_name
+    character(len=*), intent(in) :: timer_name !< Name of the timer to start.
 
-    integer, intent(in), optional :: opt_nvtx_id
+    integer, intent(in), optional :: opt_nvtx_id !< Optional NVTX range ID.
 
     integer :: idx
     integer :: nvtx_id
@@ -212,15 +214,15 @@ contains
     if (idx <= 0) then
       ntimers = ntimers + 1
       call concatenate_c(timer_names,timer_name)
-      timer_counts      = [timer_counts     ,0          ]
-      timer_counter     = [timer_counter    ,0          ]
-      timer_tictoc      = [timer_tictoc     ,0._dp      ]
-      timer_elapsed_acc = [timer_elapsed_acc,0._dp      ]
-      timer_elapsed_min = [timer_elapsed_min,huge(0._dp)]
-      timer_elapsed_max = [timer_elapsed_max,tiny(0._dp)]
+      timer_counts      = [timer_counts,      0          ]
+      timer_counter     = [timer_counter,     0          ]
+      timer_tictoc      = [timer_tictoc,      0._dp      ]
+      timer_elapsed_acc = [timer_elapsed_acc, 0._dp      ]
+      timer_elapsed_min = [timer_elapsed_min, huge(0._dp)]
+      timer_elapsed_max = [timer_elapsed_max, tiny(0._dp)]
       idx = ntimers
     end if
-    timer_counter(idx)     = timer_counter(idx) + 1
+    timer_counter(idx) = timer_counter(idx) + 1
     timer_tictoc(idx) = MPI_WTIME()
 
     !$acc wait
@@ -237,14 +239,14 @@ contains
 
   end subroutine timer_tic
 
+  !> Stop the timer and accumulate the elapsed time.
   subroutine timer_toc(timer_name)
 
-    character(len=*), intent(in) :: timer_name
+    character(len=*), intent(in) :: timer_name !< Name of the timer to stop.
 
     character(len=*), parameter :: routine = modname//"/timer_toc"
 
     integer :: idx
-    logical :: is_gpu_sync
 
     if (.not. ltimer) return
 
@@ -253,21 +255,21 @@ contains
       return
     else
       level = level - 1
+
       idx = findloc(timer_names, timer_name, dim=1)
+
       if (idx > 0) then
         timer_tictoc(idx)      = MPI_WTIME() - timer_tictoc(idx)
-        timer_elapsed_acc(idx) =    (timer_elapsed_acc(idx)+timer_tictoc(idx))
-        timer_elapsed_min(idx) = min(timer_elapsed_min(idx),timer_tictoc(idx))
-        timer_elapsed_max(idx) = max(timer_elapsed_max(idx),timer_tictoc(idx))
+        timer_elapsed_acc(idx) =    (timer_elapsed_acc(idx) + timer_tictoc(idx))
+        timer_elapsed_min(idx) = min(timer_elapsed_min(idx), timer_tictoc(idx))
+        timer_elapsed_max(idx) = max(timer_elapsed_max(idx), timer_tictoc(idx))
         timer_counts(idx)      = timer_counts(idx) + 1
         timer_counter(idx)     = timer_counter(idx) - 1
 
         !$acc wait
-
 #if defined(USE_CUDA)
         if (lnvtx) call nvtxEndRange
 #endif
-
       else
         call finish(routine, "timer " // trim(timer_name) // " not found")
       end if
@@ -275,30 +277,42 @@ contains
 
   end subroutine timer_toc
 
-  subroutine timer_cleanup
+  !> Check for unbalanced tic/toc calls and deallocate arrays.
+  subroutine timer_cleanup()
+
+    character(len=*), parameter :: routine = modname//"/timer_cleanup"
 
     integer :: i
+
     do i = 1,ntimers
-      if (timer_counter(i) .ne. 0) then
-        print*,'WARNING: malformed timer: ', timer_names(i)
+      if (timer_counter(i) /= 0) then
+        call warning(routine, "timer " // trim(timer_names(i)) // " has unbalanced tic/toc calls")
       end if
     end do
     if (allocated(timer_names)) then
-      deallocate(timer_names,timer_counts,timer_counter,timer_elapsed_acc,timer_elapsed_min,timer_elapsed_max)
+      deallocate(timer_names, timer_counts, timer_counter, timer_elapsed_acc, timer_elapsed_min, &
+                 timer_elapsed_max)
     end if
 
   end subroutine timer_cleanup
 
-  subroutine concatenate_c(arr,val)
+  !> Concatenate a character array with a new value.
+  subroutine concatenate_c(arr, val)
 
-    character(*), intent(inout), allocatable, dimension(:) :: arr
-    character(*), intent(in   ) :: val
-    character(:), allocatable, dimension(:) :: arr_tmp
+    character(len=max_name_len), intent(inout) :: arr(:) !< Character array to concatenate to.
+
+    character(len=*),            intent(in)    :: val !< New value to concatenate.
+
+    character(len=max_name_len), allocatable :: arr_tmp(:)
+
     integer :: n
+
     n = size(arr)
-    allocate(arr_tmp,source=arr)
-    deallocate(arr); allocate(arr(n+1))
-    arr(1:n) = arr_tmp(:); arr(n+1) = val
+    allocate(arr_tmp, source=arr)
+    deallocate(arr)
+    allocate(arr(n + 1))
+    arr(1:n) = arr_tmp(:)
+    arr(n+1) = val
 
   end subroutine concatenate_c
 
