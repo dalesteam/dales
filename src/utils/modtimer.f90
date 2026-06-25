@@ -64,7 +64,7 @@ contains
 
     integer :: ierr
 
-    namelist /timer/ ltimer, ltimer_print, ltimer_write, lnvtx, max_level
+    namelist /timer/ ltimer, lnvtx, max_level
 
     if (myid == 0) then
       open(ifnamopt, file=nml_filename, status="old", iostat=ierr)
@@ -75,8 +75,6 @@ contains
     end if
 
     call D_MPI_BCAST(ltimer, 1, 0, comm3d, ierr)
-    call D_MPI_BCAST(ltimer_print, 1, 0, comm3d, ierr)
-    call D_MPI_BCAST(ltimer_write, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(lnvtx, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(max_level, 1, 0, comm3d, ierr)
 
@@ -299,7 +297,7 @@ contains
   !> Concatenate a character array with a new value.
   subroutine concatenate_c(arr, val)
 
-    character(len=max_name_len), intent(inout) :: arr(:) !< Character array to concatenate to.
+    character(len=max_name_len), intent(inout), allocatable :: arr(:) !< Character array to concatenate to.
 
     character(len=*),            intent(in)    :: val !< New value to concatenate.
 
