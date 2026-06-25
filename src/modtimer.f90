@@ -48,12 +48,14 @@ module modtimer
   real(dp),                allocatable :: timer_elapsed_max(:)
 
   integer :: ntimers = 0            !< Number of timers.
+  integer :: level = 0              !< Current level of nested timers.
 
   logical :: ltimer = .false.       !< Switch for enabling/disabling timings.
   logical :: ltimer_print = .true.  !< Switch for printing timing results to std out.
   logical :: ltimer_write = .false. !< Switch for writing timing results to a csv file.
   logical :: lverbose = .false.     !< Switch for printing per-rank statistics.
   logical :: lnvtx = .true.         !< Switch for enabling NVTX regions.
+  integer :: max_level = 0          !< Maximum level of nested timers (if < 1, then no maximum).
 
 contains
 
@@ -63,7 +65,7 @@ contains
 
     integer :: ierr
 
-    namelist /timer/ ltimer, ltimer_print, ltimer_write, lnvtx
+    namelist /timer/ ltimer, ltimer_print, ltimer_write, lnvtx, max_level
 
     if (myid == 0) then
       open(ifnamopt, file=nml_filename, status="old", iostat=ierr)
@@ -77,6 +79,7 @@ contains
     call D_MPI_BCAST(ltimer_print, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(ltimer_write, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(lnvtx, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(max_level, 1, 0, comm3d, ierr)
 
   end subroutine timer_read_namelist
 
@@ -197,10 +200,15 @@ contains
 
     if (.not. ltimer) return
 
+    level = level + 1
+
+    if (level > max_level .and. max_level > 0) return
+
     nvtx_id = -1
     if (present(opt_nvtx_id)) nvtx_id = opt_nvtx_id
 
     idx = findloc(timer_names, timer_name, dim=1)
+
     if (idx <= 0) then
       ntimers = ntimers + 1
       call concatenate_c(timer_names,timer_name)
@@ -239,24 +247,30 @@ contains
     logical :: is_gpu_sync
 
     if (.not. ltimer) return
-    
-    idx = findloc(timer_names, timer_name, dim=1)
-    if (idx > 0) then
-      timer_tictoc(idx)      = MPI_WTIME() - timer_tictoc(idx)
-      timer_elapsed_acc(idx) =    (timer_elapsed_acc(idx)+timer_tictoc(idx))
-      timer_elapsed_min(idx) = min(timer_elapsed_min(idx),timer_tictoc(idx))
-      timer_elapsed_max(idx) = max(timer_elapsed_max(idx),timer_tictoc(idx))
-      timer_counts(idx)      = timer_counts(idx) + 1
-      timer_counter(idx)     = timer_counter(idx) - 1
 
-      !$acc wait
+    if (level > max_level .and. max_level > 0) then
+      level = level - 1
+      return
+    else
+      level = level - 1
+      idx = findloc(timer_names, timer_name, dim=1)
+      if (idx > 0) then
+        timer_tictoc(idx)      = MPI_WTIME() - timer_tictoc(idx)
+        timer_elapsed_acc(idx) =    (timer_elapsed_acc(idx)+timer_tictoc(idx))
+        timer_elapsed_min(idx) = min(timer_elapsed_min(idx),timer_tictoc(idx))
+        timer_elapsed_max(idx) = max(timer_elapsed_max(idx),timer_tictoc(idx))
+        timer_counts(idx)      = timer_counts(idx) + 1
+        timer_counter(idx)     = timer_counter(idx) - 1
+
+        !$acc wait
 
 #if defined(USE_CUDA)
-      if (lnvtx) call nvtxEndRange
+        if (lnvtx) call nvtxEndRange
 #endif
 
-    else
-      call finish(routine, "timer " // trim(timer_name) // " not found") 
+      else
+        call finish(routine, "timer " // trim(timer_name) // " not found")
+      end if
     end if
 
   end subroutine timer_toc
