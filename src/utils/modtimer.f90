@@ -18,7 +18,7 @@ module modtimer
   use fortran_support, only: nnml_output, nout, t_table, add_table_column, &
                              set_table_entry, print_table, initialize_table, &
                              find_next_free_unit, real2string, int2string, &
-                             finish
+                             finish, warning
 #if defined(USE_CUDA)
   use modnvtx
 #endif
