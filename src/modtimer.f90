@@ -19,7 +19,7 @@ module modtimer
                              set_table_entry, print_table, initialize_table, &
                              find_next_free_unit, real2string, int2string, &
                              finish
-#if defined(USE_NVTX)
+#if defined(USE_CUDA)
   use modnvtx
 #endif
 
@@ -37,7 +37,6 @@ module modtimer
 
   character(len=*), parameter :: modname = "modtimer"
 
-  logical, parameter :: GPU_DEFAULT_SYNC = .true.
   integer, parameter :: max_name_len = 50
 
   character(max_name_len), allocatable :: timer_names(:)
@@ -47,7 +46,6 @@ module modtimer
   real(dp),                allocatable :: timer_elapsed_acc(:)
   real(dp),                allocatable :: timer_elapsed_min(:)
   real(dp),                allocatable :: timer_elapsed_max(:)
-  logical,                 allocatable :: timer_is_nvtx(:)
 
   integer :: ntimers = 0            !< Number of timers.
 
@@ -55,6 +53,7 @@ module modtimer
   logical :: ltimer_print = .true.  !< Switch for printing timing results to std out.
   logical :: ltimer_write = .false. !< Switch for writing timing results to a csv file.
   logical :: lverbose = .false.     !< Switch for printing per-rank statistics.
+  logical :: lnvtx = .true.         !< Switch for enabling NVTX regions.
 
 contains
 
@@ -64,7 +63,7 @@ contains
 
     integer :: ierr
 
-    namelist /timer/ ltimer, ltimer_print, ltimer_write
+    namelist /timer/ ltimer, ltimer_print, ltimer_write, lnvtx
 
     if (myid == 0) then
       open(ifnamopt, file=nml_filename, status="old", iostat=ierr)
@@ -77,6 +76,7 @@ contains
     call D_MPI_BCAST(ltimer, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(ltimer_print, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(ltimer_write, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(lnvtx, 1, 0, comm3d, ierr)
 
   end subroutine timer_read_namelist
 
@@ -88,8 +88,7 @@ contains
              timer_tictoc(0), &
              timer_elapsed_acc(0), &
              timer_elapsed_min(0), &
-             timer_elapsed_max(0), &
-             timer_is_nvtx(0))
+             timer_elapsed_max(0))
 
   end subroutine timer_init
 
@@ -172,7 +171,7 @@ contains
         call set_table_entry(table, i, column_names(11), real2string(timing_results_max(i,1)))
         call set_table_entry(table, i, column_names(12), real2string(timing_results_max(i,2)))
       end if
-      end do
+    end do
 
     itable_out = find_next_free_unit(10, 20)
 
@@ -187,19 +186,20 @@ contains
 
   end subroutine output_timings
 
-  subroutine timer_tic(timer_name,nvtx_id_fix,nvtx_color,nvtx_id_inc,nvtx_gpu_stream)
+  subroutine timer_tic(timer_name, opt_nvtx_id)
 
     character(len=*), intent(in) :: timer_name
-    integer         , intent(in   ), optional :: nvtx_id_fix     ! if <= 0, only label and no color
-    character(len=1), intent(in   ), optional :: nvtx_color      ! g/b/y/m/c/r/w following matplotlib's convention
-    integer         , intent(inout), optional :: nvtx_id_inc     ! to increment the id, e.g.: call timer_tic(name,nvtx_id_inc=i_nvtx)
-    integer         , intent(in   ), optional :: nvtx_gpu_stream ! to optionally sync host/device over a stream/queue (asynchronous if < 0)
-    integer :: idx,nvtx_id
-    logical :: is_nvtx,is_gpu_sync
+
+    integer, intent(in), optional :: opt_nvtx_id
+
+    integer :: idx
+    integer :: nvtx_id
 
     if (.not. ltimer) return
 
-    !
+    nvtx_id = -1
+    if (present(opt_nvtx_id)) nvtx_id = opt_nvtx_id
+
     idx = findloc(timer_names, timer_name, dim=1)
     if (idx <= 0) then
       ntimers = ntimers + 1
@@ -210,59 +210,36 @@ contains
       timer_elapsed_acc = [timer_elapsed_acc,0._dp      ]
       timer_elapsed_min = [timer_elapsed_min,huge(0._dp)]
       timer_elapsed_max = [timer_elapsed_max,tiny(0._dp)]
-      timer_is_nvtx     = [timer_is_nvtx    ,.false.    ]
       idx = ntimers
     end if
     timer_counter(idx)     = timer_counter(idx) + 1
     timer_tictoc(idx) = MPI_WTIME()
-#if defined(USE_NVTX)
-    is_nvtx = .false.
-    if(     present(nvtx_id_inc)) then
-      nvtx_id = nvtx_id_inc
-      if(nvtx_id == huge(1)) nvtx_id_inc = 0 ! avoid overflow
-      nvtx_id_inc = nvtx_id_inc + 1
-      is_nvtx = .true.
-    else if(present(nvtx_id_fix)) then
-      nvtx_id = nvtx_id_fix
-      is_nvtx = .true.
-    else if(present(nvtx_color )) then
-      is_nvtx = .true.
-    end if
-    if(is_nvtx) then
-      is_gpu_sync = GPU_DEFAULT_SYNC
-      if(present(nvtx_gpu_stream)) then
-        if(nvtx_gpu_stream < 0) then
-          is_gpu_sync = .false.
-        end if
-      end if
-      if(is_gpu_sync) then
-        if(.not.present(nvtx_gpu_stream)) then
-          !$acc wait
-        else
-          !$acc wait(nvtx_gpu_stream)
-        end if
-      end if
-      if(     present(nvtx_color)) then
-        call nvtxStartRange(trim(timer_name),color=nvtx_color)
-      else if(nvtx_id > 0        ) then
-          call nvtxStartRange(trim(timer_name),id=nvtx_id)
+
+    !$acc wait
+
+#if defined(USE_CUDA)
+    if (lnvtx) then
+      if (nvtx_id > 0) then
+        call nvtxStartRange(trim(timer_name), id=nvtx_id)
       else
         call nvtxStartRange(trim(timer_name))
       end if
-      timer_is_nvtx(idx) = .true.
     end if
 #endif
+
   end subroutine timer_tic
-  subroutine timer_toc(timer_name,nvtx_gpu_stream,ierror)
-    character(*), intent(in) :: timer_name
-    integer, intent(in), optional :: nvtx_gpu_stream
-    integer, intent(out), optional :: ierror
+
+  subroutine timer_toc(timer_name)
+
+    character(len=*), intent(in) :: timer_name
+
+    character(len=*), parameter :: routine = modname//"/timer_toc"
+
     integer :: idx
     logical :: is_gpu_sync
 
     if (.not. ltimer) return
     
-    if(present(ierror)) ierror = 0
     idx = findloc(timer_names, timer_name, dim=1)
     if (idx > 0) then
       timer_tictoc(idx)      = MPI_WTIME() - timer_tictoc(idx)
@@ -271,26 +248,15 @@ contains
       timer_elapsed_max(idx) = max(timer_elapsed_max(idx),timer_tictoc(idx))
       timer_counts(idx)      = timer_counts(idx) + 1
       timer_counter(idx)     = timer_counter(idx) - 1
-      if(timer_is_nvtx(idx)) then
-        is_gpu_sync = GPU_DEFAULT_SYNC
-        if(present(nvtx_gpu_stream)) then
-          if(nvtx_gpu_stream < 0) then
-            is_gpu_sync = .false.
-          end if
-        end if
-        if(is_gpu_sync) then
-          if(.not.present(nvtx_gpu_stream)) then
-            !$acc wait
-          else
-            !$acc wait(nvtx_gpu_stream)
-          end if
-        end if
-#if defined(USE_NVTX)
-        call nvtxEndRange
+
+      !$acc wait
+
+#if defined(USE_CUDA)
+      if (lnvtx) call nvtxEndRange
 #endif
-      end if
+
     else
-      if(present(ierror)) ierror = 1
+      call finish(routine, "timer " // trim(timer_name) // " not found") 
     end if
 
   end subroutine timer_toc
