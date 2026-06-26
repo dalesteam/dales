@@ -182,8 +182,8 @@ contains
       too_cold = .false.
       too_hot = .false.
 
-      !$omp target update to(thl0, exnf, qt0, presf, exnf, ql0)
-      !$omp target update to(zf, zh)
+      !$omp target update to(thl0, qt0, presf, presh, exnf, exnh, ql0, ql0h)
+      !$omp target update to(zf, zh, dzf, dzhi)
 
       !$acc parallel loop collapse(3) default(present) async(1) private(T) &
       !$acc firstprivate(too_cold, too_hot)
@@ -220,22 +220,22 @@ contains
 #endif
 
       ! host_is_updated = .false. ; call update_host()
-      ! print *, ">>> ql 1", sum(ql0), minval(ql0), maxval(ql0)
-      !$omp target update from(ql0)
-      ! print *, ">>> ql 2", sum(ql0), minval(ql0), maxval(qlg)
 
       call diagfld_gpu
+      !$omp target update from(th0av, exnf, exnh, thvf, rhof)
 
       ! Interpolate thl and qt to the half levels
       call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
       call calc_halflev(qt0, dzf, dzhi, qts, iadv_qt == iadv_kappa, qt0h)
 
       ! Do saturation adjustment again on the half levels
-! #if defined(DALES_GPU)
-!       call saturation_adjustment_gpu(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1)
-! #else
+#if defined(DALES_GPU)
+      call saturation_adjustment_gpu(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1)
+#else
       call saturation_adjustment(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1)
-! #endif
+#endif
+      !$omp target update from(thl0h, qt0h, ql0h, ql0)
+
 
       if (imicro /= imicro_none) then
         call calc_saturation_humidities(qt0, ql0, thl0, presf, exnf, esl, &
@@ -619,24 +619,21 @@ contains
     end if
 
     ! 2.2 Use new updated value of theta for determination of pressure
-
     call fromztop_gpu
-    !$omp target update from(th0av, exnf, exnh)
 
     ! 3. Construct density profiles and exner function
 
     if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
       !$acc serial default(present) async(1)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+      !$omp target defaultmap(present:allocatable)
       exnh(1) = (ps/pref0)**(rd/cp)
       exnf(1) = (presf(1)/pref0)**(rd/cp)
       !$acc end serial
-!!$omp end target
+      !$omp end target
 
       !$acc parallel loop default(present) async(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+      !$omp target teams loop defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do k=2,k1
         exnf(k) = (presf(k)/pref0)**(rd/cp)
         exnh(k) = (presh(k)/pref0)**(rd/cp)
@@ -644,8 +641,8 @@ contains
     endif
 
     !$acc parallel loop default(present) async(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k=1,k1
       thvf(k) = th0av(k)*exnf(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
       rhof(k) = presf(k)/(rd*thvf(k))
@@ -1233,8 +1230,8 @@ contains
       call halflev_kappa(phi, phi_half)
     else
       !$acc parallel loop collapse(3) default(present) async(stream)
-!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+      !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do k = 2, k1
         do j = 2, j1
           do i = 2, i1
@@ -1246,8 +1243,8 @@ contains
     end if
 
     !$acc parallel loop collapse(2) default(present) async(stream)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j = 2, j1
       do i = 2, i1
         phi_half(i,j,1) = phi_surf
