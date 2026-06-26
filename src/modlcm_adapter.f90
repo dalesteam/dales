@@ -1,26 +1,26 @@
 !> Adapter routines for connecting DALES host data to LCM-owned interfaces.
+#ifdef USE_LCM
 module modlcm_adapter
   use iso_fortran_env, only : real64
   use lcm_host_interface, only : lcm_grid_t, lcm_init_grid
+  use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1, &
+                        ih, jh, kh, dx, dy, dzf, zf, zh
+  use modmpi, only : myidx, myidy, nprocx, nprocy, nbrwest,  &
+                     nbreast, nbrsouth, nbrnorth, periods
 
   implicit none
 
   private
 
-  public :: build_lcm_grid_from_dales
+  public :: init_lcm
+
+  type(lcm_grid_t), save :: lcm_grid
 
 contains
 
-  subroutine build_lcm_grid_from_dales(grid)
-    use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1, &
-                          ih, jh, kh, dx, dy, dzf, zf, zh
-    use modmpi, only : myidx, myidy, nprocx, nprocy, nbrwest,  &
-                       nbreast, nbrsouth, nbrnorth, periods
-
-    type(lcm_grid_t), intent(out) :: grid
-
+  subroutine init_lcm()
     call lcm_init_grid(                                                   &
-      grid=grid,                                                          &
+      grid=lcm_grid,                                                      &
       nx_local=imax, ny_local=jmax, nz=kmax,                              &
       nx_global=itot, ny_global=jtot,                                     &
       i_start=2, i_end=i1, j_start=2, j_end=j1,                           &
@@ -35,6 +35,9 @@ contains
       west_rank=nbrwest, east_rank=nbreast,                               &
       south_rank=nbrsouth, north_rank=nbrnorth,                           &
       periodic_x=periods(1), periodic_y=periods(2))
-  end subroutine build_lcm_grid_from_dales
+
+    ! Future LCM initialization will be called here once lcm_initialize is exposed.
+  end subroutine init_lcm
 
 end module modlcm_adapter
+#endif

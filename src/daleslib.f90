@@ -73,6 +73,9 @@ module daleslib
             !!----------------------------------------------------------------
             use modmpi,             only : initmpicomm,myid,MPI_COMM
             use modstartup,         only : startup
+#ifdef USE_LCM
+            use modlcm_adapter,     only : init_lcm
+#endif
 
             !----------------------------------------------------------------
             !     0.1     USE STATEMENTS FOR ADDONS STATISTICAL ROUTINES
@@ -129,6 +132,9 @@ module daleslib
             !----------------------------------------------------------------
 
             call startup(path)
+#ifdef USE_LCM
+            call init_lcm
+#endif
 
             ! Initial time overrides
 

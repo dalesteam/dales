@@ -127,6 +127,9 @@ program DALES
 #if defined(DALES_GPU)
   use modgpu, only: update_gpu, update_host, host_is_updated
 #endif
+#ifdef USE_LCM
+  use modlcm_adapter, only : init_lcm
+#endif
 
   implicit none
 
@@ -141,6 +144,9 @@ program DALES
   call initmpicomm
   call initlogging
   call startup
+#ifdef USE_LCM
+  call init_lcm
+#endif
 
 !---------------------------------------------------------
 !      2     INITIALIZE STATISTICAL ROUTINES AND ADD-ONS
