@@ -67,7 +67,7 @@ if( ENABLE_LCM )
   endif()
 
   find_path( LCM_MODULE_DIR
-             NAMES lcm_types.mod
+             NAMES lcm_host_interface.mod
              PATHS
                "${LCM_ROOT}/mod"
                "${LCM_ROOT}/build/mod"
@@ -83,7 +83,7 @@ if( ENABLE_LCM )
                 NO_DEFAULT_PATH )
 
   if( NOT LCM_MODULE_DIR )
-    message( FATAL_ERROR "Could not find lcm_types.mod below LCM_ROOT=${LCM_ROOT}" )
+    message( FATAL_ERROR "Could not find lcm_host_interface.mod below LCM_ROOT=${LCM_ROOT}" )
   endif()
 
   if( NOT LCM_LIBRARY )
