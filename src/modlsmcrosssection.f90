@@ -447,6 +447,9 @@ contains
 
       db_ptr(:,:) = 0._field_r
       do ilu_idx = 1, nlu
+        if (tile(ilu_idx)%lushort == "slb") then
+          cycle
+        endif
         do j = 2, j1
           do i = 2, i1
             db_ptr(i,j) = db_ptr(i,j) + tile(ilu_idx)%frac(i,j) * tile(ilu_idx)%db(i,j)
