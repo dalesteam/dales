@@ -37,7 +37,7 @@ module modthermodynamics
   use modmicrodata,    only: imicro, imicro_bulk3, imicro_none
   use modibmdata,      only: lapply_ibm, fluid_mask
   use modslabaverage,  only: slabavg
-  use modslabaverage,  only: slabavg_r8_gpu, slabavg_r8_gpu2
+  use modslabaverage,  only: slabavg_gpu
   use advec_kappa,     only: halflev_kappa
   use modprecision,    only: field_r
   use modtimer,        only: timer_tic, timer_toc
@@ -183,6 +183,7 @@ contains
       too_hot = .false.
 
       !$omp target update to(thl0, exnf, qt0, presf, exnf, ql0)
+      !$omp target update to(zf, zh)
 
       !$acc parallel loop collapse(3) default(present) async(1) private(T) &
       !$acc firstprivate(too_cold, too_hot)
@@ -219,7 +220,9 @@ contains
 #endif
 
       ! host_is_updated = .false. ; call update_host()
+      ! print *, ">>> ql 1", sum(ql0), minval(ql0), maxval(ql0)
       !$omp target update from(ql0)
+      ! print *, ">>> ql 2", sum(ql0), minval(ql0), maxval(qlg)
 
       call diagfld_gpu
 
@@ -498,7 +501,7 @@ contains
     call timer_tic(routine, 1)
 
     ! 1. Compute slab averaged fields
-    
+
     !$acc parallel loop gang(static:1) default(present) async wait(1)
     !$omp target teams loop defaultmap(present:aggregate)&
     !$omp defaultmap(present:allocatable)
@@ -549,22 +552,21 @@ contains
       end do
     end do
 
-    !XXX red on cpu
+    !XXX: reduction on CPU
     !$omp target update from(u0av, v0av, thl0av, th0av, qt0av, ql0av, sv0av)
     !$acc wait
 
     ! If the IBM is enabled, exclude the building cells from the averages
     if (.not. lapply_ibm) then
-      call slabavg(u0,ih,u0av)
-      call slabavg(v0,ih,v0av)
-      call slabavg(thl0,ih,thl0av)
-      call slabavg(qt0,ih,qt0av)
-      call slabavg(ql0,ih,ql0av)
+      call slabavg_gpu(u0,ih,u0av)
+      call slabavg_gpu(v0,ih,v0av)
+      call slabavg_gpu(thl0,ih,thl0av)
+      call slabavg_gpu(qt0,ih,qt0av)
+      call slabavg_gpu(ql0,ih,ql0av)
       do n=1,nsv
-        call slabavg(sv0(:,:,:,n),ih,sv0av(:,n))
+        call slabavg_gpu(sv0(:,:,:,n),ih,sv0av(:,n))
       end do
     else
-      stop
       call slabavg(u0,fluid_mask,ih,u0av)
       call slabavg(v0,fluid_mask,ih,v0av)
       call slabavg(thl0,fluid_mask,ih,thl0av)
@@ -574,15 +576,14 @@ contains
         call slabavg(sv0(:,:,:,n),fluid_mask,ih,sv0av(:,n))
       end do
     end if
-    !XXX: red on cpu
-    !$omp target update to(u0av, v0av, thl0av, qt0av, ql0av, sv0av)
 
-    !$omp target update to(zf, zh)
+    !XXX: reduction on CPU
+    !$omp target update to(u0av, v0av, thl0av, qt0av, ql0av, sv0av)
 
     if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
       !$acc parallel loop gang(static:1) default(present)
-       !$omp target teams loop defaultmap(present:aggregate)&
-       !$omp defaultmap(present:allocatable)
+      !$omp target teams loop defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do k = 1, k1
         exnf(k) = 1 - grav * zf(k) / (cp * thls)
         exnh(k) = 1 - grav * zh(k) / (cp * thls)
@@ -601,20 +602,17 @@ contains
     ! 2.1 Use first guess of theta, then recalculate theta
 
     !$omp target update to(dzf,dzh)
-    !$omp target update from(th0av, exnf, exnh)
-    call fromztop
+    call fromztop_gpu
 
     !$acc parallel loop gang(static:1) default(present) async(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop defaultmap(present:allocatable)
     do k = 1, k1
       th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
     end do
 
     if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
       !$acc parallel loop gang(static:1) default(present) async(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+      !$omp target teams loop defaultmap(present:allocatable)
       do k = 1, k1
         exnf(k) = (presf(k) / pref0)**(rd / cp)
       end do
@@ -622,7 +620,8 @@ contains
 
     ! 2.2 Use new updated value of theta for determination of pressure
 
-    call fromztop
+    call fromztop_gpu
+    !$omp target update from(th0av, exnf, exnh)
 
     ! 3. Construct density profiles and exner function
 
@@ -801,6 +800,63 @@ contains
   end subroutine diagfld
 
   !> Calculates slab averaged pressure.
+  subroutine fromztop_gpu
+
+    character(len=*), parameter :: routine = modname//'/fromztop'
+
+    integer   k
+    real(field_r)  rdocp
+
+    call timer_tic(routine, 2)
+
+    rdocp = rd/cp
+
+    ! Interpolate theta and qt to half levels
+
+    !$acc parallel loop default(present) async(1)
+    !$omp target teams loop defaultmap(present:allocatable)
+    do k=2,k1
+      thetah(k) = (th0av(k)*dzf(k-1) + th0av(k-1)*dzf(k))/(2*dzh(k))
+      qth   (k) = (qt0av(k)*dzf(k-1) + qt0av(k-1)*dzf(k))/(2*dzh(k))
+      qlh   (k) = (ql0av(k)*dzf(k-1) + ql0av(k-1)*dzf(k))/(2*dzh(k))
+    end do
+
+    ! Calculate pressures at full levels
+    ! Do this on the CPU for now; these loops are serial so GPU is very slow!
+
+    !$acc update self(thetah, qth, qlh, th0av, qt0av, ql0av) async(1)
+    !$omp target update from(thetah, qth, qlh, th0av, qt0av, ql0av)
+    !$acc wait
+
+    thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
+    presf(1) = ps**rdocp - grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
+    presf(1) = presf(1)**(1/rdocp)
+
+    do k=2,k1
+      thvh(k)  = thetah(k)*(1+(rv/rd-1)*qth(k)-rv/rd*qlh(k))
+      presf(k) = presf(k-1)**rdocp - &
+                     grav*(pref0**rdocp)*dzh(k) /(cp*thvh(k))
+      presf(k) = presf(k)**(1/rdocp)
+    end do
+
+    ! Calculate pressures at half levels
+
+    presh(1) = ps
+    thvf(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
+
+    do k=2,k1
+      thvf(k)  = th0av(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
+      presh(k) = presh(k-1)**rdocp - &
+                     grav*(pref0**rdocp)*dzf(k-1) / (cp*thvf(k-1))
+      presh(k) = presh(k)**(1/rdocp)
+    end do
+
+    !$acc update device(thvh, presf, thvf, presh) async(1)
+    !$omp target update to(thvh, presf, thvf, presh)
+
+    call timer_toc(routine)
+
+  end subroutine fromztop_gpu
   subroutine fromztop
 
     character(len=*), parameter :: routine = modname//'/fromztop'
@@ -922,7 +978,6 @@ contains
   end function esat_tab
 
   !> Computes the saturation specific humidity via table lookup.
-! #ifndef DALES_AMDGPU
   pure function qsat_tab(T, p) result(qsat)
     !$omp declare target
     !$acc routine seq
@@ -939,15 +994,6 @@ contains
     ! convert saturation vapor pressure to saturation humidity
     qsat = (rd/rv) * es / (p - (1-rd/rv)*es)
   end function qsat_tab
-! #else
-#define QSAT_TAB_(T, P, QSAT)                                   \
-  interp_w = ((T) - 150.0_field_r) * 5.0_field_r ;             \
-  tlo = int(interp_w) ;                                        \
-  interp_w = interp_w - tlo ;                                  \
-  es = (1.0_field_r - interp_w) * esatmtab(tlo) +              \
-       interp_w * esatmtab(tlo+1) ;                            \
-  QSAT = (rd/rv) * es / ((P) - (1.0_field_r - rd/rv) * es)
-! #endif
 
   !> Compute the saturation specific humidity
   !!
