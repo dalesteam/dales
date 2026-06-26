@@ -104,7 +104,7 @@ contains
     tnext = dtmovie-1e-3+btime
 
     if(.not.(lnetcdfmovie)) return
-    dt_lim = min(dt_lim,tnext)
+    dt_lim = min(dt_lim,tnext - timee)
 
     if (.not. ladaptive .and. abs(dtmovie/dtmax-nint(dtmovie/dtmax))>1e-4) then
       stop 'NETCDF: dtav should be a integer multiple of dtmax'
@@ -186,7 +186,7 @@ contains
     end if
     tnext = tnext+dtmovie
     dt_lim = minval((/dt_lim,tnext-timee/))
-    !dt_lim = min(dt_lim,tnext)
+    !dt_lim = min(dt_lim,tnext - timee)
     
     call do_netcdfmovie
     nccall = nccall + 1

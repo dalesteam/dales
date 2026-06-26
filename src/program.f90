@@ -257,6 +257,7 @@ program DALES
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
 !------------------------------------------------------
+  call stats_limit_timestep(simulation_start=.true.)
   call testwctime
   istep = 1
   do while (timeleft > 0)

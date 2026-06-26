@@ -91,7 +91,7 @@ contains
     use modmpi,    only : myid,comm3d,mpierr,D_MPI_BCAST
     use modglobal, only : ifnamopt, fname_options,cexpnr,dtmax,ifoutput,dtav_glob,tres,&
                           ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1,lwarmstart,checknamelisterror, &
-                          ih ,jh
+                          ih ,jh,timee
     use modfields, only : thlprof,qtprof,svprof
     use modsurfdata, only : isurf, lhetero, xpatches, ypatches
     use modstat_nc, only : lnetcdf, open_nc, define_nc, ncinfo, nctiminfo
@@ -147,7 +147,7 @@ contains
     end if
 
     if(.not.(ltimestat)) return
-    dt_lim = min(dt_lim,tnext)
+    dt_lim = min(dt_lim,tnext - timee)
 
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
       call finish(routine, 'TIMESTAT: dtav should be a integer multiple of dtmax')

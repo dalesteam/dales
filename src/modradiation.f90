@@ -205,7 +205,7 @@ contains
       itimerad = floor(timerad/tres)
       !setting tnext is done in modstartup, after btime has been set
       !tnext = itimerad+btime
-      !dt_lim = min(dt_lim,tnext)
+      !dt_lim = min(dt_lim,tnext - timee)
 
       if (rad_smoke.and.isvsmoke>nsv) then
         if (rad_shortw) then

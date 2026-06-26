@@ -116,7 +116,7 @@ contains
     if(.not.(lheterostats)) return
     idtav = int(dtav / tres, kind=kind(idtav))
     tnext = idtav+btime
-    dt_lim = min(dt_lim,tnext)
+    dt_lim = min(dt_lim,tnext - timee)
 
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
       call finish(routine, 'HETEROSTATS: dtav should be a integer multiple of dtmax')

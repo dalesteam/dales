@@ -70,7 +70,7 @@ contains
   subroutine initlsmcrosssection
     use modmpi,     only : myid, myidy, mpierr, comm3d, D_MPI_BCAST
     use modglobal,  only : ifnamopt, fname_options, dtmax, dtav_glob, ladaptive, &
-      j1, jmax, dy, y0, dt_lim, tres, btime, checknamelisterror, itot, jtot
+      j1, jmax, dy, y0, dt_lim, tres, btime, checknamelisterror, itot, jtot,timee
     use modstat_nc, only : lnetcdf
     use modsurfdata, only : isurf
     use modlsm,     only : lags
@@ -128,7 +128,7 @@ contains
     idtav = int(dtav / tres, kind=kind(idtav))
     tnext   = idtav+btime
     if(.not.(lcross .or. lcrosssoil)) return
-    dt_lim = min(dt_lim,tnext)
+    dt_lim = min(dt_lim,tnext - timee)
 
     if (lcrosssoil) then
       crossplane_global = crossplane

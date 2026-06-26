@@ -136,15 +136,23 @@ contains
   end subroutine write_output_files
 
   !> Limit the time step if needed for sampling or writing
-  subroutine stats_limit_timestep()
+  subroutine stats_limit_timestep(simulation_start)
 
-    integer          :: ifile
+    integer           :: ifile
 
-    integer(longint) :: dts       !< Delta t for sampling
-    integer(longint) :: dtw       !< Delta t for writing
-    integer(longint) :: time_left !< Time left before sampling or writing needs to be done
+    integer(longint)  :: dts       !< Delta t for sampling
+    integer(longint)  :: dtw       !< Delta t for writing
+    integer(longint)  :: time_left !< Time left before sampling or writing needs to be done
+    logical, optional :: simulation_start
+    logical           :: simulation_start_
 
-    if (rk3step == 3) then
+    if (present(simulation_start)) then
+      simulation_start_ = simulation_start
+    else
+      simulation_start_ = .false.
+    end if
+
+    if ((rk3step == 3).or.(simulation_start_)) then
       do ifile = 1, nfiles
         dts = file_list(ifile)%dt_sample
         dtw = file_list(ifile)%dt_write
