@@ -181,6 +181,7 @@ module modgenstat
             th2av   , &
             ql2av
   real, allocatable, dimension(:,:) :: sv2av
+  real(field_r),allocatable, dimension(:,:,:)::  thv0
   real(field_r),allocatable, dimension(:)::   thvmav
   real(field_r),allocatable, dimension(:,:,:):: sv0h
 
@@ -308,6 +309,7 @@ contains
               th2av   (k1), &
               ql2av   (k1), &
               sv2av   (k1,nsv))
+    allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thvmav(k1))
     allocate(sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
 
@@ -540,7 +542,7 @@ contains
     use modmpi,    only : comm3d,mpi_sum,mpierr,slabsum,D_MPI_ALLREDUCE
     use advec_kappa, only : halflev_kappa
     use modsimpleice_data, only: tuprsg, tdnrsg
-    use modthermodynamics, only: qsat_tab, thv0
+    use modthermodynamics, only: qsat_tab
     use modtracers, only: get_tracer_index
     use modmicrodata, only : imicro, imicro_sice, imicro_sice2
 
@@ -630,6 +632,15 @@ contains
     ! 2.1 SLAB AVERAGES OF PROGNOSTIC VARIABLES
     !------------------------------------------
 
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
+          thv0(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
+                        *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
+        enddo
+      enddo
+    enddo
 
     !$acc parallel loop default(present) async(1)
     do k = 1, k1
@@ -1712,6 +1723,7 @@ contains
               th2av   , &
               ql2av   , &
               sv2av   )
+    deallocate(thv0)
     deallocate(thvmav)
     deallocate(sv0h)
 
