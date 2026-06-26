@@ -30,7 +30,7 @@
 module modstat_nc
     use, intrinsic :: iso_fortran_env
     use netcdf
-    use modglobal,    only: imax, jmax
+    use modglobal,    only: imax, jmax, itot, jtot
     use modprecision, only: field_r
     use modmpi,       only: myid, comm3d, myidx, myidy, mpi_info_null, mpi_comm
     use modlogging, only: finish
@@ -49,8 +49,10 @@ module modstat_nc
     logical :: lclassic = .false.    ! Create netCDF in CLASSIC format (less RAM usage, compression not supported)
     logical :: lparallel = .true.    !< Enable parallel I/O when supported by the library and when running with MPI.
     integer :: deflate = 2           ! Deflate level for netCDF files (only for NETCDF4 format)
+    logical :: lxychunk_tot = .false.  !< Use total domain size for xy chunking (default: left to NetCDF library)
+    logical :: lxychunk_mpi = .false.  !< Use MPI subdomain size for xy chunking (default: left to NetCDF library)
 
-    integer, save :: timeID=0, ztID=0, zmID=0, xtID=0, xmID=0, ytID=0, ymID=0,ztsID=0, zqID=0
+    integer, save :: timeID=0, ztID=0, zmID=0, xtID=0, xmID=0, ytID=0, ymID=0,ztsID=0, zqID=0, indexID=0
     real(kind=4) :: nc_fillvalue = -999.
 
     interface nchandle_error
@@ -125,7 +127,7 @@ contains
     integer             :: ierr
 
     namelist/NAMNETCDFSTATS/ &
-    lnetcdf, lsync, lclassic, lparallel, deflate
+    lnetcdf, lsync, lclassic, lparallel, deflate, lxychunk_tot, lxychunk_mpi
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -135,16 +137,28 @@ contains
       close(ifnamopt)
     end if
 
-    call D_MPI_BCAST(lnetcdf    ,1, 0,comm3d,mpierr)
-    call D_MPI_BCAST(lsync      ,1, 0,comm3d,mpierr)
-    call D_MPI_BCAST(lclassic   ,1, 0,comm3d,mpierr)
-    call D_MPI_BCAST(lparallel  ,1, 0,comm3d,mpierr)
-    call D_MPI_BCAST(deflate    ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lnetcdf     ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lsync       ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lclassic    ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lparallel   ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(deflate     ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lxychunk_tot,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lxychunk_mpi,1, 0,comm3d,mpierr)
+
+    if (lxychunk_mpi .and. lxychunk_tot) then
+      call finish(routine, "Can't have both lxychunk_mpi and lxychunk_tot set to true. Please choose one, or none.")
+    end if
+
 
     if (lparallel) then
       if (.not. NC_HAVE_PARALLEL) then
         call warning(routine, 'Parallel I/O requested but not supported by the&
           & NetCDF library. Falling back to serial I/O.')
+      else
+        call warning(routine, 'Using parallel I/O for NetCDF output. Please note that DALES may hang or crash when run in the same folder as a run without parallel netcdf, or different dimensions/chunk sizes.')
+        if (deflate > 0) then
+          call warning(routine, "Using parallel I/O with compression (deflate > 0) may lead to degraded performance! Please also test with deflate=0, or even (if you're able) test different chunk sizes.")
+        end if
       end if
     else
       NC_HAVE_PARALLEL = .false.
@@ -155,12 +169,13 @@ contains
 ! ----------------------------------------------------------------------
 !> Subroutine Open_NC: Opens a NetCDF File and identifies starting record
 !
-  subroutine open_nc (fname, ncid,nrec,n1, n2, n3, ns,nq, comm)
+  subroutine open_nc (fname, ncid,nrec,n1, n2, n3, ns, nq, nindex, comm)
     use modglobal, only : author,version,rtimee
     use modversion, only : git_version
     implicit none
     integer, intent (out) :: ncid,nrec
     integer, optional, intent (in) :: n1, n2, n3, ns, nq
+    integer, optional, intent (in) :: nindex !< Size of the 'index' dimension; when given, xt/yt/xm/ym become auxiliary coordinate variables on 'index' instead of self-indexed coordinate dimensions.
     character (len=40), intent (in) :: fname
     type(mpi_comm), intent(in), optional :: comm
 
@@ -192,28 +207,59 @@ contains
       call nchandle_error(ncid,nf90_put_att(ncid, NF90_GLOBAL, 'Source',trim(version)//' git: '//trim(git_version)))
       call nchandle_error(ncid,nf90_put_att(ncid, NF90_GLOBAL, 'Author',trim(author)))
       call nchandle_error(ncid,nf90_def_dim(ncID, 'time', NF90_UNLIMITED, timeID))
-      if (present(n1)) then
-        if (n1 > 0) then
-          call nchandle_error(ncid,nf90_def_dim(ncID, 'xt', n1, xtID))
-          call nchandle_error(ncid,nf90_def_dim(ncID, 'xm', n1, xmID))
-          call nchandle_error(ncid,nf90_def_var(ncID,'xt',NF90_FLOAT,xtID ,VarID))
-          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','West-East displacement of cell centers'))
-          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
-          call nchandle_error(ncid,nf90_def_var(ncID,'xm',NF90_FLOAT,xmID,VarID))
-          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','West-East displacement of cell edges'))
-          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
+      if (present(nindex)) then
+        if (nindex > 0) then
+          ! Indexed mode: a single 'index' dimension backs xt/yt/xm/ym as auxiliary
+          ! coordinate variables, rather than creating separate xt/yt dimensions.
+          call nchandle_error(ncid,nf90_def_dim(ncID, 'index', nindex, indexID))
+          call nchandle_error(ncid,nf90_def_var(ncID,'index',NF90_INT,indexID,VarID))
+          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','Point/profile index'))
+          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','1'))
+          if (present(n1)) then
+            if (n1 > 0) then
+              call nchandle_error(ncid,nf90_def_var(ncID,'xt',NF90_FLOAT,indexID,VarID))
+              call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','West-East displacement of cell centers'))
+              call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
+              call nchandle_error(ncid,nf90_def_var(ncID,'xm',NF90_FLOAT,indexID,VarID))
+              call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','West-East displacement of cell edges'))
+              call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
+            end if
+          end if
+          if (present(n2)) then
+            if (n2 > 0) then
+              call nchandle_error(ncid,nf90_def_var(ncID,'yt',NF90_FLOAT,indexID,VarID))
+              call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','South-North displacement of cell centers'))
+              call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
+              call nchandle_error(ncid,nf90_def_var(ncID,'ym',NF90_FLOAT,indexID,VarID))
+              call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','South-North displacement of cell edges'))
+              call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
+            end if
+          end if
         end if
-      end if
-      if (present(n2)) then
-        if (n2 > 0) then
-          call nchandle_error(ncid,nf90_def_dim(ncID, 'yt', n2, ytID))
-          call nchandle_error(ncid,nf90_def_dim(ncID, 'ym', n2, ymID))
-          call nchandle_error(ncid,nf90_def_var(ncID,'yt',NF90_FLOAT,ytID ,VarID))
-          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','South-North displacement of cell centers'))
-          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
-          call nchandle_error(ncid,nf90_def_var(ncID,'ym',NF90_FLOAT,ymID,VarID))
-          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','South-North displacement of cell edges'))
-          call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
+      else
+        if (present(n1)) then
+          if (n1 > 0) then
+            call nchandle_error(ncid,nf90_def_dim(ncID, 'xt', n1, xtID))
+            call nchandle_error(ncid,nf90_def_dim(ncID, 'xm', n1, xmID))
+            call nchandle_error(ncid,nf90_def_var(ncID,'xt',NF90_FLOAT,xtID ,VarID))
+            call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','West-East displacement of cell centers'))
+            call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
+            call nchandle_error(ncid,nf90_def_var(ncID,'xm',NF90_FLOAT,xmID,VarID))
+            call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','West-East displacement of cell edges'))
+            call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
+          end if
+        end if
+        if (present(n2)) then
+          if (n2 > 0) then
+            call nchandle_error(ncid,nf90_def_dim(ncID, 'yt', n2, ytID))
+            call nchandle_error(ncid,nf90_def_dim(ncID, 'ym', n2, ymID))
+            call nchandle_error(ncid,nf90_def_var(ncID,'yt',NF90_FLOAT,ytID ,VarID))
+            call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','South-North displacement of cell centers'))
+            call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
+            call nchandle_error(ncid,nf90_def_var(ncID,'ym',NF90_FLOAT,ymID,VarID))
+            call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name','South-North displacement of cell edges'))
+            call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units','m'))
+          end if
         end if
       end if
       if (present(n3)) then
@@ -271,6 +317,11 @@ contains
         end do
         deallocate(xtimes)
        end if
+       if (present(nindex)) then
+        if (nindex > 0) then
+         iret = nf90_inq_dimid(ncid,'index',indexId)
+        end if
+       end if
        if (present(n1)) then
          iret = nf90_inq_dimid(ncid,'xt',xtId)
          iret = nf90_inq_dimid(ncid,'xm',xmId)
@@ -303,18 +354,35 @@ contains
   !> Subroutine Define_NC: Defines the structure of the nc file (if not
   !! already open)
   !
-  subroutine define_nc(ncID, nVar, sx, lcollective)
+  subroutine define_nc(ncID, nVar, sx, lcollective, index_dim)
     implicit none
     integer, intent (in) :: nVar, ncID
-    character (*), intent (in) :: sx(nVar,4)
+    character (*), intent (in) :: sx(nVar,4) ! NC variable name, long name, units, dimension string
     logical, intent(in), optional :: lcollective
-
+    character (*), intent (in), optional :: index_dim(nVar,1) ! which dimension string to use when we have indexed dims instead of actual dims.
+  
     integer, save ::  dim_mttt(4) = 0, dim_tmtt(4) = 0, dim_ttmt(4) = 0, dim_tttt(4) = 0, &
                       dim_tt(2)= 0, dim_mt(2)= 0,dim_t0tt(3)=0,dim_m0tt(3)=0,dim_t0mt(3)=0,dim_tt0t(3)=0, &
                       dim_mt0t(3)=0,dim_tm0t(3)=0,dim_0ttt(3)=0,dim_0mtt(3)=0,dim_0tmt(3)=0,&
-                      dim_tts(2)=0,dim_t0tts(3)=0,dim_0ttts(3)=0,dim_tttts(4)=0,dim_qt(2)=0,dim_tttts_slurb(4)=0
+                      dim_tts(2)=0,dim_t0tts(3)=0,dim_0ttts(3)=0,dim_tttts(4)=0,dim_qt(2)=0,dim_tttts_slurb(4)=0, &
+                      dim_it(2)=0, dim_izt(3)=0, dim_izmt(3)=0, dim_izst(3)=0
 
     integer :: iret, n, VarID
+
+    logical :: use_parallel !< whether we want to use parallel netcdf output
+
+    integer :: xt_chunksize, xm_chunksize, yt_chunksize, ym_chunksize, zt_chunksize, zm_chunksize, nsoil_chunksize, nq_chunksize, index_chunksize
+    integer, allocatable :: chunking(:) !< the chunking sizes for a variable
+    logical :: var_needs_chunking !< whether we want an individual var to be chunked (not for index vars)
+    logical :: custom_chunking !< whether we want to use custom chunking (only for parallel netcdf)
+
+    if (present(lcollective)) then
+      use_parallel = (lcollective .and. NC_HAVE_PARALLEL .and. (.not. lclassic))
+    else
+      use_parallel = .false.
+    end if
+    custom_chunking = (lxychunk_tot .or. lxychunk_mpi) .and. use_parallel
+
     ! These calls are allowed to fail - not all files have all dimensions
     iret = nf90_inq_dimid(ncid,'time',timeId)
     iret = nf90_inq_dimid(ncid,'xt',xtId)
@@ -325,6 +393,7 @@ contains
     iret = nf90_inq_dimid(ncid,'zm',zmId)
     iret = nf90_inq_dimid(ncid,'zts',ztsId)
     iret = nf90_inq_dimid(ncid,'zq',zqId)
+    iret = nf90_inq_dimid(ncid,'index',indexId)
     iret = nf90_redef(ncid)
     dim_tt = (/ztId,timeId/)
     dim_mt = (/zmId,timeId/)
@@ -352,80 +421,64 @@ contains
 
     dim_qt = (/zqId,timeId/)
 
+    ! Indexed dim types: index + z (or soil) + time
+    dim_it   = (/indexID, timeId/)
+    dim_izt  = (/indexID, ztID,  timeId/)
+    dim_izmt = (/indexID, zmID,  timeId/)
+    dim_izst = (/indexID, ztsID, timeId/)
+
+    ! Query actual z/soil/quadrant dimension lengths, as we don't have access to klow, khigh etc.
+    xt_chunksize = 1; xm_chunksize = 1; yt_chunksize = 1; ym_chunksize = 1
+    zt_chunksize = 1; zm_chunksize = 1; nsoil_chunksize = 1; nq_chunksize = 1; index_chunksize = 1
+    if (custom_chunking) then
+      if (ztID /= 0) iret = nf90_inquire_dimension(ncid, ztID, len=zt_chunksize)
+      if (zmID /= 0) iret = nf90_inquire_dimension(ncid, zmID, len=zm_chunksize)
+      if (ztsID /= 0) iret = nf90_inquire_dimension(ncid, ztsID, len=nsoil_chunksize)
+      if (zqID /= 0) iret = nf90_inquire_dimension(ncid, zqID, len=nq_chunksize)
+      if (indexID /= 0) iret = nf90_inquire_dimension(ncid, indexID, len=index_chunksize)
+      if (lxychunk_mpi) then
+        xt_chunksize = imax
+        xm_chunksize = imax
+        yt_chunksize = jmax
+        ym_chunksize = jmax
+      end if
+      if (lxychunk_tot) then
+        xt_chunksize = itot
+        xm_chunksize = itot
+        yt_chunksize = jtot
+        ym_chunksize = jtot
+      end if
+    end if
+
     do n=1,nVar
       iret = nf90_inq_varid(ncid, trim(sx(n,1)), VarID)
-      if (iret == 0) cycle
-      select case(trim(sx(n,4)))
-        case ('time')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,(/timeID/) ,VarID)
-        case ('tt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tt ,VarID)
-        case ('mt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_mt,VarID)
-  !2D Fields
-        case ('t0tt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_t0tt,VarID)
-        case ('t0mt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_t0mt,VarID)
-        case ('m0tt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_m0tt,VarID)
-        case ('tt0t')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tt0t,VarID)
-        case ('tm0t')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tm0t,VarID)
-        case ('mt0t')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_mt0t,VarID)
-        case ('0ttt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0ttt,VarID)
-        case ('0tmt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0tmt,VarID)
-        case ('0mtt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0mtt,VarID)
-  !3D Fields
-        case ('tttt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tttt,VarID)
-        case ('mttt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_mttt,VarID)
-        case ('tmtt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tmtt,VarID)
-        case ('ttmt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_ttmt,VarID)
-!Soil fields
-        case ('tts')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tts ,VarID)
-        case ('t0tts')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_t0tts,VarID)
-        case ('0ttts')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0ttts,VarID)
-        case ('tttts')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tttts,VarID)
-        case ('tttts_slurb')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tttts_slurb,VarID)
-
-!Quadrant analysis fields
-        case('qt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_qt ,VarID)
-        case default
-        print *, 'ABORTING: Bad dimensional information ',sx(n,:)
-        stop
-        ! call appl_abort(0)
-
-      end select
-
-      if (present(lcollective) .and. NC_HAVE_PARALLEL) then
-        if (lcollective) then
-          call nchandle_error(ncid,nf90_var_par_access(ncid, varid, NF90_COLLECTIVE))
-        end if
-      end if
+      if (iret == 0) cycle ! var already exists, so no need to redefine it. We'll need to set the parallel access mode later, though.
+      ! we need to translate the dimension string to an integer array of dimension IDs, which is done by translate_dims_to_int, to clean up the code here.
+      iret = nf90_def_var(ncID,sx(n,1),NF90_FLOAT,translate_dims_to_int(sx(n,4)) ,VarID)
 
       if (iret/=0) then
         write (*,*) 'nvar', nvar, sx(n,:)
         call nchandle_error(ncid,iret)
       end if
 
+      if (present(index_dim)) then
+        if (index_dim(n,1) /= sx(n,4)) then
+          ! this variable has special index dimension handling, so we add the coordinates as attributes rather than dimensions
+          ! we need to get a string like 'xt yt zm time' from the dimension translation array
+          call nchandle_error(ncid, nf90_put_att(ncid, varid, 'coordinates', trim(translate_dims_to_str(index_dim(n,1)))))
+        end if
+      endif
+
+      if (custom_chunking) then
+        call translate_chunk(sx(n,4), chunking, var_needs_chunking)
+        if (var_needs_chunking) then
+          call nchandle_error(ncid,nf90_def_var_chunking(ncid,varID,NF90_CHUNKED,chunking))
+        end if
+      end if
+
       if (deflate > 0 .and. .not. lclassic) then
-         call nchandle_error(ncid,nf90_def_var_deflate(ncid,varID, 0, 1, deflate_level = deflate))
-         ! NETCDF4 only
+        call nchandle_error(ncid,nf90_def_var_deflate(ncid,varID, 0, 1, deflate_level = deflate))
+        ! NETCDF4 only
       end if
       call nchandle_error(ncid,nf90_put_att(ncID,VarID,'long_name',sx(n,2)))
       call nchandle_error(ncid,nf90_put_att(ncID,VarID,'units',sx(n,3)))
@@ -434,7 +487,224 @@ contains
       !on Fugaku with netCDF-Fortran 4.5.2, netCDF 4.7.3
 
     end do
+    ! a new loop over all variables, ensuring we're in the right collective state. this is always necessary, even if the file already exists.
+    if (use_parallel) then
+      do n=1,nVar
+        iret = nf90_inq_varid(ncid, trim(sx(n,1)), VarID)
+        if (iret == 0) then
+          ! var already exists, but we still need to set the parallel access mode if requested, as the mode is not stored in the file.
+          call nchandle_error(ncid,nf90_var_par_access(ncid, varid, NF90_COLLECTIVE))
+        end if
+      end do
+    end if
     iret= nf90_enddef(ncID)
+
+    contains
+
+
+    subroutine translate_chunk(dim_name, chunk, requires_chunking)
+      ! translate_chunk lives inside define_nc, so we know the dim lengths already
+      character(*), intent(in) :: dim_name
+      integer, allocatable, intent(out) :: chunk(:)
+      logical, intent(out) :: requires_chunking
+      integer :: time_chunk = 1
+      requires_chunking = .true.
+      select case(trim(dim_name))
+        case ('time')
+          chunk = ((/time_chunk/))
+        case ('tt')
+          chunk = ((/zt_chunksize, time_chunk/))
+        case ('mt')
+          chunk = ((/zm_chunksize, time_chunk/))
+        case ('t0tt')
+          chunk = ((/xt_chunksize, zt_chunksize, time_chunk/))
+        case ('t0mt')
+          chunk = ((/xt_chunksize, zm_chunksize, time_chunk/))
+        case ('m0tt')
+          chunk = ((/xm_chunksize, zt_chunksize, time_chunk/))
+        case ('tt0t')
+          chunk = ((/xt_chunksize, yt_chunksize, time_chunk/))
+        case ('tm0t')
+          chunk = ((/xt_chunksize, ym_chunksize, time_chunk/))
+        case ('mt0t')
+          chunk = ((/xm_chunksize, yt_chunksize, time_chunk/))
+        case ('0ttt')
+          chunk = ((/yt_chunksize, zt_chunksize, time_chunk/))
+        case ('0tmt')
+          chunk = ((/yt_chunksize, zm_chunksize, time_chunk/))
+        case ('0mtt')
+          chunk = ((/ym_chunksize, zt_chunksize, time_chunk/))
+        case ('tttt')
+          chunk = ((/xt_chunksize, yt_chunksize, zt_chunksize, time_chunk/))
+        case ('ttmt')
+          chunk = ((/xt_chunksize, yt_chunksize, zm_chunksize, time_chunk/))
+        case ('mttt')
+          chunk = ((/xm_chunksize, yt_chunksize, zt_chunksize, time_chunk/))
+        case ('tmtt')
+          chunk = ((/xt_chunksize, ym_chunksize, zt_chunksize, time_chunk/))
+        case ('tts')
+          chunk = ((/nsoil_chunksize, time_chunk/))
+        case ('t0tts')
+          chunk = ((/xt_chunksize, nsoil_chunksize, time_chunk/))
+        case ('0ttts')
+          chunk = ((/yt_chunksize, nsoil_chunksize, time_chunk/))
+        case ('tttts')
+          chunk = ((/xt_chunksize, yt_chunksize, nsoil_chunksize, time_chunk/))
+        case ('tttts_slurb')
+          chunk = ((/nsoil_chunksize, xt_chunksize, yt_chunksize, time_chunk/))
+        case ('qt')
+          chunk = ((/nq_chunksize, time_chunk/))
+        case ('it')
+          chunk = ((/1/))
+          requires_chunking = .false.
+        case ('izt')
+          chunk = ((/1/))
+          requires_chunking = .false.
+        case ('izmt')
+          chunk = ((/1/))
+          requires_chunking = .false.
+        case ('izst')
+          chunk = ((/1/))
+          requires_chunking = .false.
+        case default
+          call finish("define_nc/translate_chunk","Unrecognized dimension string: "//trim(dim_name))
+      end select
+    end subroutine translate_chunk
+
+    function translate_dims_to_int(dim_name) result(dimension_translation)
+      character(*), intent(in) :: dim_name
+      integer, allocatable :: dimension_translation(:)
+        select case(trim(dim_name))
+          case ('time')
+          dimension_translation = ((/timeID/))
+        case ('tt')
+          dimension_translation = dim_tt
+        case ('mt')
+          dimension_translation = dim_mt
+        !2D Fields
+        case ('t0tt')
+          dimension_translation = dim_t0tt
+        case ('t0mt')
+          dimension_translation = dim_t0mt
+        case ('m0tt')
+          dimension_translation = dim_m0tt
+        case ('tt0t')
+          dimension_translation = dim_tt0t
+        case ('tm0t')
+          dimension_translation = dim_tm0t
+        case ('mt0t')
+          dimension_translation = dim_mt0t
+        case ('0ttt')
+          dimension_translation = dim_0ttt
+        case ('0tmt')
+          dimension_translation = dim_0tmt
+        case ('0mtt')
+          dimension_translation = dim_0mtt
+        !3D Fields
+        case ('tttt')
+          dimension_translation = dim_tttt
+        case ('mttt')
+          dimension_translation = dim_mttt
+        case ('tmtt')
+          dimension_translation = dim_tmtt
+        case ('ttmt')
+          dimension_translation = dim_ttmt
+        !Soil fields
+        case ('tts')
+          dimension_translation = dim_tts
+        case ('t0tts')
+          dimension_translation = dim_t0tts
+        case ('0ttts')
+          dimension_translation = dim_0ttts
+        case ('tttts')
+          dimension_translation = dim_tttts
+        case ('tttts_slurb')
+          dimension_translation = dim_tttts_slurb
+
+        !Quadrant analysis fields
+        case('qt')
+          dimension_translation = dim_qt
+        !Indexed scattered-point fields (index dimension instead of xt/yt as dims)
+        case('it')
+          dimension_translation = dim_it
+        case('izt')
+          dimension_translation = dim_izt
+        case('izmt')
+          dimension_translation = dim_izmt
+        case('izst')
+          dimension_translation = dim_izst
+        case default
+          call finish("define_nc/translate_dims_to_int","Unrecognized dimension string: "//trim(dim_name))
+        end select
+    end function translate_dims_to_int
+
+    function translate_dims_to_str(dim_name) result(dimension_translation)
+      character(*), intent(in) :: dim_name
+      character(len=80) :: dimension_translation
+        select case(trim(dim_name))
+          case ('time')
+          dimension_translation = "time"
+        case ('tt')
+          dimension_translation = "zt time"
+        case ('mt')
+          dimension_translation = "zm time"
+        !2D Fields
+        case ('t0tt')
+          dimension_translation = "xt zt time"
+        case ('t0mt')
+          dimension_translation = "xt zm time"
+        case ('m0tt')
+          dimension_translation = "xm zt time"
+        case ('tt0t')
+          dimension_translation = "xt yt time"
+        case ('tm0t')
+          dimension_translation = "xt ym time"
+        case ('mt0t')
+          dimension_translation = "xm yt time"
+        case ('0ttt')
+          dimension_translation = "yt zt time"
+        case ('0tmt')
+          dimension_translation = "yt zm time"
+        case ('0mtt')
+          dimension_translation = "ym zt time"
+        !3D Fields
+        case ('tttt')
+          dimension_translation = "xt yt zt time"
+        case ('mttt')
+          dimension_translation = "xm yt zt time"
+        case ('tmtt')
+          dimension_translation = "xt ym zt time"
+        case ('ttmt')
+          dimension_translation = "xt yt zm time"
+        !Soil fields
+        case ('tts')
+          dimension_translation = "zts time"
+        case ('t0tts')
+          dimension_translation = "xt zts time"
+        case ('0ttts')
+          dimension_translation = "yt zts time"
+        case ('tttts')
+          dimension_translation = "xt yt zts time"
+        case ('tttts_slurb')
+          dimension_translation = "zts xt yt time"
+
+        !Quadrant analysis fields
+        case('qt')
+          dimension_translation = "zq time"
+        !Indexed scattered-point fields (index dimension instead of xt/yt as dims)
+        case('it')
+          dimension_translation = "index time"
+        case('izt')
+          dimension_translation = "index zt time"
+        case('izmt')
+          dimension_translation = "index zm time"
+        case('izst')
+          dimension_translation = "index zts time"
+        case default
+          call finish("define_nc/translate_dims_to_str","Unrecognized dimension string: "//trim(dim_name))
+        end select
+    end function translate_dims_to_str
+
   end subroutine define_nc
 
   subroutine redefine_nc(ncid)
@@ -454,7 +724,7 @@ contains
  end subroutine exitstat_nc
 
  subroutine writestat_dims_nc(ncid, ncoarse, klow, proc, offset_x, offset_y, &
-                              x_vals, y_vals, z_vals)
+                              x_vals, y_vals, z_vals, index_vals)
     ! optional arguments ncoarse (coarsegraining in the horizontal directions)
     !                    klow    (lower bound for z. Upper bound is taken from the size of the dimension)
     !                    proc    (if present and length on horizontal cooridinates is 1 include processor starting edges and center)
@@ -471,11 +741,14 @@ contains
     real(field_r), optional, intent(in) :: x_vals(:) !< Values of x-coordinates of cell centers.
     real(field_r), optional, intent(in) :: y_vals(:) !< Values of y-coordinates of cell centers.
     real(field_r), optional, intent(in) :: z_vals(:) !< Values of z-coordinates of cell centers.
+    integer, optional, intent(in) :: index_vals(:) !< Values of z-coordinates of cell centers.
     integer             :: i=0,iret,length,varid, nc
     integer             :: kl
     logical             :: lproc
     logical             :: do_parallel = .false.
     integer             :: xstart(1), ystart(1)
+    integer             :: index_start(1)
+    logical             :: l_indexed
 
     real(field_r), allocatable :: dim_vals_t(:)
     real(field_r), allocatable :: dim_vals_m(:)
@@ -504,62 +777,122 @@ contains
     else
       ystart = 1
     end if
-
-    ! Check if the x dimension is defined
-    iret = nf90_inq_dimid(ncid, 'xt', xtid)
-
-    if (iret == 0) then
-      if (present(x_vals)) then ! User-provided coordinate values
-        allocate(dim_vals_t, dim_vals_m, source=x_vals)
-        dim_vals_m(:) = dim_vals_m(:) - 0.5 * dx
-      else
-        iret = nf90_inquire_dimension(ncid, xtid, len=length)
-        allocate(dim_vals_t(length), dim_vals_m(length))
-        do i = 1, length
-          dim_vals_t(i) = x0 + dx * (0.5 + nc * (i - 1))
-          dim_vals_m(i) = x0 + dx * nc * (i - 1)
-        end do
-        if (length == imax .or. lproc) then
-          ! Add offset for this rank
-          dim_vals_t(:) = dim_vals_t(:) + myidx * imax
-          dim_vals_m(:) = dim_vals_m(:) + myidx * imax
-        end if
-      end if
-      ! Now write the coordinate info
-      iret = nf90_inq_varid(ncid, 'xt', varid)
-      iret = nf90_put_var(ncid, varid, dim_vals_t, start=xstart)
-      iret = nf90_inq_varid(ncid, 'xm', varid)
-      iret = nf90_put_var(ncid, varid, dim_vals_m, start=xstart)
-      deallocate(dim_vals_t, dim_vals_m)
+    if (present(index_vals)) then
+      l_indexed = .true.
+    else
+      l_indexed = .false.
     end if
 
-    ! Now do the same for y and z
-    iret = nf90_inq_dimid(ncid, 'yt', ytid)
-
-    if (iret == 0) then
-      if (present(y_vals)) then ! User-provided coordinate values
-        allocate(dim_vals_t, dim_vals_m, source=y_vals)
-        dim_vals_m(:) = dim_vals_m(:) - 0.5 * dy
-      else
-        iret = nf90_inquire_dimension(ncid, ytid, len=length)
-        allocate(dim_vals_t(length), dim_vals_m(length))
-        do i = 1, length
-          dim_vals_t(i) = y0 + dy * (0.5 + nc * (i - 1))
-          dim_vals_m(i) = y0 + dy * nc * (i - 1)
-        end do
-        if (length == jmax .or. lproc) then
-          ! Add offset for this rank
-          dim_vals_t(:) = dim_vals_t(:) + myidy * jmax
-          dim_vals_m(:) = dim_vals_m(:) + myidy * jmax
+    ! In indexed mode xt/yt/xm/ym are auxiliary coordinate variables on 'index'
+    ! rather than self-indexed coordinate dimensions.
+    if (l_indexed) then
+      ! Write canonical point/profile index values 1..N for the index coordinate.
+      iret = nf90_inq_varid(ncid, 'index', varid)
+      if (iret == nf90_noerr) then
+        iret = nf90_inquire_dimension(ncid, indexID, len=length)
+        ! Make sure we write indices in their right spot
+        if (size(index_vals) > 0) then
+          if (size(index_vals) == length) then
+            index_start(1) = 1
+          else
+            index_start(1) = max(1, minval(index_vals))
+          end if
+          iret = nf90_put_var(ncid, varid, index_vals, start=index_start)
         end if
       end if
-      ! Now write the coordinate info
-      iret = nf90_inq_varid(ncid, 'yt', varid)
-      iret = nf90_put_var(ncid, varid, dim_vals_t, start=ystart)
-      iret = nf90_inq_varid(ncid, 'ym', varid)
-      iret = nf90_put_var(ncid, varid, dim_vals_m, start=ystart)
 
-      deallocate(dim_vals_t, dim_vals_m)
+      ! --- Indexed mode: write x-coordinates to xt(index) / xm(index) ---
+      iret = nf90_inq_varid(ncid, 'xt', varid)
+      if (iret == nf90_noerr) then
+        iret = nf90_inquire_dimension(ncid, indexID, len=length)
+        if (present(x_vals)) then
+          allocate(dim_vals_t, dim_vals_m, source=x_vals)
+          dim_vals_m(:) = dim_vals_m(:) - 0.5_field_r * dx
+        else
+          allocate(dim_vals_t(length), dim_vals_m(length))
+          do i = 1, length
+            dim_vals_t(i) = real(i, kind=field_r)
+            dim_vals_m(i) = real(i, kind=field_r) - 0.5_field_r
+          end do
+        end if
+        iret = nf90_put_var(ncid, varid, dim_vals_t, start=xstart)
+        iret = nf90_inq_varid(ncid, 'xm', varid)
+        iret = nf90_put_var(ncid, varid, dim_vals_m, start=xstart)
+        deallocate(dim_vals_t, dim_vals_m)
+      end if
+      ! --- Write y-coordinates to yt(index) / ym(index) ---
+      iret = nf90_inq_varid(ncid, 'yt', varid)
+      if (iret == nf90_noerr) then
+        iret = nf90_inquire_dimension(ncid, indexID, len=length)
+        if (present(y_vals)) then
+          allocate(dim_vals_t, dim_vals_m, source=y_vals)
+          dim_vals_m(:) = dim_vals_m(:) - 0.5_field_r * dy
+        else
+          allocate(dim_vals_t(length), dim_vals_m(length))
+          do i = 1, length
+            dim_vals_t(i) = real(i, kind=field_r)
+            dim_vals_m(i) = real(i, kind=field_r) - 0.5_field_r
+          end do
+        end if
+        iret = nf90_put_var(ncid, varid, dim_vals_t, start=ystart)
+        iret = nf90_inq_varid(ncid, 'ym', varid)
+        iret = nf90_put_var(ncid, varid, dim_vals_m, start=ystart)
+        deallocate(dim_vals_t, dim_vals_m)
+      end if
+    else
+      ! --- Regular mode: xt/yt are self-indexed coordinate dimensions ---
+      ! Check if the x dimension is defined
+      iret = nf90_inq_dimid(ncid, 'xt', xtid)
+      if (iret == 0) then
+        if (present(x_vals)) then ! User-provided coordinate values
+          allocate(dim_vals_t, dim_vals_m, source=x_vals)
+          dim_vals_m(:) = dim_vals_m(:) - 0.5 * dx
+        else
+          iret = nf90_inquire_dimension(ncid, xtid, len=length)
+          allocate(dim_vals_t(length), dim_vals_m(length))
+          do i = 1, length
+            dim_vals_t(i) = x0 + dx * (0.5 + nc * (i - 1))
+            dim_vals_m(i) = x0 + dx * nc * (i - 1)
+          end do
+          if (length == imax .or. lproc) then
+            ! Add offset for this rank
+            dim_vals_t(:) = dim_vals_t(:) + myidx * imax
+            dim_vals_m(:) = dim_vals_m(:) + myidx * imax
+          end if
+        end if
+        ! Now write the coordinate info
+        iret = nf90_inq_varid(ncid, 'xt', varid)
+        iret = nf90_put_var(ncid, varid, dim_vals_t, start=xstart)
+        iret = nf90_inq_varid(ncid, 'xm', varid)
+        iret = nf90_put_var(ncid, varid, dim_vals_m, start=xstart)
+        deallocate(dim_vals_t, dim_vals_m)
+      end if
+      ! Now do the same for y
+      iret = nf90_inq_dimid(ncid, 'yt', ytid)
+      if (iret == 0) then
+        if (present(y_vals)) then ! User-provided coordinate values
+          allocate(dim_vals_t, dim_vals_m, source=y_vals)
+          dim_vals_m(:) = dim_vals_m(:) - 0.5 * dy
+        else
+          iret = nf90_inquire_dimension(ncid, ytid, len=length)
+          allocate(dim_vals_t(length), dim_vals_m(length))
+          do i = 1, length
+            dim_vals_t(i) = y0 + dy * (0.5 + nc * (i - 1))
+            dim_vals_m(i) = y0 + dy * nc * (i - 1)
+          end do
+          if (length == jmax .or. lproc) then
+            ! Add offset for this rank
+            dim_vals_t(:) = dim_vals_t(:) + myidy * jmax
+            dim_vals_m(:) = dim_vals_m(:) + myidy * jmax
+          end if
+        end if
+        ! Now write the coordinate info
+        iret = nf90_inq_varid(ncid, 'yt', varid)
+        iret = nf90_put_var(ncid, varid, dim_vals_t, start=ystart)
+        iret = nf90_inq_varid(ncid, 'ym', varid)
+        iret = nf90_put_var(ncid, varid, dim_vals_m, start=ystart)
+        deallocate(dim_vals_t, dim_vals_m)
+      end if
     end if
 
     iret = nf90_inq_dimid(ncid, 'zt', ztid)
@@ -684,32 +1017,52 @@ contains
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_time_nc_float
 
-  subroutine writestat_1D_nc(ncid,nvar,ncname,vars,nrec,dim1)
+  subroutine writestat_1D_nc(ncid,nvar,ncname,vars,nrec,dim1,offsets)
     implicit none
     integer, intent(in)                      :: ncid,nvar,dim1
     integer, intent(in)                      :: nrec
     real,dimension(dim1,nvar),intent(in)     :: vars
     character(*), dimension(:,:),intent(in)  :: ncname
+    integer, intent(in), optional            :: offsets(1)
 
     integer :: n,varid
+    integer :: start(2)
+
+    if (present(offsets)) then
+      start(1) = offsets(1)
+    else
+      start(1) = 1
+    end if
+    start(2) = nrec
+
     do n=1,nvar
        call nchandle_error(ncid,nf90_inq_varid(ncid, ncname(n,1), VarID))
-       call nchandle_error(ncid,nf90_put_var(ncid, VarID, vars(1:dim1,n),(/1,nrec/),(/dim1,1/)))
+       call nchandle_error(ncid,nf90_put_var(ncid, VarID, vars(1:dim1,n),start,(/dim1,1/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_1D_nc
 
-  subroutine writestat_1D_nc_float(ncid,nvar,ncname,vars,nrec,dim1)
+  subroutine writestat_1D_nc_float(ncid,nvar,ncname,vars,nrec,dim1,offsets)
     implicit none
     integer, intent(in)                      :: ncid,nvar,dim1
     integer, intent(in)                      :: nrec
     real(real32),dimension(dim1,nvar),intent(in)     :: vars
     character(*), dimension(:,:),intent(in)  :: ncname
+    integer, intent(in), optional            :: offsets(1)
 
     integer :: n,varid
+    integer :: start(2)
+
+    if (present(offsets)) then
+      start(1) = offsets(1)
+    else
+      start(1) = 1
+    end if
+    start(2) = nrec
+
     do n=1,nvar
        call nchandle_error(ncid,nf90_inq_varid(ncid, ncname(n,1), VarID))
-       call nchandle_error(ncid,nf90_put_var(ncid, VarID, vars(1:dim1,n),(/1,nrec/),(/dim1,1/)))
+       call nchandle_error(ncid,nf90_put_var(ncid, VarID, vars(1:dim1,n),start,(/dim1,1/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_1D_nc_float
