@@ -1,7 +1,7 @@
 !> Adapter routines for connecting DALES host data to LCM-owned interfaces.
 module modlcm_adapter
   use iso_fortran_env, only : real64
-  use lcm_types, only : lcm_grid_t, lcm_init_grid
+  use lcm_host_interface, only : lcm_grid_t, lcm_init_grid
 
   implicit none
 
