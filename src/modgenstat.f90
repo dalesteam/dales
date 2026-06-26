@@ -208,8 +208,6 @@ contains
     namelist/NAMGENSTAT/ &
     dtav,timeav,lstat
 
-    call timer_tic('modgenstat/initgenstat', 0)
-
     dtav=dtav_glob;timeav=timeav_glob
 
     if(myid==0)then
@@ -230,6 +228,9 @@ contains
     tnextwrite = itimeav +btime
     nsamples = int(itimeav/idtav)
     if(.not.(lstat)) return
+
+    call timer_tic('modgenstat/initgenstat', 0)
+
     dt_lim = min(dt_lim,tnext)
 
     if (abs(timeav/dtav-nsamples)>1e-4) then

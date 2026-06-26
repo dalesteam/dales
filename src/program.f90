@@ -118,7 +118,7 @@ program DALES
 !     0.2     USE STATEMENTS FOR TIMER MODULE
 !----------------------------------------------------------------
 
-  use modtimer,       only : timer_tic, timer_toc, timer_print, timer_write, timer_cleanup
+  use modtimer,       only : timer_tic, timer_toc, timer_cleanup, output_timings
 
 !----------------------------------------------------------------
 !     0.3     USE STATEMENTS FOR GPU UTILITIES
@@ -359,8 +359,7 @@ program DALES
 !             END OF TIME LOOP
 !-------------------------------------------------------
 
-  call timer_print
-  call timer_write
+  call output_timings
   call timer_cleanup
 
 !--------------------------------------------------------

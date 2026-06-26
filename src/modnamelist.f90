@@ -10,6 +10,7 @@ module modnamelist
   use modspraying,       only: spraying_read_namelist
   use modsurface,        only: surface_read_namelist
   use modibm,            only: ibm_read_namelist
+  use modtimer,          only: timer_read_namelist
   use modthermodynamics, only: thermodynamics_read_namelist
   use modslurb,          only: slurb_read_namelist
 
@@ -41,7 +42,8 @@ contains
     call ibm_read_namelist(nml_filename)
     call precursor_read_namelist(nml_filename)
     call spraying_read_namelist(nml_filename)
-  
+    call timer_read_namelist(nml_filename)
+
   end subroutine read_namelists
 
 end module modnamelist

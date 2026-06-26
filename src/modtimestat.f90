@@ -108,7 +108,6 @@ contains
     namelist/NAMTIMESTAT/ & !< namelist
     dtav,ltimestat,blh_thres,iblh_meth,iblh_var,blh_nsamp !! namelist contents
 
-    call timer_tic('modtimestat/inittimestat', 0)
 
     dtav=dtav_glob
     if(myid==0)then
@@ -147,6 +146,9 @@ contains
     end if
 
     if(.not.(ltimestat)) return
+
+    call timer_tic('modtimestat/inittimestat', 0)
+
     dt_lim = min(dt_lim,tnext)
 
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then

@@ -76,7 +76,6 @@ set( dales_srcs
 	modnetcdf.f90
 	modnudge.f90
 	modnudgeboundary.f90
-	modnvtx.f90
 	modopenboundary.f90
 	modpois_data.f90
 	modpois.f90
@@ -114,7 +113,6 @@ set( dales_srcs
 	modthermodynamics.f90
 	modtimedep.f90
 	modtimedepsv.f90
-	modtimer.f90
 	modtimestat.f90
   modtracer_type.f90
   modtracers.f90
@@ -201,6 +199,8 @@ set( rrtmg_sw_srcs
 	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/src/rrtmg_sw_taumol.f90
 	${PROJECT_SOURCE_DIR}/external/RRTMG/RRTMG_SW/src/rrtmg_sw_vrtqdr.f90
 )
+
+add_subdirectory( utils )
 
 if( "${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU" )
 	set_source_files_properties( ${rrtmg_lw_srcs} PROPERTIES COMPILE_FLAGS -Wno-error=implicit-interface )

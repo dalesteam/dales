@@ -30,7 +30,7 @@ module modstartup
 use iso_c_binding
 use fortran_support, only: int2string, split_string
 use modprecision,      only : field_r
-use modtimer
+use modtimer,        only: timer_init, timer_tic, timer_toc
 use modstat_nc
 use modchecksim, only: check_array
 use modlogging, only: warning, finish, message
@@ -322,7 +322,7 @@ contains
     call testwctime
     ! Allocate and initialize core modules
     call initglobal
-    call inittimer
+    call timer_init
     call timer_tic('modstartup/startup', 0)
     call initfields
     call inittracers
