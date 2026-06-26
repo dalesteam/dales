@@ -357,10 +357,10 @@ contains
             current_qflux = tile(ilu)%wqt(i,j)
           end if
 
-          tile_wind10m = tile_wind10m + tile(ilu)%frac(i,j) * most_wind_speed(current_ustar, current_obuk, current_z0m, 10.0_field_r, -999.0_field_r)
+          tile_wind10m = tile_wind10m + tile(ilu)%frac(i,j) * most_wind_speed(real(current_ustar, field_r), real(current_obuk, field_r), real(current_z0m, field_r), 10.0_field_r, -999.0_field_r)
           ! we do MOST on the real temperature, so we need to convert back to potential temperature for the output as we don't have exn(2m)
-          p_t2m = p_t2m + tile(ilu)%frac(i,j) * most_scalar_value(current_tskin, current_tflux, current_ustar, current_obuk, current_z0h, 2.0_field_r, -999.0_field_r)
-          qt2m_total = qt2m_total + tile(ilu)%frac(i,j) * most_scalar_value(current_qskin, current_qflux, current_ustar, current_obuk, current_z0h, 2.0_field_r, -999.0_field_r)
+          p_t2m = p_t2m + tile(ilu)%frac(i,j) * most_scalar_value(real(current_tskin, field_r), real(current_tflux, field_r), real(current_ustar, field_r), real(current_obuk, field_r), real(current_z0h, field_r), 2.0_field_r, -999.0_field_r)
+          qt2m_total = qt2m_total + tile(ilu)%frac(i,j) * most_scalar_value(real(current_qskin, field_r), real(current_qflux, field_r), real(current_ustar, field_r), real(current_obuk, field_r), real(current_z0h, field_r), 2.0_field_r, -999.0_field_r)
 
           tile_weight_sum = tile_weight_sum + tile(ilu)%frac(i,j)
         end do
@@ -386,10 +386,10 @@ contains
 
         p_rs = rs(i,j)
 
-        p_wind10m = most_wind_speed(ustar(i,j), obl(i,j), z0m(i,j), 10.0_field_r, -999.0_field_r)
+        p_wind10m = most_wind_speed(real(ustar(i,j), field_r), real(obl(i,j), field_r), real(z0m(i,j), field_r), 10.0_field_r, -999.0_field_r)
         ! we do MOST on the real temperature, so we need to convert back to potential temperature for the output as we don't have exn(2m)
-        p_t2m = most_scalar_value(tskin(i,j) * exnh(1), thlflux(i,j) * exnh(1), ustar(i,j), obl(i,j), z0h(i,j), 2.0_field_r, -999.0_field_r)
-        qt2m_total = most_scalar_value(qskin(i,j), qtflux(i,j), ustar(i,j), obl(i,j), z0h(i,j), 2.0_field_r, -999.0_field_r)
+        p_t2m = most_scalar_value(real(tskin(i,j) * exnh(1), field_r), real(thlflux(i,j) * exnh(1), field_r), real(ustar(i,j), field_r), real(obl(i,j), field_r), real(z0h(i,j), field_r), 2.0_field_r, -999.0_field_r)
+        qt2m_total = most_scalar_value(real(qskin(i,j), field_r), real(qtflux(i,j), field_r), real(ustar(i,j), field_r), real(obl(i,j), field_r), real(z0h(i,j), field_r), 2.0_field_r, -999.0_field_r)
       end select
 
       qsat_2m = calc_qsat(p_t2m, presf(1))
