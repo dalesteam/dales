@@ -14,6 +14,7 @@ module modstat_nc_files
   character(len=*), parameter :: modname = 'modstat_nc_files'
 
   public :: is_sampling_timestep
+  public :: is_writing_timestep
   public :: add_output_file
   public :: init_output_files
   public :: write_output_files
