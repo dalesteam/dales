@@ -170,9 +170,14 @@ contains
 
     call timer_tic(routine, 0)
 
+    !$omp target update to(u0, v0, thl0, qt0, ql0)
+    !$omp target update to(presf, presh, exnf, exnh, ql0h)
+    !$omp target update to(zf, zh, dzf, dzhi, dthldz, dqtdz)
+
     if (timee < 0.01) then
       call diagfld
     end if
+
     if (lmoist .and. (.not. lnoclouds)) then
 
       ! Before we do the saturation adjustment, check if 150 K < T < 550 K
@@ -181,10 +186,6 @@ contains
 
       too_cold = .false.
       too_hot = .false.
-
-      !$omp target update to(u0, v0, thl0, qt0, ql0)
-      !$omp target update to(presf, presh, exnf, exnh, ql0h)
-      !$omp target update to(zf, zh, dzf, dzhi, dthldz, dqtdz)
 
       !$acc parallel loop collapse(3) default(present) async(1) private(T) &
       !$acc firstprivate(too_cold, too_hot)
@@ -220,7 +221,7 @@ contains
       call saturation_adjustment(qt0, thl0, presf, exnf, ql0, opt_stream=1)
 #endif
 
-      call diagfld_gpu
+      call diagfld
 
       ! Interpolate thl and qt to the half levels
       call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
@@ -492,7 +493,7 @@ contains
   end subroutine calthv
 
   !> Diagnones slab averaged fields assuming hydrostatic equilibrium.
-  subroutine diagfld_gpu
+  subroutine diagfld
 
     character(len=*), parameter :: routine = modname//'/diagfld'
 
@@ -597,7 +598,7 @@ contains
     ! 2.1 Use first guess of theta, then recalculate theta
 
     !$omp target update to(dzf,dzh)
-    call fromztop_gpu
+    call fromztop
 
     !$acc parallel loop gang(static:1) default(present) async(1)
     !$omp target teams loop defaultmap(present:allocatable)
@@ -614,7 +615,7 @@ contains
     end if
 
     ! 2.2 Use new updated value of theta for determination of pressure
-    call fromztop_gpu
+    call fromztop
 
     ! 3. Construct density profiles and exner function
 
@@ -645,154 +646,10 @@ contains
 
     call timer_toc(routine)
 
-  end subroutine diagfld_gpu
-  subroutine diagfld
-
-    character(len=*), parameter :: routine = modname//'/diagfld'
-
-    integer :: k,n
-
-    call timer_tic(routine, 1)
-
-    ! 1. Compute slab averaged fields
-
-    !$acc parallel loop gang(static:1) default(present) async wait(1)
-    do k = 1, k1
-      u0av(k) = 0.0_field_r
-    end do
-
-    !$acc parallel loop gang(static:1) default(present) async wait(1)
-    do k = 1, k1
-      v0av(k) = 0.0_field_r
-    end do
-
-    !$acc parallel loop gang(static:1) default(present) async wait(1)
-    do k = 1, k1
-      thl0av(k) = 0.0_field_r
-    end do
-
-    !$acc parallel loop gang(static:1) default(present) async wait(1)
-    do k = 1, k1
-      th0av(k) = 0.0_field_r
-    end do
-
-    !$acc parallel loop gang(static:1) default(present) async wait(1)
-    do k = 1, k1
-      qt0av(k) = 0.0_field_r
-    end do
-
-    !$acc parallel loop gang(static:1) default(present) async wait(1)
-    do k = 1, k1
-      ql0av(k) = 0.0_field_r
-    end do
-
-    !$acc parallel loop gang vector collapse(2) default(present) async wait(1)
-    do k = 1, k1
-      do n = 1, nsv
-        sv0av(k,n) = 0.0_field_r
-      end do
-    end do
-
-    !$acc wait
-
-    ! If the IBM is enabled, exclude the building cells from the averages
-    if (.not. lapply_ibm) then
-      call slabavg(u0,ih,u0av)
-      call slabavg(v0,ih,v0av)
-      call slabavg(thl0,ih,thl0av)
-      call slabavg(qt0,ih,qt0av)
-      call slabavg(ql0,ih,ql0av)
-      do n=1,nsv
-        call slabavg(sv0(:,:,:,n),ih,sv0av(:,n))
-      end do
-    else
-      call slabavg(u0,fluid_mask,ih,u0av)
-      call slabavg(v0,fluid_mask,ih,v0av)
-      call slabavg(thl0,fluid_mask,ih,thl0av)
-      call slabavg(qt0,fluid_mask,ih,qt0av)
-      call slabavg(ql0,fluid_mask,ih,ql0av)
-      do n=1,nsv
-        call slabavg(sv0(:,:,:,n),fluid_mask,ih,sv0av(:,n))
-      end do
-    end if
-
-    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
-      !$acc parallel loop gang(static:1) default(present)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
-      do k = 1, k1
-        exnf(k) = 1 - grav * zf(k) / (cp * thls)
-        exnh(k) = 1 - grav * zh(k) / (cp * thls)
-      end do
-    endif
-
-    !$acc parallel loop gang(static:1) default(present) async(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
-    do k = 1, k1
-      th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
-    end do
-
-    ! 2. Calculate the pressure profiles assuming hydrostatic equilibrium.
-
-    ! 2.1 Use first guess of theta, then recalculate theta
-
-    call fromztop
-
-    !$acc parallel loop gang(static:1) default(present) async(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
-    do k = 1, k1
-      th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
-    end do
-
-    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
-      !$acc parallel loop gang(static:1) default(present) async(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
-      do k = 1, k1
-        exnf(k) = (presf(k) / pref0)**(rd / cp)
-      end do
-    end if
-
-    ! 2.2 Use new updated value of theta for determination of pressure
-
-    call fromztop
-
-    ! 3. Construct density profiles and exner function
-
-    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
-      !$acc serial default(present) async(1)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
-      exnh(1) = (ps/pref0)**(rd/cp)
-      exnf(1) = (presf(1)/pref0)**(rd/cp)
-      !$acc end serial
-!!$omp end target
-
-      !$acc parallel loop default(present) async(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
-      do k=2,k1
-        exnf(k) = (presf(k)/pref0)**(rd/cp)
-        exnh(k) = (presh(k)/pref0)**(rd/cp)
-      end do
-    endif
-
-    !$acc parallel loop default(present) async(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
-    do k=1,k1
-      thvf(k) = th0av(k)*exnf(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
-      rhof(k) = presf(k)/(rd*thvf(k))
-    end do
-
-    call timer_toc(routine)
-
   end subroutine diagfld
 
   !> Calculates slab averaged pressure.
-  subroutine fromztop_gpu
+  subroutine fromztop
 
     character(len=*), parameter :: routine = modname//'/fromztop'
 
@@ -848,65 +705,6 @@ contains
 
     call timer_toc(routine)
 
-  end subroutine fromztop_gpu
-  subroutine fromztop
-
-    character(len=*), parameter :: routine = modname//'/fromztop'
-
-    integer   k
-    real(field_r)  rdocp
-
-    call timer_tic(routine, 2)
-
-    rdocp = rd/cp
-
-    ! Interpolate theta and qt to half levels
-
-    !$acc parallel loop default(present) async(1)
-    !!$omp target teams loop defaultmap(present:aggregate)&
-    !!$omp defaultmap(present:allocatable)
-    do k=2,k1
-      thetah(k) = (th0av(k)*dzf(k-1) + th0av(k-1)*dzf(k))/(2*dzh(k))
-      qth   (k) = (qt0av(k)*dzf(k-1) + qt0av(k-1)*dzf(k))/(2*dzh(k))
-      qlh   (k) = (ql0av(k)*dzf(k-1) + ql0av(k-1)*dzf(k))/(2*dzh(k))
-    end do
-    !!$omp target update from(thetah, qth, qlh)
-
-    ! Calculate pressures at full levels
-    ! Do this on the CPU for now; these loops are serial so GPU is very slow!
-
-    !$acc update self(thetah, qth, qlh, th0av, qt0av, ql0av) async(1)
-    !!$omp target update from(thetah,qth,qlh,th0av,qt0av,ql0av)
-    !$acc wait
-
-    thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
-    presf(1) = ps**rdocp - grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
-    presf(1) = presf(1)**(1/rdocp)
-
-    do k=2,k1
-      thvh(k)  = thetah(k)*(1+(rv/rd-1)*qth(k)-rv/rd*qlh(k))
-      presf(k) = presf(k-1)**rdocp - &
-                     grav*(pref0**rdocp)*dzh(k) /(cp*thvh(k))
-      presf(k) = presf(k)**(1/rdocp)
-    end do
-
-    ! Calculate pressures at half levels
-
-    presh(1) = ps
-    thvf(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
-
-    do k=2,k1
-      thvf(k)  = th0av(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
-      presh(k) = presh(k-1)**rdocp - &
-                     grav*(pref0**rdocp)*dzf(k-1) / (cp*thvf(k-1))
-      presh(k) = presh(k)**(1/rdocp)
-    end do
-
-    !$acc update device(thvh, presf, thvf, presh) async(1)
-    !$omp target update to(thvh,presf,thvf,presh)
-
-    call timer_toc(routine)
-
   end subroutine fromztop
 
   !> Magnus formulas for q_sat over liquid and ice.
@@ -954,8 +752,7 @@ contains
 
   !> Compute the saturation vapor pressure via table lookup.
   pure function esat_tab(T) result(es)
-!!$omp declare target
-    
+    !$omp declare target
     !$acc routine seq
     real(field_r), intent(in) :: T
     integer :: tlo
@@ -1033,8 +830,8 @@ contains
 
     !$acc parallel loop gang default(present) async(stream) &
     !$acc private(b, qli, qsat, qti, Tl)
-!!$omp target teams loop private(b,qli,qsat,qti,tl)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+    !$omp target teams loop private(b,qli,qsat,qti,tl)&
+    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 1, k1
       ! Find lowest thl and highest qt in the slab.
       ! If they in combination are not saturated, the whole slab is below saturation.
@@ -1045,7 +842,7 @@ contains
       qsat = qsat_tab(TL_min, pres(k))
       if (qt_max > qsat) then
         !$acc loop vector collapse(2)
-!!$omp loop collapse(2)
+        !$omp loop collapse(2)
         do j = 2, j1
           do i = 2, i1
             qti = qt(i,j,k)
