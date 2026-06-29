@@ -908,8 +908,7 @@ contains
     !$acc parallel loop gang vector collapse(3) default(present) async(stream) &
     !$acc private(b, qli, qsat, qti, Tl)
     ! FIXME: GPU divergence
-    !$omp target teams loop private(b,qli,qsat,qti,tl) collapse(3)&
-    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+    !$omp target teams distribute parallel do private(b,qli,qsat,qti,tl) collapse(3) defaultmap(present:allocatable)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
