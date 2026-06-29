@@ -2,7 +2,7 @@
 #ifdef USE_LCM
 module modlcm_adapter
   use iso_fortran_env, only : real64
-  use lcm_host_interface, only : lcm_grid_t, lcm_init_grid
+  use lcm_host_interface, only : lcm_grid_t, lcm_init_grid, lcm_set_grid
   use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1, &
                         ih, jh, kh, dx, dy, dzf, zf, zh
   use modmpi, only : myidx, myidy, nprocx, nprocy, nbrwest,  &
@@ -36,7 +36,7 @@ contains
       south_rank=nbrsouth, north_rank=nbrnorth,                           &
       periodic_x=periods(1), periodic_y=periods(2))
 
-    ! Future LCM initialization will be called here once lcm_initialize is exposed.
+    call lcm_set_grid(lcm_grid)
   end subroutine init_lcm
 
 end module modlcm_adapter
