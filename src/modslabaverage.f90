@@ -148,6 +148,9 @@ contains
       norm_fac = 1.0_real64 / (imax * jmax)
     end if
 
+    !XXX: fix this reduction
+    !$omp target update from(field)
+
     !$acc parallel loop gang default(present)
     !!$omp target defaultmap(present:allocatable)
     !!$omp target teams distribute
