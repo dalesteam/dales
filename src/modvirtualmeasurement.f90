@@ -202,7 +202,7 @@ contains
   end subroutine initvirtualmeasurement
 
   pure function most_wind_speed(ustar_in, obuk_in, z0m_in, z_out, fallback_value) result(wind_out)
-    use modsurface, only: psim
+    use modsurface, only: psim_fieldr
 
     implicit none
 
@@ -211,7 +211,7 @@ contains
     real(field_r) :: log_term, wind_out
 
     if (ustar_in > 1.0e-8_field_r .and. abs(obuk_in) > 1.0e-8_field_r .and. z0m_in > 0.0_field_r .and. z_out > 1.01 * z0m_in) then
-      log_term = log(z_out / z0m_in) - psim(z_out / obuk_in) + psim(z0m_in / obuk_in)
+      log_term = log(z_out / z0m_in) - psim_fieldr(z_out / obuk_in) + psim_fieldr(z0m_in / obuk_in)
       wind_out = ustar_in / fkar * log_term
     else
       wind_out = fallback_value
@@ -219,7 +219,7 @@ contains
   end function most_wind_speed
 
   pure function most_scalar_value(surface_value, scalar_flux, ustar_in, obuk_in, z0h_in, z_out, fallback_value) result(scalar_out)
-    use modsurface, only: psih
+    use modsurface, only: psih_fieldr
 
     implicit none
 
@@ -228,7 +228,7 @@ contains
     real(field_r) :: log_term, scalar_out
 
     if (ustar_in > 1.0e-8_field_r .and. abs(obuk_in) > 1.0e-8_field_r .and. z0h_in > 0.0_field_r .and. z_out > 1.01 * z0h_in) then
-      log_term = log(z_out / z0h_in) - psih(z_out / obuk_in) + psih(z0h_in / obuk_in)
+      log_term = log(z_out / z0h_in) - psih_fieldr(z_out / obuk_in) + psih_fieldr(z0h_in / obuk_in)
       scalar_out = surface_value - scalar_flux * log_term / (fkar * ustar_in)
     else
       scalar_out = fallback_value

@@ -1759,6 +1759,26 @@ contains
 
     return
   end function psim
+  pure function psim_fieldr(zeta)
+    implicit none
+    !$acc routine seq
+
+    real(field_r)             :: psim_fieldr
+    real(field_r), intent(in) :: zeta
+    real(field_r)             :: x
+
+    if(zeta <= 0) then
+      x     = (1._field_r - 16._field_r * zeta) ** (0.25_field_r)
+      psim_fieldr  = 3.14159265_field_r / 2._field_r - 2._field_r * atan(x) + log( (1._field_r+x) ** 2._field_r * (1._field_r + x ** 2._field_r) / 8._field_r)
+      ! CvH use Wilson, 2001 rather than Businger-Dyer for correct free convection limit
+      !x     = (1. + 3.6 * abs(zeta) ** (2./3.)) ** (-0.5)
+      !psim = 3. * log( (1. + 1. / x) / 2.)
+    else
+      psim_fieldr  = -2._field_r/3._field_r * (zeta - 5._field_r/0.35_field_r)*exp(-0.35_field_r * zeta) - zeta - (10._field_r/3._field_r) / 0.35_field_r
+    end if
+
+    return
+  end function psim_fieldr
 
   pure function psih(zeta)
 
@@ -1781,6 +1801,28 @@ contains
 
     return
   end function psih
+  pure function psih_fieldr(zeta)
+
+    implicit none
+    !$acc routine seq
+
+    real(field_r)             :: psih_fieldr
+
+    real(field_r), intent(in) :: zeta
+    real(field_r)             :: x
+
+    if(zeta <= 0._field_r) then
+      x     = (1._field_r - 16._field_r * zeta) ** (0.25_field_r)
+      psih_fieldr  = 2._field_r * log( (1._field_r + x ** 2._field_r) / 2._field_r )
+      ! CvH use Wilson, 2001
+      !x     = (1. + 7.9 * abs(zeta) ** (2./3.)) ** (-0.5)
+      !psih  = 3. * log( (1. + 1. / x) / 2.)
+    else
+      psih_fieldr  = -2._field_r/3._field_r * (zeta - 5._field_r/0.35_field_r)*exp(-0.35_field_r * zeta) - (1._field_r + (2._field_r/3._field_r) * zeta) ** (1.5_field_r) - (10._field_r/3._field_r) / 0.35_field_r + 1._field_r
+    end if
+
+    return
+  end function psih_fieldr
 
   ! stability function Phi for momentum.
   ! Many functional forms of Phi have been suggested, see e.g. Optis 2015
@@ -1804,6 +1846,28 @@ contains
 
     return
   end function phim
+  ! stability function Phi for momentum.
+  ! Many functional forms of Phi have been suggested, see e.g. Optis 2015
+  ! Phi and Psi above are related by an integral and should in principle match,
+  ! currently they do not.
+  ! FJ 2018: For very stable situations, zeta > 1 add cap to phi - the linear expression is valid only for zeta < 1
+  function phim_fieldr(zeta)
+    !$acc routine seq
+    implicit none
+    real(field_r)             :: phim_fieldr
+    real(field_r), intent(in) :: zeta
+
+    if (zeta < 0._field_r) then ! unstable
+       phim_fieldr = (1._field_r-16._field_r*zeta)**(-0.25_field_r)
+       !phimzf = (1. + 3.6 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
+    elseif ( zeta < 1._field_r) then  ! 0 < zeta < 1, stable
+       phim_fieldr = (1._field_r+5._field_r*zeta)
+    else
+       phim_fieldr = 6._field_r ! cap phi when z/L > 1
+    endif
+
+    return
+  end function phim_fieldr
 
   ! stability function Phi for heat.
   function phih(zeta)
@@ -1823,6 +1887,24 @@ contains
 
     return
   end function phih
+  ! stability function Phi for heat.
+  function phih_fieldr(zeta)
+    !$acc routine seq
+    implicit none
+    real(field_r)             :: phih_fieldr
+    real(field_r), intent(in) :: zeta
+
+    if (zeta < 0._field_r) then ! unstable
+       phih_fieldr = (1._field_r-16._field_r*zeta)**(-0.50_field_r)
+       !phihzf = (1. + 7.9 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
+    elseif ( zeta < 1._field_r) then  ! 0 < zf(1) / obl < 1, stable
+       phih_fieldr = (1._field_r+5._field_r*zeta)
+    else
+     phih_fieldr = 6._field_r  ! cap phi when z/L > 1
+    endif
+
+    return
+  end function phih_fieldr
 
 
   function E1(x)
