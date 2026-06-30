@@ -11,6 +11,7 @@ FetchContent_Declare(
     fortran-support
     GIT_REPOSITORY "https://gitlab.dkrz.de/icon-libraries/libfortran-support.git"
     GIT_TAG 34246610b17db29f214fb2f95ca1c9087f09b89c # git tag 2.2.1
+    PATCH_COMMAND git apply --reject --whitespace=fix ${PROJECT_SOURCE_DIR}/patches/libfortran-support.patch
 )
 
 FetchContent_MakeAvailable(fortran-support)

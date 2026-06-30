@@ -1,0 +1,30 @@
+diff --git a/src/mo_util_string.F90 b/src/mo_util_string.F90
+index 9ae064e..fa8a40a 100644
+--- a/src/mo_util_string.F90
++++ b/src/mo_util_string.F90
+@@ -15,6 +15,7 @@
+ 
+ ! String conversion utilities
+ MODULE mo_util_string
++  USE ISO_FORTRAN_ENV, ONLY: real32, real64
+   USE mo_exception, ONLY: finish
+   USE ISO_C_BINDING, ONLY: c_int8_t, c_char
+   USE mo_io_units, ONLY: MAX_CHAR_LENGTH => filename_max
+@@ -256,7 +257,7 @@ CONTAINS
+   !
+   PURE FUNCTION float2string(n, opt_fmt)
+     CHARACTER(len=32) :: float2string ! result
+-    REAL, INTENT(IN) :: n
++    REAL(real32), INTENT(IN) :: n
+     CHARACTER(len=*), INTENT(IN), OPTIONAL :: opt_fmt
+     !
+     CHARACTER(len=10) :: fmt
+@@ -273,7 +274,7 @@ CONTAINS
+   !
+   PURE FUNCTION double2string(n, opt_fmt)
+     CHARACTER(len=32) :: double2string ! result
+-    DOUBLE PRECISION, INTENT(IN) :: n
++    REAL(real64), INTENT(IN) :: n
+     CHARACTER(len=*), INTENT(IN), OPTIONAL :: opt_fmt
+     !
+     CHARACTER(len=10) :: fmt
