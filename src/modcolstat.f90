@@ -5,7 +5,7 @@ module modcolstat
   use modglobal,         only: ifnamopt, fname_options, checknamelisterror, &
                                i1, j1, kmax,k1, itot, jtot, imax, jmax, &
                                dtav_glob, timeav_glob, &
-                               cp, rlv, rd, rv, x0, y0, dx, dy, dzf, dzh, dzhi, dxi, dyi, cu, cv, eps1, nsv, grav, tdn, tup
+                               cp, rlv, rd, rv, x0, y0, dx, dy, dzf, dzh, dzhi, dxi, dyi, cu, cv, eps1, nsv, grav, tdn, tup, output_prefix
   use modfields,         only: um, vm, wm, thlm, qtm, u0, v0, w0, thl0, thl0h, qt0, qt0h, ql0, ql0h, thv0h, &
                                e12m, e120, exnf, exnh, presf, presh, rhof, rhobf, rhobh, tmp0, sv0, svm, svp, thlpcar, u0av, v0av, thvh
   use modgenstat,        only: umav, vmav, wmav, thlmav, thvmav, thmav, qtmav, qlmav, svmav, w2av, dtav, timeav
@@ -195,7 +195,7 @@ contains
     call D_MPI_ALLREDUCE(locx_all, npoints, MPI_SUM, comm3d, mpierr)
     call D_MPI_ALLREDUCE(locy_all, npoints, MPI_SUM, comm3d, mpierr)
 
-    ofile = multi_profile_file_t('colstat', npoints, nz=kmax, lgpu=.false., &
+    ofile = multi_profile_file_t(trim(output_prefix)//'colstat', npoints, nz=kmax, lgpu=.false., &
                                 locx=locx_all, locy=locy_all, profile_ids=global_index)
     call add_output_file(ofile, dtav, ofile_id, dt_write=timeav)
 

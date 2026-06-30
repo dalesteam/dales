@@ -32,7 +32,7 @@ module modslurbcrosssection
 contains
 
   subroutine write_slurb_constants()
-    use modglobal,    only : i1, j1, itot, jtot
+    use modglobal,    only : i1, j1, itot, jtot, output_prefix
     use modslurbdata, only : slurb_tile, &
                              nzt_roof, nzb_roof, nzt_road, nzb_road, nzt_wall, nzb_wall, nzt_win, nzb_win
 
@@ -50,24 +50,24 @@ contains
     real(field_r), pointer :: dz_roof(:,:,:), dz_road(:,:,:), dz_wall(:,:,:), dz_win(:,:,:)
     real(field_r), pointer :: c_roof(:,:,:), c_road(:,:,:), c_wall(:,:,:), c_win(:,:,:), absorption_win(:,:,:)
 
-    slurb_constants_roof_file = slurb_3d_file_t('slurbcross_constants_roof', nzs=nzb_roof-nzt_roof+1, lgpu=.false.)
+    slurb_constants_roof_file = slurb_3d_file_t(trim(output_prefix)//'slurbcross_constants_roof', nzs=nzb_roof-nzt_roof+1, lgpu=.false.)
     call slurb_constants_roof_file%add_var('dz_roof', 'roof layer thickness', 'm', 'tttts_slurb')
     call slurb_constants_roof_file%add_var('c_roof', 'roof layer heat capacity', 'J/m^2/K', 'tttts_slurb')
 
-    slurb_constants_road_file = slurb_3d_file_t('slurbcross_constants_road', nzs=nzb_road-nzt_road+1, lgpu=.false.)
+    slurb_constants_road_file = slurb_3d_file_t(trim(output_prefix)//'slurbcross_constants_road', nzs=nzb_road-nzt_road+1, lgpu=.false.)
     call slurb_constants_road_file%add_var('dz_road', 'road layer thickness', 'm', 'tttts_slurb')
     call slurb_constants_road_file%add_var('c_road', 'road layer heat capacity', 'J/m^2/K', 'tttts_slurb')
 
-    slurb_constants_wall_file = slurb_3d_file_t('slurbcross_constants_wall', nzs=nzb_wall-nzt_wall+1, lgpu=.false.)
+    slurb_constants_wall_file = slurb_3d_file_t(trim(output_prefix)//'slurbcross_constants_wall', nzs=nzb_wall-nzt_wall+1, lgpu=.false.)
     call slurb_constants_wall_file%add_var('dz_wall', 'wall layer thickness', 'm', 'tttts_slurb')
     call slurb_constants_wall_file%add_var('c_wall', 'wall layer heat capacity', 'J/m^2/K', 'tttts_slurb')
 
-    slurb_constants_win_file = slurb_3d_file_t('slurbcross_constants_win', nzs=nzb_win-nzt_win+1, lgpu=.false.)
+    slurb_constants_win_file = slurb_3d_file_t(trim(output_prefix)//'slurbcross_constants_win', nzs=nzb_win-nzt_win+1, lgpu=.false.)
     call slurb_constants_win_file%add_var('dz_win', 'window layer thickness', 'm', 'tttts_slurb')
     call slurb_constants_win_file%add_var('c_win', 'window layer heat capacity', 'J/m^2/K', 'tttts_slurb')
     call slurb_constants_win_file%add_var('absorption_win', 'absorption_win', '', 'tttts_slurb')
 
-    slurb_constants_2d_file = cross_section_file_t('slurbcross_constants_2d', nx=itot, ny=jtot, lgpu=.false.)
+    slurb_constants_2d_file = cross_section_file_t(trim(output_prefix)//'slurbcross_constants_2d', nx=itot, ny=jtot, lgpu=.false.)
     call slurb_constants_2d_file%add_var('z_mo', 'reference height for MOST for the atmosphere', 'm', 'tt0t')
     call slurb_constants_2d_file%add_var('z_mo_can', 'canyon reference height for MOST', 'm', 'tt0t')
     call slurb_constants_2d_file%add_var('wall_hor_a_ratio', 'wall-to-horizontal area ratio', '-', 'tt0t')
@@ -155,7 +155,7 @@ contains
   end subroutine write_slurb_constants
 
   subroutine initslurbcrosssection
-    use modglobal,    only : itot, jtot
+    use modglobal,    only : itot, jtot, output_prefix
     use modslurbdata, only : enable_slurb, dtav_slurb, output_slurb_bc, output_slurb_constants, slurb_cross_output, &
                              slurb_cross_output_roof, slurb_cross_output_road, slurb_cross_output_wall_win, &
                              slurb_cross_output_tendencies, slurb_cross_output_radiation, &
@@ -171,7 +171,7 @@ contains
       call write_slurb_constants()
     end if
 
-    slurb_urb_file = cross_section_file_t('slurbcross_urb', nx=itot, ny=jtot, lgpu=.false.)
+    slurb_urb_file = cross_section_file_t(trim(output_prefix)//'slurbcross_urb', nx=itot, ny=jtot, lgpu=.false.)
     call add_output_file(slurb_urb_file, dtav_slurb, slurb_urb_file_id)
     slurb_urb_enabled = .true.
 
@@ -233,7 +233,7 @@ contains
     end if
 
     if (slurb_cross_output_roof) then
-      slurb_roof_file = slurb_3d_file_t('slurbcross_roof', nzs=nzb_roof-nzt_roof+1, lgpu=.false.)
+      slurb_roof_file = slurb_3d_file_t(trim(output_prefix)//'slurbcross_roof', nzs=nzb_roof-nzt_roof+1, lgpu=.false.)
       call add_output_file(slurb_roof_file, dtav_slurb, slurb_roof_file_id)
       slurb_roof_enabled = .true.
       call slurb_roof_file%add_var('t_roof', 'temperature roof', 'K', 'tttts_slurb')
@@ -241,7 +241,7 @@ contains
     end if
 
     if (slurb_cross_output_road) then
-      slurb_road_file = slurb_3d_file_t('slurbcross_road', nzs=nzb_road-nzt_road+1, lgpu=.false.)
+      slurb_road_file = slurb_3d_file_t(trim(output_prefix)//'slurbcross_road', nzs=nzb_road-nzt_road+1, lgpu=.false.)
       call add_output_file(slurb_road_file, dtav_slurb, slurb_road_file_id)
       slurb_road_enabled = .true.
       call slurb_road_file%add_var('t_road', 'temperature road', 'K', 'tttts_slurb')
@@ -249,7 +249,7 @@ contains
     end if
 
     if (slurb_cross_output_wall_win) then
-      slurb_wall_file = slurb_3d_file_t('slurbcross_wall', nzs=nzb_wall-nzt_wall+1, lgpu=.false.)
+      slurb_wall_file = slurb_3d_file_t(trim(output_prefix)//'slurbcross_wall', nzs=nzb_wall-nzt_wall+1, lgpu=.false.)
       call add_output_file(slurb_wall_file, dtav_slurb, slurb_wall_file_id)
       slurb_wall_enabled = .true.
       call slurb_wall_file%add_var('t_wall_a', 'temperature wall a', 'K', 'tttts_slurb')
@@ -259,7 +259,7 @@ contains
         call slurb_wall_file%add_var('tt_wall_b', 'tendency wall b', 'K/s', 'tttts_slurb')
       end if
 
-      slurb_win_file = slurb_3d_file_t('slurbcross_win', nzs=nzb_win-nzt_win+1, lgpu=.false.)
+      slurb_win_file = slurb_3d_file_t(trim(output_prefix)//'slurbcross_win', nzs=nzb_win-nzt_win+1, lgpu=.false.)
       call add_output_file(slurb_win_file, dtav_slurb, slurb_win_file_id)
       slurb_win_enabled = .true.
       call slurb_win_file%add_var('t_win_a', 'temperature win a', 'K', 'tttts_slurb')

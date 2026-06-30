@@ -22,7 +22,7 @@ module modradfield
   use modfields,         only: rhof, qt0, ql0, tmp0, u0, v0, presf
   use modglobal,         only: itot, jtot, i1, j1, kmax, dzf, ifnamopt, &
                                dtav_glob, timeav_glob, cu, cv, tup, tdn, cp, &
-                               rlv, checknamelisterror
+                               rlv, checknamelisterror, output_prefix
   use modmpi,            only: D_MPI_BCAST, commwrld, myid
   use modnetcdf_file_t,  only: cross_section_file_t
   use modprecision,      only: field_r
@@ -88,7 +88,7 @@ contains
 
       nsamples = timeav / dtav
 
-      ofile = cross_section_file_t('radfield', nx=itot, ny=jtot)
+      ofile = cross_section_file_t(trim(output_prefix)//'radfield', nx=itot, ny=jtot)
       call add_output_file(ofile, dtav, ofile_id, dt_write=timeav)
 
       call ofile%add_var('hfls','surface upward latent heat flux','W/m2','tt0t')

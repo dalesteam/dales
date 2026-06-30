@@ -27,7 +27,7 @@
 module moddepcrosssection
   use modlsm, only : llsm
   use moddrydeposition, only : ldrydep
-  use modglobal, only : longint, nsv, itot, jtot
+  use modglobal, only : longint, nsv, itot, jtot, output_prefix
   use modnetcdf_file_t, only : cross_section_file_t
   use modprecision, only : field_r
   use modstat_nc_files, only : add_output_file
@@ -99,7 +99,7 @@ contains
     end if
 
     if (lnetcdf) then
-      dep_file = cross_section_file_t('depcross', nx=itot, ny=jtot, lgpu=.false.)
+      dep_file = cross_section_file_t(trim(output_prefix)//'depcross', nx=itot, ny=jtot, lgpu=.false.)
       do isv = 1, nsv
         if (.not. tracer_prop(isv)%ldep) cycle
         write (varname, '(a,a)') 'drydep_', trim(tracer_prop(isv)%tracname)

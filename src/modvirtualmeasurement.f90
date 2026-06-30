@@ -4,7 +4,7 @@ module modvirtualmeasurement
   use fortran_support,   only: nnml_output
   use modglobal,         only: ifnamopt, fname_options, checknamelisterror, &
                                itot, jtot, imax, jmax, &
-                               x0, y0, dx, dy, cu, cv, cp, rlv, fkar, dtav_glob
+                               x0, y0, dx, dy, cu, cv, cp, rlv, fkar, dtav_glob, output_prefix
   use modmpi,            only: myid, myidx, myidy, comm3d, mpierr, d_mpi_bcast, &
                                nprocs, D_MPI_ALLREDUCE, mpi_sum
   use modlogging,        only: finish
@@ -152,7 +152,7 @@ contains
     call D_MPI_ALLREDUCE(locx_all, npoints, MPI_SUM, comm3d, mpierr)
     call D_MPI_ALLREDUCE(locy_all, npoints, MPI_SUM, comm3d, mpierr)
 
-    ofile = multi_timeseries_file_t('virtualmeasurement', npoints, lgpu=.false., &
+    ofile = multi_timeseries_file_t(trim(output_prefix)//'virtualmeasurement', npoints, lgpu=.false., &
                                       locx=locx_all, locy=locy_all, point_ids=global_index)
     call add_output_file(ofile, dtav, ofile_id)
 

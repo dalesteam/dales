@@ -70,7 +70,7 @@ contains
   subroutine initlsmcrosssection
     use modmpi,     only : myid, myidy, mpierr, comm3d, D_MPI_BCAST
     use modglobal,  only : ifnamopt, fname_options, dtmax, dtav_glob, ladaptive, &
-      j1, jmax, dy, y0, dt_lim, tres, btime, checknamelisterror, itot, jtot,timee
+      j1, jmax, dy, y0, dt_lim, tres, btime, checknamelisterror, itot, jtot,timee, output_prefix
     use modstat_nc, only : lnetcdf
     use modsurfdata, only : isurf
     use modlsm,     only : lags
@@ -145,7 +145,7 @@ contains
       if (crossplane_local >= 2 .and. crossplane_local <= j1) then
         write(cloc, '(i4.4)') crossplane_global
         loc = y0 + dy * (crossplane_global - 1) + 0.5_field_r * dy
-        soil_xz_file = cross_section_file_t('lsmcrossxz.'//cloc, nx=itot, nzs=ksoilmax, loc=loc, lgpu=.false.)
+        soil_xz_file = cross_section_file_t(trim(output_prefix)//'lsmcrossxz.'//cloc, nx=itot, nzs=ksoilmax, loc=loc, lgpu=.false.)
         call soil_xz_file%add_var('tsoil', 'xz crosssection of the Soil temperature', 'K', 't0tts')
         call soil_xz_file%add_var('phiw', 'xz crosssection of the Soil moisture', 'm3/m3', 't0tts')
         call add_output_file(soil_xz_file, dtav, soil_xz_file_id)
@@ -153,7 +153,7 @@ contains
       end if
 
       write(cheight, '(i4.4)') crossheight
-      soil_xy_file = cross_section_file_t('lsmcrossxy.'//cheight, nx=itot, ny=jtot, lgpu=.false.)
+      soil_xy_file = cross_section_file_t(trim(output_prefix)//'lsmcrossxy.'//cheight, nx=itot, ny=jtot, lgpu=.false.)
       call soil_xy_file%add_var('tsoil', 'xy crosssection of the Soil temperature', 'K', 'tt0t')
       call soil_xy_file%add_var('phiw', 'xy crosssection of the Soil moisture', 'm3/m3', 'tt0t')
       call add_output_file(soil_xy_file, dtav, soil_xy_file_id)
@@ -161,7 +161,7 @@ contains
     end if
 
     if (lcross.and.lnetcdf) then
-      surf_file = cross_section_file_t('surfcross', nx=itot, ny=jtot, lgpu=.false.)
+      surf_file = cross_section_file_t(trim(output_prefix)//'surfcross', nx=itot, ny=jtot, lgpu=.false.)
       surf_enabled = .true.
       call add_output_file(surf_file, dtav, surf_file_id)
 

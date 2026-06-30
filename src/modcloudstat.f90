@@ -3,7 +3,7 @@ module modcloudstat
 
   use fortran_support,   only: nnml_output
   use modglobal,         only: i1, j1, kmax, dzf, zf, imax, jmax, itot, jtot, &
-                               ifnamopt, checknamelisterror
+                               ifnamopt, checknamelisterror, output_prefix
   use modfields,         only: ql0, qt0, sv0, rhobf, ql0av, exnf, thvf, w0, thl0
   use modprecision,      only: field_r
   use modthermodynamics, only: calc_virt_pot_temp
@@ -61,7 +61,7 @@ contains
 
     if (lcloudstat) then
       ! Make a new NetCDF file
-      ofile = cross_section_file_t('cloudstat.nc', nx=itot, ny=jtot)
+      ofile = cross_section_file_t(trim(output_prefix)//'cloudstat.nc', nx=itot, ny=jtot)
 
       ! Add the file to the list of output files
       call add_output_file(ofile, dtav, ofile_id)
