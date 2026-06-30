@@ -34,7 +34,8 @@ contains
       global_i_start=myidx * imax + 1, global_j_start=myidy * jmax + 1,   &
       west_rank=nbrwest, east_rank=nbreast,                               &
       south_rank=nbrsouth, north_rank=nbrnorth,                           &
-      periodic_x=periods(1), periodic_y=periods(2))
+      periodic_x=periods(1), periodic_y=periods(2),                       &
+      y_dimension=1)
 
     call lcm_set_grid(lcm_grid)
   end subroutine init_lcm
