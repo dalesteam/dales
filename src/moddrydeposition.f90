@@ -38,7 +38,7 @@ module moddrydeposition
   logical, dimension(100) :: ldeptracers = .false. !< List of switches determining which of the tracers to deposit
   integer  :: ndeptracers = 0  !< Number of tracers that deposits
   integer  :: iname 
-  real :: nh3_avg, so2_avg	!GT: added to not have the valiables needed for the calculations of ccomp hardcoded
+  real :: nh3_avg, so2_avg	!GT added to not have the valiables needed for the calculations of ccomp hardcoded
 
   private :: Rc, Rb, vd
 
