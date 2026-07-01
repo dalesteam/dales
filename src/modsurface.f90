@@ -1414,12 +1414,12 @@ contains
     real(real64),  intent(in) :: tskin !< Skin temperature [K]
     real(real64),  intent(in) :: qskin !< Skin specific humidity [kg/kg]
     real(field_r), intent(in) :: z     !< Height [m]
-    real(real64),  intent(in) :: z0m   !< Roughness length for momentum [m]
-    real(real64),  intent(in) :: z0h   !< Roughness length for heat [m]
+    real(field_r),  intent(in) :: z0m   !< Roughness length for momentum [m]
+    real(field_r),  intent(in) :: z0h   !< Roughness length for heat [m]
     real(field_r), intent(in) :: u     !< U wind component at first model level [m/s]
     real(field_r), intent(in) :: v     !< V wind component at first model level [m/s]
 
-    real(real64), intent(inout) :: L   !< Obukhov length [m]
+    real(field_r), intent(inout) :: L   !< Obukhov length [m]
 
     real(real64) :: horv2  !< Horizontal wind velocity, squared [m2/s2]
     real(real64) :: Rib    !< Bulk Richardson number
@@ -1429,8 +1429,8 @@ contains
 
     ! Variables for iteration
     integer       :: iter
-    real(real64) :: fx, fxdif
-    real(real64) :: Lend, Lold, Lstart
+    real(field_r) :: fx, fxdif
+    real(field_r) :: Lend, Lold, Lstart
 
     thv = thl * (1 + (rv/rd - 1) * qt)
     thvsl = tskin * (1 + (rv/rd - 1) * qskin)
@@ -1468,7 +1468,7 @@ contains
           if (Rib < 0) L = -0.01
         end if
 
-        if (abs(L) > 1E6) L = sign(1E6, L)
+        if (abs(L) > 1E6) L = sign(1E6_field_r, L)
 
         ! TODO: convergence check?
       end do
@@ -1484,11 +1484,11 @@ contains
   elemental function calc_rib_from_obl(z, L, z0h, z0m) result(fac)
     
     real(field_r), intent(in) :: z   !< Height [m]
-    real(real64),  intent(in) :: L   !< Obukhov length [m]
-    real(real64),  intent(in) :: z0h !< Roughness length for heat [m]
-    real(real64),  intent(in) :: z0m !< Roughness length for momentum [m]
+    real(field_r),  intent(in) :: L   !< Obukhov length [m]
+    real(field_r),  intent(in) :: z0h !< Roughness length for heat [m]
+    real(field_r),  intent(in) :: z0m !< Roughness length for momentum [m]
 
-    real(real64) :: fac !< Factor relating bulk Richardson number to Obukhov length
+    real(field_r) :: fac !< Factor relating bulk Richardson number to Obukhov length
 
     fac = z / L &
           * (log(z / z0h) - psih(z / L) + psih(z0h / L)) &
@@ -1508,7 +1508,7 @@ contains
 
     integer             :: i,j,iter,patchx,patchy
     real                :: thv, thvsl, horv2, oblavl, thvpatch(xpatches,ypatches), horvpatch(xpatches,ypatches)
-    real                :: L, Lend, Lstart, Lold
+    real(field_r)       :: L, Lend, Lstart, Lold
     real                :: Rib, fx, fxdif
     real                :: upcu, vpcv
     real                :: upatch(xpatches,ypatches), vpatch(xpatches,ypatches)
@@ -1584,7 +1584,7 @@ contains
                 if(iter > 1000) print *, 'Obukhov length calculation does not converge!'
              end do
 
-             if (abs(L)>1e6) L = sign(1.0e6,L)
+             if (abs(L)>1e6) L = sign(1.0e6_field_r,L)
           end if
           obl(i,j) = L
 
@@ -1669,7 +1669,7 @@ contains
             if(abs((L - Lold)/L) < 1e-4) exit
           end do
 
-          if (abs(L)>1e6) L = sign(1.0e6,L)
+          if (abs(L)>1e6) L = sign(1.0e6_field_r,L)
           oblpatch(patchx,patchy) = L
         enddo
       enddo
@@ -1723,7 +1723,7 @@ contains
           if(iter > 1000)  print *, 'Obukhov length calculation does not converge!'
        end do
 
-       if (abs(L)>1e6) L = sign(1.0e6,L)
+       if (abs(L)>1e6) L = sign(1.0e6_field_r,L)
        if(.not. lmostlocal) then
           if(.not. lhetero) then
             do j = 1, j2
@@ -1743,86 +1743,44 @@ contains
     implicit none
     !$acc routine seq
 
-    real             :: psim
-    real, intent(in) :: zeta
-    real             :: x
-
-    if(zeta <= 0) then
-      x     = (1. - 16. * zeta) ** (0.25)
-      psim  = 3.14159265 / 2. - 2. * atan(x) + log( (1.+x) ** 2. * (1. + x ** 2.) / 8.)
-      ! CvH use Wilson, 2001 rather than Businger-Dyer for correct free convection limit
-      !x     = (1. + 3.6 * abs(zeta) ** (2./3.)) ** (-0.5)
-      !psim = 3. * log( (1. + 1. / x) / 2.)
-    else
-      psim  = -2./3. * (zeta - 5./0.35)*exp(-0.35 * zeta) - zeta - (10./3.) / 0.35
-    end if
-
-    return
-  end function psim
-  pure function psim_fieldr(zeta)
-    implicit none
-    !$acc routine seq
-
-    real(field_r)             :: psim_fieldr
+    real(field_r)             :: psim
     real(field_r), intent(in) :: zeta
     real(field_r)             :: x
 
     if(zeta <= 0) then
       x     = (1._field_r - 16._field_r * zeta) ** (0.25_field_r)
-      psim_fieldr  = 3.14159265_field_r / 2._field_r - 2._field_r * atan(x) + log( (1._field_r+x) ** 2._field_r * (1._field_r + x ** 2._field_r) / 8._field_r)
+      psim  = 3.14159265_field_r / 2._field_r - 2._field_r * atan(x) + log( (1._field_r+x) ** 2._field_r * (1._field_r + x ** 2._field_r) / 8._field_r)
       ! CvH use Wilson, 2001 rather than Businger-Dyer for correct free convection limit
       !x     = (1. + 3.6 * abs(zeta) ** (2./3.)) ** (-0.5)
       !psim = 3. * log( (1. + 1. / x) / 2.)
     else
-      psim_fieldr  = -2._field_r/3._field_r * (zeta - 5._field_r/0.35_field_r)*exp(-0.35_field_r * zeta) - zeta - (10._field_r/3._field_r) / 0.35_field_r
+      psim  = -2._field_r/3._field_r * (zeta - 5._field_r/0.35_field_r)*exp(-0.35_field_r * zeta) - zeta - (10._field_r/3._field_r) / 0.35_field_r
     end if
 
     return
-  end function psim_fieldr
+  end function psim
 
   pure function psih(zeta)
 
     implicit none
     !$acc routine seq
 
-    real             :: psih
-    real, intent(in) :: zeta
-    real             :: x
+    real(field_r)             :: psih
+    real(field_r), intent(in) :: zeta
+    real(field_r)             :: x
 
     if(zeta <= 0) then
-      x     = (1. - 16. * zeta) ** (0.25)
-      psih  = 2. * log( (1. + x ** 2.) / 2. )
+      x     = (1._field_r - 16._field_r * zeta) ** (0.25_field_r)
+      psih  = 2._field_r * log( (1._field_r + x ** 2._field_r) / 2._field_r )
       ! CvH use Wilson, 2001
       !x     = (1. + 7.9 * abs(zeta) ** (2./3.)) ** (-0.5)
       !psih  = 3. * log( (1. + 1. / x) / 2.)
     else
-      psih  = -2./3. * (zeta - 5./0.35)*exp(-0.35 * zeta) - (1. + (2./3.) * zeta) ** (1.5) - (10./3.) / 0.35 + 1.
+      psih  = -2._field_r/3._field_r * (zeta - 5._field_r/0.35_field_r)*exp(-0.35_field_r * zeta) - (1._field_r + (2._field_r/3._field_r) * zeta) ** (1.5_field_r) - (10._field_r/3._field_r) / 0.35_field_r + 1._field_r
     end if
 
     return
   end function psih
-  pure function psih_fieldr(zeta)
-
-    implicit none
-    !$acc routine seq
-
-    real(field_r)             :: psih_fieldr
-
-    real(field_r), intent(in) :: zeta
-    real(field_r)             :: x
-
-    if(zeta <= 0._field_r) then
-      x     = (1._field_r - 16._field_r * zeta) ** (0.25_field_r)
-      psih_fieldr  = 2._field_r * log( (1._field_r + x ** 2._field_r) / 2._field_r )
-      ! CvH use Wilson, 2001
-      !x     = (1. + 7.9 * abs(zeta) ** (2./3.)) ** (-0.5)
-      !psih  = 3. * log( (1. + 1. / x) / 2.)
-    else
-      psih_fieldr  = -2._field_r/3._field_r * (zeta - 5._field_r/0.35_field_r)*exp(-0.35_field_r * zeta) - (1._field_r + (2._field_r/3._field_r) * zeta) ** (1.5_field_r) - (10._field_r/3._field_r) / 0.35_field_r + 1._field_r
-    end if
-
-    return
-  end function psih_fieldr
 
   ! stability function Phi for momentum.
   ! Many functional forms of Phi have been suggested, see e.g. Optis 2015
@@ -1832,79 +1790,39 @@ contains
   function phim(zeta)
     !$acc routine seq
     implicit none
-    real             :: phim
-    real, intent(in) :: zeta
+    real(field_r)             :: phim
+    real(field_r), intent(in) :: zeta
 
-    if (zeta < 0.) then ! unstable
-       phim = (1.-16.*zeta)**(-0.25)
+    if (zeta < 0._field_r) then ! unstable
+       phim = (1._field_r-16._field_r*zeta)**(-0.25_field_r)
        !phimzf = (1. + 3.6 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
-    elseif ( zeta < 1.) then  ! 0 < zeta < 1, stable
-       phim = (1.+5.*zeta)
+    elseif ( zeta < 1._field_r) then  ! 0 < zeta < 1, stable
+       phim = (1._field_r+5._field_r*zeta)
     else
-       phim = 6 ! cap phi when z/L > 1
+       phim = 6._field_r ! cap phi when z/L > 1
     endif
 
     return
   end function phim
-  ! stability function Phi for momentum.
-  ! Many functional forms of Phi have been suggested, see e.g. Optis 2015
-  ! Phi and Psi above are related by an integral and should in principle match,
-  ! currently they do not.
-  ! FJ 2018: For very stable situations, zeta > 1 add cap to phi - the linear expression is valid only for zeta < 1
-  function phim_fieldr(zeta)
-    !$acc routine seq
-    implicit none
-    real(field_r)             :: phim_fieldr
-    real(field_r), intent(in) :: zeta
-
-    if (zeta < 0._field_r) then ! unstable
-       phim_fieldr = (1._field_r-16._field_r*zeta)**(-0.25_field_r)
-       !phimzf = (1. + 3.6 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
-    elseif ( zeta < 1._field_r) then  ! 0 < zeta < 1, stable
-       phim_fieldr = (1._field_r+5._field_r*zeta)
-    else
-       phim_fieldr = 6._field_r ! cap phi when z/L > 1
-    endif
-
-    return
-  end function phim_fieldr
 
   ! stability function Phi for heat.
   function phih(zeta)
     !$acc routine seq
     implicit none
-    real             :: phih
-    real, intent(in) :: zeta
+    real(field_r)             :: phih
+    real(field_r), intent(in) :: zeta
 
-    if (zeta < 0.) then ! unstable
-       phih = (1.-16.*zeta)**(-0.50)
+    if (zeta < 0._field_r) then ! unstable
+       phih = (1._field_r-16._field_r*zeta)**(-0.50_field_r)
        !phihzf = (1. + 7.9 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
-    elseif ( zeta < 1.) then  ! 0 < zf(1) / obl < 1, stable
-       phih = (1.+5.*zeta)
+    elseif ( zeta < 1._field_r) then  ! 0 < zf(1) / obl < 1, stable
+       phih = (1._field_r+5._field_r*zeta)
     else
-     phih = 6  ! cap phi when z/L > 1
+     phih = 6._field_r  ! cap phi when z/L > 1
     endif
 
     return
   end function phih
-  ! stability function Phi for heat.
-  function phih_fieldr(zeta)
-    !$acc routine seq
-    implicit none
-    real(field_r)             :: phih_fieldr
-    real(field_r), intent(in) :: zeta
-
-    if (zeta < 0._field_r) then ! unstable
-       phih_fieldr = (1._field_r-16._field_r*zeta)**(-0.50_field_r)
-       !phihzf = (1. + 7.9 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
-    elseif ( zeta < 1._field_r) then  ! 0 < zf(1) / obl < 1, stable
-       phih_fieldr = (1._field_r+5._field_r*zeta)
-    else
-     phih_fieldr = 6._field_r  ! cap phi when z/L > 1
-    endif
-
-    return
-  end function phih_fieldr
 
 
   function E1(x)

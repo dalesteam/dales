@@ -874,7 +874,7 @@ subroutine calc_obuk_ustar_ra(tile)
 
                 ! Iteratively find Obukhov length
                 tile%obuk(i,j) = calc_obuk_dirichlet( &
-                    tile%obuk(i,j), du_tot(i,j), tile%db(i,j), real(zf(1), 8), tile%z0m(i,j), tile%z0h(i,j))
+                    tile%obuk(i,j), du_tot(i,j), tile%db(i,j), zf(1), tile%z0m(i,j), tile%z0h(i,j))
             !end if
         end do
     end do
@@ -884,8 +884,8 @@ subroutine calc_obuk_ustar_ra(tile)
         do i=2,i1
             !if (tile%frac(i,j) > 0) then
                 ! Calculate friction velocity and aerodynamic resistance
-                tile%ustar(i,j) = du_tot(i,j) * fm(real(zf(1), 8), tile%z0m(i,j), tile%obuk(i,j))
-                tile%ra(i,j)    = 1./(tile%ustar(i,j) * fh(real(zf(1), 8), tile%z0h(i,j), tile%obuk(i,j)))
+                tile%ustar(i,j) = du_tot(i,j) * fm(zf(1), tile%z0m(i,j), tile%obuk(i,j))
+                tile%ra(i,j)    = 1./(tile%ustar(i,j) * fh(zf(1), tile%z0h(i,j), tile%obuk(i,j)))
             !end if
         end do
     end do
@@ -2860,7 +2860,7 @@ subroutine check_value_validity
         call check_array(tile(ilu)%z0h, 'tile('//tile(ilu)%lushort//')%z0h', routine,[real(0, kind=rkind), real(zf(1),kind=rkind)], stop_if_invalid=.true.)
         call check_array(tile(ilu)%z0m, 'tile('//tile(ilu)%lushort//')%z0m', routine,[real(0, kind=rkind), real(zf(1),kind=rkind)], stop_if_invalid=.true.)
       end if
-      call check_array(tile(ilu)%albedo, 'tile('//tile(ilu)%lushort//')%albedo', routine,[real(0, kind=rkind), real(1,kind=rkind)], stop_if_invalid=.true.)
+      call check_array(tile(ilu)%albedo, 'tile('//tile(ilu)%lushort//')%albedo', routine,[real(0, kind=8), real(1,kind=8)], stop_if_invalid=.true.)
     end do
     
 end subroutine check_value_validity
@@ -3021,15 +3021,15 @@ end subroutine calc_root_fractions
 !
 function calc_obuk_dirichlet(L_in, du, db_in, zsl, z0m, z0h) result(res)
     implicit none
-    real, intent(in) :: L_in, du, db_in, zsl, z0m, z0h
+    real(field_r), intent(in) :: L_in, du, db_in, zsl, z0m, z0h
 
     integer :: m, n, nlim
-    real :: res, L, db, Lmax, L0, Lstart, Lend, fx0, fxdif
+    real(field_r) :: res, L, db, Lmax, L0, Lstart, Lend, fx0, fxdif
     !$acc routine seq
 
     m = 0
     nlim = 10
-    Lmax = 1e10
+    Lmax = 1e10_field_r
     L = L_in
     db = db_in
 
@@ -3046,9 +3046,9 @@ function calc_obuk_dirichlet(L_in, du, db_in, zsl, z0m, z0h) result(res)
 
     ! Avoid buoyancy difference of zero:
     if (db >= 0) then
-        db = max(db, 1e-9)
+        db = max(db, 1e-9_field_r)
     else
-        db = min(db, -1e-9)
+        db = min(db, -1e-9_field_r)
     end if
 
     ! Allow for one restart of iterative procedure:
@@ -3058,26 +3058,26 @@ function calc_obuk_dirichlet(L_in, du, db_in, zsl, z0m, z0h) result(res)
         if (L*db <= 0) then
             nlim = 200
             if (db >= 0) then
-                L = 1e-9
+                L = 1e-9_field_r
             else
-                L = -1e-9
+                L = -1e-9_field_r
             end if
         end if
 
         ! Make sure the iteration starts
-        if (db >= 0) then
-            L0 = 1e30
+        if (db >= 0_field_r) then
+            L0 = 1e30_field_r
         else
-            L0 = -1e30
+            L0 = -1e30_field_r
         end if
 
         ! Exit on convergence or on iteration count
         n = 0
         fxdif = 1
-        do while (abs((L - L0) / L0) > 0.001 .and. n < nlim .and. abs(L) < Lmax)
+        do while (abs((L - L0) / L0) > 0.001_field_r .and. n < nlim .and. abs(L) < Lmax)
             L0     = L
-            Lstart = L - 0.001*L
-            Lend   = L + 0.001*L
+            Lstart = L - 0.001_field_r*L
+            Lend   = L + 0.001_field_r*L
 
             fx0    = fx(zsl, L0, du, db, z0h, z0m)
             fxdif  = (fx(zsl, Lend, du, db, z0h, z0m) - fx(zsl, Lstart, du, db, z0h, z0m)) / (Lend - Lstart)
@@ -3091,7 +3091,7 @@ function calc_obuk_dirichlet(L_in, du, db_in, zsl, z0m, z0h) result(res)
             return
         else
             ! Convergence has not been reached, procedure restarted once
-            L = 1e-9
+            L = 1e-9_field_r
             m = m+1
             nlim = 200
         end if
@@ -3103,7 +3103,7 @@ function calc_obuk_dirichlet(L_in, du, db_in, zsl, z0m, z0h) result(res)
         print*,'Input: ', L_in, du, db_in, zsl, z0m, z0h
 #endif
         !stop
-        res = 1e-9
+        res = 1e-9_field_r
         return
     end if
 
@@ -3111,9 +3111,9 @@ end function calc_obuk_dirichlet
 
 pure function fx(zsl, L, du, db, z0h, z0m) result(res)
     implicit none
-    real, intent(in) :: zsl, L, du, db, z0h, z0m
-    real :: res, fkar
-    fkar = 0.4
+    real(field_r), intent(in) :: zsl, L, du, db, z0h, z0m
+    real(field_r) :: res, fkar
+    fkar = 0.4_field_r
 
     res = zsl/L - fkar * zsl * db * fh(zsl, z0h, L) / (du * fm(zsl, z0m, L))**2
 end function fx
@@ -3122,8 +3122,8 @@ pure function fm(zsl, z0m, L) result(res)
     use modglobal, only : fkar
     use modsurface, only : psim
     implicit none
-    real, intent(in) :: zsl, z0m, L
-    real :: res
+    real(field_r), intent(in) :: zsl, z0m, L
+    real(field_r) :: res
 
     res = fkar / (log(zsl/z0m) - psim(zsl/L) + psim(z0m/L))
 end function fm
@@ -3132,8 +3132,8 @@ pure function fh(zsl, z0h, L) result(res)
     use modglobal, only : fkar
     use modsurface, only : psih
     implicit none
-    real, intent(in) :: zsl, z0h, L
-    real :: res
+    real(field_r), intent(in) :: zsl, z0h, L
+    real(field_r) :: res
 
     res = fkar / (log(zsl/z0h) - psih(zsl/L) + psih(z0h/L))
 end function fh

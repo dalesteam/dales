@@ -33,6 +33,7 @@
 
 module modtimestat
   use modtimer
+  use iso_fortran_env, only: real32, real64
   use modprecision, only : longint, field_r
   use modlogging, only: finish
 
@@ -84,6 +85,16 @@ save
   real(field_r),allocatable, dimension(:,:) :: Qnet_patch, H_patch, LE_patch, G0_patch, tendskin_patch,rs_patch,ra_patch
   real(field_r),allocatable, dimension(:,:) :: cliq_patch, wl_patch, rsveg_patch, rssoil_patch, tskin_patch, obl_patch
   real(field_r),allocatable, dimension(:,:) :: zi_patch,ziold_patch,we_patch, zi_field
+
+  interface mean_2d
+    module procedure mean_2d_real32
+    module procedure mean_2d_real64
+  end interface mean_2d
+
+  interface patchsum_1level
+    module procedure patchsum_1level_real32
+    module procedure patchsum_1level_real64
+  end interface patchsum_1level
 
 contains
 !> Initializing Timestat. Read out the namelist, initializing the variables
@@ -740,9 +751,9 @@ contains
 
     if (lhetero) then
       do k = 1, kmax
-        u0av_patch = patchsum_1level_field_r(u0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
-        v0av_patch = patchsum_1level_field_r(v0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
-        w0av_patch = patchsum_1level_field_r(w0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
+        u0av_patch = patchsum_1level(u0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
+        v0av_patch = patchsum_1level(v0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
+        w0av_patch = patchsum_1level(w0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
         do j = 2, j1
           do i = 2, i1
             patchy = patchynr(j)
@@ -756,7 +767,7 @@ contains
           end do
         end do
       end do
-      tke_tot_patch = patchsum_1level_field_r(tke_tot_field) * (xpatches*ypatches/ijtot)
+      tke_tot_patch = patchsum_1level(tke_tot_field) * (xpatches*ypatches/ijtot)
     end if
 
 
@@ -821,9 +832,9 @@ contains
        call D_MPI_ALLREDUCE(pravl, prav, 1, MPI_SUM, comm3d,mpierr)
     end if
     if (lhetero) then
-      cc_patch    = patchsum_1level_field_r(cc_field   )
-      qlint_patch = patchsum_1level_field_r(qlint_field)
-      zbase_patch = patchsum_1level_field_r(zbase_field)
+      cc_patch    = patchsum_1level(cc_field   )
+      qlint_patch = patchsum_1level(qlint_field)
+      zbase_patch = patchsum_1level(zbase_field)
       call D_MPI_ALLREDUCE(qlintmax_patchl, qlintmax_patch, xpatches*ypatches, MPI_MAX, comm3d,mpierr)
       call D_MPI_ALLREDUCE(zbasemin_patchl, zbasemin_patch, xpatches*ypatches, MPI_MIN, comm3d,mpierr)
     endif
@@ -841,7 +852,7 @@ contains
       call D_MPI_ALLREDUCE(wmax_patchl ,      wmax_patch, xpatches*ypatches, MPI_MAX, comm3d,mpierr)
       call D_MPI_ALLREDUCE(qlmax_patchl,     qlmax_patch, xpatches*ypatches, MPI_MAX, comm3d,mpierr)
       call D_MPI_ALLREDUCE(ztopmax_patchl, ztopmax_patch, xpatches*ypatches, MPI_MAX, comm3d,mpierr)
-      ztop_patch = patchsum_1level_field_r(ztop_field)
+      ztop_patch = patchsum_1level(ztop_field)
     endif
 
     if (cc > 0.0) then
@@ -1364,18 +1375,31 @@ contains
 
   end subroutine timestat
 
-  function mean_2d(var_2d) result(res)
+  function mean_2d_real32(var_2d) result(res)
     use modglobal, only : i1, j1, ijtot
     use modmpi, only : mpi_sum, comm3d, mpierr, d_mpi_allreduce
     implicit none
 
-    real, intent(in) :: var_2d(:,:)
-    real :: res, var_sum_l, var_sum
+    real(real32), intent(in) :: var_2d(:,:)
+    real(real32) :: res, var_sum_l, var_sum
 
     var_sum_l = sum(var_2d(2:i1, 2:j1))
     call d_mpi_allreduce(var_sum_l, var_sum, 1, mpi_sum, comm3d, mpierr)
     res = var_sum / ijtot
-  end function mean_2d
+  end function mean_2d_real32
+
+  function mean_2d_real64(var_2d) result(res)
+    use modglobal, only : i1, j1, ijtot
+    use modmpi, only : mpi_sum, comm3d, mpierr, d_mpi_allreduce
+    implicit none
+
+    real(real64), intent(in) :: var_2d(:,:)
+    real(real64) :: res, var_sum_l, var_sum
+
+    var_sum_l = sum(var_2d(2:i1, 2:j1))
+    call d_mpi_allreduce(var_sum_l, var_sum, 1, mpi_sum, comm3d, mpierr)
+    res = var_sum / ijtot
+  end function mean_2d_real64
     
 
 !>Calculate the boundary layer height
@@ -1590,7 +1614,7 @@ contains
     zi = zi / ijtot
 
     if (lhetero) then
-      zi_patch = patchsum_1level_field_r(zi_field) * (xpatches*ypatches/ijtot)
+      zi_patch = patchsum_1level(zi_field) * (xpatches*ypatches/ijtot)
     endif
 
     if (ziold< 0) ziold = zi
@@ -1695,17 +1719,17 @@ contains
     endif
   end subroutine exittimestat
 
- function patchsum_1level(x)
+ function patchsum_1level_real32(x)
    use modglobal,  only : imax,jmax
    use modsurface, only : patchxnr, patchynr
    use modsurfdata,only : xpatches,ypatches
    use modmpi,     only : mpierr,comm3d,mpi_sum, D_MPI_ALLREDUCE
    implicit none
-   real                :: patchsum_1level(xpatches,ypatches),xl(xpatches,ypatches)
-   real, intent(in)    :: x(imax,jmax)
+   real(real32)         :: patchsum_1level_real32(xpatches,ypatches),xl(xpatches,ypatches)
+   real(real32), intent(in)    :: x(imax,jmax)
    integer             :: i,j,iind,jind
 
-   patchsum_1level = 0
+   patchsum_1level_real32 = 0
    xl              = 0
 
    do j=1,jmax
@@ -1718,22 +1742,21 @@ contains
      enddo
    enddo
 
-  call D_MPI_ALLREDUCE(xl,patchsum_1level, xpatches*ypatches,MPI_SUM, comm3d,mpierr)
+  call D_MPI_ALLREDUCE(xl,patchsum_1level_real32, xpatches*ypatches,MPI_SUM, comm3d,mpierr)
 
-  end function
+  end function patchsum_1level_real32
 
-!> It might be the same as the normal one, it might have a different kind ...
- function patchsum_1level_field_r(x)
+ function patchsum_1level_real64(x)
    use modglobal,  only : imax,jmax
    use modsurface, only : patchxnr, patchynr
    use modsurfdata,only : xpatches,ypatches
    use modmpi,     only : mpierr,comm3d,mpi_sum, D_MPI_ALLREDUCE
    implicit none
-   real                :: patchsum_1level_field_r(xpatches,ypatches),xl(xpatches,ypatches)
-   real(field_r), intent(in) :: x(imax,jmax)
+   real(real64)         :: patchsum_1level_real64(xpatches,ypatches),xl(xpatches,ypatches)
+   real(real64), intent(in) :: x(imax,jmax)
    integer             :: i,j,iind,jind
 
-   patchsum_1level_field_r = 0
+   patchsum_1level_real64 = 0
    xl              = 0
 
    do j=1,jmax
@@ -1746,8 +1769,8 @@ contains
      enddo
    enddo
 
-  call D_MPI_ALLREDUCE(xl,patchsum_1level_field_r, xpatches*ypatches,MPI_SUM, comm3d,mpierr)
+  call D_MPI_ALLREDUCE(xl,patchsum_1level_real64, xpatches*ypatches,MPI_SUM, comm3d,mpierr)
 
-  end function
+  end function patchsum_1level_real64
 
 end module modtimestat
