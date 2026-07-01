@@ -1,8 +1,13 @@
 !> Adapter routines for connecting DALES host data to LCM-owned interfaces.
 #ifdef USE_LCM
+#if FIELD_PRECISION != 64
+#error "LCM Option A pointer attachment requires DALES FIELD_PRECISION=64"
+#endif
 module modlcm_adapter
   use iso_fortran_env, only : real64
-  use lcm_host_interface, only : lcm_grid_t, lcm_init_grid, lcm_set_grid
+  use lcm_host_interface, only : lcm_grid_t, lcm_init_grid, lcm_set_grid, &
+                                 lcm_attach_fields
+  use modfields, only : tmp0
   use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1, &
                         ih, jh, kh, dx, dy, dzf, zf, zh
   use modmpi, only : myidx, myidy, nprocx, nprocy, nbrwest,  &
@@ -38,6 +43,7 @@ contains
       y_dimension=1)
 
     call lcm_set_grid(lcm_grid)
+    call lcm_attach_fields(temperature=tmp0(2:i1, 2:j1, 1:kmax))
   end subroutine init_lcm
 
 end module modlcm_adapter
