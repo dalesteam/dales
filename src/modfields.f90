@@ -66,7 +66,7 @@ save
 
   ! Cloud edge variables
   real(field_r), allocatable :: ql0(:,:,:)  !<   liquid water content
-  real(field_r), allocatable :: tmp0(:,:,:) !<   temperature at full level
+  real(field_r), allocatable, target :: tmp0(:,:,:) !<   temperature at full level
   real(field_r), allocatable :: thv0h(:,:,:)!<   theta_v at half level
 
   real(field_r), allocatable :: whls(:)                       !<   large scale vert velocity at half levels
