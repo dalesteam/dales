@@ -148,37 +148,26 @@ contains
       norm_fac = 1.0_real64 / (imax * jmax)
     end if
 
-    !XXX: fix this reduction
+    ! FIXME: investigate gpu reduction performance
     !$omp target update from(field)
-
     !$acc parallel loop gang default(present)
-    !!$omp target defaultmap(present:allocatable)
-    !!$omp target teams distribute
     do k = ks, ke
       fld_sum = 0
       !$acc loop vector collapse(2) reduction(+: fld_sum)
-      !!$omp parallel do reduction(+:fld_sum) collapse(2)
-      !!$omp target defaultmap(present:allocatable)
       !!$omp target teams distribute parallel do reduction(+:fld_sum) collapse(2) defaultmap(present:allocatable)
       do j = js, je
         do i = is, ie
           fld_sum = fld_sum + field(i,j,k)
         end do
       end do
-      !!$omp end target
       avg(k) = fld_sum * norm_fac
     end do
-    !!$omp end target
-
-    !!$omp target update from(avg)
 
     if (do_global) then
       !$acc host_data use_device(avg)
-      !!$omp target data use_device_addr(avg)
       call mpi_allreduce(mpi_in_place, avg, ke, mpi_real8, mpi_sum, &
                          comm3d, mpierr)
       !$acc end host_data
-      !!$omp end target data
     end if
     !$omp target update to(avg)
 
