@@ -173,7 +173,7 @@ contains
 
     !$omp target update to(u0, v0, thl0, qt0, ql0)
     !$omp target update to(presf, presh, exnf, exnh, ql0h)
-    !$omp target update to(zf, zh, dzf, dzhi, dthldz)
+    !$omp target update to(zf, zh, dzf, dzh, dzhi, dthldz)
 
     if (timee < 0.01) then
       call diagfld
@@ -578,7 +578,6 @@ contains
 
     ! 2.1 Use first guess of theta, then recalculate theta
 
-    !$omp target update to(dzf,dzh)
     call fromztop
 
     !$acc parallel loop gang(static:1) default(present) async(1)
