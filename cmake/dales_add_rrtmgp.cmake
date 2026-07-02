@@ -13,7 +13,7 @@ ecbuild_info( "Fetching RTE-RRTMGP" )
 FetchContent_Declare(
     rrtmgp
     GIT_REPOSITORY "https://github.com/dindon-sournois/rte-rrtmgp.git"
-    GIT_TAG 59e94963d36ff13cf3ea6a70433d818a5675831c # v1.9.2 with OpenMP and AMDFlang fix
+    GIT_TAG 66d65b314c292c220980b98e5c90820664bba8a3 # v1.9.2 with OpenMP and AMDFlang fix
 )
 
 FetchContent_MakeAvailable( rrtmgp )
