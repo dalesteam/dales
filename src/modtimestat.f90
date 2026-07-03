@@ -71,20 +71,6 @@ save
   real(field_r), allocatable, dimension(:,:,:) :: blh_fld
   real(field_r), allocatable,dimension(:,:,:) :: sv0h
 
-  !Variables for heterogeneity
-  real(field_r), allocatable :: u0av_patch (:,:)     ! patch averaged um    at full level
-  real(field_r), allocatable :: v0av_patch (:,:)     ! patch averaged vm    at full level
-  real(field_r), allocatable :: w0av_patch (:,:)     ! patch averaged wm    at full level
-  real(field_r),allocatable, dimension(:,:) :: zbase_field, ztop_field, cc_field, qlint_field, tke_tot_field
-  real(field_r),allocatable, dimension(:,:) :: zbase_patch, ztop_patch, zbasemin_patch, zbasemin_patchl
-  real(field_r),allocatable, dimension(:,:) :: cc_patch, qlint_patch, qlintmax_patch, qlintmax_patchl, tke_tot_patch
-  real(field_r),allocatable, dimension(:,:) :: wmax_patch, wmax_patchl, qlmax_patch, qlmax_patchl, ztopmax_patch, ztopmax_patchl
-  real(field_r),allocatable, dimension(:,:) :: ust_patch, qst_patch, tst_patch, wthls_patch, wqls_patch, wthvs_patch
-  !In combination with isurf = 1
-  real(field_r),allocatable, dimension(:,:) :: Qnet_patch, H_patch, LE_patch, G0_patch, tendskin_patch,rs_patch,ra_patch
-  real(field_r),allocatable, dimension(:,:) :: cliq_patch, wl_patch, rsveg_patch, rssoil_patch, tskin_patch, obl_patch
-  real(field_r),allocatable, dimension(:,:) :: zi_patch,ziold_patch,we_patch, zi_field
-
 contains
 !> Initializing Timestat. Read out the namelist, initializing the variables
   subroutine inittimestat
@@ -93,7 +79,7 @@ contains
                           ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1,lwarmstart,checknamelisterror, &
                           ih ,jh
     use modfields, only : thlprof,qtprof,svprof
-    use modsurfdata, only : isurf, lhetero, xpatches, ypatches
+    use modsurfdata, only : isurf
     use modstat_nc, only : lnetcdf, open_nc, define_nc, ncinfo, nctiminfo
     use modraddata, only : iradiation
     use modlsm, only : lags
@@ -222,45 +208,6 @@ contains
              close(ifoutput)
           end if
 
-          if(lhetero) then
-             do i=1,xpatches
-                do j=1,ypatches
-                   name = 'tmser1patchiiixjjj.'//cexpnr
-                   write (name(12:14),'(i3.3)') i
-                   write (name(16:18),'(i3.3)') j
-                   open (ifoutput,file=name,status='replace',position='append')
-                   write(ifoutput,'(2a)') &
-                        '#  time      cc     z_cbase    z_ctop_avg  z_ctop_max      zi         we', &
-                        '   <<ql>>  <<ql>>_max   w_max   tke     ql_max'
-                   close(ifoutput)
-
-                   name = 'tmsurfpatchiiixjjj.'//cexpnr
-                   write (name(12:14),'(i3.3)') i
-                   write (name(16:18),'(i3.3)') j
-                   open (ifoutput,file=name,status='replace',position='append')
-                   write(ifoutput,'(2a)') &
-                        '#  time        ust        tst        qst         obukh', &
-                        '      thls        z0        wthls      wthvs      wqls '
-                   close(ifoutput)
-
-                   if(isurf == 1) then
-                      name = 'tmlsmpatchiiixjjj.'//cexpnr
-                      write (name(11:13),'(i3.3)') i
-                      write (name(15:17),'(i3.3)') j
-                      open (ifoutput,file=name,status='replace',position='append')
-                      write(ifoutput,'(3a)') &
-                           '#     time      Qnet        H          LE         G0  ', &
-                           '   tendskin     rs         ra        tskin        cliq  ', &
-                           '    Wl          rssoil     rsveg'
-                      write(ifoutput,'(3a)') &
-                           '#      [s]     [W/m2]     [W/m2]     [W/m2]     [W/m2]', &
-                           '   [W/m2]      [s/m]       [s/m]     [K]          [-]   ', &
-                           '   [m]          [s/m]      [s/m]'
-                      close(ifoutput)
-                   endif
-                enddo
-             enddo
-          endif
        endif
 
        if (lnetcdf) then
@@ -348,61 +295,6 @@ contains
       end if
     end if
 
-    if (lhetero) then
-      allocate(zbase_field  (2:i1,2:j1))
-      allocate(ztop_field   (2:i1,2:j1))
-      allocate(cc_field     (2:i1,2:j1))
-      allocate(qlint_field  (2:i1,2:j1))
-      allocate(tke_tot_field(2:i1,2:j1))
-
-      allocate(zbase_patch    (xpatches,ypatches))
-      allocate(ztop_patch     (xpatches,ypatches))
-      allocate(zbasemin_patch (xpatches,ypatches))
-      allocate(zbasemin_patchl(xpatches,ypatches))
-      allocate(cc_patch       (xpatches,ypatches))
-      allocate(qlint_patch    (xpatches,ypatches))
-      allocate(qlintmax_patch (xpatches,ypatches))
-      allocate(qlintmax_patchl(xpatches,ypatches))
-      allocate(tke_tot_patch  (xpatches,ypatches))
-      allocate(wmax_patch     (xpatches,ypatches))
-      allocate(wmax_patchl    (xpatches,ypatches))
-      allocate(qlmax_patch    (xpatches,ypatches))
-      allocate(qlmax_patchl   (xpatches,ypatches))
-      allocate(ztopmax_patch  (xpatches,ypatches))
-      allocate(ztopmax_patchl (xpatches,ypatches))
-
-      allocate(u0av_patch(xpatches,ypatches))
-      allocate(v0av_patch(xpatches,ypatches))
-      allocate(w0av_patch(xpatches,ypatches))
-
-      allocate(ust_patch (xpatches,ypatches))
-      allocate(qst_patch (xpatches,ypatches))
-      allocate(tst_patch (xpatches,ypatches))
-      allocate(wthls_patch (xpatches,ypatches))
-      allocate(wqls_patch(xpatches,ypatches))
-      allocate(wthvs_patch(xpatches,ypatches))
-
-      allocate(Qnet_patch    (xpatches,ypatches))
-      allocate(H_patch       (xpatches,ypatches))
-      allocate(LE_patch      (xpatches,ypatches))
-      allocate(G0_patch      (xpatches,ypatches))
-      allocate(tendskin_patch(xpatches,ypatches))
-      allocate(rs_patch      (xpatches,ypatches))
-      allocate(ra_patch      (xpatches,ypatches))
-      allocate(cliq_patch    (xpatches,ypatches))
-      allocate(wl_patch      (xpatches,ypatches))
-      allocate(rsveg_patch   (xpatches,ypatches))
-      allocate(rssoil_patch  (xpatches,ypatches))
-      allocate(tskin_patch   (xpatches,ypatches))
-      allocate(obl_patch     (xpatches,ypatches))
-
-      allocate(zi_patch      (xpatches,ypatches))
-      allocate(zi_field      (2:i1,2:j1))
-      allocate(ziold_patch   (xpatches,ypatches))
-      ziold_patch = -1
-      allocate(we_patch      (xpatches,ypatches))
-    endif
-
     !$acc enter data copyin(blh_fld, sv0h, profile, gradient, dgrad)
 
     call timer_toc('modtimestat/inittimestat')
@@ -419,8 +311,7 @@ contains
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
                            Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
                            cliq,rsveg,rssoil,Wl, &
-                           lhetero, xpatches, ypatches, qts_patch, wt_patch, wq_patch, thls_patch,obl,z0mav_patch, wco2av, Anav, Respav,gcco2av
-    use modsurface, only : patchxnr,patchynr
+                           obl, wco2av, Anav, Respav,gcco2av
     use modmpi,     only : mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid, D_MPI_ALLREDUCE
     use modstat_nc,  only : lnetcdf, writestat_nc,nc_fillvalue
     use modlsm,     only : tile, f1, f2b, nlu, lags, an_co2, resp_co2
@@ -460,9 +351,6 @@ contains
     real   :: qtskin_av(nlu)
     real   :: an_co2_av, resp_co2_av
 
-    ! heterogeneity variables
-    integer:: patchx, patchy
-
     ! Radiation variables for reductions
     real(field_r) :: &
       s_lwd_surf,    & !< Surface downwelling longwave flux
@@ -499,55 +387,6 @@ contains
     tnext = tnext+idtav
     dt_lim = minval((/dt_lim,tnext-timee/))
 
-    if (lhetero) then
-      zbase_field    = 0
-      ztop_field     = 0
-      cc_field       = 0
-      qlint_field    = 0
-      tke_tot_field  = 0
-
-      zbase_patch    = 0
-      ztop_patch     = 0
-      zbasemin_patch = zf(kmax)
-      zbasemin_patchl= zf(kmax)
-      cc_patch       = 0
-      qlint_patch    = 0
-      qlintmax_patch = 0
-      qlintmax_patchl= 0
-      tke_tot_patch  = 0
-      wmax_patch     = 0
-      wmax_patchl    = 0
-      qlmax_patch    = 0
-      qlmax_patchl   = 0
-      ztopmax_patch  = 0
-      ztopmax_patchl = 0
-
-      ust_patch      = 0
-      qst_patch      = 0
-      tst_patch      = 0
-      wthls_patch      = 0
-      wqls_patch     = 0
-      wthvs_patch     = 0
-
-      Qnet_patch     = 0
-      H_patch        = 0
-      LE_patch       = 0
-      G0_patch       = 0
-      tendskin_patch = 0
-      rs_patch       = 0
-      ra_patch       = 0
-      cliq_patch     = 0
-      wl_patch       = 0
-      rsveg_patch    = 0
-      rssoil_patch   = 0
-      tskin_patch    = 0
-      obl_patch      = 0
-
-      zi_patch       = 0
-      zi_field       = 0
-      we_patch       = 0
-    endif
-
     !      -----------------------------------------------------------
   !     1     EVALUATION OF CLOUD COVER, CLOUD BASE, ETC.
   !    -----------------------------------------------------------
@@ -577,50 +416,25 @@ contains
     tke_totl = 0.0
 
     ! Make qlint 2D array to get rid of the if statement?
-    if (lhetero) then
-      do j = 2, j1
-        do i = 2, i1
-          patchy = patchynr(j)
-          patchx = patchxnr(i)
-          qlint = 0.
-          qtint = 0.
-          do k = 1, kmax
-            qlint = qlint + ql0(i,j,k)*rhof(k)*dzf(k)
-            qtint = qtint + qt0(i,j,k)*rhof(k)*dzf(k)
-          end do
-          if (qlint > 0.) then
-            ccl = ccl + 1
-            qlintavl = qlintavl + qlint
-            qlintmaxl = max(qlint, qlintmaxl)
-            cc_field(i,j)                  = 1.0
-            qlint_field(i,j)               = qlint
-            qlintmax_patchl(patchx,patchy) = max(qlintmax_patchl(patchx,patchy),qlint)
-          end if
-          qtintavl = qtintavl + qtint
-          qrintavl = qrintavl + qrint
+    !$acc parallel loop collapse(2) default(present) reduction(+:ccl, qlintavl, qtintavl) &
+    !$acc& reduction(max: qlintmaxl) private(qlint, qtint) async
+    do j = 2, j1
+      do i = 2, i1
+        qlint = 0.
+        qtint = 0.
+        !$acc loop reduction(+: qlint, qtint)
+        do k = 1, kmax
+          qlint = qlint + ql0(i,j,k)*rhof(k)*dzf(k)
+          qtint = qtint + qt0(i,j,k)*rhof(k)*dzf(k)
         end do
+        if (qlint > 0.) then
+          ccl = ccl + 1
+          qlintavl = qlintavl + qlint
+          qlintmaxl = max(qlint, qlintmaxl)
+        end if
+        qtintavl = qtintavl + qtint
       end do
-    else
-      !$acc parallel loop collapse(2) default(present) reduction(+:ccl, qlintavl, qtintavl) &
-      !$acc& reduction(max: qlintmaxl) private(qlint, qtint) async
-      do j = 2, j1
-        do i = 2, i1
-          qlint = 0.
-          qtint = 0.
-          !$acc loop reduction(+: qlint, qtint)
-          do k = 1, kmax
-            qlint = qlint + ql0(i,j,k)*rhof(k)*dzf(k)
-            qtint = qtint + qt0(i,j,k)*rhof(k)*dzf(k)
-          end do
-          if (qlint > 0.) then
-            ccl = ccl + 1
-            qlintavl = qlintavl + qlint
-            qlintmaxl = max(qlint, qlintmaxl)
-          end if
-          qtintavl = qtintavl + qtint
-        end do
-      end do
-    end if
+    end do
 
     if (imicro == imicro_sice .or. imicro == imicro_sice2 .or. imicro == imicro_bulk .or. imicro == imicro_bulk3) then
        iqr = get_tracer_index("qr")
@@ -641,37 +455,19 @@ contains
       end do
     end if
 
-    if (lhetero) then
-      do j = 2, j1
-        do i = 2, i1
-          patchy = patchynr(j)
-          patchx = patchxnr(i)
-          do k = 1, kmax
-            if (ql0(i,j,k) > 0.) then
-              zbaseavl = zbaseavl + zf(k)
-              zbaseminl = min(zf(k),zbaseminl)
-              zbase_field(i,j) = zf(k)
-              zbasemin_patchl(patchx,patchy) = min(zbasemin_patchl(patchx,patchy),zf(k))
-              exit
-            end if
-          end do
+    !$acc parallel loop collapse(2) default(present) reduction(+: zbaseavl) reduction(min: zbaseminl) async
+    do j = 2, j1
+      do i = 2, i1
+        !$acc loop seq
+        do k = 1, kmax
+          if (ql0(i,j,k) > 0.) then
+            zbaseavl = zbaseavl + zf(k)
+            zbaseminl = min(zf(k),zbaseminl)
+            exit
+          end if
         end do
       end do
-    else
-      !$acc parallel loop collapse(2) default(present) reduction(+: zbaseavl) reduction(min: zbaseminl) async
-      do j = 2, j1
-        do i = 2, i1
-          !$acc loop seq
-          do k = 1, kmax
-            if (ql0(i,j,k) > 0.) then
-              zbaseavl = zbaseavl + zf(k)
-              zbaseminl = min(zf(k),zbaseminl)
-              exit
-            end if
-          end do
-        end do
-      end do
-    end if
+    end do
 
   !     ---------------------------------------
   !     9.3  determine maximum ql_max and w_max
@@ -682,46 +478,22 @@ contains
     ztopavl = 0.0
     ztopmaxl = 0.0
 
-    if (lhetero) then
-      do j = 2, j1
-        do i = 1, i1
-          patchy = patchynr(j)
-          patchx = patchxnr(i)
-          ztop = 0.0
-          do k = 1, kmax
-            if (ql0(i,j,k) > 0.0) then
-              ztop = zf(k)
-              ztop_field(i,j) = zf(k)
-            end if
-            wmaxl = max(w0(i,j,k),wmaxl)
-            qlmaxl = max(ql0(i,j,k),qlmaxl)
-            wmax_patchl(patchx,patchy)  = max(wmax_patchl (patchx,patchy),w0 (i,j,k))
-            qlmax_patchl(patchx,patchy) = max(qlmax_patchl(patchx,patchy),ql0(i,j,k))
-          end do
-          ztopavl = ztopavl + ztop
-          if (ztop> ztopmaxl) ztopmaxl = ztop
-          ztop_field = ztop
-          if (ztop > ztopmax_patchl(patchx,patchy)) ztopmax_patchl(patchx,patchy) = ztop
+    !$acc parallel loop collapse(2) default(present) reduction(+:ztopavl) private(ztop)
+    do j = 2, j1
+      do i = 2, i1
+        ztop = 0.0
+        !$acc loop seq
+        do k = 1, kmax
+          if (ql0(i,j,k) > 0.0) then
+            ztop = zf(k)
+          endif
+          wmaxl = max(w0(i,j,k), wmaxl)
+          qlmaxl = max(ql0(i,j,k), qlmaxl)
         end do
+        ztopavl = ztopavl + ztop
+        if (ztop > ztopmaxl) ztopmaxl = ztop
       end do
-    else
-      !$acc parallel loop collapse(2) default(present) reduction(+:ztopavl) private(ztop)
-      do j = 2, j1
-        do i = 2, i1
-          ztop = 0.0
-          !$acc loop seq
-          do k = 1, kmax
-            if (ql0(i,j,k) > 0.0) then
-              ztop = zf(k)
-            endif
-            wmaxl = max(w0(i,j,k), wmaxl)
-            qlmaxl = max(ql0(i,j,k), qlmaxl)
-          end do
-          ztopavl = ztopavl + ztop
-          if (ztop > ztopmaxl) ztopmaxl = ztop
-        end do
-      end do
-    end if
+    end do
 
   !     -------------------------
   !     9.5  Domain Averaged TKE
@@ -739,27 +511,6 @@ contains
         end do
       end do
     end do
-
-    if (lhetero) then
-      do k = 1, kmax
-        u0av_patch = patchsum_1level_field_r(u0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
-        v0av_patch = patchsum_1level_field_r(v0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
-        w0av_patch = patchsum_1level_field_r(w0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
-        do j = 2, j1
-          do i = 2, i1
-            patchy = patchynr(j)
-            patchx = patchxnr(i)
-
-            tke_tot_field(i,j) = tke_tot_field(i,j) + (0.5*( &
-                                     (0.5*(u0(i,j,k)+u0(i+1,j,k))+cu-u0av_patch(patchx,patchy))**2 + &
-                                     (0.5*(v0(i,j,k)+v0(i,j+1,k))+cv-v0av_patch(patchx,patchy))**2 + &
-                                     (0.5*(w0(i,j,k)+w0(i,j,k+1))   -w0av_patch(patchx,patchy))**2 &
-                                         ) + e120(i,j,k)**2 ) * dzf(k) * rhof(k)
-          end do
-        end do
-      end do
-      tke_tot_patch = patchsum_1level_field_r(tke_tot_field) * (xpatches*ypatches/ijtot)
-    end if
 
 
 
@@ -822,13 +573,6 @@ contains
 
        call D_MPI_ALLREDUCE(pravl, prav, 1, MPI_SUM, comm3d,mpierr)
     end if
-    if (lhetero) then
-      cc_patch    = patchsum_1level_field_r(cc_field   )
-      qlint_patch = patchsum_1level_field_r(qlint_field)
-      zbase_patch = patchsum_1level_field_r(zbase_field)
-      call D_MPI_ALLREDUCE(qlintmax_patchl, qlintmax_patch, xpatches*ypatches, MPI_MAX, comm3d,mpierr)
-      call D_MPI_ALLREDUCE(zbasemin_patchl, zbasemin_patch, xpatches*ypatches, MPI_MIN, comm3d,mpierr)
-    endif
 
     call D_MPI_ALLREDUCE(wmaxl   , wmax   , 1,   &
                           MPI_MAX, comm3d,mpierr)
@@ -838,13 +582,6 @@ contains
                           MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(ztopmaxl, ztopmax, 1,   &
                           MPI_MAX, comm3d,mpierr)
-
-    if (lhetero) then
-      call D_MPI_ALLREDUCE(wmax_patchl ,      wmax_patch, xpatches*ypatches, MPI_MAX, comm3d,mpierr)
-      call D_MPI_ALLREDUCE(qlmax_patchl,     qlmax_patch, xpatches*ypatches, MPI_MAX, comm3d,mpierr)
-      call D_MPI_ALLREDUCE(ztopmax_patchl, ztopmax_patch, xpatches*ypatches, MPI_MAX, comm3d,mpierr)
-      ztop_patch = patchsum_1level_field_r(ztop_field)
-    endif
 
     if (cc > 0.0) then
       zbaseav = zbaseav / cc
@@ -859,22 +596,6 @@ contains
     qtintav = qtintav / ijtot !domain averaged total water path
     qrintav = qrintav / ijtot !domain averaged rain water path
     prav    = prav*rhobf(1) / ijtot !domain averaged precipitation rate
-
-    if (lhetero) then
-      do j=1,ypatches
-         do i=1,xpatches
-           if (cc_patch(i,j) > 0.0) then
-             zbase_patch(i,j) = zbase_patch(i,j)/cc_patch(i,j)
-             ztop_patch (i,j) = ztop_patch(i,j) /cc_patch(i,j)
-           else
-             zbase_patch(i,j) = 0.0
-             ztop_patch (i,j) = 0.0
-           endif
-           cc_patch    = cc_patch    * (xpatches*ypatches/ijtot)
-           qlint_patch = qlint_patch * (xpatches*ypatches/ijtot)
-        enddo
-      enddo
-    endif
 
     call D_MPI_ALLREDUCE(tke_totl, tke_tot, 1,   &
                           MPI_SUM, comm3d,mpierr)
@@ -897,12 +618,6 @@ contains
     tst = tst / ijtot
     qst = qst / ijtot
 
-    if (lhetero) then
-      ust_patch = patchsum_1level(ustar(2:i1,2:j1)) * (xpatches*ypatches/ijtot)
-      tst_patch = patchsum_1level(- thlflux(2:i1,2:j1) / ustar(2:i1,2:j1)) * (xpatches*ypatches/ijtot)
-      qst_patch = patchsum_1level(-  qtflux(2:i1,2:j1) / ustar(2:i1,2:j1)) * (xpatches*ypatches/ijtot)
-    endif
-
     !Constants c1 and c2
     c1   = 1.+(rv/rd-1)*qts
     c2   = (rv/rd-1)
@@ -916,18 +631,6 @@ contains
       wqls = -ustqst
       wthvs = c1*wts + c2*thls*wqls
     end if
-
-    if (lhetero) then
-      if(isurf < 3) then
-        wthls_patch  = patchsum_1level(thlflux(2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
-        wqls_patch = patchsum_1level( qtflux(2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
-      else
-        wthls_patch  = wt_patch
-        wqls_patch = wq_patch
-      endif
-      wthvs_patch = (1.+(rv/rd-1)*qts_patch) * wthls_patch + c2 * (thls_patch) * wq_patch
-      obl_patch  = patchsum_1level(obl(2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
-    endif
 
   !  9.8  Create statistics for the land surface scheme
     if(isurf == 1) then
@@ -970,20 +673,6 @@ contains
       rssoilav      = rssoilav    / ijtot
       tskinav       = tskinav     / ijtot
 
-      if (lhetero) then
-        Qnet_patch     = patchsum_1level(Qnet    (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
-        H_patch        = patchsum_1level(H       (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
-        LE_patch       = patchsum_1level(LE      (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
-        G0_patch       = patchsum_1level(G0      (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
-        tendskin_patch = patchsum_1level(tendskin(2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
-        rs_patch       = patchsum_1level(rs      (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
-        ra_patch       = patchsum_1level(ra      (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
-        cliq_patch     = patchsum_1level(cliq    (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
-        wl_patch       = patchsum_1level(wl      (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
-        rsveg_patch    = patchsum_1level(rsveg   (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
-        rssoil_patch   = patchsum_1level(rssoil  (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
-        tskin_patch    = patchsum_1level(tskin   (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
-      endif
     else if (isurf == 11) then
       Qnet(2:i1,2:j1) = swd(2:i1,2:j1,1) + swu(2:i1,2:j1,1) + lwd(2:i1,2:j1,1) + lwu(2:i1,2:j1,1)
 
@@ -1295,71 +984,6 @@ contains
 
         call writestat_nc(ncid,nvar,ncname,vars,nrec,.true.)
       end if
-
-      if(lhetero) then
-        do i=1,xpatches
-          do j=1,ypatches
-            name = 'tmser1patchiiixjjj.'//cexpnr
-            write (name(12:14),'(i3.3)') i
-            write (name(16:18),'(i3.3)') j
-            open (ifoutput,file=name,position='append')
-            write( ifoutput,'(f10.2,f6.3,4f12.3,f10.4,5f9.3)') &
-              rtimee, &
-              cc_patch(i,j), &
-              zbase_patch(i,j), &
-              ztop_patch(i,j), &
-              ztopmax_patch(i,j), &
-              zi_patch(i,j), &
-              we_patch(i,j), &
-              qlint_patch(i,j)*1000., &
-              qlintmax_patch(i,j)*1000., &
-              wmax_patch(i,j), &
-              tke_tot_patch(i,j), &
-              qlmax_patch(i,j)*1000.
-            close(ifoutput)
-
-            name = 'tmsurfpatchiiixjjj.'//cexpnr
-            write (name(12:14),'(i3.3)') i
-            write (name(16:18),'(i3.3)') j
-            open (ifoutput,file=name,position='append')
-            write( ifoutput,'(f10.2,4e11.3,f11.3,4e11.3)') &
-              rtimee      ,&
-              ust_patch(i,j)   ,&
-              tst_patch(i,j)   ,&
-              qst_patch(i,j)   ,&
-              obl_patch(i,j)   ,&
-              thls_patch(i,j)  ,&
-              z0mav_patch(i,j) ,&
-              wthls_patch(i,j)   ,&
-              wthvs_patch(i,j)  ,&
-              wqls_patch(i,j)
-            close(ifoutput)
-
-            if(isurf == 1) then
-              name = 'tmlsmpatchiiixjjj.'//cexpnr
-              write (name(11:13),'(i3.3)') i
-              write (name(15:17),'(i3.3)') j
-              open (ifoutput,file=name,position='append')
-              write(ifoutput,'(f10.2,9f11.3,e13.3, 2f11.3)') &
-                rtimee           ,&
-                Qnet_patch(i,j)       ,&
-                H_patch(i,j)          ,&
-                LE_patch(i,j)         ,&
-                G0_patch(i,j)         ,&
-                tendskin_patch(i,j)   ,&
-                rs_patch(i,j)         ,&
-                ra_patch(i,j)         ,&
-                tskin_patch(i,j)      ,&
-                cliq_patch(i,j)       ,&
-                wl_patch(i,j)         ,&
-                rssoil_patch(i,j)     ,&
-                rsveg_patch(i,j)
-              close(ifoutput)
-            endif
-          enddo
-        enddo
-      endif
-
     end if
 
     call timer_toc('modtimestat/timestat')
@@ -1390,8 +1014,7 @@ contains
 
     use modglobal,  only : i1,j1,kmax,k1,cp,rlv,imax,rd,zh,dzh,zf,dzf,rv,ijtot,iadv_sv,iadv_kappa
     use modfields,  only : w0,qt0,qt0h,ql0,thl0,thl0h,thv0h,sv0,exnf,whls
-    use modsurfdata,only : svs, lhetero, xpatches, ypatches
-    use modsurface, only : patchxnr,patchynr
+    use modsurfdata,only : svs
     use modmpi,     only : mpierr, comm3d,mpi_sum, D_MPI_ALLREDUCE
     use advec_kappa,only : halflev_kappa
 
@@ -1402,9 +1025,6 @@ contains
     real, allocatable,dimension(:,:,:) :: blh_fld2
 
 
-    if (lhetero) then
-      allocate(blh_fld2(2:i1,2:j1,k1))
-    endif
 
     zil = 0.0
     !$acc kernels default(present)
@@ -1529,71 +1149,8 @@ contains
 
     end select
 
-    if (lhetero) then !Not using stride, instead use adjacent grid points in x-direction (to prevent processor communication)
-
-      select case (iblh_meth)
-        case (iblh_flux)
-          blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
-          blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
-          blh_fld2(i1,2:j1,:)       = blh_fld(i1-1,2:j1,:)     + blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)
-
-          do i=2,i1
-            do j=2,j1
-              zi_field(i,j) = zh(minloc(blh_fld2(i,j,:),1))
-            end do
-          end do
-
-        case (iblh_grad)
-          blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
-          blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
-          blh_fld2(i1,2:j1,:)       = blh_fld(i1-1,2:j1,:)     + blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)
-
-          do i=2,i1
-            do j=2,j1
-              profile  = blh_fld2(i,j,:)
-              select case (iblh_var)
-              case(iblh_qt) !Water vapour gradients near the inversion layer can be either positive or negative
-                gradient(2:k1) = abs(profile(2:k1) - profile(1:kmax))/dzh(2:k1)
-              case(iblh_thl,iblh_thv) !temperature jumps near the inversion layer are always positive
-                gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
-              case default
-                gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
-              end select
-              dgrad(2:kmax)    = (gradient(3:k1) - gradient(2:kmax))/dzf(2:kmax)
-              location = maxloc(gradient,1)
-              zi_field(i,j) = (zh(location-1) - dzh(location)*dgrad(location-1)/(dgrad(location)-dgrad(location-1) + 1.e-8))
-            enddo
-          enddo
-
-        case (iblh_thres)
-          blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
-          blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
-          blh_fld2(i1,2:j1,:)       = blh_fld(i1-1,2:j1,:)     + blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)
-
-          do i=2,i1
-            do j=2,j1
-              locval = 0.0
-              do k=kmax,1,-1
-                oldlocval = locval
-                locval = blh_sign*blh_fld2(i,j,k)/3
-                if (locval < blh_sign*blh_thres) then
-                  zi_field(i,j) = (zf(k) +  (blh_sign*blh_thres-locval) * dzh(k+1)/(oldlocval-locval))
-                  exit
-                endif
-              enddo
-            enddo
-          enddo
-
-      end select
-
-    endif
-
     call D_MPI_ALLREDUCE(zil, zi, 1, MPI_SUM, comm3d,mpierr)
     zi = zi / ijtot
-
-    if (lhetero) then
-      zi_patch = patchsum_1level_field_r(zi_field) * (xpatches*ypatches/ijtot)
-    endif
 
     if (ziold< 0) ziold = zi
     dhdt = (zi-ziold)/dtav
@@ -1605,24 +1162,6 @@ contains
     end do
     we = dhdt - whls (k)   !include for large-scale vertical velocity
 
-    if (lhetero) then
-      do j=1,ypatches
-        do i=1,xpatches
-          if (ziold_patch(i,j)<0) ziold_patch(i,j) = zi_patch(i,j)
-          k=2
-          do while (zh(k)<zi_patch(i,j) .and. k < kmax)
-            k=k+1
-          end do
-          we_patch(i,j) = ((zi_patch(i,j)-ziold_patch(i,j))/dtav) - whls(k)
-        enddo
-      enddo
-      if(store_zi) ziold_patch = zi_patch
-    endif
-
-    if (lhetero) then
-      deallocate(blh_fld2)
-    endif
-
     !$acc wait
 
   end subroutine calcblheight
@@ -1631,7 +1170,6 @@ contains
   subroutine exittimestat
     use modmpi, only : myid
     use modstat_nc, only : exitstat_nc,lnetcdf
-    use modsurfdata,only :lhetero
     implicit none
 
     if(ltimestat .and. lnetcdf .and. myid==0) call exitstat_nc(ncid)
@@ -1642,114 +1180,6 @@ contains
     deallocate(blh_fld,sv0h)
     deallocate(profile,gradient,dgrad)
 
-    if (lhetero) then
-      deallocate(zbase_field  )
-      deallocate(ztop_field   )
-      deallocate(cc_field     )
-      deallocate(qlint_field  )
-      deallocate(tke_tot_field)
-
-      deallocate(zbase_patch    )
-      deallocate(ztop_patch     )
-      deallocate(zbasemin_patch )
-      deallocate(zbasemin_patchl)
-      deallocate(cc_patch       )
-      deallocate(qlint_patch    )
-      deallocate(qlintmax_patch )
-      deallocate(qlintmax_patchl)
-      deallocate(tke_tot_patch  )
-      deallocate(wmax_patch     )
-      deallocate(wmax_patchl    )
-      deallocate(qlmax_patch    )
-      deallocate(qlmax_patchl   )
-      deallocate(ztopmax_patch  )
-      deallocate(ztopmax_patchl )
-
-      deallocate(u0av_patch)
-      deallocate(v0av_patch)
-      deallocate(w0av_patch)
-
-      deallocate(ust_patch )
-      deallocate(qst_patch )
-      deallocate(tst_patch )
-      deallocate(wthls_patch )
-      deallocate(wqls_patch)
-      deallocate(wthvs_patch)
-
-      deallocate(Qnet_patch    )
-      deallocate(H_patch       )
-      deallocate(LE_patch      )
-      deallocate(G0_patch      )
-      deallocate(tendskin_patch)
-      deallocate(rs_patch      )
-      deallocate(ra_patch      )
-      deallocate(cliq_patch    )
-      deallocate(wl_patch      )
-      deallocate(rsveg_patch   )
-      deallocate(rssoil_patch  )
-      deallocate(tskin_patch   )
-      deallocate(obl_patch     )
-
-      deallocate(zi_patch      )
-      deallocate(zi_field      )
-      deallocate(ziold_patch   )
-      deallocate(we_patch      )
-    endif
   end subroutine exittimestat
-
- function patchsum_1level(x)
-   use modglobal,  only : imax,jmax
-   use modsurface, only : patchxnr, patchynr
-   use modsurfdata,only : xpatches,ypatches
-   use modmpi,     only : mpierr,comm3d,mpi_sum, D_MPI_ALLREDUCE
-   implicit none
-   real                :: patchsum_1level(xpatches,ypatches),xl(xpatches,ypatches)
-   real, intent(in)    :: x(imax,jmax)
-   integer             :: i,j,iind,jind
-
-   patchsum_1level = 0
-   xl              = 0
-
-   do j=1,jmax
-     jind  = patchynr(j)
-
-     do i=1,imax
-       iind  = patchxnr(i)
-
-       xl(iind,jind) = xl(iind,jind) + x(i,j)
-     enddo
-   enddo
-
-  call D_MPI_ALLREDUCE(xl,patchsum_1level, xpatches*ypatches,MPI_SUM, comm3d,mpierr)
-
-  end function
-
-!> It might be the same as the normal one, it might have a different kind ...
- function patchsum_1level_field_r(x)
-   use modglobal,  only : imax,jmax
-   use modsurface, only : patchxnr, patchynr
-   use modsurfdata,only : xpatches,ypatches
-   use modmpi,     only : mpierr,comm3d,mpi_sum, D_MPI_ALLREDUCE
-   implicit none
-   real                :: patchsum_1level_field_r(xpatches,ypatches),xl(xpatches,ypatches)
-   real(field_r), intent(in) :: x(imax,jmax)
-   integer             :: i,j,iind,jind
-
-   patchsum_1level_field_r = 0
-   xl              = 0
-
-   do j=1,jmax
-     jind  = patchynr(j)
-
-     do i=1,imax
-       iind  = patchxnr(i)
-
-       xl(iind,jind) = xl(iind,jind) + x(i,j)
-     enddo
-   enddo
-
-  call D_MPI_ALLREDUCE(xl,patchsum_1level_field_r, xpatches*ypatches,MPI_SUM, comm3d,mpierr)
-
-  end function
 
 end module modtimestat
