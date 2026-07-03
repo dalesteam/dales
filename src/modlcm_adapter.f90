@@ -5,7 +5,8 @@
 #endif
 module modlcm_adapter
   use iso_fortran_env, only : real64
-  use lcm_host_interface, only : lcm_grid_t, lcm_init_grid, lcm_set_grid, &
+  use lcm_host_interface, only : lcm_config_t, lcm_grid_t, lcm_init_config, &
+                                 lcm_init_grid, lcm_set_config, lcm_set_grid, &
                                  lcm_attach_fields
   use modfields, only : tmp0
   use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1, &
@@ -18,12 +19,17 @@ module modlcm_adapter
   private
 
   public :: init_lcm
+  public :: lcm_microphysics
 
   type(lcm_grid_t), save :: lcm_grid
+  type(lcm_config_t), save :: lcm_config
 
 contains
 
   subroutine init_lcm()
+    call lcm_init_config(lcm_config)
+    call lcm_set_config(lcm_config)
+
     call lcm_init_grid(                                                   &
       grid=lcm_grid,                                                      &
       nx_local=imax, ny_local=jmax, nz=kmax,                              &
@@ -45,6 +51,10 @@ contains
     call lcm_set_grid(lcm_grid)
     call lcm_attach_fields(temperature=tmp0(2:i1, 2:j1, 1:kmax))
   end subroutine init_lcm
+
+  subroutine lcm_microphysics()
+    ! TODO: call the public LCM timestep routine here once that interface exists.
+  end subroutine lcm_microphysics
 
 end module modlcm_adapter
 #endif
