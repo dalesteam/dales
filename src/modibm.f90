@@ -866,7 +866,7 @@ contains
 
   !> Calculate drag using logarithmic law-of-wall.
   function log_wallaw(u1,u2,Cm_hor_wall) result(tau)
-!!$omp declare target
+!$omp declare target
 
     !$acc routine seq
     real(field_r), intent(in) :: u1,u2,Cm_hor_wall
