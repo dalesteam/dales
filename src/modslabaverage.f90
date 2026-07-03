@@ -104,7 +104,7 @@ contains
       call mpi_allreduce(mpi_in_place, avg, ke, mpi_real4, mpi_sum, &
                          comm3d, mpierr)
       !$acc end host_data
-!!$omp target update to(avg)
+!$omp target update to(avg)
     end if
 
   end subroutine slabavg_r4
@@ -312,7 +312,7 @@ contains
         call mpi_allreduce(mpi_in_place, n_cells_tot, ke, mpi_integer, &
                            mpi_sum, comm3d, mpierr)
         !$acc end host_data
-!!$omp target update to(avg,n_cells_tot)
+!$omp target update to(avg,n_cells_tot)
       end if
 
       !$acc parallel loop gang default(present)
@@ -404,7 +404,7 @@ contains
         call mpi_allreduce(mpi_in_place, n_cells_tot, ke, mpi_integer, &
                            mpi_sum, comm3d, mpierr)
         !$acc end host_data
-!!$omp target update to(avg,n_cells_tot)
+!$omp target update to(avg,n_cells_tot)
       end if
 
       !$acc parallel loop gang default(present)

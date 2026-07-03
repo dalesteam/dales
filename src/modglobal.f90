@@ -511,7 +511,7 @@ contains
     !$acc enter data copyin(dzf, dzh, dzfi, dzhi, zh, zf, delta, deltai)
 !$omp target enter data map(to:dzf,dzh,dzfi,dzhi,zh,zf,delta,deltai)
     !$acc update device (imax, jmax, itot, jtot)
-!!$omp target update to(imax,jmax,itot,jtot)
+!$omp target update to(imax,jmax,itot,jtot)
 
   end subroutine initglobal
 !> Clean up when leaving the run

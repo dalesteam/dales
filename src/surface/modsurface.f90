@@ -170,7 +170,7 @@ contains
     call D_MPI_BCAST(min_horv                   ,            1, 0, commwrld, istat)
 
     !$acc update device(min_horv)
-!!$omp target update to(min_horv)
+!$omp target update to(min_horv)
 
   end subroutine surface_read_namelist
 
@@ -683,7 +683,7 @@ contains
        call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
     endif
     !$acc update device(ustar)
-!!$omp target update to(ustar)
+!$omp target update to(ustar)
   end subroutine calc_friction_velocity
 
   !> Prescribes the friction velocity \f$u_*\f$
@@ -713,7 +713,7 @@ contains
        call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
     endif
     !$acc update device(ustar)
-!!$omp target update to(ustar)
+!$omp target update to(ustar)
   end subroutine presc_friction_velocity
 
   !> Calculates the surfaces fluxes using the scalar values at the surface and
