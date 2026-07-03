@@ -3314,7 +3314,7 @@ end subroutine calc_root_fractions
 !
 function calc_obuk_dirichlet(L_in, du, db_in, zsl, z0m, z0h) result(res)
     implicit none
-!!$omp declare target
+!$omp declare target
     real, intent(in) :: L_in, du, db_in, zsl, z0m, z0h
 
     integer :: m, n, nlim
@@ -3460,7 +3460,7 @@ end function theta_to_psi
 pure function calc_diffusivity_vg( &
         theta_norm, vg_a, vg_l, vg_m, lambda_sat, theta_sat, theta_res) result(res)
     implicit none
-!!$omp declare target
+!$omp declare target
     real, intent(in) :: theta_norm, vg_a, vg_l, vg_m, lambda_sat, theta_sat, theta_res
     real :: res
     !$acc routine seq
@@ -3474,7 +3474,7 @@ end function calc_diffusivity_vg
 !
 pure function calc_conductivity_vg(theta_norm, vg_l, vg_m, gamma_sat) result(res)
     implicit none
-!!$omp declare target
+!$omp declare target
     real, intent(in) :: theta_norm, vg_l, vg_m, gamma_sat
     real :: res
     !$acc routine seq

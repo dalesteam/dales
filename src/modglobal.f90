@@ -45,7 +45,7 @@ save
       integer ::  j2
       integer ::  nsv = 0       !< Number of additional scalar fields
       !$acc declare create (imax, jmax, itot, jtot)
-!!$omp declare target (imax,jmax,itot,jtot)
+!$omp declare target (imax,jmax,itot,jtot)
 
       integer ::  ih=3
       integer ::  jh=3

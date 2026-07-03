@@ -60,7 +60,7 @@ save
   integer  :: mpierr
   logical  :: periods(2) = .true.
   !$acc declare create (myidx, myidy)
-!!$omp declare target (myidx,myidy)
+!$omp declare target (myidx,myidy)
 
   real     :: CPU_program    !end time
   real     :: CPU_program0   !start time

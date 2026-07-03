@@ -402,7 +402,7 @@ contains
   !!
   !! @returns sedimentation rate of qr.
   elemental function calc_sed_qr_sb(qr, nr, rho) result(sed_qr)
-!!$omp declare target
+!$omp declare target
 
     real(field_r), intent(in) :: qr, nr, rho
     
@@ -429,7 +429,7 @@ contains
   !!
   !! @returns sedimentation rate of nr.
   elemental function calc_sed_nr_sb(qr, nr, rho) result(sed_nr)
-!!$omp declare target
+!$omp declare target
 
     real(field_r), intent(in) :: qr, nr, rho
     
