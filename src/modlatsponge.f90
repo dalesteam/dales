@@ -23,7 +23,7 @@ module modlatsponge
   integer :: nudgedepth = 10           !< Number of nudge grid points
 
   !$acc declare create(nudgedepth)
-!!$omp declare target (nudgedepth)
+!$omp declare target (nudgedepth)
 
 contains
 
