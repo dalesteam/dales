@@ -48,7 +48,7 @@ contains
     call d_mpi_bcast(nudgedepth, 1, 0, comm3d, ierr)
 
     !$acc update device(nudgedepth)
-!!$omp target update to(nudgedepth)
+!$omp target update to(nudgedepth)
 
   end subroutine lateral_sponge_read_namelist
 

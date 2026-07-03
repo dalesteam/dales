@@ -179,39 +179,39 @@ contains
 !!$omp target data map(alloc:tracevmr)
     do k=1,nlay; tracevmr(:,k) = o3(k); enddo
     !$acc update device(tracevmr)
-!!$omp target update to(tracevmr)
+!$omp target update to(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(2)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = co2(k); enddo
     !$acc update device(tracevmr)
-!!$omp target update to(tracevmr)
+!$omp target update to(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(3)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = ch4(k); enddo
     !$acc update device(tracevmr)
-!!$omp target update to(tracevmr)
+!$omp target update to(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(4)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = n2o(k); enddo
     !$acc update device(tracevmr)
-!!$omp target update to(tracevmr)
+!$omp target update to(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(5)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = o2(k); enddo
     !$acc update device(tracevmr)
-!!$omp target update to(tracevmr)
+!$omp target update to(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(6)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = cfc11(k); enddo
     !$acc update device(tracevmr)
-!!$omp target update to(tracevmr)
+!$omp target update to(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(7)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = cfc12(k); enddo
     !$acc update device(tracevmr)
-!!$omp target update to(tracevmr)
+!$omp target update to(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(8)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = cfc22(k); enddo
     !$acc update device(tracevmr)
-!!$omp target update to(tracevmr)
+!$omp target update to(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(9)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = ccl4(k); enddo
     !$acc update device(tracevmr)
-!!$omp target update to(tracevmr)
+!$omp target update to(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(10)), tracevmr))
     !$acc end data
 !!$omp end target data
@@ -841,7 +841,7 @@ contains
     solarZenithAngleCos(:) =  &
          zenith(xtime*3600 + rtimee, xday, xlat, xlon) ! Used function in modraddata
     !$acc update device(solarZenithAngleCos)
-!!$omp target update to(solarzenithanglecos)
+!$omp target update to(solarzenithanglecos)
 
     sunUp = .false.
     ! if all values in solarZenithAngleCos are >= its smallest positive, non-zero element
