@@ -132,7 +132,7 @@ contains
     use modthermodynamics, only: ttab, esatltab, esatitab
     use modtracers, only: get_tracer_index
     use modmpi
-#if defined(DALES_GPU)
+#if defined(_OPENACC)
     use modgpu, only: update_host
 #endif
     implicit none
@@ -160,7 +160,7 @@ contains
     tnext = tnext+idtav
     dt_lim = minval((/dt_lim,tnext-timee/))
 
-#if defined(DALES_GPU)
+#if defined(_OPENACC)
     call update_host
 #endif
 

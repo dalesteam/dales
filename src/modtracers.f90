@@ -97,7 +97,7 @@ contains
         call tracer_props_from_netcdf(file_profs)
       end if
     else
-#ifndef DALES_GPU
+#ifndef _OPENACC
       ! BUG: broken with nvhpc 25.11
       if (myid == 0) call warning(routine, trim(file_profs)//' not found')
 #else
