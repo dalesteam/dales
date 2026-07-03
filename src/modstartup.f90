@@ -476,13 +476,6 @@ contains
       end if
     end if
 
-    if (ltimedep .and. lhetero) then
-      if (myid == 0) then
-        write(6,*) 'WARNING: You selected to use time dependent (ltimedep) &
-          &and heterogeneous surface conditions (lhetero) at the same time'
-      end if
-    end if
-
     if (lcoriol .and. lpressgrad) then
       if (myid==0) call finish(routine, "Coriolis force (lcoriol) and channel-like pressure gradient (lpressgrad) are mutually exclusive. To use Coriolis force with NO pressure gradient, set geowinds to zero.")
    end if
@@ -863,7 +856,6 @@ contains
 
       dthldz(:,:) = (thlprof(1) - thls) / zf(1)
       thvs = thls * (1. + (rv/rd - 1.) * qts)
-      if (lhetero) thvs_patch = thvs  !Needed for initialization: thls_patch and qt_patch not yet calculated
 
       thl0av(:) = thlprof(:)   ! these are used for the top boundary in modboundary
       qt0av(:)  = qtprof(:)    ! but have not been initialized yet (?)
@@ -1270,13 +1262,6 @@ contains
       read(ifinput)  ((LW_dn_ca_TOA (i,j ),i=1,i2),j=1,j2)
 !!!!! end of radiation quantities
 
-      if(lhetero) then
-        read(ifinput)   ((ps_patch  (i,j),i=1,xpatches),j=1,ypatches)
-        read(ifinput)   ((thls_patch(i,j),i=1,xpatches),j=1,ypatches)
-        read(ifinput)   ((qts_patch (i,j),i=1,xpatches),j=1,ypatches)
-        read(ifinput)   ((thvs_patch(i,j),i=1,xpatches),j=1,ypatches)
-        read(ifinput)   ((oblpatch  (i,j),i=1,xpatches),j=1,ypatches)
-      endif
     close(ifinput)
 
     if (nsv>0) then
@@ -1445,13 +1430,6 @@ contains
       write(ifoutput)  ((LW_dn_ca_TOA (i,j ),i=1,i2),j=1,j2)
 !!!!! end of radiation quantities
 
-      if(lhetero) then
-        write(ifoutput)  ((ps_patch  (i,j),i=1,xpatches),j=1,ypatches)
-        write(ifoutput)  ((thls_patch(i,j),i=1,xpatches),j=1,ypatches)
-        write(ifoutput)  ((qts_patch (i,j),i=1,xpatches),j=1,ypatches)
-        write(ifoutput)  ((thvs_patch(i,j),i=1,xpatches),j=1,ypatches)
-        write(ifoutput)  ((oblpatch  (i,j),i=1,xpatches),j=1,ypatches)
-      endif
       close (ifoutput)
       linkname = name
       linkname(6:13) = "_latest_"
