@@ -37,7 +37,8 @@ module modmicrodata
     imicro_sice = 5,    & !< Single-moment mixed-phase microphysics.
     imicro_sice2 = 6,   & !< Single-moment mixed-phase microphysics (alternative implementation).
     imicro_user = 10,   & !< User-provided microphysics.
-    imicro_bulk3 = 11     !< Double-moment mixed-phase microphysics.
+    imicro_bulk3 = 11,  & !< Double-moment mixed-phase microphysics.
+    imicro_lcm = 12       !< Lagrangian cloud microphysics.
 
   ! Thresholds for statistics
   real(field_r), parameter :: &
