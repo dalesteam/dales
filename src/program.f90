@@ -124,7 +124,7 @@ program DALES
 !     0.3     USE STATEMENTS FOR GPU UTILITIES
 !----------------------------------------------------------------
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
   use modgpu, only: update_gpu, host_is_updated
 #endif
 
@@ -181,7 +181,7 @@ program DALES
   call init_profiles
   call init_precursor
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
   call update_gpu
 #endif
 
@@ -344,7 +344,7 @@ program DALES
 
         call reset_tendencies
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
         host_is_updated = .false.
 #endif
         call timer_toc('program/timestep')
