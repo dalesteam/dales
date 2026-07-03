@@ -314,7 +314,7 @@ contains
     use modraddata, only   :lwu,lwd,swu,swd
     use modthermodynamics, only: qsat_tab
     use modtracers, only : get_tracer_index
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
     use modgpu, only: update_host
 #endif
     implicit none
