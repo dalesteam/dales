@@ -50,6 +50,9 @@ module modmicrophysics
   use modtimer,          only: timer_tic, timer_toc
   use moduser,           only: micro_user
   use modlogging,        only: finish
+#ifdef USE_LCM
+  use modlcm_adapter,    only: init_lcm, lcm_microphysics
+#endif
 
   implicit none
 
@@ -68,7 +71,8 @@ module modmicrophysics
     imicro_bulk = 2,    & !< Double-moment warm microphysics.
     imicro_sice = 5,    & !< Single-moment mixed-phase microphysics.
     imicro_user = 10,   & !< User-provided microphysics.
-    imicro_bulk3 = 11     !< Double-moment mixed-phase microphysics.
+    imicro_bulk3 = 11,  & !< Double-moment mixed-phase microphysics.
+    imicro_lcm = 12       !< Lagrangian cloud microphysics.
 
 contains
 
@@ -170,6 +174,9 @@ contains
 
   !> Call the initialization routine of the selected microphysical scheme.
   subroutine initmicrophysics()
+#ifndef USE_LCM
+    character(len=*), parameter :: routine = modname//'/initmicrophysics'
+#endif
 
     select case(imicro)
       case(imicro_bulk)
@@ -178,6 +185,13 @@ contains
         call initsimpleice
       case(imicro_bulk3)
         call initbulkmicro3
+      case(imicro_lcm)
+#ifdef USE_LCM
+        call init_lcm
+#else
+        call finish(routine, &
+          'LCM microphysics selected, but DALES was built without USE_LCM.')
+#endif
     end select
 
     if(laerosol) call init_aerosol()
@@ -202,6 +216,13 @@ contains
         call bulkmicro3
       case(imicro_user)
         call micro_user
+      case(imicro_lcm)
+#ifdef USE_LCM
+        call lcm_microphysics
+#else
+        call finish(routine, &
+          'LCM microphysics selected, but DALES was built without USE_LCM.')
+#endif
     end select
 
     call timer_toc(routine)
