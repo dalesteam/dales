@@ -140,7 +140,7 @@ module modbulkmicro
       end do
 
       !$acc update device(mygamma21, mygamma251)
-!!$omp target update to(mygamma21,mygamma251)
+!$omp target update to(mygamma21,mygamma251)
     end if
 
     !$acc enter data copyin(Nr, qr, Nrp, qrp, precep, thlpmcr, qtpmcr, Nc)
