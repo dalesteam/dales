@@ -6,7 +6,7 @@ save
   real(pois_r), allocatable, target :: workspace_0(:), workspace_1(:)
   logical :: host_is_updated = .false.
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
 contains
 
   !> @brief Copies fields and arrays to GPU  
