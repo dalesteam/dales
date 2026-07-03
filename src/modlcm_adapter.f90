@@ -7,10 +7,10 @@ module modlcm_adapter
   use iso_fortran_env, only : real64
   use lcm_host_interface, only : lcm_config_t, lcm_grid_t, lcm_init_config, &
                                  lcm_init_grid, lcm_set_config, lcm_set_grid, &
-                                 lcm_attach_fields
+                                 lcm_attach_fields, lcm_advance
   use modfields, only : tmp0
   use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1, &
-                        ih, jh, kh, dx, dy, dzf, zf, zh
+                        ih, jh, kh, dx, dy, dzf, zf, zh, rdt
   use modmpi, only : myidx, myidy, nprocx, nprocy, nbrwest,  &
                      nbreast, nbrsouth, nbrnorth, periods
 
@@ -53,7 +53,7 @@ contains
   end subroutine init_lcm
 
   subroutine lcm_microphysics()
-    ! TODO: call the public LCM timestep routine here once that interface exists.
+    call lcm_advance(real(rdt, kind=real64))
   end subroutine lcm_microphysics
 
 end module modlcm_adapter
