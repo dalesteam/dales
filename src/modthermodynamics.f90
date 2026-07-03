@@ -170,10 +170,9 @@ contains
 
     call timer_tic(routine, 0)
 
-    !!$omp target update to(u0, v0, thl0, qt0, ql0)
-    !!$omp target update to(presf, presh, exnf, exnh, ql0h)
-    !!$omp target update to(zf, zh, dzf, dzh, dzhi, dthldz, dqtdz)
-    call update_gpu
+    !$omp target update to(u0, v0, thl0, qt0, ql0)
+    !$omp target update to(presf, presh, exnf, exnh, ql0h)
+    !$omp target update to(zf, zh, dzf, dzh, dzhi, dthldz, dqtdz)
 
     if (timee < 0.01) then
       call diagfld
@@ -299,13 +298,11 @@ contains
 
     !$acc wait
 
-    !!$omp target update from(thv0h,tmp0,dthvdz)
-    !!$omp target update from(esl, qvsl, qvsi)
-    !!$omp target update from(thl0h, qt0h, ql0h, ql0)
-    !!$omp target update from(th0av, exnf, exnh, thvf, rhof, dzh)
-    !!$omp target update from(thv0, thvh, thvf, rhof)
-    host_is_updated=.false.
-    call update_host
+    !$omp target update from(thv0h,tmp0,dthvdz)
+    !$omp target update from(esl, qvsl, qvsi)
+    !$omp target update from(thl0h, qt0h, ql0h, ql0)
+    !$omp target update from(th0av, exnf, exnh, thvf, rhof, dzh)
+    !$omp target update from(thv0, thvh, thvf, rhof)
 
     call timer_toc(routine)
 
