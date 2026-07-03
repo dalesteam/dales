@@ -6,7 +6,7 @@ save
   real(pois_r), allocatable, target :: workspace_0(:), workspace_1(:)
   logical :: host_is_updated = .false.
 
-#if defined(DALES_GPU)
+#if defined(_OPENACC)
 contains
 
   !> @brief Copies fields and arrays to GPU  
@@ -104,7 +104,7 @@ contains
     implicit none
 
     !$acc update device(tskin, qskin, ra, rs, obl)
-    !$omp target update to(tskin,qskin,ra,rs,obl)
+!!$omp target update to(tskin,qskin,ra,rs,obl)
 
   end subroutine update_gpu_surface
   
@@ -205,7 +205,7 @@ contains
     implicit none
 
     !$acc update self(tskin, qskin, obl)
-    !$omp target update from(tskin,qskin,obl)
+!!$omp target update from(tskin,qskin,obl)
 
   end subroutine update_host_surface
 

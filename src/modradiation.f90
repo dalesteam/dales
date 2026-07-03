@@ -190,7 +190,7 @@ contains
       rad_smoke  = .false.
     end if
 
-#if defined(DALES_GPU)
+#if defined(_OPENACC)
     if(iradiation/=irad_none .and. iradiation/=irad_rte_rrtmgp .and. iradiation/=irad_user) then
       call finish(routine, "Please select the RTE-RRTMGP radiation scheme when running on GPU.")
     endif
