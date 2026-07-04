@@ -298,7 +298,6 @@ program DALES
         else
            call boundary(on_gpu=.true.)
         endif
-        host_is_updated=.false.; call update_host
 
 
         !call tiltedboundary
@@ -306,6 +305,7 @@ program DALES
     !   3.8   LIQUID WATER CONTENT AND DIAGNOSTIC FIELDS
     !-----------------------------------------------------
         call thermodynamics
+        host_is_updated=.false.; call update_host
         call leibniztend
         call writesamptend
     !-----------------------------------------------------
