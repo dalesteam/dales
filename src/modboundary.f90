@@ -34,6 +34,7 @@ implicit none
 save
 private
 character(len=*), parameter :: modname = 'modboundary'
+logical :: gpu
 public :: initboundary, boundary, exitboundary, grwdamp, ksp, tsc, cyclich
   integer :: ksp = -1                 !<    lowest level of sponge layer
   real(field_r),allocatable :: tsc(:)          !<   damping coefficients to be used in grwdamp.
@@ -114,17 +115,27 @@ contains
 !! \derr{\fav{\varphi}}{z} =  \mr{cst}.
 !! \end{equation}
 !! \endlatexonly
-  subroutine boundary
+  subroutine boundary(on_gpu)
+  use modfields, only : u0,v0,w0,e120,thl0,qt0,sv0,svm
   implicit none
+  logical, optional :: on_gpu
+    gpu=.false.
+    if(present(on_gpu)) gpu=on_gpu
     call timer_tic('modboundary/boundary', 0)
 
+    ! FIXME: mpi on gpu
+    !$omp target update from(u0,v0,w0,e120) if(gpu)
     call cyclicm
+    !$omp target update from(thl0,qt0,sv0) if(gpu)
     call cyclich
+    !$omp target update from(svm) if(gpu)
     call setboundaries          !was uncommented GT
   
+    !$omp target update to(u0,v0,w0,e120,thl0,qt0,sv0,svm) if(gpu)
     call topm
     call toph
 
+    gpu=.false.
     call timer_toc('modboundary/boundary')
   end subroutine boundary
 !> Cleans up after the run
@@ -327,11 +338,12 @@ contains
 !> Sets top boundary conditions for scalars
   subroutine toph
 
-  use modglobal, only : kmax,k1,nsv,dzh
+  use modglobal, only : kmax,k1,nsv,dzh,i1,ih,j1,jh,k1
   use modfields, only : thl0,thlm,qt0,qtm,sv0,svm &
                        ,thl0av,qt0av,sv0av
   implicit none
   integer :: n
+  integer :: i,j,k
   integer,parameter :: kav=5
 
 ! **  Top conditions :
@@ -339,46 +351,49 @@ contains
   ! to extrapolate thl and qt to level k1 !JvdD
   
   !$acc serial default(present)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+  !$omp target defaultmap(present:allocatable) if(gpu)
   dtheta = sum((thl0av(kmax-kav+1:kmax)-thl0av(kmax-kav:kmax-1))/ &
              dzh(kmax-kav+1:kmax))/kav
   dqt    = sum((qt0av (kmax-kav+1:kmax)-qt0av (kmax-kav:kmax-1))/ &
              dzh(kmax-kav+1:kmax))/kav
   !$acc end serial
-!!$omp end target
+  !$omp end target
 
   if ( nsv > 0 ) then
     !$acc parallel loop default(present)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop defaultmap(present:aggregate) if(gpu)&
+    !$omp defaultmap(present:allocatable)
     do n=1,nsv
       dsv(n) = sum((sv0av(kmax-kav+1:kmax,n)-sv0av(kmax-kav:kmax-1,n))/ &
                  dzh(kmax-kav:kmax-1))/kav
     enddo
   endif
   
-  !$acc kernels default(present) 
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-  thl0(:,:,k1) = thl0(:,:,kmax) + dtheta*dzh(k1)
-  qt0(:,:,k1)  = qt0 (:,:,kmax) + dqt*dzh(k1)
+  !$acc parallel loop collapse(2) default(present)
+  !$omp target teams loop collapse(2) defaultmap(present:aggregate) if(gpu)&
+  !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+  do j=2-jh,j1+jh
+     do i=2-ih,i1+ih
+        thl0(i,j,k1) = thl0(i,j,kmax) + dtheta*dzh(k1)
+        qt0(i,j,k1)  = qt0 (i,j,kmax) + dqt*dzh(k1)
 
-  thlm(:,:,k1) = thlm(:,:,kmax) + dtheta*dzh(k1)
-  qtm(:,:,k1)  = qtm (:,:,kmax) + dqt*dzh(k1)
-  !$acc end kernels
-!!$omp end target
+        thlm(i,j,k1) = thlm(i,j,kmax) + dtheta*dzh(k1)
+        qtm(i,j,k1)  = qtm (i,j,kmax) + dqt*dzh(k1)
+     end do
+  end do
   
   if ( nsv > 0) then
-    !$acc kernels default(present)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-    do n=1,nsv
-      sv0(:,:,k1,n) = sv0(:,:,kmax,n) + dsv(n)*dzh(k1)
-      svm(:,:,k1,n) = svm(:,:,kmax,n) + dsv(n)*dzh(k1)
-    enddo
-    !$acc end kernels
-!!$omp end target
+     !$acc parallel loop collapse(3) default(present)
+     !$omp target teams loop collapse(3) defaultmap(present:aggregate) if(gpu)&
+     !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+     do n=1,nsv
+        do j=2,j1
+           do i=2,i1
+              sv0(i,j,k1,n) = sv0(i,j,kmax,n) + dsv(n)*dzh(k1)
+              svm(i,j,k1,n) = svm(i,j,kmax,n) + dsv(n)*dzh(k1)
+           end do
+        end do
+     enddo
   endif
 
   return
@@ -386,45 +401,55 @@ contains
 !> Sets top boundary conditions for momentum
   subroutine topm
 
-    use modglobal, only : kmax,k1,e12min,lrigidlid
+    use modglobal, only : kmax,k1,e12min,lrigidlid,i1,ih,j1,jh,k1
     use modfields, only : u0,v0,w0,e120,um,vm,wm,e12m
     implicit none
-    !$acc kernels default(present)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-    u0(:,:,k1)   = u0(:,:,kmax)
-    v0(:,:,k1)   = v0(:,:,kmax)
-    w0(:,:,k1)   = 0.0
-    e120(:,:,k1) = e12min
-    !$acc end kernels
-!!$omp end target
+    integer :: i,j,k
+
+    !$acc parallel loop collapse(2) default(present)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate) if(gpu)&
+    !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+    do j=2-jh,j1+jh
+       do i=2-ih,i1+ih
+          u0(i,j,k1)   = u0(i,j,kmax)
+          v0(i,j,k1)   = v0(i,j,kmax)
+          w0(i,j,k1)   = 0.0
+          e120(i,j,k1) = e12min
+       end do
+    end do
 
     if (lrigidlid) then
-        !$acc kernels default(present)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-        e120(:,:,k1) = e120(:,:,kmax)
-        !$acc end kernels
-!!$omp end target
+       !$acc parallel loop collapse(2) default(present)
+       !$omp target teams loop collapse(2) defaultmap(present:aggregate) if(gpu)&
+       !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+       do j=2-jh,j1+jh
+          do i=2-ih,i1+ih
+             e120(i,j,k1) = e120(i,j,kmax)
+          end do
+       end do
     endif
-    
-    !$acc kernels default(present)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-    um(:,:,k1)   = um(:,:,kmax)
-    vm(:,:,k1)   = vm(:,:,kmax)
-    wm(:,:,k1)   = 0.0
-    e12m(:,:,k1) = e12min
-    !$acc end kernels
-!!$omp end target
+
+    !$acc parallel loop collapse(2) default(present)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate) if(gpu)&
+    !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+    do j=2-jh,j1+jh
+       do i=2-ih,i1+ih
+          um(i,j,k1)   = um(i,j,kmax)
+          vm(i,j,k1)   = vm(i,j,kmax)
+          wm(i,j,k1)   = 0.0
+          e12m(i,j,k1) = e12min
+       end do
+    end do
 
     if (lrigidlid) then
-        !$acc kernels default(present)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-        e12m(:,:,k1) = e12m(:,:,kmax)
-        !$acc end kernels
-!!$omp end target
+       !$acc parallel loop collapse(2) default(present)
+       !$omp target teams loop collapse(2) defaultmap(present:aggregate) if(gpu)&
+       !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+       do j=2-jh,j1+jh
+          do i=2-ih,i1+ih
+             e12m(i,j,k1) = e12m(i,j,kmax)
+          end do
+       end do
     endif
 
   return
