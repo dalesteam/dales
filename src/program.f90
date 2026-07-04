@@ -231,12 +231,12 @@ program DALES
         call lsm
         call drydep
         call surface
-        host_is_updated=.false.; call update_host
 
     !-----------------------------------------------------
     !   3.4   ADVECTION AND DIFFUSION
     !-----------------------------------------------------
         call advection
+        host_is_updated=.false.; call update_host
         call subgrid
         call canopy
         call samptend(tend_subg)
