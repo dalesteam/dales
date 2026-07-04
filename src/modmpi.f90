@@ -1130,7 +1130,7 @@ contains
 !!$omp target update from(aver)
       call MPI_ALLREDUCE(MPI_IN_PLACE, aver, kf-ks+1, MPI_REAL4, MPI_SUM, comm3d, mpierr)
       !$acc end host_data
-!$omp target update to(aver)
+!!$omp target update to(aver)
     else
       averl       = 0.
       avers       = 0.
@@ -1171,7 +1171,7 @@ contains
 !!$omp target update from(aver)
       call MPI_ALLREDUCE(MPI_IN_PLACE, aver, kf-ks+1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
       !$acc end host_data
-!$omp target update to(aver)
+!!$omp target update to(aver)
     else
       averl       = 0.
       avers       = 0.
@@ -1260,7 +1260,7 @@ contains
 !!$omp target update from(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*5, MPI_REAL4, MPI_SUM, comm3d, mpierr)
     !$acc end host_data
-!$omp target update to(sum2d)
+!!$omp target update to(sum2d)
 
     !$acc kernels default(present)
 !!$omp target defaultmap(present:aggregate)&
@@ -1349,7 +1349,7 @@ contains
 !!$omp target update from(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*4, MPI_REAL4, MPI_SUM, comm3d, mpierr)
     !$acc end host_data
-!$omp target update to(sum2d)
+!!$omp target update to(sum2d)
 
     !$acc kernels default(present)
 !!$omp target defaultmap(present:aggregate)&
@@ -1430,7 +1430,7 @@ contains
 !!$omp target update from(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*3, MPI_REAL4, MPI_SUM, comm3d, mpierr)
     !$acc end host_data
-!$omp target update to(sum2d)
+!!$omp target update to(sum2d)
 
     !$acc kernels default(present)
 !!$omp target defaultmap(present:aggregate)&
@@ -1504,7 +1504,7 @@ contains
 !!$omp target update from(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*2, MPI_REAL4, MPI_SUM, comm3d, mpierr)
     !$acc end host_data
-!$omp target update to(sum2d)
+!!$omp target update to(sum2d)
 
     !$acc kernels default(present)
 !!$omp target defaultmap(present:aggregate)&
@@ -1598,7 +1598,7 @@ contains
 !!$omp target update from(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*5, MPI_REAL8, MPI_SUM, comm3d, mpierr)
     !$acc end host_data
-!$omp target update to(sum2d)
+!!$omp target update to(sum2d)
 
     !$acc kernels default(present)
 !!$omp target defaultmap(present:aggregate)&
@@ -1688,7 +1688,7 @@ contains
 !!$omp target update from(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*4, MPI_REAL8, MPI_SUM, comm3d, mpierr)
     !$acc end host_data
-!$omp target update to(sum2d)
+!!$omp target update to(sum2d)
 
     !$acc kernels default(present)
 !!$omp target defaultmap(present:aggregate)&
@@ -1769,7 +1769,7 @@ contains
 !!$omp target update from(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*3, MPI_REAL8, MPI_SUM, comm3d, mpierr)
     !$acc end host_data
-!$omp target update to(sum2d)
+!!$omp target update to(sum2d)
 
     !$acc kernels default(present)
 !!$omp target defaultmap(present:aggregate)&
@@ -1843,7 +1843,7 @@ contains
 !!$omp target update from(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*2, MPI_REAL8, MPI_SUM, comm3d, mpierr)
     !$acc end host_data
-!$omp target update to(sum2d)
+!!$omp target update to(sum2d)
 
     !$acc kernels default(present)
 !!$omp target defaultmap(present:aggregate)&
