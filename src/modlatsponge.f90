@@ -77,8 +77,8 @@ contains
     ! North
     if (myidy == 0) then
       !$acc parallel loop gang vector collapse(4) default(present) async
-!!$omp target teams loop collapse(4) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+      !$omp target teams loop collapse(4) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do s = 1, nsv
         do k = 1, kmax
           do j = 1, nudgedepth
@@ -94,8 +94,8 @@ contains
     ! South
     if (myidy == nprocy - 1) then
       !$acc parallel loop gang vector collapse(4) default(present) async
-!!$omp target teams loop collapse(4) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+      !$omp target teams loop collapse(4) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do s = 1, nsv
         do k = 1, kmax
           do j = j1 - nudgedepth + 1, j1
@@ -111,8 +111,8 @@ contains
     ! East
     if (myidx == nprocx - 1) then
       !$acc parallel loop gang vector collapse(4) default(present) async
-!!$omp target teams loop collapse(4) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+      !$omp target teams loop collapse(4) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do s = 1, nsv
         do k = 1, kmax
           do j = 2, j1
@@ -128,8 +128,8 @@ contains
     ! West
     if (myidx == 0) then
       !$acc parallel loop gang vector collapse(4) default(present) async
-!!$omp target teams loop collapse(4) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+      !$omp target teams loop collapse(4) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do s = 1, nsv
         do k = 1, kmax
           do j = 2, j1
