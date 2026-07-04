@@ -288,10 +288,10 @@ program DALES
         call lateral_sponge
 
         call tstep_integrate                        ! Apply tendencies to all variables
-        host_is_updated=.false.; call update_host
 
-        ! XXX: bug here
+        ! XXX: acc bug here
         call msebudg1
+        host_is_updated=.false.; call update_host
         ! NOTE: the tendencies are not zeroed yet, but kept for analysis and statistcis
         !       Do not change them below this point.
         if(lopenbc) then
