@@ -518,7 +518,7 @@ contains
     use modslabaverage,    only : slabavg
     use modlogging,        only : profile_output
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
     use modgpu, only: update_gpu, update_host, host_is_updated, update_gpu_surface
 #endif
 
@@ -871,7 +871,7 @@ contains
 
       call baseprofs ! call baseprofs before thermodynamics
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
       call update_gpu
 #endif
       if ( lopenbc ) then
@@ -880,8 +880,10 @@ contains
         call boundary
       end if
 
+      call update_gpu
       call thermodynamics
       call surface
+      host_is_updated=.false.; call update_host
 
       if ( lopenbc ) then
         call openboundary_ghost()
@@ -891,7 +893,7 @@ contains
 
       call thermodynamics
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
       call update_host
       host_is_updated = .false.
 #endif
@@ -914,14 +916,14 @@ contains
       svm(:,:,:,:)  = sv0(:,:,:,:)
       e12m(:,:,:) = e120(:,:,:)
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
       call update_gpu
 #endif
 
       call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
       call calc_halflev(qt0, dzf, dzhi, qts, iadv_qt == iadv_kappa, qt0h)
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
       call update_host
       host_is_updated = .false.
 #endif
@@ -1010,7 +1012,7 @@ contains
         call openboundary_readboundary(tracer_prop)
       endif
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
       call update_gpu
 #endif
 
