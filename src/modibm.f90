@@ -454,8 +454,8 @@ contains
 
     ! Set tendencies inside obstacles (i.e., correct for any drift from previous integration step)
     !$acc parallel loop gang vector default(present)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do nn = 1,Nobst_wide  !1!< Svdldit werkt niet..
       i = iobst(nn,1)
       j = iobst(nn,2)
@@ -482,8 +482,8 @@ contains
 
     ! Correct tendencies for walls in positive z-direction (only works when k>1, which should be the case for vertical walls [see initibm])
     !$acc parallel loop gang vector default(present)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do nn = 1,Nzwalls_plus
       i = izw_p(nn,1)
       j = izw_p(nn,2)
@@ -560,8 +560,8 @@ contains
 
     ! Correct tendencies for walls in positive x-direction
     !$acc parallel loop gang vector default(present)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do nn = 1,Nxwalls_plus
       i = ixw_p(nn,1)
       j = ixw_p(nn,2)
@@ -630,8 +630,8 @@ contains
 
     ! Correct tendencies for walls in negative x-direction
     !$acc parallel loop gang vector default(present)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do nn = 1,Nxwalls_min
       i = ixw_m(nn,1)
       j = ixw_m(nn,2)
@@ -696,8 +696,8 @@ contains
 
     ! Correct tendencies for walls in positive y-direction
     !$acc parallel loop gang vector default(present)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do nn = 1,Nywalls_plus
       i = iyw_p(nn,1)
       j = iyw_p(nn,2)
@@ -762,8 +762,8 @@ contains
 
     ! Correct tendencies for walls in negative y-direction
     !$acc parallel loop gang vector default(present)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do nn = 1,Nywalls_min
       i = iyw_m(nn,1)
       j = iyw_m(nn,2)
