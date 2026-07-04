@@ -877,18 +877,16 @@ contains
       if ( lopenbc ) then
         call openboundary_ghost()
       else
-        call boundary
+        call boundary(on_gpu=.true.)
       end if
 
-      call update_gpu
       call thermodynamics
       call surface
-      host_is_updated=.false.; call update_host
 
       if ( lopenbc ) then
         call openboundary_ghost()
       else
-        call boundary
+        call boundary(on_gpu=.true.)
       end if
 
       call thermodynamics
