@@ -307,7 +307,6 @@ program DALES
     !   3.8   LIQUID WATER CONTENT AND DIAGNOSTIC FIELDS
     !-----------------------------------------------------
         call thermodynamics
-        host_is_updated=.false.; call update_host
         call leibniztend
         call writesamptend
     !-----------------------------------------------------
@@ -317,6 +316,7 @@ program DALES
           call twostep
           !call coldedge
           call checksim
+          host_is_updated=.false.; call update_host
           call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
           call genstat  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
           call write_profiles
@@ -345,6 +345,8 @@ program DALES
 
           call testwctime
           call writerestartfiles
+       else
+          host_is_updated=.false.; call update_host
         end if
 
         call reset_tendencies
