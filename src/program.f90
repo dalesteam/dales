@@ -124,8 +124,8 @@ program DALES
 !     0.3     USE STATEMENTS FOR GPU UTILITIES
 !----------------------------------------------------------------
 
-#if defined(_OPENACC)
-  use modgpu, only: update_gpu, host_is_updated
+#if defined(DALES_GPU)
+  use modgpu, only: update_gpu, update_host, host_is_updated
 #endif
 
   implicit none
@@ -229,7 +229,9 @@ program DALES
     !-----------------------------------------------------
         call lsm
         call drydep
+        call update_gpu
         call surface
+        host_is_updated=.false.; call update_host
 
     !-----------------------------------------------------
     !   3.4   ADVECTION AND DIFFUSION
@@ -288,13 +290,15 @@ program DALES
 
         call tstep_integrate                        ! Apply tendencies to all variables
 
+        ! XXX: bug here
         call msebudg1
         ! NOTE: the tendencies are not zeroed yet, but kept for analysis and statistcis
         !       Do not change them below this point.
         if(lopenbc) then
           call openboundary_ghost
         else
-          call boundary
+           !call boundary(on_gpu=.true.)
+           call boundary
         endif
 
 
