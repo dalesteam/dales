@@ -281,12 +281,12 @@ program DALES
         call poisson
 
         if (lpoislast .eqv. .false.) call applyibm ! then only apply IBM after Poisson
-        host_is_updated=.false.; call update_host
 
         call samptend(tend_pois,lastterm=.true.)
         if(lopenbc) call openboundary_phasevelocity()
 
         call lateral_sponge
+        host_is_updated=.false.; call update_host
 
         call tstep_integrate                        ! Apply tendencies to all variables
 
