@@ -291,15 +291,14 @@ program DALES
 
         ! XXX: acc bug here
         call msebudg1
-        host_is_updated=.false.; call update_host
         ! NOTE: the tendencies are not zeroed yet, but kept for analysis and statistcis
         !       Do not change them below this point.
         if(lopenbc) then
           call openboundary_ghost
         else
-           !call boundary(on_gpu=.true.)
-           call boundary
+           call boundary(on_gpu=.true.)
         endif
+        host_is_updated=.false.; call update_host
 
 
         !call tiltedboundary
