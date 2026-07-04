@@ -257,7 +257,7 @@ contains
       ! First level
       mlen = csz(1) * delta(1) ! default value when lmason = .false.
       !$acc parallel loop collapse(2) private(strain2) async(1)
-!!$omp target teams loop private(strain2) collapse(2)
+      !$omp target teams loop private(strain2) collapse(2)
       do i = 2, i1
         do j = 2, j1
 
@@ -301,8 +301,8 @@ contains
 
       ! Other levels
       !$acc parallel loop collapse(3) default(present) private(mlen, strain2) async(2)
-!!$omp target teams loop private(mlen,strain2) collapse(3)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+      !$omp target teams loop private(mlen,strain2) collapse(3)&
+      !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do k = 2, kmax
         do i = 2, i1
           do j = 2, j1
@@ -366,8 +366,8 @@ contains
       ! choose one of ldelta, ldelta+lmason, lanisotropic, or none of them for Deardorff length scale adjustment
       if (ldelta .and. .not. lmason) then
         !$acc parallel loop collapse(3) default(present)
-!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+        !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+        !$omp defaultmap(present:allocatable)
         do k = 1, kmax
             do j = 2, j1
               do i = 2, i1
@@ -383,8 +383,8 @@ contains
         end do
       else if (ldelta .and. lmason) then ! delta scheme with Mason length scale correction
         !$acc parallel loop collapse(3) default(present)
-!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+        !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+        !$omp defaultmap(present:allocatable)
         do k = 1, kmax
             do j = 2, j1
               do i = 2, i1
@@ -401,8 +401,8 @@ contains
         end do
       else if (lanisotrop) then ! Anisotropic diffusion,  https://doi.org/10.1029/2022MS003095
         !$acc parallel loop collapse(3) default(present)
-!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+        !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+        !$omp defaultmap(present:allocatable)
         do k = 1, kmax
             do j = 2, j1
               do i = 2, i1
@@ -423,8 +423,8 @@ contains
          ! Boundary-Layer Meteorology, 178, 63-89 (2021).
          
          !$acc parallel loop collapse(3) default(present)
-!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+         !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+         !$omp defaultmap(present:allocatable)
          do k = 1, kmax
             do j = 2, j1
                do i = 2, i1
@@ -443,8 +443,8 @@ contains
          end do
       else ! Deardorff lengthscale correction
         !$acc parallel loop collapse(3) default(present)
-!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+        !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+        !$omp defaultmap(present:allocatable)
         do k = 1, kmax
             do j = 2, j1
               do i = 2, i1
@@ -487,8 +487,8 @@ contains
     endif
 
     !$acc parallel loop collapse(2) default(present)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j = 1, j2
       do i = 1, i2
         ekm(i,j,k1)  = ekm(i,j,kmax)
@@ -530,8 +530,8 @@ contains
     integer i, j, k
 
     !$acc parallel loop collapse(3) default(present) private(tdef2) async(1)
-!!$omp target teams loop private(tdef2) collapse(3)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+    !$omp target teams loop private(tdef2) collapse(3)&
+    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 2, kmax
       do j = 2, j1
         do i = 2, i1
@@ -584,9 +584,9 @@ contains
 
     if (sgs_surface_fix) then
       !$acc parallel loop collapse(2) default(present) private(tdef2,horv,uwflux,vwflux,local_dudz,local_dvdz,local_dthvdz) async(2)
-!!$omp target teams loop private(tdef2,horv,uwflux,vwflux,local_dudz,&
-!!$omp local_dvdz,local_dthvdz) collapse(2)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+      !$omp target teams loop private(tdef2,horv,uwflux,vwflux,local_dudz,&
+      !$omp local_dvdz,local_dthvdz) collapse(2)&
+      !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do j = 2, j1
         do i = 2, i1
           tdef2 = 2 * ( &
@@ -641,8 +641,8 @@ contains
       end do
     else
       !$acc parallel loop collapse(2) default(present) private(tdef2) async(2)
-!!$omp target teams loop private(tdef2) collapse(2)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+      !$omp target teams loop private(tdef2) collapse(2)&
+      !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do j = 2, j1
         do i = 2, i1
           tdef2 = 2. * ( &
@@ -690,8 +690,8 @@ contains
     integer i,j,k
 
     !$acc parallel loop collapse(3) default(present) async(1)
-!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k = 2, kmax
       do j = 2, j1
         do i = 2, i1
@@ -714,8 +714,8 @@ contains
     end do
 
     !$acc parallel loop collapse(2) default(present) async(2)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j = 2, j1
       do i = 2, i1
         a_out(i,j,1) = a_out(i,j,1) &
@@ -747,8 +747,8 @@ contains
     integer i,j,k,n
 
     !$acc parallel loop collapse(4) default(present) async(1)
-!!$omp target teams loop collapse(4) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(4) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do n = 1, nsv
       do k = 2, kmax
         do j = 2, j1
@@ -773,8 +773,8 @@ contains
     end do
 
     !$acc parallel loop collapse(3) default(present) async(2)
-!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do n = 1, nsv
       do j = 2, j1
         do i = 2, i1
@@ -805,8 +805,8 @@ contains
     integer                       :: i,j,k
 
     !$acc parallel loop collapse(3) default(present) async(1)
-!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k = 2, kmax
       do j = 2, j1
         do i = 2, i1
@@ -832,8 +832,8 @@ contains
   !     --------------------------------------------
 
     !$acc parallel loop collapse(2) default(present) async(2)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j = 2, j1
       do i = 2, i1
         a_out(i,j,1) = a_out(i,j,1) + &
@@ -865,8 +865,8 @@ contains
     integer                       :: i,j,k
 
     !$acc parallel loop collapse(3) default(present) private(emom, emop, empo, emmo) async(1)
-!!$omp target teams loop private(emom,emop,empo,emmo) collapse(3)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+    !$omp target teams loop private(emom,emop,empo,emmo) collapse(3)&
+    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 2, kmax
       do j = 2, j1
         do i = sx, i1
@@ -911,9 +911,9 @@ contains
   !     --------------------------------------------
 
     !$acc parallel loop collapse(2) default(present) private(empo, emmo, emop, ucu, upcu, fu) async(2)
-!!$omp target teams loop private(empo,emmo,emop,ucu,upcu,fu)&
-!!$omp collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop private(empo,emmo,emop,ucu,upcu,fu)&
+    !$omp collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j = 2, j1
       do i = sx, i1
         empo = 0.25_field_r * ( ekm(i  ,j  ,1)+&
@@ -976,8 +976,8 @@ contains
     integer                       :: i,j,k
 
     !$acc parallel loop collapse(3) default(present) private(eomm, eomp, emmo, epmo) async(3)
-!!$omp target teams loop private(eomm,eomp,emmo,epmo) collapse(3)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+    !$omp target teams loop private(eomm,eomp,emmo,epmo) collapse(3)&
+    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 2, kmax
       do j = sy, j1
         do i = 2, i1
@@ -1023,9 +1023,9 @@ contains
   !     --------------------------------------------
 
     !$acc parallel loop collapse(2) default(present) private(emmo, epmo, eomp, vcv, vpcv, fv) async(4)
-!!$omp target teams loop private(emmo,epmo,eomp,vcv,vpcv,fv)&
-!!$omp collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop private(emmo,epmo,eomp,vcv,vpcv,fv)&
+    !$omp collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j = sy, j1
       do i = 2, i1
         emmo = 0.25_field_r * ( ekm(i  ,j  ,1)+ &
@@ -1084,8 +1084,8 @@ contains
     integer                       :: i,j,k
 
     !$acc parallel loop collapse(3) default(present) private(emom, eomm, eopm, epom) async(5)
-!!$omp target teams loop private(emom,eomm,eopm,epom) collapse(3)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+    !$omp target teams loop private(emom,eomm,eopm,epom) collapse(3)&
+    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 2, kmax
       do j = 2, j1
         do i = 2, i1

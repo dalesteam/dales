@@ -236,8 +236,8 @@ program DALES
     !   3.4   ADVECTION AND DIFFUSION
     !-----------------------------------------------------
         call advection
-        host_is_updated=.false.; call update_host
         call subgrid
+        host_is_updated=.false.; call update_host
         call canopy
         call samptend(tend_subg)
 
