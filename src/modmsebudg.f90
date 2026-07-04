@@ -190,6 +190,7 @@ contains
 
           field_mse_2D = 0 ! reset all
 
+          !$omp target update from(tmp0, qt0, ql0)
           do k=1,k1
              msem(:,:,k)  = cp * tmp0(:,:,k) + grav * zf(k) + rlv * (qt0(:,:,k) - ql0(:,:,k))
              field_mse_2D (2:i1,2:j1,4) = field_mse_2D (2:i1,2:j1,4) + rhobf(k) * dzf(k) * msem (2:i1,2:j1,k)     ! m-field for total tendency
@@ -206,11 +207,13 @@ contains
                v0_save    (2-ih:i1+ih,2-jh:j1+jh,k1), &
                w0_save    (2-ih:i1+ih,2-jh:j1+jh,k1)  )
 
+          !$omp target update from(tmp0, qt0, ql0)
           do k=1,k1
              ! don't need to calculate for ghost cells here - probably their tmp,ql is not right
              mse0(:,:,k)  = cp * tmp0(:,:,k) + grav * zf(k) + rlv * (qt0(:,:,k) - ql0(:,:,k))
           end do
 
+          ! FIXME: mpi on gpu
           call excjs(mse0, 2,i1,2,j1,1,k1,ih,jh)   ! get mse halo for advection
 
           u0_save = u0
@@ -220,6 +223,7 @@ contains
           w0 = 0
           msep = 0
           !advect uv
+          !$omp target update to(mse0,msep)
           call advect_scalar(mse0, msep, iadv_thl)
 
           do k=1,k1
@@ -231,7 +235,9 @@ contains
           v0 = 0
           msep = 0
           ! advect w
+          !$omp target update to(msep)
           call advect_scalar(mse0, msep, iadv_thl)
+          !$omp target update from(msep)
           do k=1,k1
              field_mse_2D (2:i1,2:j1,3) = field_mse_2D (2:i1,2:j1,3) + rhobf(k) * dzf(k) * msep(2:i1,2:j1,k)  ! vertical adv tend
           enddo
