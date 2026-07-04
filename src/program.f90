@@ -263,7 +263,6 @@ program DALES
         call nudgeboundary
         call testbednudge
         if (simid == turid) call spraying
-        host_is_updated=.false.; call update_host
     !    call dospecs
     !    call tiltedgravity
 
@@ -275,6 +274,7 @@ program DALES
     !   3.7  PRESSURE FLUCTUATIONS, TIME INTEGRATION AND BOUNDARY CONDITIONS
     !-----------------------------------------------------------------------
         call grwdamp !damping at top of the model
+        host_is_updated=.false.; call update_host
     !JvdD    call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
         call samptend(tend_topbound)
 

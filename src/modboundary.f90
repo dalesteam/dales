@@ -205,13 +205,14 @@ contains
 !! \endlatexonly
  subroutine grwdamp
   use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,nsv,rdt,unudge,dzf,lopenbc,uvdamprate
+  use modglobal, only : i1,ih,j1,jh,k1
   use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0,sv0,ug,vg &
                         ,thl0av,qt0av,sv0av,u0av,v0av
   implicit none
 
   character(len=*), parameter :: routine = modname//'/grwdamp'
 
-  integer k,n
+  integer i,j,k,n
 
   call timer_tic('modboundary/grwdamp', 0)
 
@@ -242,18 +243,20 @@ contains
 !!$omp end target
     end if
   case(2)
-    !$acc kernels default(present) async(1)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-    do k=ksp,kmax
-      up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(ug(k)-cu))*tsc(k)
-      vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(vg(k)-cv))*tsc(k)
-      wp(:,:,k)  = wp(:,:,k)-w0(:,:,k)*tsc(k)
-      thlp(:,:,k)= thlp(:,:,k)-(thl0(:,:,k)-thl0av(k))*tsc(k)
-      qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
-    end do
-    !$acc end kernels
-!!$omp end target
+      !$acc parallel loop collapse(3) default(present) async(1)
+      !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+      do k=ksp,kmax
+         do j=2-jh,j1+jh
+            do i=2-ih,i1+ih
+               up(i,j,k)  = up(i,j,k)-(u0(i,j,k)-(ug(k)-cu))*tsc(k)
+               vp(i,j,k)  = vp(i,j,k)-(v0(i,j,k)-(vg(k)-cv))*tsc(k)
+               wp(i,j,k)  = wp(i,j,k)-w0(i,j,k)*tsc(k)
+               thlp(i,j,k)= thlp(i,j,k)-(thl0(i,j,k)-thl0av(k))*tsc(k)
+               qtp(i,j,k) = qtp(i,j,k)-(qt0(i,j,k)-qt0av(k))*tsc(k)
+            end do
+         end do
+      end do
   case(3)
     !$acc kernels default(present) async(1)
 !!$omp target defaultmap(present:aggregate)&
@@ -284,23 +287,27 @@ contains
   ! Originally done in subroutine tqaver, now using averages from modthermodynamics
 
   if ( .not. lopenbc ) then
-    !$acc kernels default(present) async(1)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-    thl0(2:i1,2:j1,kmax) = thl0av(kmax)
-    qt0 (2:i1,2:j1,kmax) = qt0av(kmax)
-    !$acc end kernels
-!!$omp end target
+    !$acc parallel loop collapse(2) default(present) async(1)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+    do j=2,j1
+       do i=2,i1
+          thl0(i,j,kmax) = thl0av(kmax)
+          qt0 (i,j,kmax) = qt0av(kmax)
+       end do
+    end do
 
     if (nsv > 0) then
-      !$acc kernels default(present) async(1)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+      !$acc parallel loop collapse(3) default(present) async(1)
+      !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
       do n=1,nsv
-        sv0(2:i1,2:j1,kmax,n) = sv0av(kmax,n)
+         do j=2,j1
+            do i=2,i1
+               sv0(i,j,kmax,n) = sv0av(kmax,n)
+            end do
+         end do
       end do
-      !$acc end kernels
-!!$omp end target
     end if
 
     !$acc wait
