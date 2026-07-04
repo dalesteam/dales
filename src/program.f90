@@ -258,10 +258,10 @@ program DALES
     !   3.6   EXECUTE ADD ONS
     !------------------------------------------------------
         call nudge
-        host_is_updated=.false.; call update_host
         call nudgeboundary
         call testbednudge
         if (simid == turid) call spraying
+        host_is_updated=.false.; call update_host
     !    call dospecs
     !    call tiltedgravity
 
