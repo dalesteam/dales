@@ -239,7 +239,6 @@ program DALES
     !-----------------------------------------------------
         call advection
         call subgrid
-        host_is_updated=.false.; call update_host
         call canopy
         call samptend(tend_subg)
 
@@ -252,6 +251,7 @@ program DALES
         call samptend(tend_force)
 
         call lstend !large scale forcings
+        host_is_updated=.false.; call update_host
         call samptend(tend_ls)
         call microphysics
         call samptend(tend_micro)
