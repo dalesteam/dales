@@ -272,16 +272,18 @@ program DALES
     !   3.7  PRESSURE FLUCTUATIONS, TIME INTEGRATION AND BOUNDARY CONDITIONS
     !-----------------------------------------------------------------------
         call grwdamp !damping at top of the model
-        host_is_updated=.false.; call update_host
     !JvdD    call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
         call samptend(tend_topbound)
 
         ! either apply ibm before or after poisson solver
         if (lpoislast .eqv.  .true.) call applyibm
+        host_is_updated=.false.; call update_host
         if (lpoislast .eqv. .false.) call zerowallvelocity ! put wall velocities to zero before Poisson
         call poisson
 
+        call update_gpu
         if (lpoislast .eqv. .false.) call applyibm ! then only apply IBM after Poisson
+        host_is_updated=.false.; call update_host
 
         call samptend(tend_pois,lastterm=.true.)
         if(lopenbc) call openboundary_phasevelocity()
