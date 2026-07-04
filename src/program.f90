@@ -286,9 +286,9 @@ program DALES
         if(lopenbc) call openboundary_phasevelocity()
 
         call lateral_sponge
-        host_is_updated=.false.; call update_host
 
         call tstep_integrate                        ! Apply tendencies to all variables
+        host_is_updated=.false.; call update_host
 
         ! XXX: bug here
         call msebudg1
