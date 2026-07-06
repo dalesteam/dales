@@ -883,6 +883,8 @@ contains
     if (iqr > 0) then
        !$acc parallel loop gang default(present) private(plwav_s, pliav_s, ilratio) async(1)
        do k = 1, kmax
+          plwav_s = 0
+          pliav_s = 0
           if (imicro == imicro_sice .or. imicro == imicro_sice2) then
              !$acc loop collapse(2) &
              !$acc& reduction(+:plwav_s, pliav_s)
