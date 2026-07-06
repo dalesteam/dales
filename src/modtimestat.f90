@@ -71,20 +71,6 @@ save
   real(field_r), allocatable, dimension(:,:,:) :: blh_fld
   real(field_r), allocatable,dimension(:,:,:) :: sv0h
 
-  !Variables for heterogeneity
-  real(field_r), allocatable :: u0av_patch (:,:)     ! patch averaged um    at full level
-  real(field_r), allocatable :: v0av_patch (:,:)     ! patch averaged vm    at full level
-  real(field_r), allocatable :: w0av_patch (:,:)     ! patch averaged wm    at full level
-  real(field_r),allocatable, dimension(:,:) :: zbase_field, ztop_field, cc_field, qlint_field, tke_tot_field
-  real(field_r),allocatable, dimension(:,:) :: zbase_patch, ztop_patch, zbasemin_patch, zbasemin_patchl
-  real(field_r),allocatable, dimension(:,:) :: cc_patch, qlint_patch, qlintmax_patch, qlintmax_patchl, tke_tot_patch
-  real(field_r),allocatable, dimension(:,:) :: wmax_patch, wmax_patchl, qlmax_patch, qlmax_patchl, ztopmax_patch, ztopmax_patchl
-  real(field_r),allocatable, dimension(:,:) :: ust_patch, qst_patch, tst_patch, wthls_patch, wqls_patch, wthvs_patch
-  !In combination with isurf = 1
-  real(field_r),allocatable, dimension(:,:) :: Qnet_patch, H_patch, LE_patch, G0_patch, tendskin_patch,rs_patch,ra_patch
-  real(field_r),allocatable, dimension(:,:) :: cliq_patch, wl_patch, rsveg_patch, rssoil_patch, tskin_patch, obl_patch
-  real(field_r),allocatable, dimension(:,:) :: zi_patch,ziold_patch,we_patch, zi_field
-
 contains
 !> Initializing Timestat. Read out the namelist, initializing the variables
   subroutine inittimestat
@@ -93,7 +79,7 @@ contains
                           ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1,lwarmstart,checknamelisterror, &
                           ih ,jh
     use modfields, only : thlprof,qtprof,svprof
-    use modsurfdata, only : isurf, lhetero, xpatches, ypatches
+    use modsurfdata, only : isurf
     use modstat_nc, only : lnetcdf, open_nc, define_nc, ncinfo, nctiminfo
     use modraddata, only : iradiation
     use modlsm, only : lags
@@ -325,7 +311,7 @@ contains
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
                            Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
                            cliq,rsveg,rssoil,Wl, &
-                           lhetero, xpatches, ypatches, qts_patch, wt_patch, wq_patch, thls_patch,obl,z0mav_patch, wco2av, Anav, Respav,gcco2av
+                           obl, wco2av, Anav, Respav,gcco2av
     use modmpi,     only : mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid, D_MPI_ALLREDUCE
     use modstat_nc,  only : lnetcdf, writestat_nc,nc_fillvalue
     use modlsm,     only : tile, f1, f2b, nlu, lags, an_co2, resp_co2
@@ -364,9 +350,6 @@ contains
     real   :: thlskin_av(nlu)
     real   :: qtskin_av(nlu)
     real   :: an_co2_av, resp_co2_av
-
-    ! heterogeneity variables
-    integer:: patchx, patchy
 
     ! Radiation variables for reductions
     real(field_r) :: &
@@ -1031,7 +1014,7 @@ contains
 
     use modglobal,  only : i1,j1,kmax,k1,cp,rlv,imax,rd,zh,dzh,zf,dzf,rv,ijtot,iadv_sv,iadv_kappa
     use modfields,  only : w0,qt0,qt0h,ql0,thl0,thl0h,thv0h,sv0,exnf,whls
-    use modsurfdata,only : svs, lhetero, xpatches, ypatches
+    use modsurfdata,only : svs
     use modmpi,     only : mpierr, comm3d,mpi_sum, D_MPI_ALLREDUCE
     use advec_kappa,only : halflev_kappa
 
@@ -1187,7 +1170,6 @@ contains
   subroutine exittimestat
     use modmpi, only : myid
     use modstat_nc, only : exitstat_nc,lnetcdf
-    use modsurfdata,only :lhetero
     implicit none
 
     if(ltimestat .and. lnetcdf .and. myid==0) call exitstat_nc(ncid)

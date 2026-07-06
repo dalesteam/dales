@@ -97,8 +97,6 @@ contains
       rsminav, rssoilminav, LAIav, gDav, &
       ! Prescribed values for isurf 2, 3, 4
       z0, thls, ps, ustin, wtsurf, wqsurf, &
-      ! Heterogeneous variables
-      lhetero, xpatches, ypatches, land_use, loldtable, &
       ! AGS variables
       lrsAgs, lCO2Ags,planttype, &
       ! Delay plant response in Ags
@@ -151,12 +149,8 @@ contains
     call D_MPI_BCAST(ps         ,1,0,commwrld,istat)
     call D_MPI_BCAST(thls       ,1,0,commwrld,istat)
 
-    call D_MPI_BCAST(lhetero                    ,            1,  0, commwrld, istat)
-    call D_MPI_BCAST(loldtable                  ,            1,  0, commwrld, istat)
     call D_MPI_BCAST(lrsAgs                     ,            1,  0, commwrld, istat)
     call D_MPI_BCAST(lCO2Ags                    ,            1,  0, commwrld, istat)
-    call D_MPI_BCAST(xpatches                   ,            1,  0, commwrld, istat)
-    call D_MPI_BCAST(ypatches                   ,            1,  0, commwrld, istat)
     call D_MPI_BCAST(planttype                  ,            1,  0, commwrld, istat)
     call D_MPI_BCAST(lrelaxgc                   ,            1,  0, commwrld, istat)
     call D_MPI_BCAST(lrelaxci                   ,            1,  0, commwrld, istat)
@@ -167,8 +161,6 @@ contains
     call D_MPI_BCAST(phiwp                      ,            1, 0, commwrld, istat)
     call D_MPI_BCAST(R10                        ,            1, 0, commwrld, istat)
     call D_MPI_BCAST(lsplitleaf                 ,            1,  0, commwrld, istat)
-
-    call D_MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch,  0, commwrld, istat)
 
     call D_MPI_BCAST(i_expemis                  ,            1, 0, commwrld, istat)
     call D_MPI_BCAST(expemis0                   ,            1, 0, commwrld, istat)
@@ -208,9 +200,6 @@ contains
     !if (isurf == 1) then
 
     ! 1.0  -   Read LSM-specific namelist
-
-
-    !$acc update device (xpatches, ypatches)
 
     if(lCO2Ags .and. (.not. lrsAgs)) then
       if(myid==0) print *,"WARNING::: You set lCO2Ags to .true., but lrsAgs to .false."

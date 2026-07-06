@@ -403,7 +403,7 @@ contains
 
   !> Checks whether crucial parameters are set correctly
   subroutine checkinitvalues
-    use modsurfdata, only: wtsurf, wqsurf, ustin, thls, isurf, ps, lhetero
+    use modsurfdata, only: wtsurf, wqsurf, ustin, thls, isurf, ps
     use modglobal,   only: itot, jtot, ysize, xsize, dtmax, runtime, &
                            startfile, lwarmstart, eps1, imax, jmax, ih, jh, &
                            lcoriol, lpressgrad
@@ -500,7 +500,7 @@ contains
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
-                                  thvs_patch,lhetero,qskin
+                                  qskin
     use modsurface,        only : surface,qtsurf,dthldz,ps
     use modlsm,            only : init_lsm_tiles
     use modboundary,       only : boundary
@@ -1179,7 +1179,7 @@ contains
 
     use modsurfdata, only : ustar,thlflux,qtflux,svflux,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
                            tsoil,phiw,tskin,Wl,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
-                           obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
+                           obl,qskin
     use modraddata, only: iradiation,useMcICA, tnext_radiation => tnext, &
                           thlprad,swd,swu,lwd,lwu,swdca,swuca,lwdca,lwuca,swdir,swdif,lwc,&
                           SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA,&
@@ -1348,7 +1348,7 @@ contains
   subroutine do_writerestartfiles
     use modsurfdata,only: ustar,thlflux,qtflux,svflux,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
                           tsoil,phiw,tskin,Wl,ksoilmax,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
-                          obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
+                          obl,qskin
     use modraddata, only: iradiation,useMcICA, tnext_radiation => tnext, &
                           thlprad,swd,swu,lwd,lwu,swdca,swuca,lwdca,lwuca,swdir,swdif,lwc,&
                           SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA,&
