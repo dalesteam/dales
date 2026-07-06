@@ -51,6 +51,7 @@ module modslurb
     public :: fraction_slurb
     public :: slurb_tile
     public :: initslurb
+    public :: preprocess_slurb
     public :: exitslurb
     public :: enable_slurb
     !
@@ -222,24 +223,26 @@ subroutine initslurb
         enddo
     enddo
 
+end subroutine initslurb
+
+subroutine preprocess_slurb(warmstart)
+    logical, intent(in) :: warmstart
+
+    if (.not. enable_slurb) then
+        return
+    end if
 
     slurb_tile%dt_max(:,:) = HUGE( 1.0_field_r ) ! (s)
-
-    
 
     call process_surface_parameters
 
     call precompute_latent_variables
 
-    call init_slurb_variables
+    call init_slurb_variables(warmstart)
 
     ! call radiation
-    
-    
 
-
-
-end subroutine initslurb
+end subroutine preprocess_slurb
 
 subroutine exitslurb
     use modslurbhelpers, only: slurb_bulk_deallocations
@@ -791,10 +794,11 @@ end subroutine slurb_update_external_vars
     ! ------------
     !> Initializes SLUrb model variables.
     !--------------------------------------------------------------------------------------------------!
- SUBROUTINE init_slurb_variables
+ SUBROUTINE init_slurb_variables(warmstart)
     use modfields, only : thl0, ql0, qt0, u0, v0, exnf
     use modglobal, only : cp, rlv, cu, cv, i1, j1, ep, rd, rv
     use modsurface, only : ps
+    logical, intent(in) :: warmstart !< if true, skip initialization of state variables to standard values
     REAL(field_r) ::  bc_atm  !< initial atmospheric boundary condition for temperature
     REAL(field_r) ::  e_s     !< initial water vapor saturation pressure
     real du,dv
@@ -803,253 +807,257 @@ end subroutine slurb_update_external_vars
     do j=2,j1
         do i=2,i1
 
-        k_atm = 1 !TODOSELF check vertical levels for density calculations
-        k_topo = 1
+            k_atm = 1 !TODOSELF check vertical levels for density calculations
+            k_topo = 1
 
-        slurb_tile%pt1(i,j)  = thl0(i, j, k_atm) + (rlv/(cp * exnf(k_atm)))  * ql0(i,j,k_atm)
-        slurb_tile%q1(i,j)   = qt0(i, j, k_atm) - ql0(i, j, k_atm) !q is q_v in slurb
-        slurb_tile%vpt1(i,j) = slurb_tile%pt1(i,j)  * (1. - (1 - rv/rd)*qt0(i,j,k_atm) - rv/rd * ql0(i,j,k_atm)) ! virtual potential temperature following de Heus (2010)
-        
+            slurb_tile%pt1(i,j)  = thl0(i, j, k_atm) + (rlv/(cp * exnf(k_atm)))  * ql0(i,j,k_atm)
+            slurb_tile%q1(i,j)   = qt0(i, j, k_atm) - ql0(i, j, k_atm) !q is q_v in slurb
+            slurb_tile%vpt1(i,j) = slurb_tile%pt1(i,j)  * (1. - (1 - rv/rd)*qt0(i,j,k_atm) - rv/rd * ql0(i,j,k_atm)) ! virtual potential temperature following de Heus (2010)
+            
 
-        du = 0.5*(u0(i,j,1) + u0(i+1,j,1)) + cu
-        dv = 0.5*(v0(i,j,1) + v0(i,j+1,1)) + cv
-        ! slurb_tile%uv_abs1(i,j) = sqrt(du**2 + dv**2)
-        slurb_tile%uv_abs1(i,j) = max(0.1, sqrt(du**2 + dv**2))! DALES VERSION
-        slurb_tile%uv_eff1(i,j) = slurb_tile%uv_abs1(i,j)
+            du = 0.5*(u0(i,j,1) + u0(i+1,j,1)) + cu
+            dv = 0.5*(v0(i,j,1) + v0(i,j+1,1)) + cv
+            ! slurb_tile%uv_abs1(i,j) = sqrt(du**2 + dv**2)
+            slurb_tile%uv_abs1(i,j) = max(0.1, sqrt(du**2 + dv**2))! DALES VERSION
+            slurb_tile%uv_eff1(i,j) = slurb_tile%uv_abs1(i,j)
 
 
-        !--       If spinup is enabled for current run, use diurnal mean spinup pt as the initial
-        !--       atmospheric boundary condition. Otherwise, use the first atmospheric grid level.
-        !--       Does DALES have a spinup option?
-        ! IF ( spinup )  THEN
-        !     bc_atm = spinup_pt_mean * exnf(k_topo)
-        ! ELSE
-        bc_atm = slurb_tile%pt1(i,j) * exnf(k_topo)
-        ! ENDIF
+            !--       If spinup is enabled for current run, use diurnal mean spinup pt as the initial
+            !--       atmospheric boundary condition. Otherwise, use the first atmospheric grid level.
+            !--       Does DALES have a spinup option?
+            ! IF ( spinup )  THEN
+            !     bc_atm = spinup_pt_mean * exnf(k_topo)
+            ! ELSE
+            bc_atm = slurb_tile%pt1(i,j) * exnf(k_topo)
+            ! ENDIF
 
-        slurb_tile%us_urb(i,j)  = 1.0_field_r
-        slurb_tile%us_can(i,j)  = 1.0_field_r
-        slurb_tile%us_roof(i,j) = 1.0_field_r
-        slurb_tile%us_road(i,j) = 1.0_field_r
+            slurb_tile%us_urb(i,j)  = 1.0_field_r
+            slurb_tile%us_can(i,j)  = 1.0_field_r
+            slurb_tile%us_roof(i,j) = 1.0_field_r
+            slurb_tile%us_road(i,j) = 1.0_field_r
 
-        slurb_tile%uv_abs_can(i,j) = slurb_tile%uv_abs_can_coef(i,j) * slurb_tile%uv_abs1(i,j)
-        slurb_tile%uv_eff_can(i,j) = slurb_tile%uv_abs_can(i,j)
+            slurb_tile%uv_abs_can(i,j) = slurb_tile%uv_abs_can_coef(i,j) * slurb_tile%uv_abs1(i,j)
+            slurb_tile%uv_eff_can(i,j) = slurb_tile%uv_abs_can(i,j)
 
-        slurb_tile%shf_urb(i,j)  = 0.0_field_r
-        slurb_tile%qsws_urb(i,j) = 0.0_field_r
+            slurb_tile%shf_urb(i,j)  = 0.0_field_r
+            slurb_tile%qsws_urb(i,j) = 0.0_field_r
 
-        slurb_tile%t_can_0(i,j)   = bc_atm
-        slurb_tile%t_can_m(i,j) = slurb_tile%t_can_0(i,j)
+            slurb_tile%t_indoor(i,j) = building_indoor_temperature
+            slurb_tile%t_soil(i,j) = deep_soil_temperature
+            slurb_tile%shf_external(i,j) = shf_external
+            slurb_tile%qsws_external(i,j) = qsws_external
 
-        slurb_tile%t_indoor(i,j) = building_indoor_temperature
-        slurb_tile%t_soil(i,j) = deep_soil_temperature
-        slurb_tile%shf_external(i,j) = shf_external
-        slurb_tile%qsws_external(i,j) = qsws_external
+            if (.not. warmstart) then
+                slurb_tile%t_can_0(i,j) = bc_atm
+                slurb_tile%t_can_m(i,j) = slurb_tile%t_can_0(i,j)
 
-    !
-    !--       For subsurface temps, a steady-state 1D heat equation solution will be used as the
-    !--       initial temperature profile. This might or might not speed up the spinup process.
-    !--       In case of windowless facade, set window temps to fill value to prevent meaningless
-    !--       output values. Vice versa for the opposite case.
-        IF ( slurb_tile%f_win(i,j) < 1.0_field_r )  THEN
-            slurb_tile%t_wall_a_0(:,i,j) = calc_1d_heat_equation( SIZE( slurb_tile%t_wall_a_0, 1 ), bc_atm,         &
-                                                        slurb_tile%t_indoor(i,j),                         &
-                                                        slurb_tile%conductivity_wall(:,i,j) )
-            slurb_tile%t_wall_a_m(:,i,j) = slurb_tile%t_wall_a_0(:,i,j)
-            slurb_tile%t_wall_b_0(:,i,j)   = slurb_tile%t_wall_a_0(:,i,j)
-            slurb_tile%t_wall_b_m(:,i,j) = slurb_tile%t_wall_a_0(:,i,j)
-        ELSE
-            ! PALM extra debug option. If data_output_raw=false, set wall temperatures to fill value to prevent meaningless output values.
-            IF ( .NOT. data_output_raw )  THEN
-                slurb_tile%t_wall_a_0(:,i,j)   = output_fill_value
-                slurb_tile%t_wall_a_m(:,i,j) = output_fill_value
+                !
+                !--       For subsurface temps, a steady-state 1D heat equation solution will be used as the
+                !--       initial temperature profile. This might or might not speed up the spinup process.
+                !--       In case of windowless facade, set window temps to fill value to prevent meaningless
+                !--       output values. Vice versa for the opposite case.
+                IF ( slurb_tile%f_win(i,j) < 1.0_field_r )  THEN
+                    slurb_tile%t_wall_a_0(:,i,j) = calc_1d_heat_equation( SIZE( slurb_tile%t_wall_a_0, 1 ), bc_atm,         &
+                                                                slurb_tile%t_indoor(i,j),                         &
+                                                                slurb_tile%conductivity_wall(:,i,j) )
+                    slurb_tile%t_wall_a_m(:,i,j) = slurb_tile%t_wall_a_0(:,i,j)
+                    slurb_tile%t_wall_b_0(:,i,j)   = slurb_tile%t_wall_a_0(:,i,j)
+                    slurb_tile%t_wall_b_m(:,i,j) = slurb_tile%t_wall_a_0(:,i,j)
+                ELSE
+                    ! PALM extra debug option. If data_output_raw=false, set wall temperatures to fill value to prevent meaningless output values.
+                    IF ( .NOT. data_output_raw )  THEN
+                        slurb_tile%t_wall_a_0(:,i,j)   = output_fill_value
+                        slurb_tile%t_wall_a_m(:,i,j) = output_fill_value
+                    ENDIF
+                ENDIF
+
+                IF ( slurb_tile%f_win(i,j) > 0.0_field_r )  THEN
+                    slurb_tile%t_win_a_0(:,i,j) = calc_1d_heat_equation( SIZE( slurb_tile%t_win_a_0, 1 ), bc_atm,           &
+                                                                slurb_tile%t_indoor(i,j),                          &
+                                                                slurb_tile%conductivity_win(:,i,j) )
+                    slurb_tile%t_win_a_m(:,i,j) = slurb_tile%t_win_a_0(:,i,j)
+                    slurb_tile%t_win_b_0(:,i,j)   = slurb_tile%t_win_a_0(:,i,j)
+                    slurb_tile%t_win_b_m(:,i,j) = slurb_tile%t_win_a_0(:,i,j)
+                ELSE
+                    ! PALM extra debug option. If data_output_raw=false, set wall temperatures to fill value to prevent meaningless output values.
+                    IF ( .NOT. data_output_raw )  THEN
+                        slurb_tile%t_win_a_0(:,i,j)   = output_fill_value
+                        slurb_tile%t_win_a_m(:,i,j) = output_fill_value
+                    ENDIF
+                ENDIF
+
+                slurb_tile%t_roof_0(:,i,j) = calc_1d_heat_equation( SIZE( slurb_tile%t_roof_0, 1 ), bc_atm,                &
+                                                            slurb_tile%t_indoor(i,j), slurb_tile%conductivity_roof(:,i,j) )
+                slurb_tile%t_roof_m(:,i,j) = slurb_tile%t_roof_0(:,i,j)
+
+                slurb_tile%t_road_0(:,i,j) = calc_1d_heat_equation( SIZE( slurb_tile%t_road_0, 1 ), bc_atm,                &
+                                                            slurb_tile%t_soil(i,j), slurb_tile%conductivity_road(:,i,j) )
+                slurb_tile%t_road_m(:,i,j) = slurb_tile%t_road_0(:,i,j)
+
+                IF ( moist_physics )  THEN
+                    slurb_tile%vpt_can(i,j) = 0.0_field_r
+
+                    slurb_tile%q_can_0(i,j)      = slurb_tile%q1(i,j)
+                    slurb_tile%q_can_m(i,j)      = slurb_tile%q_can_0(i,j)
+                    slurb_tile%m_liq_roof_m(i,j)   = 0.0_field_r
+                    slurb_tile%m_liq_roof_0(i,j) = slurb_tile%m_liq_roof_m(i,j)
+                    slurb_tile%m_liq_road_m(i,j)   = 0.0_field_r
+                    slurb_tile%m_liq_road_0(i,j) = slurb_tile%m_liq_road_m(i,j)
+                ENDIF
+            end if
+
+            IF ( moist_physics )  THEN
+                slurb_tile%q_roof(i,j) = slurb_tile%q1(i,j)
+                slurb_tile%q_road(i,j) = slurb_tile%q_can_0(i,j)
             ENDIF
-        ENDIF
 
-        IF ( slurb_tile%f_win(i,j) > 0.0_field_r )  THEN
-            slurb_tile%t_win_a_0(:,i,j) = calc_1d_heat_equation( SIZE( slurb_tile%t_win_a_0, 1 ), bc_atm,           &
-                                                        slurb_tile%t_indoor(i,j),                          &
-                                                        slurb_tile%conductivity_win(:,i,j) )
-            slurb_tile%t_win_a_m(:,i,j) = slurb_tile%t_win_a_0(:,i,j)
-            slurb_tile%t_win_b_0(:,i,j)   = slurb_tile%t_win_a_0(:,i,j)
-            slurb_tile%t_win_b_m(:,i,j) = slurb_tile%t_win_a_0(:,i,j)
-        ELSE
-            ! PALM extra debug option. If data_output_raw=false, set wall temperatures to fill value to prevent meaningless output values.
-            IF ( .NOT. data_output_raw )  THEN
-                slurb_tile%t_win_a_0(:,i,j)   = output_fill_value
-                slurb_tile%t_win_a_m(:,i,j) = output_fill_value
+            slurb_tile%ol_roof(i,j) = slurb_tile%z_mo(i,j)     / zeta_min
+            slurb_tile%ol_road(i,j) = slurb_tile%z_mo_can(i,j) / zeta_min
+            slurb_tile%ol_can(i,j)  = slurb_tile%z_mo(i,j)     / zeta_min
+            slurb_tile%ol_urb(i,j)  = slurb_tile%z_mo(i,j)     / zeta_min
+
+            !
+            !--    Init potential temperatures and virtual potential temperatures. These need to be computed
+            !--    also for the restart case, as d_exner is not yet available when rrd routines are called.
+            slurb_tile%pt_can(i,j) = slurb_tile%t_can_0(i,j) / exnf(k_topo)
+
+            IF ( slurb_tile%f_win(i,j) < 1.0_field_r )  THEN
+                slurb_tile%pt_wall_a(i,j) = slurb_tile%t_wall_a_0(nzt_wall,i,j) / exnf(k_topo)
+                slurb_tile%pt_wall_b(i,j) = slurb_tile%t_wall_b_0(nzt_wall,i,j) / exnf(k_topo)
+            ELSE
+                ! PALM extra debug option. If data_output_raw=false, set wall temperatures to fill value to prevent meaningless output values.
+                IF ( .NOT. data_output_raw )  THEN
+                    slurb_tile%pt_wall_a(i,j) = output_fill_value
+                    slurb_tile%pt_wall_b(i,j) = output_fill_value
+                ENDIF
             ENDIF
-        ENDIF
 
-        slurb_tile%t_roof_0(:,i,j) = calc_1d_heat_equation( SIZE( slurb_tile%t_roof_0, 1 ), bc_atm,                &
-                                                    slurb_tile%t_indoor(i,j), slurb_tile%conductivity_roof(:,i,j) )
-        slurb_tile%t_roof_m(:,i,j) = slurb_tile%t_roof_0(:,i,j)
-
-        slurb_tile%t_road_0(:,i,j) = calc_1d_heat_equation( SIZE( slurb_tile%t_road_0, 1 ), bc_atm,                &
-                                                    slurb_tile%t_soil(i,j), slurb_tile%conductivity_road(:,i,j) )
-        slurb_tile%t_road_m(:,i,j) = slurb_tile%t_road_0(:,i,j)
-
-        IF ( moist_physics )  THEN
-            slurb_tile%vpt_can(i,j) = 0.0_field_r
-
-            slurb_tile%q_can_0(i,j)      = slurb_tile%q1(i,j)
-            slurb_tile%q_can_m(i,j)      = slurb_tile%q_can_0(i,j)
-            slurb_tile%m_liq_roof_m(i,j)   = 0.0_field_r
-            slurb_tile%m_liq_roof_0(i,j) = slurb_tile%m_liq_roof_m(i,j)
-            slurb_tile%m_liq_road_m(i,j)   = 0.0_field_r
-            slurb_tile%m_liq_road_0(i,j) = slurb_tile%m_liq_road_m(i,j)
-
-            slurb_tile%q_roof(i,j) = slurb_tile%q1(i,j)
-            slurb_tile%q_road(i,j) = slurb_tile%q_can_0(i,j)
-        ENDIF
-
-        slurb_tile%ol_roof(i,j) = slurb_tile%z_mo(i,j)     / zeta_min
-        slurb_tile%ol_road(i,j) = slurb_tile%z_mo_can(i,j) / zeta_min
-        slurb_tile%ol_can(i,j)  = slurb_tile%z_mo(i,j)     / zeta_min
-        slurb_tile%ol_urb(i,j)  = slurb_tile%z_mo(i,j)     / zeta_min
-
-        !
-        !--    Init potential temperatures and virtual potential temperatures. These need to be computed
-        !--    also for the restart case, as d_exner is not yet available when rrd routines are called.
-        slurb_tile%pt_can(i,j) = slurb_tile%t_can_0(i,j) / exnf(k_topo)
-
-        IF ( slurb_tile%f_win(i,j) < 1.0_field_r )  THEN
-            slurb_tile%pt_wall_a(i,j) = slurb_tile%t_wall_a_0(nzt_wall,i,j) / exnf(k_topo)
-            slurb_tile%pt_wall_b(i,j) = slurb_tile%t_wall_b_0(nzt_wall,i,j) / exnf(k_topo)
-        ELSE
-            ! PALM extra debug option. If data_output_raw=false, set wall temperatures to fill value to prevent meaningless output values.
-            IF ( .NOT. data_output_raw )  THEN
-                slurb_tile%pt_wall_a(i,j) = output_fill_value
-                slurb_tile%pt_wall_b(i,j) = output_fill_value
+            IF ( slurb_tile%f_win(i,j) > 0.0_field_r )  THEN
+                slurb_tile%pt_win_a(i,j) = slurb_tile%t_win_a_0(nzt_win,i,j) / exnf(k_topo)
+                slurb_tile%pt_win_b(i,j) = slurb_tile%t_win_b_0(nzt_win,i,j) / exnf(k_topo)
+            ELSE
+                ! PALM extra debug option. If data_output_raw=false, set wall temperatures to fill value to prevent meaningless output values.
+                IF ( .NOT. data_output_raw )  THEN
+                    slurb_tile%pt_win_a(i,j) = output_fill_value
+                    slurb_tile%pt_win_b(i,j) = output_fill_value
+                ENDIF
             ENDIF
-        ENDIF
 
-        IF ( slurb_tile%f_win(i,j) > 0.0_field_r )  THEN
-            slurb_tile%pt_win_a(i,j) = slurb_tile%t_win_a_0(nzt_win,i,j) / exnf(k_topo)
-            slurb_tile%pt_win_b(i,j) = slurb_tile%t_win_b_0(nzt_win,i,j) / exnf(k_topo)
-        ELSE
-            ! PALM extra debug option. If data_output_raw=false, set wall temperatures to fill value to prevent meaningless output values.
-            IF ( .NOT. data_output_raw )  THEN
-                slurb_tile%pt_win_a(i,j) = output_fill_value
-                slurb_tile%pt_win_b(i,j) = output_fill_value
+            slurb_tile%pt_roof(i,j) = slurb_tile%t_roof_0(nzt_roof,i,j) / exnf(k_topo)
+            slurb_tile%pt_road(i,j) = slurb_tile%t_road_0(nzt_road,i,j) / exnf(k_topo)
+
+            IF ( moist_physics )  THEN
+                slurb_tile%vpt_can(i,j)  = slurb_tile%pt_can(i,j)  * ( 1.0_field_r + 0.61_field_r * slurb_tile%q_can_0(i,j)  )
+                slurb_tile%vpt_roof(i,j) = slurb_tile%pt_roof(i,j) * ( 1.0_field_r + 0.61_field_r * slurb_tile%q_roof(i,j) )
+                slurb_tile%vpt_road(i,j) = slurb_tile%pt_road(i,j) * ( 1.0_field_r + 0.61_field_r * slurb_tile%q_road(i,j) )
             ENDIF
-        ENDIF
 
-        slurb_tile%pt_roof(i,j) = slurb_tile%t_roof_0(nzt_roof,i,j) / exnf(k_topo)
-        slurb_tile%pt_road(i,j) = slurb_tile%t_road_0(nzt_road,i,j) / exnf(k_topo)
+            !
+            !--    Initialize tendencies to zero.
+            slurb_tile%tt_can(i,j)      = 0.0_field_r
+            slurb_tile%tt_wall_a(:,i,j) = 0.0_field_r
+            slurb_tile%tt_wall_b(:,i,j) = 0.0_field_r
+            slurb_tile%tt_win_a(:,i,j)  = 0.0_field_r
+            slurb_tile%tt_win_b(:,i,j)  = 0.0_field_r
+            slurb_tile%tt_roof(:,i,j)   = 0.0_field_r
+            slurb_tile%tt_road(:,i,j)   = 0.0_field_r
+            IF ( moist_physics )  THEN
+                slurb_tile%tq_can(i,j)      = 0.0_field_r
+                slurb_tile%tm_liq_roof(i,j) = 0.0_field_r
+                slurb_tile%tm_liq_road(i,j) = 0.0_field_r
+                slurb_tile%tm_roof_runoff(i,j) = 0.0_field_r
+                slurb_tile%tm_road_runoff(i,j) = 0.0_field_r
+                slurb_tile%tm_roof_precep(i,j) = 0.0_field_r
+                slurb_tile%tm_road_precep(i,j) = 0.0_field_r
+            ENDIF
 
-        IF ( moist_physics )  THEN
-            slurb_tile%vpt_can(i,j)  = slurb_tile%pt_can(i,j)  * ( 1.0_field_r + 0.61_field_r * slurb_tile%q_can_0(i,j)  )
-            slurb_tile%vpt_roof(i,j) = slurb_tile%pt_roof(i,j) * ( 1.0_field_r + 0.61_field_r * slurb_tile%q_roof(i,j) )
-            slurb_tile%vpt_road(i,j) = slurb_tile%pt_road(i,j) * ( 1.0_field_r + 0.61_field_r * slurb_tile%q_road(i,j) )
-        ENDIF
+            !
+            !--    Initialize model variables which are not used prior to an assignment in the model itself.
+            !--    Thus these initializations should not end up being used in code, but as this is not
+            !--    guaranteed with e.g. future changes, initialize them nevertheless. For the same reason,
+            !--    these are not included in the restart data. But if in the future there is an usage prior to
+            !--    proper assignment by the model, the respective variable should be added to restart routines,
+            !--    and given a proper intialization.
+            slurb_tile%albedo_urb(i,j)     = 0.0_field_r
+            slurb_tile%rad_lw_in_urb(i,j)  = 0.0_field_r
+            slurb_tile%rad_lw_out_urb(i,j) = 0.0_field_r
+            slurb_tile%rad_sw_in_urb(i,j)  = 0.0_field_r
+            slurb_tile%rad_sw_out_urb(i,j) = 0.0_field_r
+            slurb_tile%ram_urb(i,j)        = 1E3_field_r
+            slurb_tile%rib_urb(i,j)        = 0.0_field_r
+            slurb_tile%t_2m_urb(i,j)       = 0.0_field_r
+            slurb_tile%t_c_urb(i,j)        = 0.0_field_r
+            slurb_tile%t_h_urb(i,j)        = 0.0_field_r
+            slurb_tile%thl_rad_urb(i,j)    = 0.0_field_r
+            slurb_tile%usws_urb(i,j)       = 0.0_field_r
+            slurb_tile%vsws_urb(i,j)       = 0.0_field_r
 
-    !
-    !--    Initialize tendencies to zero.
-        slurb_tile%tt_can(i,j)      = 0.0_field_r
-        slurb_tile%tt_wall_a(:,i,j) = 0.0_field_r
-        slurb_tile%tt_wall_b(:,i,j) = 0.0_field_r
-        slurb_tile%tt_win_a(:,i,j)  = 0.0_field_r
-        slurb_tile%tt_win_b(:,i,j)  = 0.0_field_r
-        slurb_tile%tt_roof(:,i,j)   = 0.0_field_r
-        slurb_tile%tt_road(:,i,j)   = 0.0_field_r
-        IF ( moist_physics )  THEN
-            slurb_tile%tq_can(i,j)      = 0.0_field_r
-            slurb_tile%tm_liq_roof(i,j) = 0.0_field_r
-            slurb_tile%tm_liq_road(i,j) = 0.0_field_r
-            slurb_tile%tm_roof_runoff(i,j) = 0.0_field_r
-            slurb_tile%tm_road_runoff(i,j) = 0.0_field_r
-            slurb_tile%tm_roof_precep(i,j) = 0.0_field_r
-            slurb_tile%tm_road_precep(i,j) = 0.0_field_r
-        ENDIF
+            slurb_tile%shf_can(i,j)    = 0.0_field_r
+            slurb_tile%shf_road(i,j)   = 0.0_field_r
+            slurb_tile%shf_roof(i,j)   = 0.0_field_r
+            slurb_tile%shf_wall_a(i,j) = 0.0_field_r
+            slurb_tile%shf_wall_b(i,j) = 0.0_field_r
+            slurb_tile%shf_win_a(i,j)  = 0.0_field_r
+            slurb_tile%shf_win_b(i,j)  = 0.0_field_r
 
-    !
-    !--    Initialize model variables which are not used prior to an assignment in the model itself.
-    !--    Thus these initializations should not end up being used in code, but as this is not
-    !--    guaranteed with e.g. future changes, initialize them nevertheless. For the same reason,
-    !--    these are not included in the restart data. But if in the future there is an usage prior to
-    !--    proper assignment by the model, the respective variable should be added to restart routines,
-    !--    and given a proper intialization.
-        slurb_tile%albedo_urb(i,j)     = 0.0_field_r
-        slurb_tile%rad_lw_in_urb(i,j)  = 0.0_field_r
-        slurb_tile%rad_lw_out_urb(i,j) = 0.0_field_r
-        slurb_tile%rad_sw_in_urb(i,j)  = 0.0_field_r
-        slurb_tile%rad_sw_out_urb(i,j) = 0.0_field_r
-        slurb_tile%ram_urb(i,j)        = 1E3_field_r
-        slurb_tile%rib_urb(i,j)        = 0.0_field_r
-        slurb_tile%t_2m_urb(i,j)       = 0.0_field_r
-        slurb_tile%t_c_urb(i,j)        = 0.0_field_r
-        slurb_tile%t_h_urb(i,j)        = 0.0_field_r
-        slurb_tile%thl_rad_urb(i,j)    = 0.0_field_r
-        slurb_tile%usws_urb(i,j)       = 0.0_field_r
-        slurb_tile%vsws_urb(i,j)       = 0.0_field_r
+            slurb_tile%ghf_road(i,j)   = 0.0_field_r
+            slurb_tile%ghf_roof(i,j)   = 0.0_field_r
+            slurb_tile%ghf_wall_a(i,j) = 0.0_field_r
+            slurb_tile%ghf_wall_b(i,j) = 0.0_field_r
+            slurb_tile%ghf_win_a(i,j)  = 0.0_field_r
+            slurb_tile%ghf_win_b(i,j)  = 0.0_field_r
 
-        slurb_tile%shf_can(i,j)    = 0.0_field_r
-        slurb_tile%shf_road(i,j)   = 0.0_field_r
-        slurb_tile%shf_roof(i,j)   = 0.0_field_r
-        slurb_tile%shf_wall_a(i,j) = 0.0_field_r
-        slurb_tile%shf_wall_b(i,j) = 0.0_field_r
-        slurb_tile%shf_win_a(i,j)  = 0.0_field_r
-        slurb_tile%shf_win_b(i,j)  = 0.0_field_r
+            slurb_tile%rad_lw_net_can(i,j)    = 0.0_field_r
+            slurb_tile%rad_lw_net_road(i,j)   = 0.0_field_r
+            slurb_tile%rad_lw_net_roof(i,j)   = 0.0_field_r
+            slurb_tile%rad_lw_net_urb(i,j)    = 0.0_field_r
+            slurb_tile%rad_lw_net_wall_a(i,j) = 0.0_field_r
+            slurb_tile%rad_lw_net_wall_b(i,j) = 0.0_field_r
+            slurb_tile%rad_lw_net_win_a(i,j)  = 0.0_field_r
+            slurb_tile%rad_lw_net_win_b(i,j)  = 0.0_field_r
+            slurb_tile%rad_sw_in_road(i,j)    = 0.0_field_r
+            slurb_tile%rad_sw_in_win_a(i,j)   = 0.0_field_r
+            slurb_tile%rad_sw_in_win_b(i,j)   = 0.0_field_r
+            slurb_tile%rad_sw_net_road(i,j)   = 0.0_field_r
+            slurb_tile%rad_sw_net_roof(i,j)   = 0.0_field_r
+            slurb_tile%rad_sw_net_urb(i,j)    = 0.0_field_r
+            slurb_tile%rad_sw_net_wall_a(i,j) = 0.0_field_r
+            slurb_tile%rad_sw_net_wall_b(i,j) = 0.0_field_r
+            slurb_tile%rad_sw_net_win_a (i,j) = 0.0_field_r
+            slurb_tile%rad_sw_net_win_b (i,j) = 0.0_field_r
 
-        slurb_tile%ghf_road(i,j)   = 0.0_field_r
-        slurb_tile%ghf_roof(i,j)   = 0.0_field_r
-        slurb_tile%ghf_wall_a(i,j) = 0.0_field_r
-        slurb_tile%ghf_wall_b(i,j) = 0.0_field_r
-        slurb_tile%ghf_win_a(i,j)  = 0.0_field_r
-        slurb_tile%ghf_win_b(i,j)  = 0.0_field_r
+            slurb_tile%rib_can(i,j) = 0.0_field_r
+            slurb_tile%rib_road(i,j) = 0.0_field_r
+            slurb_tile%rib_roof(i,j) = 0.0_field_r
 
-        slurb_tile%rad_lw_net_can(i,j)    = 0.0_field_r
-        slurb_tile%rad_lw_net_road(i,j)   = 0.0_field_r
-        slurb_tile%rad_lw_net_roof(i,j)   = 0.0_field_r
-        slurb_tile%rad_lw_net_urb(i,j)    = 0.0_field_r
-        slurb_tile%rad_lw_net_wall_a(i,j) = 0.0_field_r
-        slurb_tile%rad_lw_net_wall_b(i,j) = 0.0_field_r
-        slurb_tile%rad_lw_net_win_a(i,j)  = 0.0_field_r
-        slurb_tile%rad_lw_net_win_b(i,j)  = 0.0_field_r
-        slurb_tile%rad_sw_in_road(i,j)    = 0.0_field_r
-        slurb_tile%rad_sw_in_win_a(i,j)   = 0.0_field_r
-        slurb_tile%rad_sw_in_win_b(i,j)   = 0.0_field_r
-        slurb_tile%rad_sw_net_road(i,j)   = 0.0_field_r
-        slurb_tile%rad_sw_net_roof(i,j)   = 0.0_field_r
-        slurb_tile%rad_sw_net_urb(i,j)    = 0.0_field_r
-        slurb_tile%rad_sw_net_wall_a(i,j) = 0.0_field_r
-        slurb_tile%rad_sw_net_wall_b(i,j) = 0.0_field_r
-        slurb_tile%rad_sw_net_win_a (i,j) = 0.0_field_r
-        slurb_tile%rad_sw_net_win_b (i,j) = 0.0_field_r
+            slurb_tile%rah_can(i,j)  = 1E3_field_r
+            slurb_tile%rah_road(i,j) = 1E3_field_r
+            slurb_tile%rah_roof    = 1E3_field_r
 
-        slurb_tile%rib_can(i,j) = 0.0_field_r
-        slurb_tile%rib_road(i,j) = 0.0_field_r
-        slurb_tile%rib_roof(i,j) = 0.0_field_r
+            IF ( facade_rah_doe )  THEN
+                slurb_tile%rah_wall_a(i,j) = 1E3_field_r
+                slurb_tile%rah_wall_b(i,j) = 1E3_field_r
+                slurb_tile%rah_win_a(i,j)  = 1E3_field_r
+                slurb_tile%rah_win_b(i,j)  = 1E3_field_r
+            ELSE
+                slurb_tile%rah_facade(i,j) = 1E3_field_r
+            ENDIF
 
-        slurb_tile%rah_can(i,j)  = 1E3_field_r
-        slurb_tile%rah_road(i,j) = 1E3_field_r
-        slurb_tile%rah_roof    = 1E3_field_r
+            IF ( moist_physics )  THEN
+                slurb_tile%qsws_can(i,j)      = 0.0_field_r
+                slurb_tile%qsws_liq_road(i,j) = 0.0_field_r
+                slurb_tile%qsws_liq_roof(i,j) = 0.0_field_r
+                slurb_tile%qsws_road(i,j)     = 0.0_field_r
+                slurb_tile%qsws_roof(i,j)     = 0.0_field_r
 
-        IF ( facade_rah_doe )  THEN
-            slurb_tile%rah_wall_a(i,j) = 1E3_field_r
-            slurb_tile%rah_wall_b(i,j) = 1E3_field_r
-            slurb_tile%rah_win_a(i,j)  = 1E3_field_r
-            slurb_tile%rah_win_b(i,j)  = 1E3_field_r
-        ELSE
-            slurb_tile%rah_facade(i,j) = 1E3_field_r
-        ENDIF
+                e_s = magnus( MIN( slurb_tile%t_road_0(nzt_road,i,j), 333.15_field_r ) )
+                slurb_tile%qs_road(i,j) = ep * e_s / ( ps - e_s )
+                e_s = magnus( MIN( slurb_tile%t_roof_0(nzt_roof,i,j), 333.15_field_r ) )
+                slurb_tile%qs_roof(i,j) = ep * e_s / ( ps - e_s )
 
-        IF ( moist_physics )  THEN
-            slurb_tile%qsws_can(i,j)      = 0.0_field_r
-            slurb_tile%qsws_liq_road(i,j) = 0.0_field_r
-            slurb_tile%qsws_liq_roof(i,j) = 0.0_field_r
-            slurb_tile%qsws_road(i,j)     = 0.0_field_r
-            slurb_tile%qsws_roof(i,j)     = 0.0_field_r
-
-            e_s = magnus( MIN( slurb_tile%t_road_0(nzt_road,i,j), 333.15_field_r ) )
-            slurb_tile%qs_road(i,j) = ep * e_s / ( ps - e_s )
-            e_s = magnus( MIN( slurb_tile%t_roof_0(nzt_roof,i,j), 333.15_field_r ) )
-            slurb_tile%qs_roof(i,j) = ep * e_s / ( ps - e_s )
-
-            slurb_tile%c_liq_road(i,j)    = MIN( 1.0_field_r, ( slurb_tile%m_liq_road_m(i,j) / m_liq_max_road )**0.67 )
-            slurb_tile%c_liq_roof(i,j)    = MIN( 1.0_field_r, ( slurb_tile%m_liq_roof_m(i,j) / m_liq_max_roof )**0.67 )
-        ENDIF
+                slurb_tile%c_liq_road(i,j)    = MIN( 1.0_field_r, ( slurb_tile%m_liq_road_m(i,j) / m_liq_max_road )**0.67 )
+                slurb_tile%c_liq_roof(i,j)    = MIN( 1.0_field_r, ( slurb_tile%m_liq_roof_m(i,j) / m_liq_max_roof )**0.67 )
+            ENDIF
 
 
         enddo
