@@ -343,10 +343,10 @@ contains
       xlacc = .false.
     end if
     !$acc host_data use_device(sendbuf, recvbuf) if(xlacc)
-    !$omp target update from(sendbuf,recvbuf) if(xlacc)
+    !$omp target data use_device_addr(sendbuf, recvbuf) if(xlacc)
     call MPI_ALLREDUCE(sendbuf, recvbuf, count, MPI_REAL4, op, comm, ierror)
     !$acc end host_data
-    !$omp target update to(sendbuf,recvbuf) if(xlacc)
+    !$omp end target data
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_ALLREDUCE_REAL32_R1
   subroutine D_MPI_ALLREDUCE_REAL32_R2(sendbuf, recvbuf, count, op, comm, ierror, lacc)
@@ -363,10 +363,10 @@ contains
       xlacc = .false.
     end if
     !$acc host_data use_device(sendbuf, recvbuf) if(xlacc)
-    !$omp target update from(sendbuf,recvbuf) if(xlacc)
+    !$omp target data use_device_addr(sendbuf, recvbuf) if(xlacc)
     call MPI_ALLREDUCE(sendbuf, recvbuf, count, MPI_REAL4, op, comm, ierror)
     !$acc end host_data
-    !$omp target update to(sendbuf,recvbuf) if(xlacc)
+    !$omp end target data
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_ALLREDUCE_REAL32_R2
   subroutine D_MPI_ALLREDUCE_REAL32_R3(sendbuf, recvbuf, count, op, comm, ierror, lacc)
@@ -383,10 +383,10 @@ contains
       xlacc = .false.
     end if
     !$acc host_data use_device(sendbuf, recvbuf) if(xlacc)
-    !$omp target update from(sendbuf,recvbuf) if(xlacc)
+    !$omp target data use_device_addr(sendbuf, recvbuf) if(xlacc)
     call MPI_ALLREDUCE(sendbuf,recvbuf, count, MPI_REAL4, op, comm, ierror)
     !$acc end host_data
-    !$omp target update to(sendbuf,recvbuf) if(xlacc)
+    !$omp end target data
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_ALLREDUCE_REAL32_R3
   subroutine D_MPI_ALLREDUCE_REAL64_R1(sendbuf, recvbuf, count, op, comm, ierror, lacc)
@@ -403,10 +403,10 @@ contains
       xlacc = .false.
     end if
     !$acc host_data use_device(sendbuf, recvbuf) if(xlacc)
-    !$omp target update from(sendbuf,recvbuf) if(xlacc)
+    !$omp target data use_device_addr(sendbuf, recvbuf) if(xlacc)
     call MPI_ALLREDUCE(sendbuf, recvbuf, count, MPI_REAL8, op, comm, ierror)
     !$acc end host_data
-    !$omp target update to(sendbuf,recvbuf) if(xlacc)
+    !$omp end target data
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_ALLREDUCE_REAL64_R1
   subroutine D_MPI_ALLREDUCE_REAL64_R2(sendbuf, recvbuf, count, op, comm, ierror, lacc)
@@ -423,10 +423,10 @@ contains
       xlacc = .false.
     end if
     !$acc host_data use_device(sendbuf, recvbuf) if(xlacc)
-    !$omp target update from(sendbuf,recvbuf) if(xlacc)
+    !$omp target data use_device_addr(sendbuf, recvbuf) if(xlacc)
     call MPI_ALLREDUCE(sendbuf, recvbuf, count, MPI_REAL8, op, comm, ierror)
     !$acc end host_data
-    !$omp target update to(sendbuf,recvbuf) if(xlacc)
+    !$omp end target data
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_ALLREDUCE_REAL64_R2
   subroutine D_MPI_ALLREDUCE_REAL64_R3(sendbuf, recvbuf, count, op, comm, ierror, lacc)
@@ -443,10 +443,10 @@ contains
       xlacc = .false.
     end if
     !$acc host_data use_device(sendbuf, recvbuf) if(xlacc)
-    !$omp target update from(sendbuf,recvbuf) if(xlacc)
+    !$omp target data use_device_addr(sendbuf, recvbuf) if(xlacc)
     call MPI_ALLREDUCE(sendbuf, recvbuf, count, MPI_REAL8, op, comm, ierror)
     !$acc end host_data
-    !$omp target update to(sendbuf,recvbuf) if(xlacc)
+    !$omp end target data
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_ALLREDUCE_REAL64_R3
   subroutine D_MPI_ALLREDUCE_INT32_R2(sendbuf, recvbuf, count, op, comm, ierror, lacc)
@@ -463,10 +463,10 @@ contains
       xlacc = .false.
     end if
     !$acc host_data use_device(sendbuf, recvbuf) if(xlacc)
-    !$omp target update from(sendbuf,recvbuf) if(xlacc)
+    !$omp target data use_device_addr(sendbuf, recvbuf) if(xlacc)
     call MPI_ALLREDUCE(sendbuf, recvbuf, count, MPI_INTEGER4, op, comm, ierror)
     !$acc end host_data
-    !$omp target update to(sendbuf,recvbuf) if(xlacc)
+    !$omp end target data
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_ALLREDUCE_INT32_R2
   subroutine D_MPI_ALLREDUCE_INT32_R1(sendbuf, recvbuf, count, op, comm, ierror, lacc)
@@ -483,10 +483,10 @@ contains
       xlacc = .false.
     end if
     !$acc host_data use_device(sendbuf, recvbuf) if(xlacc)
-    !$omp target update from(sendbuf,recvbuf) if(xlacc)
+    !$omp target data use_device_addr(sendbuf, recvbuf) if(xlacc)
     call MPI_ALLREDUCE(sendbuf, recvbuf, count, MPI_INTEGER4, op, comm, ierror)
     !$acc end host_data
-    !$omp target update to(sendbuf,recvbuf) if(xlacc)
+    !$omp end target data
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_ALLREDUCE_INT32_R1
   subroutine D_MPI_ALLREDUCE_REAL32_IP_S(recvbuf, count, op, comm, ierror)
@@ -539,10 +539,10 @@ contains
       xlacc = .false.
     end if
     !$acc host_data use_device(recvbuf) if(xlacc)
-    !$omp target update from(recvbuf) if(xlacc)
+    !$omp target data use_device_addr(recvbuf) if(xlacc)
     call MPI_ALLREDUCE(MPI_IN_PLACE, recvbuf, count, MPI_REAL8, op, comm, ierror)
     !$acc end host_data
-    !$omp target update to(recvbuf) if(xlacc)
+    !$omp end target data
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_ALLREDUCE_REAL64_IP
   subroutine D_MPI_ALLREDUCE_REAL32_IP_R2(recvbuf, count, op, comm, ierror, lacc)
@@ -559,10 +559,10 @@ contains
       xlacc = .false.
     end if
     !$acc host_data use_device(recvbuf) if(xlacc)
-    !$omp target update from(recvbuf) if(xlacc)
+    !$omp target data use_device_addr(recvbuf) if(xlacc)
     call MPI_ALLREDUCE(MPI_IN_PLACE, recvbuf, count, MPI_REAL4, op, comm, ierror)
     !$acc end host_data
-    !$omp target update to(recvbuf) if(xlacc)
+    !$omp end target data
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_ALLREDUCE_REAL32_IP_R2
   subroutine D_MPI_ALLREDUCE_REAL64_IP_R2(recvbuf, count, op, comm, ierror, lacc)
@@ -579,10 +579,10 @@ contains
       xlacc = .false.
     end if
     !$acc host_data use_device(recvbuf) if(xlacc)
-    !$omp target update from(recvbuf) if(xlacc)
+    !$omp target data use_device_addr(recvbuf) if(xlacc)
     call MPI_ALLREDUCE(MPI_IN_PLACE, recvbuf, count, MPI_REAL8, op, comm, ierror)
     !$acc end host_data
-    !$omp target update to(recvbuf) if(xlacc)
+    !$omp end target data
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_ALLREDUCE_REAL64_IP_R2
 
