@@ -1114,23 +1114,33 @@ contains
     logical, optional :: on_gpu
     real(real32)      :: averl(ks:kf)
     real(real32)      :: avers(ks:kf)
-    integer           :: k
+    integer           :: i,j,k
 
 
     if (present(on_gpu)) then
+#ifndef DALES_AMDGPU
       !$acc kernels default(present)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
       do k = kbs, kes
         aver(k) = aver(k) + sum(var(ibs:ies, jbs:jes, k))
       end do
       !$acc end kernels
-!!$omp end target
+#else
+      !$omp target teams loop defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+      do k = kbs, kes
+         do j = jbs, jes
+            do i = ibs, ies
+               aver(k) = aver(k) + var(i, j, k)
+            end do
+         end do
+      end do
+#endif
+
       !$acc host_data use_device(aver)
-!!$omp target update from(aver)
+      !$omp target update from(aver)
       call MPI_ALLREDUCE(MPI_IN_PLACE, aver, kf-ks+1, MPI_REAL4, MPI_SUM, comm3d, mpierr)
       !$acc end host_data
-!!$omp target update to(aver)
+      !$omp target update to(aver)
     else
       averl       = 0.
       avers       = 0.
@@ -1156,22 +1166,32 @@ contains
     logical, optional :: on_gpu
     real(real64)      :: averl(ks:kf)
     real(real64)      :: avers(ks:kf)
-    integer           :: k
+    integer           :: i,j,k
 
     if (present(on_gpu)) then
+#ifndef DALES_AMDGPU
       !$acc kernels default(present)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
       do k = kbs, kes
         aver(k) = aver(k) + sum(var(ibs:ies, jbs:jes, k))
       end do
       !$acc end kernels
-!!$omp end target
+#else
+      !$omp target teams loop defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+      do k = kbs, kes
+         do j = jbs, jes
+            do i = ibs, ies
+               aver(k) = aver(k) + var(i, j, k)
+            end do
+         end do
+      end do
+#endif
+
       !$acc host_data use_device(aver)
-!!$omp target update from(aver)
+      !$omp target update from(aver)
       call MPI_ALLREDUCE(MPI_IN_PLACE, aver, kf-ks+1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
       !$acc end host_data
-!!$omp target update to(aver)
+      !$omp target update to(aver)
     else
       averl       = 0.
       avers       = 0.
