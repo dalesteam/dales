@@ -281,18 +281,14 @@ end subroutine exitslurb
         k_atm = 1
 
     !        k_atm = topo_top_ind(j,i,0) + 1
-
-
-            ! K = K + J/kg /(J/kg K^-1) * (kg/kg)
             slurb_tile%pt1(i,j)  = thl0(i, j, k_atm) + (rlv/(cp * exnf(k_atm)))  * ql0(i,j,k_atm)
-            slurb_tile%q1(i,j)   = qt0(i, j, k_atm)! - ql0(i, j, k_atm) !TODOSELF BUG
-            ! slurb_tile%vpt1(i,j) = slurb_tile%pt1(i,j) * ( 1.0_field_r + 0.61_field_r * slurb_tile%q1(i,j) )
-            slurb_tile%vpt1(i,j) = thl0(i,j,1)  * (1.+(rv/rd-1.)*qt0(i,j,1))
+            slurb_tile%q1(i,j)   = qt0(i, j, k_atm) - ql0(i, j, k_atm) ! q is q_v in slurb
+            slurb_tile%vpt1(i,j) = slurb_tile%pt1(i,j)  * (1. - (1 - rv/rd)*qt0(i,j,k_atm) - rv/rd * ql0(i,j,k_atm)) ! virtual potential temperature following de Heus (2010)
 
             du = 0.5*(u0(i,j,1) + u0(i+1,j,1)) + cu
             dv = 0.5*(v0(i,j,1) + v0(i,j+1,1)) + cv
-            ! slurb_tile%uv_abs1(i,j) = sqrt(du**2 + dv**2)
-            slurb_tile%uv_abs1(i,j) = max(0.1, sqrt(du**2 + dv**2))! DALES VERSION
+            ! slurb_tile%uv_abs1(i,j) = sqrt(du**2 + dv**2) ! PALM-slurb version
+            slurb_tile%uv_abs1(i,j) = max(0.1, sqrt(du**2 + dv**2)) ! like in the LSM, limit the minimum velocity to 0.1
 
 
 
@@ -810,13 +806,9 @@ end subroutine slurb_update_external_vars
         k_atm = 1 !TODOSELF check vertical levels for density calculations
         k_topo = 1
 
-        ! TODOSELF is ql0 the correct liquid water?
-        ! in PALM pt=liquid water potential temperature
-        ! this implies slurb_tile%pt1 = pt+L/cpexn ql0, slurb_tile%q1 = q - ql, vpt1 = pt1 * (1+0.61q1)
         slurb_tile%pt1(i,j)  = thl0(i, j, k_atm) + (rlv/(cp * exnf(k_atm)))  * ql0(i,j,k_atm)
-        slurb_tile%q1(i,j)   = qt0(i, j, k_atm)! - ql0(i, j, k_atm)
-        slurb_tile%vpt1(i,j) = thl0(i,j,1)  * (1.+(rv/rd-1.)*qt0(i,j,1))
-
+        slurb_tile%q1(i,j)   = qt0(i, j, k_atm) - ql0(i, j, k_atm) !q is q_v in slurb
+        slurb_tile%vpt1(i,j) = slurb_tile%pt1(i,j)  * (1. - (1 - rv/rd)*qt0(i,j,k_atm) - rv/rd * ql0(i,j,k_atm)) ! virtual potential temperature following de Heus (2010)
         
 
         du = 0.5*(u0(i,j,1) + u0(i+1,j,1)) + cu
