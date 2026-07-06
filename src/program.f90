@@ -312,11 +312,11 @@ program DALES
     !------------------------------------------------------
         if (simid == statid) then
           call twostep
-          host_is_updated=.false.; call update_host
           !call coldedge
           call checksim
           call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
           call genstat  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
+          host_is_updated=.false.; call update_host
           call write_profiles
           call radstat
           call lsmstat
