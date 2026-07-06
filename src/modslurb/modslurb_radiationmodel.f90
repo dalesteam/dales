@@ -37,13 +37,13 @@ module modslurb_radiationmodel
     ! ------------
     ! Shortwave and longwave radiation parametrisations of the model.
     !--------------------------------------------------------------------------------------------------!
- SUBROUTINE slurb_radiation_model
+ subroutine slurb_radiation_model
     use modglobal, only : i1,j1,xtime,rtimee,xday,xlat,xlon
     use modraddata, only : zenith_lon_lat
-    INTEGER ::  i            !< loop index
-    INTEGER ::  j            !< loop index
-    INTEGER ::  k_topo       !< k index of topography top
-    INTEGER ::  k_atm        !< k index of the first atmospheric level
+    integer ::  i            !< loop index
+    integer ::  j            !< loop index
+    integer ::  k_topo       !< k index of topography top
+    integer ::  k_atm        !< k index of the first atmospheric level
 
 
 
@@ -68,20 +68,20 @@ module modslurb_radiationmodel
     !
     !--    Update SLUrb internal radiative fluxes based on the new surface temperatures
     !--    Compute the internal longwave radiation interactions at every timestep.
-       CALL calc_rad_lw
+       call calc_rad_lw
 
     !
     !--    Compute the SW radiation fluxesd.
     !--    Do this only if the radiation model has updated SW fluxes at previous timestep,
     !--    as otherwise the computation would just yield the same fluxes.
-    !    IF ( radiation_called  .OR.  first_call )  CALL calc_rad_sw TODOSELF
+    !    if ( radiation_called  .OR.  first_call )  call calc_rad_sw TODOSELF
        call calc_rad_sw
-    ENDDO
+    enddo
    enddo
 
     !
     !-- Private functions and subroutines of slurb_radiation_model.
-    CONTAINS
+    contains
 
 
     !--------------------------------------------------------------------------------------------------!
@@ -89,10 +89,10 @@ module modslurb_radiationmodel
     ! ------------
     !> Computes the LW radiative fluxes and their differentials for the time step.
     !--------------------------------------------------------------------------------------------------!
- SUBROUTINE calc_rad_lw
+ subroutine calc_rad_lw
    use modglobal, only : boltz
    use modraddata, only : lwd
-    REAL(field_r) ::  t_rad_sky  !< Radiative temperature of the sky
+    real(field_r) ::  t_rad_sky  !< Radiative temperature of the sky
 
 
     !
@@ -126,16 +126,16 @@ module modslurb_radiationmodel
                                 slurb_tile%lw_wall_coef(5,i,j) * slurb_tile%t_win_b_0(nzt_win,i,j)**4 +              &
                                 slurb_tile%lw_wall_coef(6,i,j) * slurb_tile%t_road_0(nzt_road,i,j)**4
 
-    IF ( slurb_tile%f_win(i,j) > 0.0_field_r )  THEN
+    if ( slurb_tile%f_win(i,j) > 0.0_field_r )  then
        slurb_tile%rad_lw_net_win_a(i,j) = slurb_tile%lw_win_coef(2,i,j) * slurb_tile%rad_lw_in_urb(i,j) +                  &
                                   slurb_tile%lw_win_coef(4,i,j) * slurb_tile%t_wall_a_0(nzt_wall,i,j)**4 +           &
                                   slurb_tile%lw_win_coef(5,i,j) * slurb_tile%t_wall_b_0(nzt_wall,i,j)**4 +           &
                                   slurb_tile%lw_win_coef(6,i,j) * slurb_tile%t_road_0(nzt_road,i,j)**4
-    ENDIF
+    endif
 
     !
     !-- Inverse for facade B, if anisotropic canyons are used. If not, copy.
-    IF ( slurb_tile%anisotropic_canyon(i,j) )  THEN
+    if ( slurb_tile%anisotropic_canyon(i,j) )  then
     !
     !--    In case of anisotropic canyons, t_wall_b doesn't have dependency on t_wall_a in the
     !--    prognostic equation, and thus it's contribution to longwave balance can be directly added
@@ -151,7 +151,7 @@ module modslurb_radiationmodel
                                    slurb_tile%lw_wall_coef(5,i,j) * slurb_tile%t_win_a_0(nzt_win,i,j)**4 +           &
                                    slurb_tile%lw_wall_coef(6,i,j) * slurb_tile%t_road_0(nzt_road,i,j)**4
 
-       IF ( slurb_tile%f_win(i,j) > 0.0_field_r )  THEN
+       if ( slurb_tile%f_win(i,j) > 0.0_field_r )  then
           slurb_tile%rad_lw_net_win_a(i,j) = slurb_tile%rad_lw_net_win_a(i,j) +                                    &
                                      slurb_tile%lw_win_coef(3,i,j) * slurb_tile%t_win_b_0(nzt_win,i,j)**4
 
@@ -160,13 +160,13 @@ module modslurb_radiationmodel
                                      slurb_tile%lw_win_coef(4,i,j) * slurb_tile%t_wall_b_0(nzt_wall,i,j)**4 +        &
                                      slurb_tile%lw_win_coef(5,i,j) * slurb_tile%t_wall_a_0(nzt_wall,i,j)**4 +        &
                                      slurb_tile%lw_win_coef(6,i,j) * slurb_tile%t_road_0(nzt_road,i,j)**4
-       ENDIF
-    ELSE
+       endif
+    else
        slurb_tile%rad_lw_net_wall_b(i,j) = slurb_tile%rad_lw_net_wall_a(i,j)
        slurb_tile%rad_lw_net_win_b(i,j)  = slurb_tile%rad_lw_net_win_a(i,j)
-    ENDIF
+    endif
 
- END SUBROUTINE calc_rad_lw
+ end subroutine calc_rad_lw
 
 
     !--------------------------------------------------------------------------------------------------!
@@ -174,25 +174,25 @@ module modslurb_radiationmodel
     ! ------------
     !> Computes the SW radiative fluxes for the time step.
     !--------------------------------------------------------------------------------------------------!
- SUBROUTINE calc_rad_sw
+ subroutine calc_rad_sw
    use modraddata, only : swdir, swdif
 
-    REAL(field_r) ::  rad_sw_diff_road      !< incoming diffuse shortwave radiation on road
-    REAL(field_r) ::  rad_sw_diff_wall_a    !< incoming diffuse shortwave radiation on wall A
-    REAL(field_r) ::  rad_sw_diff_wall_b    !< incoming diffuse shortwave radiation on wall B
-    REAL(field_r) ::  rad_sw_dir_road       !< incoming direct shortwave radiation on road
-    REAL(field_r) ::  rad_sw_dir_wall_a     !< incoming direct shortwave radiation on wall A
-    REAL(field_r) ::  rad_sw_dir_wall_b     !< incoming direct shortwave radiation on wall B
-    REAL(field_r) ::  rad_sw_ref_nomin      !< nominator of the sum of reflections at infinity.
-    REAL(field_r) ::  rad_sw_wall_modifier  !< modifier term for anisotropic walls
-    REAL(field_r) ::  theta0                !< critical canyon orientation for road illumination
-    REAL(field_r) ::  w_inf                 !< mean wall reflection at infinity
+    real(field_r) ::  rad_sw_diff_road      !< incoming diffuse shortwave radiation on road
+    real(field_r) ::  rad_sw_diff_wall_a    !< incoming diffuse shortwave radiation on wall A
+    real(field_r) ::  rad_sw_diff_wall_b    !< incoming diffuse shortwave radiation on wall B
+    real(field_r) ::  rad_sw_dir_road       !< incoming direct shortwave radiation on road
+    real(field_r) ::  rad_sw_dir_wall_a     !< incoming direct shortwave radiation on wall A
+    real(field_r) ::  rad_sw_dir_wall_b     !< incoming direct shortwave radiation on wall B
+    real(field_r) ::  rad_sw_ref_nomin      !< nominator of the sum of reflections at infinity.
+    real(field_r) ::  rad_sw_wall_modifier  !< modifier term for anisotropic walls
+    real(field_r) ::  theta0                !< critical canyon orientation for road illumination
+    real(field_r) ::  w_inf                 !< mean wall reflection at infinity
 
 
 
     !
     !-- Check if there is any shortwave radiation to take care of in the first place.
-    IF ( .NOT. ( cos_zenith > tiny(cos_zenith) ) )  THEN
+    if ( .NOT. ( cos_zenith > tiny(cos_zenith) ) )  then
        slurb_tile%rad_sw_in_urb(i,j)     = 0.0_field_r
        slurb_tile%rad_sw_net_urb(i,j)    = 0.0_field_r
        slurb_tile%rad_sw_net_roof(i,j)   = 0.0_field_r
@@ -201,7 +201,7 @@ module modslurb_radiationmodel
        slurb_tile%rad_sw_net_wall_b(i,j) = 0.0_field_r
        slurb_tile%albedo_urb(i,j)        = 0.1_field_r
        RETURN
-    ENDIF
+    endif
 
     ! whatever radiation model we use, shortwave DOWN will always be positive, so we ensure that by taking absolute value.
     slurb_tile%rad_sw_in_urb(i,j) = abs(swdir(i,j,1)) + abs(swdif(i,j,1))
@@ -218,18 +218,18 @@ module modslurb_radiationmodel
     !
     !-- Calculate tangent of the zenith angle, with limiters and safety margins applied to prevent
     !-- floating point overflows and division by zero. Shouldn't affect the physics too much.
-    IF ( ABS( 0.5_field_r * pi - zenith ) < 1.0E-6_field_r )  THEN
-       IF ( 0.5_field_r * pi - zenith >  0.0_field_r )  tan_zenith = TAN( 0.5_field_r * pi - 1.0E-6_field_r )
-       IF ( 0.5_field_r * pi - zenith <= 0.0_field_r )  tan_zenith = TAN( 0.5_field_r * pi + 1.0E-6_field_r )
-    ELSEIF ( ABS( zenith ) < 1.0E-6_field_r )  THEN
+    if ( ABS( 0.5_field_r * pi - zenith ) < 1.0E-6_field_r )  then
+       if ( 0.5_field_r * pi - zenith >  0.0_field_r )  tan_zenith = TAN( 0.5_field_r * pi - 1.0E-6_field_r )
+       if ( 0.5_field_r * pi - zenith <= 0.0_field_r )  tan_zenith = TAN( 0.5_field_r * pi + 1.0E-6_field_r )
+    ELSEIF ( ABS( zenith ) < 1.0E-6_field_r )  then
        tan_zenith = SIGN(1.0, zenith) * TAN( 1.0E-6_field_r )
-    ELSE
+    else
        tan_zenith = TAN( zenith )
-    ENDIF
+    endif
 
     !
     !-- Direct SW radiation received by the walls (and windows), the road and vegetation.
-    IF ( slurb_tile%anisotropic_canyon(i,j) )  THEN
+    if ( slurb_tile%anisotropic_canyon(i,j) )  then
     !
     !--    Lemonsu et al. (2012) Eq. (A1)
     !--    @note There is an error in this equation in the article. It should be that
@@ -242,15 +242,15 @@ module modslurb_radiationmodel
     !--    Lemonsu et al. (2012) Eqs. (A2-A4)
        rad_sw_dir_wall_a = ( abs(swdir(i,j,1)) - rad_sw_dir_road ) * 0.5_field_r / slurb_tile%hw_can(i,j)
 
-       IF ( SIN( azimuth - slurb_tile%theta_can(i,j) ) > 0.0_field_r )  THEN
+       if ( SIN( azimuth - slurb_tile%theta_can(i,j) ) > 0.0_field_r )  then
           rad_sw_dir_wall_a = 2.0_field_r * rad_sw_dir_wall_a
           rad_sw_dir_wall_b = 0.0_field_r
-       ELSE
+       else
           rad_sw_dir_wall_b = 2.0_field_r * rad_sw_dir_wall_a
           rad_sw_dir_wall_a = 0.0_field_r
-       ENDIF
+       endif
 
-    ELSE
+    else
     !
     !--    Revert to the anisotropic integrated solution by Masson (2000).
     !
@@ -266,7 +266,7 @@ module modslurb_radiationmodel
 
        rad_sw_dir_wall_b = rad_sw_dir_wall_a
 
-   ENDIF
+   endif
 
     !
     !-- Diffuse (from sky) solar radiation received by the surfaces.
@@ -309,7 +309,7 @@ module modslurb_radiationmodel
 
     slurb_tile%rad_sw_net_wall_b(i,j) = slurb_tile%rad_sw_net_wall_a(i,j)
 
-    IF ( slurb_tile%f_win(i,j) /= 0.0_field_r  )  THEN
+    if ( slurb_tile%f_win(i,j) /= 0.0_field_r  )  then
        slurb_tile%rad_sw_in_win_a(i,j) =   0.5_field_r * ( rad_sw_dir_wall_a + rad_sw_diff_wall_a               &
                                             + rad_sw_dir_wall_b + rad_sw_diff_wall_b )             &
                                  + slurb_tile%albedo_road(i,j) * slurb_tile%svf_wall(i,j) *                        &
@@ -322,11 +322,11 @@ module modslurb_radiationmodel
 
        slurb_tile%rad_sw_in_win_b(i,j)  = slurb_tile%rad_sw_in_win_a(i,j)
        slurb_tile%rad_sw_net_win_b(i,j) = slurb_tile%rad_sw_net_win_a(i,j)
-    ENDIF
+    endif
 
     !
     !-- Modification of reflected solar radiation for anisotropic street canyons.
-    IF ( slurb_tile%anisotropic_canyon(i,j) )  THEN
+    if ( slurb_tile%anisotropic_canyon(i,j) )  then
        rad_sw_wall_modifier = ( 1.0_field_r + slurb_tile%albedo_wall_win(i,j) *                                 &
                                 ( 1.0_field_r - 2.0_field_r * slurb_tile%svf_wall(i,j) ) /                           &
                                 ( 1.0_field_r + slurb_tile%albedo_wall_win(i,j) *                               &
@@ -341,13 +341,13 @@ module modslurb_radiationmodel
        slurb_tile%rad_sw_net_wall_b(i,j) = slurb_tile%rad_sw_net_wall_b(i,j) -                                     &
                                    ( 1.0_field_r - slurb_tile%albedo_wall(i,j) ) * rad_sw_wall_modifier
 
-       IF ( slurb_tile%f_win(i,j) /= 0.0_field_r )  THEN
+       if ( slurb_tile%f_win(i,j) /= 0.0_field_r )  then
           slurb_tile%rad_sw_in_win_a(i,j)  = slurb_tile%rad_sw_in_win_a(i,j) + rad_sw_wall_modifier
           slurb_tile%rad_sw_net_win_a(i,j) = slurb_tile%rad_sw_in_win_a(i,j) * ( 1.0_field_r - slurb_tile%albedo_win(i,j) )
           slurb_tile%rad_sw_in_win_b(i,j)  = slurb_tile%rad_sw_in_win_b(i,j) - rad_sw_wall_modifier
           slurb_tile%rad_sw_net_win_b(i,j) = slurb_tile%rad_sw_in_win_b(i,j) * ( 1.0_field_r - slurb_tile%albedo_win(i,j) )
-       ENDIF
-    ENDIF
+       endif
+    endif
 
     !
     !-- The upward shortwave radiation is computed as residual of absorbed radiation per uniturban
@@ -375,7 +375,7 @@ module modslurb_radiationmodel
      slurb_tile%albedo_urb(i,j) = slurb_tile%rad_sw_out_urb(i,j) / slurb_tile%rad_sw_in_urb(i,j)
     endif
 
- END SUBROUTINE calc_rad_sw
+ end subroutine calc_rad_sw
 
- END SUBROUTINE slurb_radiation_model
+ end subroutine slurb_radiation_model
 end module modslurb_radiationmodel

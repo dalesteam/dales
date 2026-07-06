@@ -37,14 +37,14 @@ module modslurb_energybalance
     ! ------------
     !> Surface and subsurface energy balance computations of roofs, walls, windows and roads.
     !--------------------------------------------------------------------------------------------------!
- SUBROUTINE slurb_energy_balance_model
+ subroutine slurb_energy_balance_model
    use modglobal, only : i1, j1, cp, rlv, rhow, rk3step, rdt, ep
 
    implicit none
-    INTEGER ::  i       !< loop index (x-direction)
-    INTEGER ::  j       !< loop index (y-direction)
-    INTEGER ::  k_topo  !< k index of topography
-    INTEGER ::  k_atm   !< k index of the first atmospheric level
+    integer ::  i       !< loop index (x-direction)
+    integer ::  j       !< loop index (y-direction)
+    integer ::  k_topo  !< k index of topography
+    integer ::  k_atm   !< k index of the first atmospheric level
 
 
 
@@ -60,10 +60,10 @@ module modslurb_energybalance
 
     !
     !--    Call specific models for all the facets.
-       CALL roof_model
-       CALL wall_model
-       IF ( slurb_tile%f_win(i,j) /= 0.0_field_r )  CALL window_model
-       CALL road_model
+       call roof_model
+       call wall_model
+       if ( slurb_tile%f_win(i,j) /= 0.0_field_r )  call window_model
+       call road_model
       enddo
    enddo
 
@@ -75,22 +75,22 @@ module modslurb_energybalance
     ! ------------
     !> Computes the new surface prognostic temperature for current time step using RK3.
     !--------------------------------------------------------------------------------------------------!
- SUBROUTINE calc_surf_t_p ( t_m, t_0, tt_current, coef_1, coef_2, c )
+ subroutine calc_surf_t_p ( t_m, t_0, tt_current, coef_1, coef_2, c )
     use modglobal, only : rk3step, rdt
     implicit none
 
-    REAL(field_r), INTENT(IN) ::  c       !< total layer heat capacity (J m^-2 K^-1)
-    REAL(field_r), INTENT(IN) ::  coef_1  !< coefficient A in the prognostic equation (W m^-2)
-    REAL(field_r), INTENT(IN) ::  coef_2  !< coefficient B in the prognostic equation (W m^-2 K^-1)
-    REAL(field_r), INTENT(IN) ::  t_m       !< current layer temperature (K)
+    real(field_r), intent(in) ::  c       !< total layer heat capacity (J m^-2 K^-1)
+    real(field_r), intent(in) ::  coef_1  !< coefficient A in the prognostic equation (W m^-2)
+    real(field_r), intent(in) ::  coef_2  !< coefficient B in the prognostic equation (W m^-2 K^-1)
+    real(field_r), intent(in) ::  t_m       !< current layer temperature (K)
 
-    ! REAL(field_r) :: tend
-    REAL(field_r), INTENT(INOUT) ::  t_0  !< new layer temperature (K)
+    ! real(field_r) :: tend
+    real(field_r), intent(inout) ::  t_0  !< new layer temperature (K)
 
-    REAL(field_r), INTENT(INOUT) ::  tt_current  !< current temperature tendency (K s^-1)
+    real(field_r), intent(inout) ::  tt_current  !< current temperature tendency (K s^-1)
 
-    REAL(field_r) ::  tt_new  !< new temperature tendency (K s^-1)
-    REAL(field_r) :: t_new_implicit
+    real(field_r) ::  tt_new  !< new temperature tendency (K s^-1)
+    real(field_r) :: t_new_implicit
 
     real :: rk3coef
     real :: rdt3 
@@ -99,7 +99,7 @@ module modslurb_energybalance
 
     rk3coef = rdt / (4. - dble(rk3step))
     !-- Compute the RK3 tendency for next time step.
-    IF ( c /= 0.0_field_r )  THEN
+    if ( c /= 0.0_field_r )  then
         t_new_implicit = ( ( coef_1 * (rk3coef) + c * t_0 )  / ( c + coef_2 * (rk3coef)  ))
         tt_new = (t_new_implicit - t_0) / rk3coef
         t_0 = t_new_implicit
@@ -107,35 +107,35 @@ module modslurb_energybalance
         tt_current = tt_new
 
 
-    ENDIF
+    endif
 
- END SUBROUTINE calc_surf_t_p
+ end subroutine calc_surf_t_p
     !--------------------------------------------------------------------------------------------------!
     ! Description:
     ! ------------
     !> Computes the new layer prognostic temperature by solving the Fourier diffusion equation.
     !--------------------------------------------------------------------------------------------------!
- SUBROUTINE calc_heat_diffusion ( t_m, t_0, tt_current, c, lambda, t_bc, sw_in, phi )
+ subroutine calc_heat_diffusion ( t_m, t_0, tt_current, c, lambda, t_bc, sw_in, phi )
     use modglobal, only : rk3step, rdt
-    REAL(field_r), INTENT(IN) ::  t_bc  !< temperature boundary condition (K)
+    real(field_r), intent(in) ::  t_bc  !< temperature boundary condition (K)
 
-    REAL(field_r), INTENT(IN), OPTIONAL ::  sw_in  !< incoming shortwave radiation for windows
+    real(field_r), intent(in), OPTIONAL ::  sw_in  !< incoming shortwave radiation for windows
 
-    REAL(field_r), DIMENSION(:), INTENT(IN) ::  c       !< total heat capacity of the layer (J m^-2 K^-1)
-    REAL(field_r), DIMENSION(:), INTENT(IN) ::  lambda  !< total heat conductivity between layers (W m^-2 K^-1)
-    REAL(field_r), DIMENSION(:), INTENT(IN) ::  t_m       !< current time level temperature (K)
+    real(field_r), dimension(:), intent(in) ::  c       !< total heat capacity of the layer (J m^-2 K^-1)
+    real(field_r), dimension(:), intent(in) ::  lambda  !< total heat conductivity between layers (W m^-2 K^-1)
+    real(field_r), dimension(:), intent(in) ::  t_m       !< current time level temperature (K)
 
-    REAL(field_r), DIMENSION(:), INTENT(IN), OPTIONAL ::  phi  !< fraction of incoming shortwave radiation absorbed at window layer
+    real(field_r), dimension(:), intent(in), OPTIONAL ::  phi  !< fraction of incoming shortwave radiation absorbed at window layer
 
-    REAL(field_r), DIMENSION(:), INTENT(INOUT) ::  t_0  !< new layer temperature (K)
+    real(field_r), dimension(:), intent(inout) ::  t_0  !< new layer temperature (K)
 
-    REAL(field_r), DIMENSION(:), INTENT(INOUT) ::  tt_current  !< current temperature tendency (K s^-1)
+    real(field_r), dimension(:), intent(inout) ::  tt_current  !< current temperature tendency (K s^-1)
 
-    INTEGER ::  k  !< material layer loop index
+    integer ::  k  !< material layer loop index
 
-    REAL(field_r) ::  tt_new  !<  new temperature tendency (K s^-1)
+    real(field_r) ::  tt_new  !<  new temperature tendency (K s^-1)
 
-    REAL, ALLOCATABLE :: temp1(:)
+    real, allocatable :: temp1(:)
 
     real :: rk3coef
 
@@ -144,11 +144,11 @@ module modslurb_energybalance
     !
     !-- Loop through non-boundary layers of the material.
     !-- @todo Split loop into three to move IFs out for better vecotrization.
-    DO  k = LBOUND( t_0, 1 ) + 1, UBOUND( t_0, 1 )
+    do  k = LBOUND( t_0, 1 ) + 1, UBOUND( t_0, 1 )
     !
     !--    New prognostic layer temperature.
     !--    Compute the t between neighbouring layers.
-      IF ( k /= UBOUND( t_0 , 1 ) )  THEN
+      if ( k /= UBOUND( t_0 , 1 ) )  then
          tt_new = ( 1.0_field_r / c(k) ) * ( lambda(k) * ( t_0(k+1) - t_0(k) ) +                           &
                   lambda(k-1) * ( t_0(k-1) - t_0(k) ) )
       else
@@ -159,17 +159,17 @@ module modslurb_energybalance
       endif
       !
       !--    Add tendency from absorbed shortwave radiation.
-      IF ( PRESENT( sw_in ) )  THEN
+      if ( PRESENT( sw_in ) )  then
           tt_new = tt_new + ( 1.0_field_r / c(k) ) * sw_in * phi(k)
-      ENDIF
+      endif
 
       t_0(k) = t_m(k) + (rk3coef) * ( tt_new )
 
       tt_current(k) = tt_new
 
-    ENDDO
+    enddo
 
- END SUBROUTINE calc_heat_diffusion
+ end subroutine calc_heat_diffusion
 
 
 
@@ -178,17 +178,17 @@ module modslurb_energybalance
     ! ------------
     !> Models the surface energy balance and subsurface heat diffusion for roofs.
     !--------------------------------------------------------------------------------------------------!
- SUBROUTINE roof_model
+ subroutine roof_model
    use modglobal, only : rk3step, rdt
-    REAL(field_r) ::  coef_1              !< coefficient A of the prognostic equation
-    REAL(field_r) ::  coef_2              !< coefficient B of the prognostic equation
-    REAL(field_r) ::  dq_s_dt             !< water vapour mixing ratio tendency
-    REAL(field_r) ::  e_s                 !< saturation water vapour pressure
-    REAL(field_r) ::  e_s_dt              !< saturation water vapour pressure tendency
-    REAL(field_r) ::  f_shf               !< factor for the roof sensible heat flux (W m^-2 K^-1)
-    REAL(field_r) ::  f_qsws_liq          !< factor for the latent heat flux from/to liquid water reservoir (W m^-2)
-    REAL(field_r) ::  tm_new              !< new liquid water reservoir tendency (m s^-1)
-    REAL(field_r) ::  tm_new_limited      !< new liquid water reservoir tendency limited by the max reservoir (m s^-1)
+    real(field_r) ::  coef_1              !< coefficient A of the prognostic equation
+    real(field_r) ::  coef_2              !< coefficient B of the prognostic equation
+    real(field_r) ::  dq_s_dt             !< water vapour mixing ratio tendency
+    real(field_r) ::  e_s                 !< saturation water vapour pressure
+    real(field_r) ::  e_s_dt              !< saturation water vapour pressure tendency
+    real(field_r) ::  f_shf               !< factor for the roof sensible heat flux (W m^-2 K^-1)
+    real(field_r) ::  f_qsws_liq          !< factor for the latent heat flux from/to liquid water reservoir (W m^-2)
+    real(field_r) ::  tm_new              !< new liquid water reservoir tendency (m s^-1)
+    real(field_r) ::  tm_new_limited      !< new liquid water reservoir tendency limited by the max reservoir (m s^-1)
     real :: rk3coef
 
     rk3coef = rdt / (4. - dble(rk3step))
@@ -201,7 +201,7 @@ module modslurb_energybalance
     !
     !-- Compute the nominator and denominator coefficients in
     !-- the prognostic equation for the moist case.
-    IF ( moist_physics )  THEN
+    if ( moist_physics )  then
     !
     !--    Computation of factor for the latent heat flux due to
     !--    liquid water reservoir evaporation/condensation.
@@ -210,11 +210,11 @@ module modslurb_energybalance
     !
     !--    In case of evaporation, evaporate only for the liquid water coverage area,
     !--    in case of condensation, use the total surface.
-       IF ( slurb_tile%qs_roof(i,j) > slurb_tile%q1(i,j) )  THEN
+       if ( slurb_tile%qs_roof(i,j) > slurb_tile%q1(i,j) )  then
           f_qsws_liq = rho_lv * slurb_tile%c_liq_roof(i,j) / slurb_tile%rah_roof(i,j)
-       ELSE
+       else
           f_qsws_liq = rho_lv / slurb_tile%rah_roof(i,j)
-       ENDIF
+       endif
 
        e_s_dt = e_s * ( 17.62_field_r / ( slurb_tile%t_roof_0(nzt_roof,i,j) -  29.65_field_r ) -                       &
                         17.62_field_r * ( slurb_tile%t_roof_0(nzt_roof,i,j) - 273.15_field_r ) /                       &
@@ -237,7 +237,7 @@ module modslurb_energybalance
                 + f_qsws_liq * dq_s_dt                                                             &
                 + slurb_tile%conductivity_roof(nzt_roof,i,j)
 
-    ELSE
+    else
     !
     !-- The coefficients for the dry prognostic equation for temperature.
        coef_1 = slurb_tile%rad_sw_net_roof(i,j) + slurb_tile%rad_lw_net_roof(i,j)                                  &
@@ -248,14 +248,14 @@ module modslurb_energybalance
        coef_2 = -4.0_field_r * slurb_tile%lw_roof_coef(1,i,j) * slurb_tile%t_roof_0(nzt_roof,i,j)**3                      &
                 + f_shf * (1 / exnf(k_topo))                                                          &
                 + slurb_tile%conductivity_roof(nzt_roof,i,j)
-    ENDIF
+    endif
 
-    CALL calc_surf_t_p( slurb_tile%t_roof_m(nzt_roof,i,j), slurb_tile%t_roof_0(nzt_roof,i,j),                        &
+    call calc_surf_t_p( slurb_tile%t_roof_m(nzt_roof,i,j), slurb_tile%t_roof_0(nzt_roof,i,j),                        &
                         slurb_tile%tt_roof(nzt_roof,i,j), coef_1, coef_2, slurb_tile%c_roof(nzt_roof,i,j) )
 
     !
     !-- Explicit solution of the Fourier heat equation for the subsurface layers.
-    CALL calc_heat_diffusion( slurb_tile%t_roof_m(:,i,j), slurb_tile%t_roof_0(:,i,j), slurb_tile%tt_roof(:,i,j),             &
+    call calc_heat_diffusion( slurb_tile%t_roof_m(:,i,j), slurb_tile%t_roof_0(:,i,j), slurb_tile%tt_roof(:,i,j),             &
                               slurb_tile%c_roof(:,i,j), slurb_tile%conductivity_roof(:,i,j), slurb_tile%t_indoor(i,j) )
 
     !
@@ -276,7 +276,7 @@ module modslurb_energybalance
 
     !
     !-- Compute the water vapor flux from/to liquid water reservoir and the prognostic reservoir level.
-    IF ( moist_physics )  THEN
+    if ( moist_physics )  then
        slurb_tile%qsws_liq_roof(i,j) = -f_qsws_liq * ( slurb_tile%q1(i,j) - slurb_tile%qs_roof(i,j) +                      &
                                                dq_s_dt * slurb_tile%t_roof_m(nzt_roof,i,j) -                 &
                                                dq_s_dt * slurb_tile%t_roof_0(nzt_roof,i,j)                 &
@@ -291,13 +291,13 @@ module modslurb_energybalance
        if (imicro == 0 .or. imicro == 1) then
             slurb_tile%qsws_liq_roof(i,j) = slurb_tile%qsws_roof(i,j)
         else
-            !   IF ( slurb_tile%m_liq_roof_0(i,j) < m_liq_max_roof )  THEN
+            !   if ( slurb_tile%m_liq_roof_0(i,j) < m_liq_max_roof )  then
             slurb_tile%tm_roof_precep(i,j) = precep(i,j,k_atm)
             slurb_tile%qsws_liq_roof(i,j) = (slurb_tile%qsws_roof(i,j) - slurb_tile%tm_roof_precep(i,j) * rhof(k_atm) * rlv)
   
 
           !todoself even morme assume precipitation
-       ENDIF
+       endif
           !todoself assume precipitation
     !
     !--    Compute the total latent heat flux.
@@ -338,9 +338,9 @@ module modslurb_energybalance
        slurb_tile%q_roof(i,j) = q_surf( slurb_tile%qs_roof(i,j), slurb_tile%rah_roof(i,j), slurb_tile%q1(i,j), f_qsws_liq )
        slurb_tile%vpt_roof(i,j) = slurb_tile%pt_roof(i,j) * ( 1.0_field_r + 0.61_field_r * slurb_tile%q_roof(i,j) )
 
-    ENDIF
+    endif
 
- END SUBROUTINE roof_model
+ end subroutine roof_model
 
 
     !--------------------------------------------------------------------------------------------------!
@@ -348,17 +348,17 @@ module modslurb_energybalance
     ! ------------
     !> Models the surface energy balance and subsurface heat diffusion for roads.
     !--------------------------------------------------------------------------------------------------!
- SUBROUTINE road_model
+ subroutine road_model
    use modglobal, only : rk3step, rdt
-    REAL(field_r) ::  coef_1              !< coefficient A of the prognostic equation
-    REAL(field_r) ::  coef_2              !< coefficient B of the prognostic equation
-    REAL(field_r) ::  dq_s_dt             !< water vapour mixing ratio tendency
-    REAL(field_r) ::  e_s                 !< saturation water vapour pressure
-    REAL(field_r) ::  e_s_dt              !< saturation water vapour pressure tendency
-    REAL(field_r) ::  f_shf               !< factor for the road sensible heat flux (W m^-2 K^-1)
-    REAL(field_r) ::  f_qsws_liq          !< factor for the latent heat flux from/to liquid water reservoir (W m^-2)
-    REAL(field_r) ::  tm_new              !< new liquid water reservoir tendency (m s^-1)
-    REAL(field_r) ::  tm_new_limited      !< new liquid water reservoir tendency limited by the max reservoir (m s^-1)
+    real(field_r) ::  coef_1              !< coefficient A of the prognostic equation
+    real(field_r) ::  coef_2              !< coefficient B of the prognostic equation
+    real(field_r) ::  dq_s_dt             !< water vapour mixing ratio tendency
+    real(field_r) ::  e_s                 !< saturation water vapour pressure
+    real(field_r) ::  e_s_dt              !< saturation water vapour pressure tendency
+    real(field_r) ::  f_shf               !< factor for the road sensible heat flux (W m^-2 K^-1)
+    real(field_r) ::  f_qsws_liq          !< factor for the latent heat flux from/to liquid water reservoir (W m^-2)
+    real(field_r) ::  tm_new              !< new liquid water reservoir tendency (m s^-1)
+    real(field_r) ::  tm_new_limited      !< new liquid water reservoir tendency limited by the max reservoir (m s^-1)
     real :: rk3coef
 
     rk3coef = rdt / (4. - dble(rk3step))
@@ -369,7 +369,7 @@ module modslurb_energybalance
     !
     !-- Compute the nominator and denominator coefficients in
     !-- the prognostic equation for the moist case.
-    IF ( moist_physics )  THEN
+    if ( moist_physics )  then
     !
     !--    Computation of factor for the latent heat flux due to
     !--    liquid water reservoir evaporation/condensation.
@@ -378,11 +378,11 @@ module modslurb_energybalance
     !
     !--    In case of evaporation, evaporate only for the liquid water coverage area,
     !--    in case of condensation, use the total surface.
-       IF ( slurb_tile%qs_road(i,j) > slurb_tile%q_can_0(i,j) )  THEN
+       if ( slurb_tile%qs_road(i,j) > slurb_tile%q_can_0(i,j) )  then
           f_qsws_liq = rho_lv * slurb_tile%c_liq_road(i,j) / slurb_tile%rah_road(i,j)
-       ELSE
+       else
           f_qsws_liq = rho_lv / slurb_tile%rah_road(i,j)
-       ENDIF
+       endif
 
        e_s_dt = e_s * ( 17.62_field_r / ( slurb_tile%t_road_0(nzt_road,i,j) - 29.65_field_r ) -                        &
                         17.62_field_r * ( slurb_tile%t_road_0(nzt_road,i,j) - 273.15_field_r ) /                       &
@@ -406,7 +406,7 @@ module modslurb_energybalance
                 + f_qsws_liq * dq_s_dt                                                             &
                 + slurb_tile%conductivity_road(nzt_road,i,j)
 
-    ELSE
+    else
     !
     !--    The coefficients for the dry prognostic equation for temperature.
        coef_1 = slurb_tile%rad_sw_net_road(i,j) + slurb_tile%rad_lw_net_road(i,j)                                  &
@@ -417,14 +417,14 @@ module modslurb_energybalance
        coef_2 = -4.0_field_r * slurb_tile%lw_road_coef(1,i,j) * slurb_tile%t_road_0(nzt_road,i,j)**3                      &
                 + f_shf                                                                            &
                 + slurb_tile%conductivity_road(nzt_road,i,j)
-    ENDIF
+    endif
 
-    CALL calc_surf_t_p( slurb_tile%t_road_m(nzt_road,i,j), slurb_tile%t_road_0(nzt_road,i,j),                        &
+    call calc_surf_t_p( slurb_tile%t_road_m(nzt_road,i,j), slurb_tile%t_road_0(nzt_road,i,j),                        &
                         slurb_tile%tt_road(nzt_road,i,j), coef_1, coef_2, slurb_tile%c_road(nzt_road,i,j) )
 
     !
     !-- Heat diffusion through subsurface layers.
-    CALL calc_heat_diffusion( slurb_tile%t_road_m(:,i,j), slurb_tile%t_road_0(:,i,j), slurb_tile%tt_road(:,i,j),             &
+    call calc_heat_diffusion( slurb_tile%t_road_m(:,i,j), slurb_tile%t_road_0(:,i,j), slurb_tile%tt_road(:,i,j),             &
                               slurb_tile%c_road(:,i,j), slurb_tile%conductivity_road(:,i,j), slurb_tile%t_soil(i,j) )
 
 
@@ -444,7 +444,7 @@ module modslurb_energybalance
 
     !
     !-- Compute the water vapor flux from/to liquid water reservoir and the prognostic reservoir level.
-    IF ( moist_physics )  THEN
+    if ( moist_physics )  then
        slurb_tile%qsws_liq_road(i,j) = -f_qsws_liq * ( slurb_tile%q_can_0(i,j) - slurb_tile%qs_road(i,j) +                   &
                                                dq_s_dt * slurb_tile%t_road_m(nzt_road,i,j) -                 &
                                                dq_s_dt * slurb_tile%t_road_0(nzt_road,i,j)                 &
@@ -455,16 +455,16 @@ module modslurb_energybalance
     !--    Modification due to precipitiation. If the liquid reservoir is full, the liquid water
     !--    is assumed to be drained into the drainage system (liquid water is not conserved).
     !--    The precipitation flux is not included in the surface-atmosphere latent heat flux (qsws).
-    if (imicro == 0 .or. imicro == 1) then ! this should be the same as IF PRECIPITATION
+    if (imicro == 0 .or. imicro == 1) then ! this should be the same as if PRECIPITATION
         slurb_tile%qsws_liq_road(i,j) = slurb_tile%qsws_road(i,j)
     else
-        ! IF ( slurb_tile%m_liq_road_0(i,j) < m_liq_max_road )  THEN
+        ! if ( slurb_tile%m_liq_road_0(i,j) < m_liq_max_road )  then
             slurb_tile%tm_road_precep(i,j) = precep(i,j,k_atm)
             slurb_tile%qsws_liq_road(i,j) = (slurb_tile%qsws_road(i,j) - slurb_tile%tm_road_precep(i,j) * rhof(k_atm) * rlv)
-        ! ENDIF
+        ! endif
 
           !todoself even morme assume precipitation
-    ENDIF
+    endif
        ! liquid water reservoir is in m^3/m^2, rain rate in m/s (m^3/m^2 /s)
     !
     !--    Compute the total latent heat flux.
@@ -500,9 +500,9 @@ module modslurb_energybalance
        slurb_tile%q_road(i,j) = q_surf( slurb_tile%qs_road(i,j), slurb_tile%rah_road(i,j), slurb_tile%q1(i,j), f_qsws_liq )
        slurb_tile%vpt_road(i,j) = slurb_tile%pt_road(i,j) * ( 1.0_field_r + 0.61_field_r * slurb_tile%q_road(i,j) )
 
-    ENDIF
+    endif
 
- END SUBROUTINE road_model
+ end subroutine road_model
 
 
     !--------------------------------------------------------------------------------------------------!
@@ -510,29 +510,29 @@ module modslurb_energybalance
     ! ------------
     !> Models the surface energy balance and subsurface heat diffusion for both walls.
     !--------------------------------------------------------------------------------------------------!
- SUBROUTINE wall_model
+ subroutine wall_model
    
 
-   REAL(field_r) ::  coef_1   !< coefficient A of the prognostic equation
-   REAL(field_r) ::  coef_2   !< coefficient B of the prognostic equation
-   REAL(field_r) ::  f_shf_a  !< factor for the wall surface heat flux (W m^-2 K^-1)
-   REAL(field_r) ::  f_shf_b  !< factor for the wall surface heat flux (W m^-2 K^-1)
+   real(field_r) ::  coef_1   !< coefficient A of the prognostic equation
+   real(field_r) ::  coef_2   !< coefficient B of the prognostic equation
+   real(field_r) ::  f_shf_a  !< factor for the wall surface heat flux (W m^-2 K^-1)
+   real(field_r) ::  f_shf_b  !< factor for the wall surface heat flux (W m^-2 K^-1)
 
 
-    IF ( facade_rah_doe )  THEN
+    if ( facade_rah_doe )  then
        f_shf_a = rho_cp / slurb_tile%rah_wall_a(i,j)
-       IF ( slurb_tile%anisotropic_canyon(i,j) )  f_shf_b = rho_cp / slurb_tile%rah_wall_b(i,j)
-    ELSE
+       if ( slurb_tile%anisotropic_canyon(i,j) )  f_shf_b = rho_cp / slurb_tile%rah_wall_b(i,j)
+    else
        f_shf_a = rho_cp / slurb_tile%rah_facade(i,j)
-       IF ( slurb_tile%anisotropic_canyon(i,j) )  f_shf_b = f_shf_a
-    ENDIF
+       if ( slurb_tile%anisotropic_canyon(i,j) )  f_shf_b = f_shf_a
+    endif
 
     !
     !-- The coefficients for the moist prognostic equation for temperature. For the longwave balance,
     !-- both direct emission and the effect of backreflection are linearized. The linearization depends
     !-- if the canyon is isotropic or not as an average backreflection is used for isotropic canyons.
     !-- We consider the walls are dry in all cases, so moist physical processes are not considered.
-    IF ( slurb_tile%anisotropic_canyon(i,j) )  THEN
+    if ( slurb_tile%anisotropic_canyon(i,j) )  then
        coef_1 = slurb_tile%rad_sw_net_wall_a(i,j) + slurb_tile%rad_lw_net_wall_a(i,j)                              &
                 - 3.0_field_r * slurb_tile%lw_wall_coef(1,i,j) * slurb_tile%t_wall_a_0(nzt_wall,i,j)**4                   &
                 + f_shf_a * slurb_tile%t_can_0(i,j)                                                          &
@@ -542,7 +542,7 @@ module modslurb_energybalance
                 + f_shf_a                                                                          &
                 + slurb_tile%conductivity_wall(nzt_wall,i,j)
 
-       CALL calc_surf_t_p(slurb_tile%t_wall_a_m(nzt_wall,i,j), slurb_tile%t_wall_a_0(nzt_wall,i,j),                  &
+       call calc_surf_t_p(slurb_tile%t_wall_a_m(nzt_wall,i,j), slurb_tile%t_wall_a_0(nzt_wall,i,j),                  &
                           slurb_tile%tt_wall_a(nzt_wall,i,j), coef_1, coef_2, slurb_tile%c_wall(nzt_wall,i,j) )
 
        coef_1 = slurb_tile%rad_sw_net_wall_b(i,j) + slurb_tile%rad_lw_net_wall_b(i,j)                              &
@@ -554,9 +554,9 @@ module modslurb_energybalance
                 + f_shf_b                                                                          &
                 + slurb_tile%conductivity_wall(nzt_wall,i,j)
 
-       CALL calc_surf_t_p( slurb_tile%t_wall_b_m(nzt_wall,i,j), slurb_tile%t_wall_b_0(nzt_wall,i,j),                 &
+       call calc_surf_t_p( slurb_tile%t_wall_b_m(nzt_wall,i,j), slurb_tile%t_wall_b_0(nzt_wall,i,j),                 &
                            slurb_tile%tt_wall_b(nzt_wall,i,j), coef_1, coef_2, slurb_tile%c_wall(nzt_wall,i,j) )
-    ELSE
+    else
     !
     !--    In case of isotropic canyon, wall A and B temperatures are averaged, and thus the prognostic
     !--    equation for t_wall_a is representative of both of the walls. Thus both the terms for
@@ -573,15 +573,15 @@ module modslurb_energybalance
                 + f_shf_a                                                                          &
                 + slurb_tile%conductivity_wall(nzt_wall,i,j)
 
-       CALL calc_surf_t_p( slurb_tile%t_wall_a_m(nzt_wall,i,j), slurb_tile%t_wall_a_0(nzt_wall,i,j),                 &
+       call calc_surf_t_p( slurb_tile%t_wall_a_m(nzt_wall,i,j), slurb_tile%t_wall_a_0(nzt_wall,i,j),                 &
                            slurb_tile%tt_wall_a(nzt_wall,i,j), coef_1, coef_2, slurb_tile%c_wall(nzt_wall,i,j) )
-    ENDIF
+    endif
     slurb_tile%pt_wall_a(i,j)  = slurb_tile%t_wall_a_0(nzt_wall,i,j) * (1 / exnf(k_topo))
     slurb_tile%shf_wall_a(i,j) = -f_shf_a * ( slurb_tile%t_can_m(i,j) - slurb_tile%t_wall_a_0(nzt_wall,i,j) )
 
     !
     !-- Heat diffusion through subsurface layers.
-    CALL calc_heat_diffusion( slurb_tile%t_wall_a_m(:,i,j), slurb_tile%t_wall_a_0(:,i,j), slurb_tile%tt_wall_a(:,i,j),       &
+    call calc_heat_diffusion( slurb_tile%t_wall_a_m(:,i,j), slurb_tile%t_wall_a_0(:,i,j), slurb_tile%tt_wall_a(:,i,j),       &
                               slurb_tile%c_wall(:,i,j), slurb_tile%conductivity_wall(:,i,j), slurb_tile%t_indoor(i,j) )
 
     slurb_tile%ghf_wall_a(i,j) = slurb_tile%conductivity_wall(nzb_wall,i,j) *                                      &
@@ -589,7 +589,7 @@ module modslurb_energybalance
 
     !
     !-- Same treatment for wall B if this is an anisotropic canyon, otherwise copy.
-    IF ( slurb_tile%anisotropic_canyon(i,j) )  THEN
+    if ( slurb_tile%anisotropic_canyon(i,j) )  then
        slurb_tile%pt_wall_b(i,j)  = slurb_tile%t_wall_b_0(nzt_wall,i,j) * (1 / exnf(k_topo))
        slurb_tile%shf_wall_b(i,j) = -f_shf_b * ( slurb_tile%t_can_m(i,j) - slurb_tile%t_wall_b_0(nzt_wall,i,j) )
 
@@ -597,7 +597,7 @@ module modslurb_energybalance
        slurb_tile%ghf_wall_b(i,j) = slurb_tile%conductivity_wall(nzb_wall,i,j) *                                   &
                             ( slurb_tile%t_wall_b_0(nzb_wall,i,j) - slurb_tile%t_indoor(i,j) )
 
-    CALL calc_heat_diffusion( slurb_tile%t_wall_b_m(:,i,j), slurb_tile%t_wall_b_0(:,i,j), slurb_tile%tt_wall_b(:,i,j),    &
+    call calc_heat_diffusion( slurb_tile%t_wall_b_m(:,i,j), slurb_tile%t_wall_b_0(:,i,j), slurb_tile%tt_wall_b(:,i,j),    &
         slurb_tile%c_wall(:,i,j), slurb_tile%conductivity_wall(:,i,j), slurb_tile%t_indoor(i,j) )
     !
     !--    Update longwave radiative fluxes following linearization.
@@ -612,7 +612,7 @@ module modslurb_energybalance
                                    - 4.0_field_r * slurb_tile%lw_wall_coef(1,i,j)                               &
                                       * slurb_tile%t_wall_b_m(nzt_wall,i,j)**3                               &
                                    * ( slurb_tile%t_wall_b_m(nzt_wall,i,j) - slurb_tile%t_wall_b_0(nzt_wall,i,j) )
-    ELSE
+    else
     !
     !--    Copy all layers including the surface for wall B.
        slurb_tile%t_wall_b_0(:,i,j) = slurb_tile%t_wall_a_0(:,i,j)
@@ -632,9 +632,9 @@ module modslurb_energybalance
                                    * slurb_tile%t_wall_a_m(nzt_wall,i,j)**3                                  &
                                    * ( slurb_tile%t_wall_a_m(nzt_wall,i,j) - slurb_tile%t_wall_a_0(nzt_wall,i,j) )
        slurb_tile%rad_lw_net_wall_b(i,j) = slurb_tile%rad_lw_net_wall_a(i,j)
-    ENDIF
+    endif
 
- END SUBROUTINE wall_model
+ end subroutine wall_model
 
 
     !--------------------------------------------------------------------------------------------------!
@@ -642,27 +642,27 @@ module modslurb_energybalance
     ! ------------
     !> Models the surface energy balance, SW transmission and subsurface heat diffusion for windows.
     !--------------------------------------------------------------------------------------------------!
- SUBROUTINE window_model
+ subroutine window_model
 
-    REAL(field_r) ::  coef_1   !< coefficient A of the prognostic equation
-    REAL(field_r) ::  coef_2   !< coefficient B of the prognostic equation
-    REAL(field_r) ::  f_shf_a  !< factor for the window surface heat flux
-    REAL(field_r) ::  f_shf_b  !< factor for the window surface heat flux
+    real(field_r) ::  coef_1   !< coefficient A of the prognostic equation
+    real(field_r) ::  coef_2   !< coefficient B of the prognostic equation
+    real(field_r) ::  f_shf_a  !< factor for the window surface heat flux
+    real(field_r) ::  f_shf_b  !< factor for the window surface heat flux
 
 
-    IF ( facade_rah_doe )  THEN
+    if ( facade_rah_doe )  then
        f_shf_a = rho_cp / slurb_tile%rah_win_a(i,j)
-       IF ( slurb_tile%anisotropic_canyon(i,j) )  f_shf_b = rho_cp / slurb_tile%rah_win_b(i,j)
-    ELSE
+       if ( slurb_tile%anisotropic_canyon(i,j) )  f_shf_b = rho_cp / slurb_tile%rah_win_b(i,j)
+    else
        f_shf_a = rho_cp / slurb_tile%rah_facade(i,j)
-       IF ( slurb_tile%anisotropic_canyon(i,j) )  f_shf_b = f_shf_a
-    ENDIF
+       if ( slurb_tile%anisotropic_canyon(i,j) )  f_shf_b = f_shf_a
+    endif
 
     !
     !-- Computation of the prognostic equation similarly to the walls, with exception of added
     !-- shortwave transmission component for surface and subsurface layers. Explanatory comments
     !-- are not repeated from the wall model, comments reflect differences specific to windows.
-    IF ( slurb_tile%anisotropic_canyon(i,j) )  THEN
+    if ( slurb_tile%anisotropic_canyon(i,j) )  then
     !
     !--    For windows, some of the incoming shortwave radiation is transmitted through the material.
        coef_1 = slurb_tile%rad_sw_net_win_a(i,j) * slurb_tile%absorption_win(nzt_win,i,j)                          &
@@ -675,7 +675,7 @@ module modslurb_energybalance
                 + f_shf_a                                                                          &
                 + slurb_tile%conductivity_win(nzt_win,i,j)
 
-       CALL calc_surf_t_p( slurb_tile%t_win_a_m(nzt_win,i,j), slurb_tile%t_win_a_0(nzt_win,i,j),                     &
+       call calc_surf_t_p( slurb_tile%t_win_a_m(nzt_win,i,j), slurb_tile%t_win_a_0(nzt_win,i,j),                     &
                            slurb_tile%tt_win_a(nzt_win,i,j), coef_1, coef_2, slurb_tile%c_win(nzt_win,i,j) )
 
        coef_1 = slurb_tile%rad_sw_net_win_b(i,j) * slurb_tile%absorption_win(nzt_win,i,j)                          &
@@ -688,10 +688,10 @@ module modslurb_energybalance
                 + f_shf_b                                                                          &
                 + slurb_tile%conductivity_win(nzt_win,i,j)
 
-       CALL calc_surf_t_p( slurb_tile%t_win_b_m(nzt_win,i,j), slurb_tile%t_win_b_0(nzt_win,i,j),                     &
+       call calc_surf_t_p( slurb_tile%t_win_b_m(nzt_win,i,j), slurb_tile%t_win_b_0(nzt_win,i,j),                     &
                            slurb_tile%tt_win_b(nzt_win,i,j), coef_1, coef_2, slurb_tile%c_win(nzt_win,i,j) )
 
-    ELSE
+    else
        coef_1 = slurb_tile%rad_sw_net_win_a(i,j) * slurb_tile%absorption_win(nzt_win,i,j)                          &
                 + slurb_tile%rad_lw_net_win_a(i,j)                                                         &
                 - 3.0_field_r * ( slurb_tile%lw_win_coef(1,i,j) + slurb_tile%lw_win_coef(3,i,j) )                       &
@@ -704,9 +704,9 @@ module modslurb_energybalance
                 + f_shf_a                                                                          &
                 + slurb_tile%conductivity_win(nzt_win,i,j)
 
-       CALL calc_surf_t_p( slurb_tile%t_win_a_m(nzt_win,i,j), slurb_tile%t_win_a_0(nzt_win,i,j),                     &
+       call calc_surf_t_p( slurb_tile%t_win_a_m(nzt_win,i,j), slurb_tile%t_win_a_0(nzt_win,i,j),                     &
                            slurb_tile%tt_win_a(nzt_win,i,j), coef_1, coef_2, slurb_tile%c_win(nzt_win,i,j) )
-    ENDIF
+    endif
     !
     !-- The transmitted shortwave radiation is included also in the prognostic equations for material
     !-- subsurface temperatures.
@@ -715,7 +715,7 @@ module modslurb_energybalance
 
 
 
-    CALL calc_heat_diffusion( slurb_tile%t_win_a_m(:,i,j), slurb_tile%t_win_a_0(:,i,j),                              &
+    call calc_heat_diffusion( slurb_tile%t_win_a_m(:,i,j), slurb_tile%t_win_a_0(:,i,j),                              &
                               slurb_tile%tt_win_a(:,i,j), slurb_tile%c_win(:,i,j),                                 &
                               slurb_tile%conductivity_win(:,i,j), slurb_tile%t_indoor(i,j),                        &
                               slurb_tile%rad_sw_net_win_a(i,j), slurb_tile%absorption_win(:,i,j) )
@@ -724,12 +724,12 @@ module modslurb_energybalance
     slurb_tile%ghf_win_a(i,j) = slurb_tile%conductivity_win(nzb_win,i,j) *                                         &
                         ( slurb_tile%t_win_a_0(nzb_win,i,j) - slurb_tile%t_indoor(i,j) )
 
-    IF ( slurb_tile%anisotropic_canyon(i,j) )  THEN
+    if ( slurb_tile%anisotropic_canyon(i,j) )  then
        slurb_tile%pt_win_b(i,j)  = slurb_tile%t_win_b_0(nzt_win,i,j) * (1 / exnf(k_topo))
        slurb_tile%shf_win_b(i,j) = -f_shf_b * ( slurb_tile%t_can_m(i,j) - slurb_tile%t_win_b_0(nzt_win,i,j) )
 
 
-       CALL calc_heat_diffusion( slurb_tile%t_win_b_m(:,i,j), slurb_tile%t_win_b_0(:,i,j),                           &
+       call calc_heat_diffusion( slurb_tile%t_win_b_m(:,i,j), slurb_tile%t_win_b_0(:,i,j),                           &
                                  slurb_tile%tt_win_b(:,i,j), slurb_tile%c_win(:,i,j),                              &
                                  slurb_tile%conductivity_win(:,i,j), slurb_tile%t_indoor(i,j),                     &
                                  slurb_tile%rad_sw_net_win_b(i,j), slurb_tile%absorption_win(:,i,j) )
@@ -746,7 +746,7 @@ module modslurb_energybalance
                                   + slurb_tile%lw_win_coef(1,i,j) * slurb_tile%t_win_b_m(nzt_win,i,j)**4             &
                                   - 4.0_field_r * slurb_tile%lw_win_coef(1,i,j) * slurb_tile%t_win_b_m(nzt_win,i,j)**3    &
                                      * ( slurb_tile%t_win_b_m(nzt_win,i,j) - slurb_tile%t_win_b_0(nzt_win,i,j) )
-    ELSE
+    else
        slurb_tile%t_win_b_0(:,i,j) = slurb_tile%t_win_a_0(:,i,j)
        slurb_tile%tt_win_b(:,i,j)  = slurb_tile%tt_win_a(:,i,j)
        slurb_tile%pt_win_b(i,j)    = slurb_tile%pt_win_a(i,j)
@@ -760,9 +760,9 @@ module modslurb_energybalance
                                   * slurb_tile%t_win_a_m(nzt_win,i,j)**3                                     &
                                   * ( slurb_tile%t_win_a_m(nzt_win,i,j) - slurb_tile%t_win_a_0(nzt_win,i,j) )
        slurb_tile%rad_lw_net_win_b(i,j) = slurb_tile%rad_lw_net_win_a(i,j)
-    ENDIF
+    endif
 
- END SUBROUTINE window_model
+ end subroutine window_model
 
 
     !--------------------------------------------------------------------------------------------------!
@@ -770,15 +770,15 @@ module modslurb_energybalance
     ! ------------
     !> Calculate surface mixing ratio using resistance weighting.
     !--------------------------------------------------------------------------------------------------!
- PURE FUNCTION q_surf( q_s, rah, q_a, f_qsws )
+ pure function q_surf( q_s, rah, q_a, f_qsws )
 
-    REAL(field_r), INTENT(IN) ::  f_qsws  !< factor for the latent heat flux (W m^-2)
-    REAL(field_r), INTENT(IN) ::  q_a     !< mixing ratio of adjacent air
-    REAL(field_r), INTENT(IN) ::  q_s     !< saturation mixing ratio at the surface
-    REAL(field_r), INTENT(IN) ::  rah     !< aerodynamic resistance for heat (and for water vapor)
+    real(field_r), intent(in) ::  f_qsws  !< factor for the latent heat flux (W m^-2)
+    real(field_r), intent(in) ::  q_a     !< mixing ratio of adjacent air
+    real(field_r), intent(in) ::  q_s     !< saturation mixing ratio at the surface
+    real(field_r), intent(in) ::  rah     !< aerodynamic resistance for heat (and for water vapor)
 
-    REAL(field_r) ::  q_surf  !< mixing ratio for the surface
-    REAL(field_r) ::  res     !< total surface resistance
+    real(field_r) ::  q_surf  !< mixing ratio for the surface
+    real(field_r) ::  res     !< total surface resistance
 
 
     !
@@ -789,6 +789,6 @@ module modslurb_energybalance
     q_surf = res * q_s + ( 1.0_field_r - res ) * ( q_a - ql0(i,j,k_atm) )
 
 
- END FUNCTION q_surf
-END SUBROUTINE slurb_energy_balance_model
+ end function q_surf
+end subroutine slurb_energy_balance_model
 end module modslurb_energybalance
