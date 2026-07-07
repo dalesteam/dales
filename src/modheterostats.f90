@@ -81,7 +81,7 @@ save
 contains
   subroutine initheterostats
 
-    use typeSizes
+    use typeSizes ! What is this???
     use netcdf
     use modmpi
     use modglobal
@@ -113,6 +113,11 @@ contains
     call D_MPI_BCAST(ncklimit    ,1,0,comm3d,mpierr)
 
     if(.not.(lheterostats)) return
+
+#if defined(DALES_GPU)
+    call finish(routine, "heterostats not supported on GPU")
+#endif
+
     idtav = int(dtav / tres, kind=kind(idtav))
     tnext = idtav+btime
     dt_lim = min(dt_lim,tnext)

@@ -167,6 +167,10 @@ contains
 
     if(isamptot < 2) return
 
+#if defined(DALES_GPU)
+    call finish(routine, "sampling not supported on GPU")
+#endif
+
     tnext      = idtav   +btime
     tnextwrite = itimeav +btime
 

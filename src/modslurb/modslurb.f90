@@ -179,6 +179,12 @@ subroutine initslurb
 
     integer :: i, j, slurb_ilu
     character(len=*), parameter :: routine = modname//'/initslurb'
+
+#if defined(DALES_GPU)
+    call finish(routine, "SLUrb not supported on GPU")
+#endif
+
+
     !-- Initialize bounds for subsurface layers.
     nzt_road = 1
     nzb_road = n_layers_roads

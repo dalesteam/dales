@@ -238,7 +238,7 @@ SUBROUTINE initchem
   use modglobal,   only : i1,j1,nsv, ifnamopt, fname_options, ifoutput, cexpnr,timeav_glob,btime,tres,lwarmstart,checknamelisterror
   use modmpi,      only : myid, comm3d, mpierr, D_MPI_BCAST
   use modsurfdata, only : lCHon ! TODO: duplicate of lchem: remove?
-  use fortran_support, only: nnml_output
+  use fortran_support, only: nnml_output, finish
 
   implicit none
   character(len=*), parameter :: routine = modname//'/initchem'
@@ -290,6 +290,11 @@ SUBROUTINE initchem
   lCHon = lchem
 
   if (.not. (lchem)) return
+
+#if defined(DALES_GPU)
+  call finish(routine, "chemistry is not supported on GPU")
+#endif
+
   itimeav = int(timeav_glob/tres, kind=kind(itimeav))
   tnextwrite = itimeav+btime
   switch = .false.

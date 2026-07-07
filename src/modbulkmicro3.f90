@@ -56,9 +56,12 @@ module modbulkmicro3
   use modprecision, only : field_r
   use modmicrodata,      only: lstat
   use modbulkmicrostat3, only: initbulkmicrostat3
+  use fortran_support, only: finish
   implicit none
   private
   public initbulkmicro3, exitbulkmicro3, bulkmicro3
+
+  character(len=*), parameter :: modname = "modbulkmicro3"
 
   contains
 
@@ -67,6 +70,12 @@ module modbulkmicro3
     use modglobal, only : i1,ih,j1,jh,k1
     use modtracers, only: add_tracer
     implicit none
+
+    character(len=*), parameter :: routine = modname//"/initbulkmicro3"
+
+#if defined(DALES_GPU)
+    call finish(routine, "modbulkmicro3 is not supported on GPU")
+#endif
 
     if(lwarmstart) then
      l_clouds_init     = .true. ! in warm start, clouds are already there
