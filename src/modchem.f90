@@ -238,7 +238,7 @@ SUBROUTINE initchem
   use modglobal,   only : i1,j1,nsv, ifnamopt, fname_options, ifoutput, cexpnr,timeav_glob,btime,tres,lwarmstart,checknamelisterror
   use modmpi,      only : myid, comm3d, mpierr, D_MPI_BCAST
   use modsurfdata, only : lCHon ! TODO: duplicate of lchem: remove?
-  use fortran_support, only: nnml_output, finish
+  use fortran_support, only: nnml_output
 
   implicit none
   character(len=*), parameter :: routine = modname//'/initchem'
