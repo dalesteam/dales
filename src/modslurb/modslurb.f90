@@ -180,10 +180,6 @@ subroutine initslurb
     integer :: i, j, slurb_ilu
     character(len=*), parameter :: routine = modname//'/initslurb'
 
-#if defined(DALES_GPU)
-    call finish(routine, "SLUrb not supported on GPU")
-#endif
-
 
     !-- Initialize bounds for subsurface layers.
     nzt_road = 1
@@ -210,6 +206,11 @@ subroutine initslurb
     if (.not. enable_slurb) then
         return
     end if
+
+#if defined(DALES_GPU)
+    call finish(routine, "SLUrb not supported on GPU")
+#endif
+
     call warning(routine, "SLUrb module enabled. Keep in mind that different building drag parametrizations have not been tested yet!")
     call warning(routine, "SLUrb module enabled. Keep in mind that moist_physics=false has not been tested yet!")
     call warning(routine, "SLUrb module enabled. Only rrtmgp or rte-rrtmgp radiation has been tested with SLUrb!")

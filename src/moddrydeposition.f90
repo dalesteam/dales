@@ -106,7 +106,9 @@ subroutine initdrydep
   call d_mpi_bcast(so2_avg,              1, 0, comm3d, ierr)    !GT added
 
 #if defined(DALES_GPU)
-  call finish(routine, "deposition is not supported on GPU")
+  if (ldrydep) then
+    call finish(routine, "deposition is not supported on GPU")
+  end if
 #endif
 
   do isv = 1,nsv
