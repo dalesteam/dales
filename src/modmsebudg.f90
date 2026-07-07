@@ -70,6 +70,10 @@ contains
 
     if(.not.(lmsebudg)) return
 
+#if defined(DALES_GPU)
+    call finish(routine, "msebudg not supported on GPU")
+#endif
+
     dt_lim = min(dt_lim,tnext)
 
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then

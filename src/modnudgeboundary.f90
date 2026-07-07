@@ -168,6 +168,11 @@ contains
         call D_MPI_BCAST(dt_input_lbc_sv,   1, 0, comm3d, mpierr)
 
         if (lnudge_boundary) then
+
+#if defined(DALES_GPU)
+            call finish(routine, "nudgeboundary not supported on GPU")
+#endif
+
             if (myid==0) then
                ! Require offset + 2 standard deviations of the nudging profile to fit inside one tile
                if (imax * dx < (nudge_offset+2*nudge_width) .or. jmax * dy < (nudge_offset+2*nudge_width) ) then

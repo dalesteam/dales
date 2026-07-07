@@ -83,6 +83,12 @@ contains
         & and/or land surface model defined"
    end if
 
+#if defined(DALES_GPU)
+    if (ldepcrosssection) then
+      call finish(routine, "depcrosssection not supported on GPU")
+    end if
+#endif
+
     call D_MPI_BCAST(dtav,             1, 0, comm3d, mpierr)
     call D_MPI_BCAST(ldepcrosssection, 1, 0, comm3d, mpierr)
 

@@ -54,6 +54,11 @@ contains
     integer :: i
 
     if(.not.lopenbc) return
+
+#if defined(DALES_GPU)
+    call finish(routine, "open boundaries are not supported on GPU")
+#endif
+
     ! Check for conflicting options
     if(solver_id == 0) call finish(routine, 'Openboundaries only possible with HYPRE or FFTW pressure solver, change solver_id')
     !if(iadv_mom /=2) stop 'Only second order advection scheme supported with openboundaries, change iadv_mom to 2'

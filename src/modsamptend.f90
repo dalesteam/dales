@@ -72,6 +72,10 @@ subroutine initsamptend
 
     if (.not. lsamptend) return
 
+#if defined(DALES_GPU)
+    call finish(routine, "sampling tendencies not supported on GPU")
+#endif
+
     isamptot = 0
     if (lsampall) then
       isamptot = isamptot + 1
