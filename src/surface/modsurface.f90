@@ -197,7 +197,9 @@ contains
 
     ! 1    -   Initialize soil
 
-    !if (isurf == 1) then
+#if defined(DALES_GPU)
+    if (isurf == 1) call finish(routine, "isurf = 1 (classic LSM) is not supported on GPU")
+#endif
 
     ! 1.0  -   Read LSM-specific namelist
 

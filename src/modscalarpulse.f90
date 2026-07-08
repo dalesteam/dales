@@ -26,6 +26,8 @@ implicit none
 private
 public :: initscalarpulse, scalarpulse, lscalarpulse
 
+  character(len=*), parameter :: modname = "modscalarpulse"
+
 save
 ! pulse governing variables (from namelist)
   logical :: lscalarpulse     = .false.
@@ -48,9 +50,11 @@ contains
                          mpierr,commwrld
     use modglobal, only :cexpnr,runtime,ifnamopt,fname_options, &
                          checknamelisterror,tres,k1
-    use fortran_support, only: nnml_output
+    use fortran_support, only: nnml_output, finish
 
     implicit none
+
+    character(len=*), parameter :: routine = modname//"/initscalarpulse"
 
     integer ierr
     namelist/NAMSCALARPULSE/ &
@@ -75,7 +79,13 @@ contains
     call D_MPI_BCAST(zmaxpulse          ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(radius             ,1,0,commwrld,mpierr)
 
+    if (.not. lscalarpulse) return
+
     if (lcpmip) allocate(qtav0(k1), qtav1(k1))
+
+#if defined(DALES_GPU)
+    call finish(routine, "scalar pulse is not supported on GPU")
+#endif
 
   end subroutine initscalarpulse
 

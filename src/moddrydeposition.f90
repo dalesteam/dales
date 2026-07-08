@@ -76,9 +76,11 @@ subroutine initdrydep
   use modglobal, only : i2, j2, nsv, ifnamopt, fname_options, &
                               checknamelisterror
   use modmpi,    only : myid, comm3d, d_mpi_bcast
-  use fortran_support, only : nnml_output
+  use fortran_support, only : nnml_output, finish
 
   implicit none
+
+  character(len=*), parameter :: routine = modname//"/initdrydep"
 
   ! Auxiliary variables
   integer  :: ierr, isv
@@ -102,6 +104,12 @@ subroutine initdrydep
   call d_mpi_bcast(ldrydep,              1, 0, comm3d, ierr)
   call d_mpi_bcast(nh3_avg,              1, 0, comm3d, ierr)    !GT added
   call d_mpi_bcast(so2_avg,              1, 0, comm3d, ierr)    !GT added
+
+#if defined(DALES_GPU)
+  if (ldrydep) then
+    call finish(routine, "deposition is not supported on GPU")
+  end if
+#endif
 
   do isv = 1,nsv
     if (.not. tracer_prop(isv)%ldep) cycle

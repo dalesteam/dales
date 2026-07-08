@@ -20,6 +20,9 @@
 module modcanopy
   use modprecision, only : field_r
   implicit none
+
+  character(len=*), parameter :: modname = "modcanopy"
+
   save
 
   ! Namoptions
@@ -58,9 +61,11 @@ contains
   SUBROUTINE initcanopy
     use modmpi,    only : myid, comm3d, mpierr, D_MPI_BCAST
     use modglobal, only : kmax, ifnamopt, fname_options, ifinput, cexpnr, zh, dzh, dzf, checknamelisterror
-    use fortran_support, only: nnml_output
+    use fortran_support, only: nnml_output, finish
 
     implicit none
+
+    character(len=*), parameter :: routine = modname//"initcanopy"
 
     integer ierr, k, kp
     character(80) readstring
@@ -96,6 +101,10 @@ contains
     call D_MPI_BCAST(wsv_alph  , 100, 0, comm3d, mpierr)
 
     if (.not. (lcanopy)) return
+
+#if defined(DALES_GPU)
+    call finish(routine, "canopy not supported on GPU")
+#endif
 
     if (.not. lpaddistr) npaddistr = 11
 

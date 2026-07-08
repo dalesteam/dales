@@ -46,6 +46,8 @@ contains
 
     implicit none
 
+    character(len=*), parameter :: routine = modname//"/initemission"
+
     ! Auxiliary variables
     integer :: ierr, l
 
@@ -74,6 +76,10 @@ contains
 
     ! -- Interaction with AGs   ----------------------------------------------------
     if (.not. (l_emission)) return
+
+#if defined(DALES_GPU)
+    call finish(routine, "emissions are not supported on GPU")
+#endif
     !allocate(co2fields(nsv))
 
     !co2fields = 0

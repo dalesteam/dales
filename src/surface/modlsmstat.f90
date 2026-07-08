@@ -101,6 +101,11 @@ contains
 
 
     if(.not.(lstat)) return
+
+#if defined(DALES_GPU)
+    call finish(routine, "lsmstat not supported on GPU")
+#endif
+
     dt_lim = min(dt_lim,tnext)
 
     if (abs(timeav/dtav-nsamples)>1e-4) then

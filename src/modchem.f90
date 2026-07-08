@@ -290,6 +290,11 @@ SUBROUTINE initchem
   lCHon = lchem
 
   if (.not. (lchem)) return
+
+#if defined(DALES_GPU)
+  call finish(routine, "chemistry is not supported on GPU")
+#endif
+
   itimeav = int(timeav_glob/tres, kind=kind(itimeav))
   tnextwrite = itimeav+btime
   switch = .false.
