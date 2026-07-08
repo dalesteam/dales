@@ -33,7 +33,7 @@ module modslurb_resistance_stability
     ! ------------
     !> Computes the heat and momentum fluxes between the atmosphere and the urban surface.
     !--------------------------------------------------------------------------------------------------!
- SUBROUTINE calc_urban_resistances
+ subroutine calc_urban_resistances
     use modglobal, only : i1, j1
     implicit none
     integer i, j
@@ -47,32 +47,32 @@ module modslurb_resistance_stability
     !-- stability corrections, we follow the SURFEX implementation where weighted pt/vpt from canyons
     !-- and roofs is used to represent the pt/vpt at roof level. For urban heat fluxes, aggregated
     !-- values from roofs and canyons are directly used, so rah_urb is not needed.
-        IF ( moist_physics )  THEN
+        if ( moist_physics )  then
 
         do j=2,j1
             do i=2,i1
                 pt_surface(i,j) = slurb_tile%f_bld(i,j)              * slurb_tile%vpt_roof(i,j) +                          &
                                 ( 1.0_field_r - slurb_tile%f_bld(i,j) ) * slurb_tile%vpt_can(i,j)
-                CALL calc_rib( slurb_tile%vpt1(i,j), pt_surface(i,j), slurb_tile%rib_urb(i,j), slurb_tile%uv_eff1(i,j), slurb_tile%z_mo(i,j) )
+                call calc_rib( slurb_tile%vpt1(i,j), pt_surface(i,j), slurb_tile%rib_urb(i,j), slurb_tile%uv_eff1(i,j), slurb_tile%z_mo(i,j) )
             enddo
         enddo
        
 
-    ELSE
+    else
 
         do j=2,j1
             do i=2,i1
                 pt_surface(i,j) = slurb_tile%f_bld(i,j)              * slurb_tile%pt_roof(i,j) +                           &
                                 ( 1.0_field_r - slurb_tile%f_bld(i,j) ) * slurb_tile%pt_can(i,j)
-                CALL calc_rib( slurb_tile%pt1(i,j), pt_surface(i,j), slurb_tile%rib_urb(i,j), slurb_tile%uv_eff1(i,j), slurb_tile%z_mo(i,j) )
+                call calc_rib( slurb_tile%pt1(i,j), pt_surface(i,j), slurb_tile%rib_urb(i,j), slurb_tile%uv_eff1(i,j), slurb_tile%z_mo(i,j) )
             enddo
         enddo
 
-    ENDIF
+    endif
 
     do j=2,j1
         do i=2,i1
-            CALL calc_ol( ln_z_z0_urb(i,j), ln_z_z0_urb(i,j), slurb_tile%ol_urb(i,j), slurb_tile%rib_urb(i,j), slurb_tile%z0_urb(i,j),       &
+            call calc_ol( ln_z_z0_urb(i,j), ln_z_z0_urb(i,j), slurb_tile%ol_urb(i,j), slurb_tile%rib_urb(i,j), slurb_tile%z0_urb(i,j),       &
                   slurb_tile%z0_urb(i,j), slurb_tile%z_mo(i,j) )
         enddo
     enddo
@@ -92,14 +92,14 @@ module modslurb_resistance_stability
     !-- Ensure physical friction velocity (might be needed due to instabilities in e.g. initialization)
     do j=2,j1
         do i=2,i1
-       IF ( slurb_tile%us_urb(i,j) <= us_min ) slurb_tile%us_urb(i,j) = us_min
+       if ( slurb_tile%us_urb(i,j) <= us_min ) slurb_tile%us_urb(i,j) = us_min
 
        slurb_tile%ram_urb(i,j) = 1.0_field_r / ( kappa * slurb_tile%us_urb(i,j) ) *                                     &
                          ( LOG( slurb_tile%z_mo(i,j) / slurb_tile%z0_urb(i,j) ) -                                  &
                            psi_m( slurb_tile%z_mo(i,j) / slurb_tile%ol_urb(i,j) ) +                                &
                            psi_m( slurb_tile%z0_urb(i,j) / slurb_tile%ol_urb(i,j) ) )
 
-       IF ( slurb_tile%ram_urb(i,j) < ram_min )  slurb_tile%ram_urb(i,j) = ram_min
+       if ( slurb_tile%ram_urb(i,j) < ram_min )  slurb_tile%ram_urb(i,j) = ram_min
         enddo
     enddo
     !
@@ -113,7 +113,7 @@ module modslurb_resistance_stability
     !-- canyon z0h would yield unrealistically low mixing.
     !
     !-- Update z0h for roofs following Kanda et al. (2007) parametrization if enabled.
-    IF ( roughness_kanda )  THEN
+    if ( roughness_kanda )  then
         do j=2,j1
             do i=2,i1
                 slurb_tile%z0h_roof(i,j) = slurb_tile%z0_roof(i,j) * 7.4_field_r *                                            &
@@ -122,30 +122,30 @@ module modslurb_resistance_stability
                 ln_z_z0h_roof(i,j) = LOG( slurb_tile%z_mo(i,j) / slurb_tile%z0h_roof(i,j) )
             enddo
         enddo
-    ENDIF
+    endif
 
-    IF ( moist_physics )  THEN
+    if ( moist_physics )  then
         do j=2,j1
             do i=2, i1
-                CALL calc_rib( slurb_tile%vpt1(i,j), slurb_tile%vpt_roof(i,j), slurb_tile%rib_roof(i,j), slurb_tile%uv_eff1(i,j), slurb_tile%z_mo(i,j) )
-                CALL calc_rib( slurb_tile%vpt1(i,j), slurb_tile%vpt_can(i,j),  slurb_tile%rib_can(i,j),  slurb_tile%uv_eff1(i,j), slurb_tile%z_mo(i,j) )
+                call calc_rib( slurb_tile%vpt1(i,j), slurb_tile%vpt_roof(i,j), slurb_tile%rib_roof(i,j), slurb_tile%uv_eff1(i,j), slurb_tile%z_mo(i,j) )
+                call calc_rib( slurb_tile%vpt1(i,j), slurb_tile%vpt_can(i,j),  slurb_tile%rib_can(i,j),  slurb_tile%uv_eff1(i,j), slurb_tile%z_mo(i,j) )
         enddo
     enddo
-    ELSE
+    else
         do j=2,j1
             do i=2, i1
-                CALL calc_rib( slurb_tile%pt1(i,j), slurb_tile%pt_roof(i,j), slurb_tile%rib_roof(i,j), slurb_tile%uv_eff1(i,j), slurb_tile%z_mo(i,j) )
-                CALL calc_rib( slurb_tile%pt1(i,j), slurb_tile%pt_can(i,j),  slurb_tile%rib_can(i,j),  slurb_tile%uv_eff1(i,j), slurb_tile%z_mo(i,j) )
+                call calc_rib( slurb_tile%pt1(i,j), slurb_tile%pt_roof(i,j), slurb_tile%rib_roof(i,j), slurb_tile%uv_eff1(i,j), slurb_tile%z_mo(i,j) )
+                call calc_rib( slurb_tile%pt1(i,j), slurb_tile%pt_can(i,j),  slurb_tile%rib_can(i,j),  slurb_tile%uv_eff1(i,j), slurb_tile%z_mo(i,j) )
             enddo
         enddo
-    ENDIF
+    endif
     do j=2,j1
         do i=2, i1
             ! write(*,*), "now_ol"
-            CALL calc_ol( ln_z_z0_roof(i,j), ln_z_z0h_roof(i,j), slurb_tile%ol_roof(i,j), slurb_tile%rib_roof(i,j), slurb_tile%z0_roof(i,j), &
+            call calc_ol( ln_z_z0_roof(i,j), ln_z_z0h_roof(i,j), slurb_tile%ol_roof(i,j), slurb_tile%rib_roof(i,j), slurb_tile%z0_roof(i,j), &
                         slurb_tile%z0h_roof(i,j), slurb_tile%z_mo(i,j) )
             ! write(*,*), i,j
-            CALL calc_ol( ln_z_z0_urb(i,j), ln_z_z0_urb(i,j), slurb_tile%ol_can(i,j), slurb_tile%rib_can(i,j), slurb_tile%z0_urb(i,j),       &
+            call calc_ol( ln_z_z0_urb(i,j), ln_z_z0_urb(i,j), slurb_tile%ol_can(i,j), slurb_tile%rib_can(i,j), slurb_tile%z0_urb(i,j),       &
                         slurb_tile%z0_urb(i,j), slurb_tile%z_mo(i,j) )
             ! write(*,*), "alldone"
         enddo
@@ -170,7 +170,7 @@ module modslurb_resistance_stability
 
     !
     !--    Ensure physical friction velocity.
-       IF ( slurb_tile%us_roof(i,j) <= us_min )  slurb_tile%us_roof(i,j) = us_min
+       if ( slurb_tile%us_roof(i,j) <= us_min )  slurb_tile%us_roof(i,j) = us_min
       enddo
     enddo
 
@@ -188,16 +188,16 @@ module modslurb_resistance_stability
                            psi_h( slurb_tile%z_mo(i,j) / slurb_tile%ol_can(i,j) ) +                                &
                            psi_h( slurb_tile%z0_urb(i,j) / slurb_tile%ol_can(i,j) ) )
 
-       IF ( slurb_tile%rah_roof(i,j) < rah_min )  slurb_tile%rah_roof(i,j) = rah_min
-       IF ( slurb_tile%rah_roof(i,j) > rah_max )  slurb_tile%rah_roof(i,j) = rah_max
+       if ( slurb_tile%rah_roof(i,j) < rah_min )  slurb_tile%rah_roof(i,j) = rah_min
+       if ( slurb_tile%rah_roof(i,j) > rah_max )  slurb_tile%rah_roof(i,j) = rah_max
     !
     !--    Use ram_min for canyon air as turbulence is able to mix the air.
-       IF ( slurb_tile%rah_can(i,j) < ram_min )  slurb_tile%rah_can(i,j) = ram_min
-       IF ( slurb_tile%rah_can(i,j) > rah_max )  slurb_tile%rah_can(i,j) = rah_max
+       if ( slurb_tile%rah_can(i,j) < ram_min )  slurb_tile%rah_can(i,j) = ram_min
+       if ( slurb_tile%rah_can(i,j) > rah_max )  slurb_tile%rah_can(i,j) = rah_max
       enddo
     enddo
 
- END SUBROUTINE calc_urban_resistances
+ end subroutine calc_urban_resistances
 
 
 
@@ -206,7 +206,7 @@ module modslurb_resistance_stability
     ! ------------
     !> Model for the surface resistances within the street canyon.
     !--------------------------------------------------------------------------------------------------!
- SUBROUTINE calc_canyon_resistances
+ subroutine calc_canyon_resistances
     use modglobal, only : i1, j1
     
     implicit none
@@ -232,7 +232,7 @@ module modslurb_resistance_stability
 
     !
     !-- Update z0h for roads following Kanda et al. (2007) parametrization if necessary.
-    IF ( roughness_kanda )  THEN
+    if ( roughness_kanda )  then
     do j=2,j1
       do i=2,i1
             slurb_tile%z0h_road(i,j) = slurb_tile%z0_road(i,j) * 7.4_field_r *                                            &
@@ -241,29 +241,29 @@ module modslurb_resistance_stability
             ln_z_z0h_road(i,j) = LOG( slurb_tile%z_mo_can(i,j) / slurb_tile%z0h_road(i,j) )
              enddo
         enddo
-    ENDIF
+    endif
 
     !
     !-- Compute the new Obukhov length for road.
-    IF ( moist_physics )  THEN
+    if ( moist_physics )  then
         do j=2,j1
             do i=2,i1
-                CALL calc_rib( slurb_tile%vpt_can(i,j), slurb_tile%vpt_road(i,j), slurb_tile%rib_road(i,j), slurb_tile%uv_eff_can(i,j),        &
+                call calc_rib( slurb_tile%vpt_can(i,j), slurb_tile%vpt_road(i,j), slurb_tile%rib_road(i,j), slurb_tile%uv_eff_can(i,j),        &
                              slurb_tile%z_mo_can(i,j) )
             enddo
         enddo
-    ELSE
+    else
         do j=2,j1
             do i=2,i1
-                CALL calc_rib( slurb_tile%pt_can(i,j), slurb_tile%pt_road(i,j), slurb_tile%rib_road(i,j), slurb_tile%uv_eff_can(i,j),          &
+                call calc_rib( slurb_tile%pt_can(i,j), slurb_tile%pt_road(i,j), slurb_tile%rib_road(i,j), slurb_tile%uv_eff_can(i,j),          &
                                slurb_tile%z_mo_can(i,j) )
             enddo
         enddo
-    ENDIF
+    endif
 
     do j=2,j1
       do i=2,i1
-        CALL calc_ol( ln_z_z0_road(i,j), ln_z_z0h_road(i,j), slurb_tile%ol_road(i,j), slurb_tile%rib_road(i,j), slurb_tile%z0_road(i,j), &
+        call calc_ol( ln_z_z0_road(i,j), ln_z_z0h_road(i,j), slurb_tile%ol_road(i,j), slurb_tile%rib_road(i,j), slurb_tile%z0_road(i,j), &
                     slurb_tile%z0h_road(i,j), slurb_tile%z_mo_can(i,j) )
       enddo
     enddo
@@ -281,7 +281,7 @@ module modslurb_resistance_stability
 
     !
     !-- The resistance between the street canyon air and facades (walls and windows).
-    IF ( facade_rah_doe )  THEN
+    if ( facade_rah_doe )  then
 
         do j=2,j1
             do i=2,i1
@@ -289,43 +289,43 @@ module modslurb_resistance_stability
                 k_topo = 1
                 slurb_tile%rah_wall_a(i,j) = rah_doe2( k_topo, slurb_tile%t_can_0(i,j), slurb_tile%t_wall_a_0(nzt_wall,i,j),         &
                                                 slurb_tile%uv_eff_can(i,j), .TRUE. )
-                IF ( slurb_tile%rah_wall_a(i,j) < rah_min )  slurb_tile%rah_wall_a(i,j) = rah_min
-                IF ( slurb_tile%rah_wall_a(i,j) > rah_max )  slurb_tile%rah_wall_a(i,j) = rah_max
-                IF ( slurb_tile%f_win(i,j) /= 0.0_field_r )  THEN
+                if ( slurb_tile%rah_wall_a(i,j) < rah_min )  slurb_tile%rah_wall_a(i,j) = rah_min
+                if ( slurb_tile%rah_wall_a(i,j) > rah_max )  slurb_tile%rah_wall_a(i,j) = rah_max
+                if ( slurb_tile%f_win(i,j) /= 0.0_field_r )  then
                     slurb_tile%rah_win_a(i,j) = rah_doe2( k_topo, slurb_tile%t_can_0(i,j), slurb_tile%t_win_a_0(nzt_win,i,j),         &
                                                 slurb_tile%uv_eff_can(i,j), .FALSE. )
-                    IF ( slurb_tile%rah_win_a(i,j) < rah_min )  slurb_tile%rah_win_a(i,j) = rah_min
-                    IF ( slurb_tile%rah_win_a(i,j) > rah_max )  slurb_tile%rah_win_a(i,j) = rah_max
-                ENDIF
+                    if ( slurb_tile%rah_win_a(i,j) < rah_min )  slurb_tile%rah_win_a(i,j) = rah_min
+                    if ( slurb_tile%rah_win_a(i,j) > rah_max )  slurb_tile%rah_win_a(i,j) = rah_max
+                endif
 
-                IF ( slurb_tile%anisotropic_canyon(i,j) )  THEN
+                if ( slurb_tile%anisotropic_canyon(i,j) )  then
                     slurb_tile%rah_wall_b(i,j) = rah_doe2( k_topo, slurb_tile%t_can_0(i,j), slurb_tile%t_wall_b_0(nzt_wall,i,j),      &
                                                     slurb_tile%uv_eff_can(i,j), .TRUE. )
-                    IF ( slurb_tile%rah_wall_b(i,j) < rah_min )  slurb_tile%rah_wall_b(i,j) = rah_min
-                    IF ( slurb_tile%rah_wall_b(i,j) > rah_max )  slurb_tile%rah_wall_b(i,j) = rah_max
-                    IF ( slurb_tile%f_win(i,j) /= 0.0_field_r )  THEN
+                    if ( slurb_tile%rah_wall_b(i,j) < rah_min )  slurb_tile%rah_wall_b(i,j) = rah_min
+                    if ( slurb_tile%rah_wall_b(i,j) > rah_max )  slurb_tile%rah_wall_b(i,j) = rah_max
+                    if ( slurb_tile%f_win(i,j) /= 0.0_field_r )  then
                         slurb_tile%rah_win_b(i,j) = rah_doe2( k_topo, slurb_tile%t_can_0(i,j), slurb_tile%t_win_b_0(nzt_win,i,j),      &
                                                     slurb_tile%uv_eff_can(i,j), .FALSE. )
-                        IF ( slurb_tile%rah_win_b(i,j) < rah_min )  slurb_tile%rah_win_b(i,j) = rah_min
-                        IF ( slurb_tile%rah_win_b(i,j) > rah_max )  slurb_tile%rah_win_b(i,j) = rah_max
-                    ENDIF
-                ENDIF
+                        if ( slurb_tile%rah_win_b(i,j) < rah_min )  slurb_tile%rah_win_b(i,j) = rah_min
+                        if ( slurb_tile%rah_win_b(i,j) > rah_max )  slurb_tile%rah_win_b(i,j) = rah_max
+                    endif
+                endif
              enddo
         enddo
 
-    ELSEIF ( facade_rah_kray )  THEN
+    ELSEIF ( facade_rah_kray )  then
 
         do j=2,j1
             do i=2,i1
                 ! k_topo = topo_top_ind(j,i,0) ! ZELFTODO
                 k_topo = 1
                 slurb_tile%rah_facade(i,j) = rah_kray( k_topo, slurb_tile%z0_wall(i,j), slurb_tile%uv_eff_can(i,j) )
-                IF ( slurb_tile%rah_facade(i,j) < rah_min )  slurb_tile%rah_facade(i,j) = rah_min
-                IF ( slurb_tile%rah_facade(i,j) > rah_max )  slurb_tile%rah_facade(i,j) = rah_max
+                if ( slurb_tile%rah_facade(i,j) < rah_min )  slurb_tile%rah_facade(i,j) = rah_min
+                if ( slurb_tile%rah_facade(i,j) > rah_max )  slurb_tile%rah_facade(i,j) = rah_max
             enddo
         enddo
 
-    ELSEIF ( facade_rah_rowley )  THEN
+    ELSEIF ( facade_rah_rowley )  then
     !
     !--    Rowley et al. (1930) , Cole and Sturrock (1977)  Mills (1993).
         do j=2,j1
@@ -333,11 +333,11 @@ module modslurb_resistance_stability
                 ! k_topo = topo_top_ind(j,i,0) ! ZELFTODO
                 k_topo = 1
                 slurb_tile%rah_facade(i,j) = cp * rho_air_zw(k_topo) / ( 11.8_field_r + 4.2_field_r * slurb_tile%uv_eff_can(i,j) )
-                IF ( slurb_tile%rah_facade(i,j) < rah_min )  slurb_tile%rah_facade(i,j) = rah_min
-                IF ( slurb_tile%rah_facade(i,j) > rah_max )  slurb_tile%rah_facade(i,j) = rah_max
+                if ( slurb_tile%rah_facade(i,j) < rah_min )  slurb_tile%rah_facade(i,j) = rah_min
+                if ( slurb_tile%rah_facade(i,j) > rah_max )  slurb_tile%rah_facade(i,j) = rah_max
             enddo
         enddo
-    ENDIF
+    endif
 
     do j=2,j1
         do i=2,i1
@@ -346,12 +346,12 @@ module modslurb_resistance_stability
                                     psi_h( slurb_tile%z_mo_can(i,j) / slurb_tile%ol_road(i,j) ) +                          &
                                     psi_h( slurb_tile%z0h_road(i,j) / slurb_tile%ol_road(i,j) ) )
 
-            IF ( slurb_tile%rah_road(i,j) < rah_min )  slurb_tile%rah_road(i,j) = rah_min
-            IF ( slurb_tile%rah_road(i,j) > rah_max )  slurb_tile%rah_road(i,j) = rah_max
+            if ( slurb_tile%rah_road(i,j) < rah_min )  slurb_tile%rah_road(i,j) = rah_min
+            if ( slurb_tile%rah_road(i,j) > rah_max )  slurb_tile%rah_road(i,j) = rah_max
         enddo
     enddo
 
- END SUBROUTINE calc_canyon_resistances
+ end subroutine calc_canyon_resistances
 
 
 
@@ -360,7 +360,7 @@ module modslurb_resistance_stability
     ! ------------
     !> Calculate the Obukhov length (L).
     !--------------------------------------------------------------------------------------------------!
- SUBROUTINE calc_ol(ln_z_z0, ln_z_z0h, ol, rib, z0, z0h, z_mo )
+ subroutine calc_ol(ln_z_z0, ln_z_z0h, ol, rib, z0, z0h, z_mo )
 
     IMPLICIT NONE
 
@@ -395,21 +395,21 @@ module modslurb_resistance_stability
     !--       Flip the sign of the initial Obukhov length if the stability has changed from stable to
     !--       unstable or vice versa and set it to a moderate value. A moderate value is also chosen,
     !--       if the Obukhov length from the last time step reached the maximum threshold value.
-            IF ( rib * ol < 0.0_field_r  .OR.  ABS( ol ) == ol_max )  THEN
-                IF ( rib > 0.0_field_r )  ol =  100.0_field_r
-                IF ( rib < 0.0_field_r )  ol = -100.0_field_r
-            ENDIF
+            if ( rib * ol < 0.0_field_r  .OR.  ABS( ol ) == ol_max )  then
+                if ( rib > 0.0_field_r )  ol =  100.0_field_r
+                if ( rib < 0.0_field_r )  ol = -100.0_field_r
+            endif
     !
     !--       Iteration to find Obukhov length.
             iter = 0
-            DO
+            do
                 iter = iter + 1
     !
     !--          In case of divergence, use the value of the previous time step.
-                IF ( iter > 1000 )  THEN
+                if ( iter > 1000 )  then
                 ol = ol_prev
                 EXIT
-                ENDIF
+                endif
 
     !
     !--          Calculate step size for central difference.
@@ -442,26 +442,26 @@ module modslurb_resistance_stability
     !--          ensure convergence. If the sign is not the same, the above calculated Obukhov length
     !--          obviously overshooted to the opposite side, so the next iteration should start with
     !--          a smaller value.
-                IF ( ol * ol_m < 0.0_field_r )  ol = ol_m * 0.5_field_r
+                if ( ol * ol_m < 0.0_field_r )  ol = ol_m * 0.5_field_r
     !
     !--          In the deep neutral zone, set L to the maximum allowed value.
-                IF ( ABS( ol ) > ol_max )  THEN
+                if ( ABS( ol ) > ol_max )  then
                 ol = SIGN( ol_max, ol )
                 EXIT
-                ENDIF
+                endif
     !
     !--          Assure that Obukhov length does not become zero.
-                IF ( ABS( ol ) < ol_min )  THEN
+                if ( ABS( ol ) < ol_min )  then
                 ol = SIGN( ol_min, ol )
                 EXIT
-                ENDIF
+                endif
     !
     !--          Check for convergence.
-                IF ( ABS( ( ol - ol_m ) /  ol ) < ol_tol )  EXIT
+                if ( ABS( ( ol - ol_m ) /  ol ) < ol_tol )  EXIT
 
-            ENDDO
+            enddo
 
- END SUBROUTINE calc_ol
+ end subroutine calc_ol
 
 
 
@@ -470,7 +470,7 @@ module modslurb_resistance_stability
     ! ------------
     !> Calculate the bulk Richardson number for given surface (z0) temperature.
     !--------------------------------------------------------------------------------------------------!
- SUBROUTINE calc_rib( pt1, pt_surface, rib, uvw_abs, z_mo )
+ subroutine calc_rib( pt1, pt_surface, rib, uvw_abs, z_mo )
     implicit none
 
     real(field_r), intent(in)  ::  pt1          !< potential temperature at first grid level
@@ -485,9 +485,9 @@ module modslurb_resistance_stability
     !
     !-- For the SLUrb model, limit to |rib| < |rib_max| to dampen possible instabilities during
     !-- initialization.
-    IF ( ABS( rib ) > rib_max )  rib = SIGN( rib_max, rib )
+    if ( ABS( rib ) > rib_max )  rib = SIGN( rib_max, rib )
 
- END SUBROUTINE calc_rib
+ end subroutine calc_rib
 
 
 
@@ -496,36 +496,36 @@ module modslurb_resistance_stability
     ! ------------
     !> Integrated stability function for momentum.
     !--------------------------------------------------------------------------------------------------!
- PURE FUNCTION psi_m( zeta )
+ pure function psi_m( zeta )
 
     IMPLICIT NONE
 
-    REAL(field_r), INTENT(IN) ::  zeta   !< Stability parameter z/L
+    real(field_r), intent(in) ::  zeta   !< Stability parameter z/L
 
-    REAL(field_r) ::  psi_m  !< Integrated similarity function result
-    REAL(field_r) ::  x      !< dummy variable
+    real(field_r) ::  psi_m  !< Integrated similarity function result
+    real(field_r) ::  x      !< dummy variable
 
-    REAL(field_r), PARAMETER ::  a = 1.0_field_r            !< constant
-    REAL(field_r), PARAMETER ::  b = 0.66666666666_field_r  !< constant
-    REAL(field_r), PARAMETER ::  c = 5.0_field_r            !< constant
-    REAL(field_r), PARAMETER ::  d = 0.35_field_r           !< constant
-    REAL(field_r), PARAMETER ::  c_d_d = c / d         !< constant
-    REAL(field_r), PARAMETER ::  bc_d_d = b * c / d    !< constant
+    real(field_r), PARAMETER ::  a = 1.0_field_r            !< constant
+    real(field_r), PARAMETER ::  b = 0.66666666666_field_r  !< constant
+    real(field_r), PARAMETER ::  c = 5.0_field_r            !< constant
+    real(field_r), PARAMETER ::  d = 0.35_field_r           !< constant
+    real(field_r), PARAMETER ::  c_d_d = c / d         !< constant
+    real(field_r), PARAMETER ::  bc_d_d = b * c / d    !< constant
 
 
-    IF ( zeta < 0.0_field_r )  THEN
+    if ( zeta < 0.0_field_r )  then
        x = SQRT( SQRT( 1.0_field_r  - 16.0_field_r * zeta ) )
        psi_m = pi * 0.5_field_r - 2.0_field_r * ATAN( x ) + LOG( ( 1.0_field_r + x )**2                           &
                * ( 1.0_field_r + x**2 ) * 0.125_field_r )
-    ELSE
+    else
 
        psi_m = - b * ( zeta - c_d_d ) * EXP( -d * zeta ) - a * zeta - bc_d_d
     !
     !--    Old version for stable conditions (only valid for z/L < 0.5) psi_m = - 5.0_field_r * zeta
 
-    ENDIF
+    endif
 
- END FUNCTION psi_m
+ end function psi_m
 
 
     !--------------------------------------------------------------------------------------------------!
@@ -533,35 +533,35 @@ module modslurb_resistance_stability
     !------------
     !> Integrated stability function for heat and moisture.
     !--------------------------------------------------------------------------------------------------!
- PURE FUNCTION psi_h( zeta )
+ pure function psi_h( zeta )
 
     IMPLICIT NONE
 
-    REAL(field_r), INTENT(IN) ::  zeta   !< stability parameter z/L
+    real(field_r), intent(in) ::  zeta   !< stability parameter z/L
 
-    REAL(field_r) ::  psi_h  !< integrated similarity function result
-    REAL(field_r) ::  x      !< dummy variable
+    real(field_r) ::  psi_h  !< integrated similarity function result
+    real(field_r) ::  x      !< dummy variable
 
-    REAL(field_r), PARAMETER ::  a = 1.0_field_r            !< constant
-    REAL(field_r), PARAMETER ::  b = 0.66666666666_field_r  !< constant
-    REAL(field_r), PARAMETER ::  c = 5.0_field_r            !< constant
-    REAL(field_r), PARAMETER ::  d = 0.35_field_r           !< constant
-    REAL(field_r), PARAMETER ::  c_d_d = c / d         !< constant
-    REAL(field_r), PARAMETER ::  bc_d_d = b * c / d    !< constant
+    real(field_r), PARAMETER ::  a = 1.0_field_r            !< constant
+    real(field_r), PARAMETER ::  b = 0.66666666666_field_r  !< constant
+    real(field_r), PARAMETER ::  c = 5.0_field_r            !< constant
+    real(field_r), PARAMETER ::  d = 0.35_field_r           !< constant
+    real(field_r), PARAMETER ::  c_d_d = c / d         !< constant
+    real(field_r), PARAMETER ::  bc_d_d = b * c / d    !< constant
 
 
-    IF ( zeta < 0.0_field_r )  THEN
+    if ( zeta < 0.0_field_r )  then
        x = SQRT( 1.0_field_r  - 16.0_field_r * zeta )
        psi_h = 2.0_field_r * LOG( (1.0_field_r + x ) / 2.0_field_r )
-    ELSE
+    else
        psi_h = - b * ( zeta - c_d_d ) * EXP( -d * zeta ) - (1.0_field_r                                 &
                + 0.66666666666_field_r * a * zeta )**1.5_field_r - bc_d_d + 1.0_field_r
     !
     !--    Old version for stable conditions (only valid for z/L < 0.5)
     !--    psi_h = - 5.0_field_r * zeta
-    ENDIF
+    endif
 
- END FUNCTION psi_h
+ end function psi_h
 
 
     !--------------------------------------------------------------------------------------------------!
@@ -571,24 +571,24 @@ module modslurb_resistance_stability
     !>
     !> @author Hauke Wurps
     !--------------------------------------------------------------------------------------------------!
- PURE FUNCTION phi_m( zeta )
+ pure function phi_m( zeta )
 
     IMPLICIT NONE
 
-    REAL(field_r), INTENT(IN) ::  zeta   !< stability parameter z/L
+    real(field_r), intent(in) ::  zeta   !< stability parameter z/L
 
-    REAL(field_r) ::  phi_m  !< value of the function
+    real(field_r) ::  phi_m  !< value of the function
 
-    REAL(field_r), PARAMETER ::  a = 16.0_field_r  !< constant
-    REAL(field_r), PARAMETER ::  c = 5.0_field_r   !< constant
+    real(field_r), PARAMETER ::  a = 16.0_field_r  !< constant
+    real(field_r), PARAMETER ::  c = 5.0_field_r   !< constant
 
-    IF ( zeta < 0.0_field_r )  THEN
+    if ( zeta < 0.0_field_r )  then
        phi_m = 1.0_field_r / SQRT( SQRT( 1.0_field_r - a * zeta ) )
-    ELSE
+    else
        phi_m = 1.0_field_r + c * zeta
-    ENDIF
+    endif
 
- END FUNCTION phi_m
+ end function phi_m
 
 
 
@@ -599,23 +599,23 @@ module modslurb_resistance_stability
     !> which takes natural convection into account. Average of leeward and windward sides.
     !> Source: EnegyPlus 23.2.0 Engineering Reference p.68.
     !--------------------------------------------------------------------------------------------------!
- PURE FUNCTION rah_doe2( k_topo, t_air, t_surf, u_eff, rough )
+ pure function rah_doe2( k_topo, t_air, t_surf, u_eff, rough )
 
-    LOGICAL, INTENT(IN) ::  rough  !< flag for rough surface, true for walls, false for windows
+    LOGICAL, intent(in) ::  rough  !< flag for rough surface, true for walls, false for windows
 
-    integer, INTENT(IN) ::  k_topo  !< k-index of topography
+    integer, intent(in) ::  k_topo  !< k-index of topography
 
-    REAL(field_r), INTENT(IN) ::  t_air   !< temperature of adjacent air
-    REAL(field_r), INTENT(IN) ::  t_surf  !< surface temperature
-    REAL(field_r), INTENT(IN) ::  u_eff   !< effective wind speed
+    real(field_r), intent(in) ::  t_air   !< temperature of adjacent air
+    real(field_r), intent(in) ::  t_surf  !< surface temperature
+    real(field_r), intent(in) ::  u_eff   !< effective wind speed
 
-    REAL(field_r), PARAMETER ::  r_f = 1.52_field_r  !< surface roughness multiplier
+    real(field_r), PARAMETER ::  r_f = 1.52_field_r  !< surface roughness multiplier
 
-    REAL(field_r) ::  chtcn       !< convective heat transfer coefficient for natural convection
-    REAL(field_r) ::  chtcs       !< convective heat transfer coefficient for smooth surface
-    REAL(field_r) ::  chtcs_lee   !< convective heat transfer coefficient for smooth surface (leeward)
-    REAL(field_r) ::  chtcs_wind  !< convective heat transfer coefficient for smooth surface (windward)
-    REAL(field_r) ::  rah_doe2    !< resulting resistance
+    real(field_r) ::  chtcn       !< convective heat transfer coefficient for natural convection
+    real(field_r) ::  chtcs       !< convective heat transfer coefficient for smooth surface
+    real(field_r) ::  chtcs_lee   !< convective heat transfer coefficient for smooth surface (leeward)
+    real(field_r) ::  chtcs_wind  !< convective heat transfer coefficient for smooth surface (windward)
+    real(field_r) ::  rah_doe2    !< resulting resistance
 
 
     chtcn = 1.31_field_r * ABS( t_air - t_surf )**0.33333_field_r
@@ -625,13 +625,13 @@ module modslurb_resistance_stability
 
     chtcs = 0.5 * ( chtcs_lee + chtcs_wind )
 
-    IF ( rough )  THEN
+    if ( rough )  then
        rah_doe2 = cp * rho_air_zw(k_topo) / ( chtcn + r_f * ( chtcs - chtcn ) )
-    ELSE
+    else
        rah_doe2 = cp * rho_air_zw(k_topo) / chtcs
-    ENDIF
+    endif
 
- END FUNCTION rah_doe2
+ end function rah_doe2
 
 
     !--------------------------------------------------------------------------------------------------!
@@ -640,15 +640,15 @@ module modslurb_resistance_stability
     !> Compute aerodynamic resistance for heat for vertical surfaces following
     !> Krayenhoff & Voogt (2007).
     !--------------------------------------------------------------------------------------------------!
- PURE FUNCTION rah_kray( k_topo, z0, u_eff )
+ pure function rah_kray( k_topo, z0, u_eff )
 
-    integer, INTENT(IN) ::  k_topo  !< k-index of topography
+    integer, intent(in) ::  k_topo  !< k-index of topography
 
-    REAL(field_r), INTENT(IN) ::  u_eff  !< effective wind speed
-    REAL(field_r), INTENT(IN) ::  z0     !< roughness length for momentum
+    real(field_r), intent(in) ::  u_eff  !< effective wind speed
+    real(field_r), intent(in) ::  z0     !< roughness length for momentum
 
-    REAL(field_r) ::  kray_coeff  !< denominator for the parametrization
-    REAL(field_r) ::  rah_kray    !< resulting resistance
+    real(field_r) ::  kray_coeff  !< denominator for the parametrization
+    real(field_r) ::  rah_kray    !< resulting resistance
 
 
     !
@@ -657,5 +657,5 @@ module modslurb_resistance_stability
 
     rah_kray = cp * rho_air_zw(k_topo) / kray_coeff
 
- END FUNCTION
+ end function
 end module modslurb_resistance_stability

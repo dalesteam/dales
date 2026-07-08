@@ -31,8 +31,8 @@ module modslurbdata
     logical :: lslurb            ! On/off switch LSM
 
     !-- Default surface description.
-    REAL(field_r), DIMENSION(0:45,1:6) ::  building_pars_slurb  !< building default parameters derived from USM
-    REAL(field_r), DIMENSION(0:14,1:5) ::  pavement_pars_slurb  !< pavement default parameters derived from LSM
+    real(field_r), dimension(0:45,1:6) ::  building_pars_slurb  !< building default parameters derived from USM
+    real(field_r), dimension(0:14,1:5) ::  pavement_pars_slurb  !< pavement default parameters derived from LSM
     
     !-- Derived type for the SLUrb model.
     type surf_slurb
@@ -281,25 +281,25 @@ module modslurbdata
     real(field_r), allocatable ::  ln_z_z0_road(:,:)   !< temporary array to store logarithm ZELFTODO (.)
     real(field_r), allocatable ::  ln_z_z0h_road(:,:)  !< temporary array to store logarithm (.)
 
-    REAL(field_r) ::  dt_slurb = HUGE( 1.0_field_r )  !< maximum allowed timestep of SLUrb
+    real(field_r) ::  dt_slurb = HUGE( 1.0_field_r )  !< maximum allowed timestep of SLUrb
 
     !
     !-- Model constants.
-    REAL(field_r) ::  drho_l_lv  !< 1/(rho_l * l_v) (J^-1 m^3)
-    REAL(field_r) ::  rho_lv     !< rho_surface * l_v (J m^-3)
+    real(field_r) ::  drho_l_lv  !< 1/(rho_l * l_v) (J^-1 m^3)
+    real(field_r) ::  rho_lv     !< rho_surface * l_v (J m^-3)
 
     !
     !-- Parameter defaults.
-    REAL(field_r), PARAMETER ::  m_liq_max_road = 1.0E-3_field_r  !< maximum capacity of the liquid water reservoir on roads (i,j) (m^3 m^-2)
-    REAL(field_r), PARAMETER ::  m_liq_max_roof = 1.0E-3_field_r  !< maximum capacity of the liquid water reservoir on roofs (i,j) (m^3 m^-2)
-    ! REAL(field_r), PARAMETER ::  m_liq_max_road = 100_field_r  !< maximum capacity of the liquid water reservoir on roads (i,j) (m^3 m^-2)
-    ! REAL(field_r), PARAMETER ::  m_liq_max_roof = 100_field_r  !< maximum capacity of the liquid water reservoir on roofs (i,j) (m^3 m^-2)
-    REAL(field_r), PARAMETER ::  rah_max   = 1.0E6_field_r        !< maximum aerodynamic resistance for scalars (s m^-1)
-    REAL(field_r), PARAMETER ::  rah_min   = 1.0_field_r          !< minimum aerodynamic resistance for scalars (s m^-1)
-    REAL(field_r), PARAMETER ::  ram_min   = 1.0_field_r          !< minimum aerodynamic resistance for momentum (s m^-1) (TODOSELF)
-    REAL(field_r), PARAMETER ::  urb_thres = 1.0E-2_field_r       !< minimum urban fraction to consider (1%) (.)
-    REAL(field_r), PARAMETER ::  us_min    = 1.0E-8_field_r       !< minimum friction velocity (m s^-1)
-    REAL(field_r), PARAMETER ::  zeta_min  = 1.0E-3_field_r       !< minimum stability parameter absolute value (neutral limit) (.)
+    real(field_r), PARAMETER ::  m_liq_max_road = 1.0E-3_field_r  !< maximum capacity of the liquid water reservoir on roads (i,j) (m^3 m^-2)
+    real(field_r), PARAMETER ::  m_liq_max_roof = 1.0E-3_field_r  !< maximum capacity of the liquid water reservoir on roofs (i,j) (m^3 m^-2)
+    ! real(field_r), PARAMETER ::  m_liq_max_road = 100_field_r  !< maximum capacity of the liquid water reservoir on roads (i,j) (m^3 m^-2)
+    ! real(field_r), PARAMETER ::  m_liq_max_roof = 100_field_r  !< maximum capacity of the liquid water reservoir on roofs (i,j) (m^3 m^-2)
+    real(field_r), PARAMETER ::  rah_max   = 1.0E6_field_r        !< maximum aerodynamic resistance for scalars (s m^-1)
+    real(field_r), PARAMETER ::  rah_min   = 1.0_field_r          !< minimum aerodynamic resistance for scalars (s m^-1)
+    real(field_r), PARAMETER ::  ram_min   = 1.0_field_r          !< minimum aerodynamic resistance for momentum (s m^-1) (TODOSELF)
+    real(field_r), PARAMETER ::  urb_thres = 1.0E-2_field_r       !< minimum urban fraction to consider (1%) (.)
+    real(field_r), PARAMETER ::  us_min    = 1.0E-8_field_r       !< minimum friction velocity (m s^-1)
+    real(field_r), PARAMETER ::  zeta_min  = 1.0E-3_field_r       !< minimum stability parameter absolute value (neutral limit) (.)
     !
     !-- slurb_parameters namelist defaults.
     CHARACTER(LEN=20) ::  aero_roughness_heat = 'kanda'                !< SLURrb namelist parameter
@@ -317,25 +317,25 @@ module modslurbdata
     LOGICAL ::  moist_physics = .true.                !< SLURrb namelist parameter
     logical ::  lread_from_netcdf = .true.             !< SLURrb namelist parameter
 
-    REAL(field_r) ::  building_frontal_area_fraction = -9999.0_field_r  !< SLURrb namelist parameter (.)
-    REAL(field_r) ::  building_height = -9999.0_field_r                 !< SLURrb namelist parameter (m)
-    REAL(field_r) ::  building_indoor_temperature =  -9999.0_field_r    !< SLURrb namelist parameter (K)
-    REAL(field_r) ::  building_plan_area_fraction = -9999.0_field_r     !< SLURrb namelist parameter (.)
+    real(field_r) ::  building_frontal_area_fraction = -9999.0_field_r  !< SLURrb namelist parameter (.)
+    real(field_r) ::  building_height = -9999.0_field_r                 !< SLURrb namelist parameter (m)
+    real(field_r) ::  building_indoor_temperature =  -9999.0_field_r    !< SLURrb namelist parameter (K)
+    real(field_r) ::  building_plan_area_fraction = -9999.0_field_r     !< SLURrb namelist parameter (.)
     REAl(field_r) ::  deep_soil_temperature = -9999.0_field_r           !< SLURrb namelist parameter (K)
-    REAL(field_r) ::  qsws_external = 0.0_field_r                       !< SLURrb namelist parameter (W m^-2 s^-1)
-    REAL(field_r) ::  shf_external = 0.0_field_r                        !< SLURrb namelist parameter (W m^-2 s^-1)
-    REAL(field_r) ::  shf_traffic = 0.0_field_r                         !< SLURrb namelist parameter (W m^-2 s^-1)
-    REAL(field_r) ::  street_canyon_aspect_ratio = -9999.0_field_r      !< SLURrb namelist parameter (.)
-    REAL(field_r) ::  street_canyon_orientation = -9999.0_field_r       !< SLURrb namelist parameter (.)
-    REAL(field_r) ::  urban_fraction = -9999.0_field_r                  !< SLURrb namelist parameter (.)
-    REAL(field_r) ::  urban_roughness_length = -9999.0_field_r          !< SLURrb namelist parameter (m)
-    REAL(field_r) ::  window_fraction = -9999.0_field_r                 !< SLURrb namelist parameter (.)
+    real(field_r) ::  qsws_external = 0.0_field_r                       !< SLURrb namelist parameter (W m^-2 s^-1)
+    real(field_r) ::  shf_external = 0.0_field_r                        !< SLURrb namelist parameter (W m^-2 s^-1)
+    real(field_r) ::  shf_traffic = 0.0_field_r                         !< SLURrb namelist parameter (W m^-2 s^-1)
+    real(field_r) ::  street_canyon_aspect_ratio = -9999.0_field_r      !< SLURrb namelist parameter (.)
+    real(field_r) ::  street_canyon_orientation = -9999.0_field_r       !< SLURrb namelist parameter (.)
+    real(field_r) ::  urban_fraction = -9999.0_field_r                  !< SLURrb namelist parameter (.)
+    real(field_r) ::  urban_roughness_length = -9999.0_field_r          !< SLURrb namelist parameter (m)
+    real(field_r) ::  window_fraction = -9999.0_field_r                 !< SLURrb namelist parameter (.)
 
 
-    REAL(field_r), PARAMETER ::  ol_max   = 1.0E6_field_r   !< allowed absolute maximum value Obukhov length (m)
-    REAL(field_r), PARAMETER ::  ol_min   = 1.0E-6_field_r  !< allowed absolute minimum value Obukhov length (m)
-    REAL(field_r), PARAMETER ::  ol_tol   = 1.0E-4_field_r  !< convergence limit for Obukhov length, relative tolerance (m)
-    REAL(field_r), PARAMETER ::  rib_max  = 1.0E1_field_r   !< maximum bulk Richardson number (absolute value) (.)
+    real(field_r), PARAMETER ::  ol_max   = 1.0E6_field_r   !< allowed absolute maximum value Obukhov length (m)
+    real(field_r), PARAMETER ::  ol_min   = 1.0E-6_field_r  !< allowed absolute minimum value Obukhov length (m)
+    real(field_r), PARAMETER ::  ol_tol   = 1.0E-4_field_r  !< convergence limit for Obukhov length, relative tolerance (m)
+    real(field_r), PARAMETER ::  rib_max  = 1.0E1_field_r   !< maximum bulk Richardson number (absolute value) (.)
 
     !-- Internal logical switches for character-based namelist settings.
     !TODO ADD CHECKS
@@ -343,19 +343,19 @@ module modslurbdata
     LOGICAL ::  facade_rah_kray      = .FALSE.  !< facade resistance parameterization using Krayenhoff&Voogt (2007)
     LOGICAL ::  facade_rah_rowley    = .FALSE.  !< facade resistance parameterization using Rowley (1932)
     LOGICAL ::  roughness_kanda      = .FALSE.  !< roughness parameterization of horizontal surfaces using Kanda et al. (2007)
-    LOGICAL ::  uv_can_factor_kray   = .TRUE.  !< street canyon wind speed factor following Krayenhoff&Voogt (2007)
+    LOGICAL ::  uv_can_factor_kray   = .FALSE.  !< street canyon wind speed factor following Krayenhoff&Voogt (2007)
     LOGICAL ::  uv_can_factor_masson = .FALSE.  !< street canyon wind speed factor following Masson (2000)
-    LOGICAL ::  uv_can_factor_surfex = .FALSE.  !< street canyon wind speed factor following the SURFEX model
+    LOGICAL ::  uv_can_factor_surfex = .TRUE.  !< street canyon wind speed factor following the SURFEX model
 
     !-- Default subsurface layer configuration.
-    INTEGER ::  nzt_wall  !< top of the wall model (outer surface)
-    INTEGER ::  nzb_wall  !< bottom of the wall model (inside surface)
-    INTEGER ::  nzt_win   !< top of the window model (outer surface)
-    INTEGER ::  nzb_win   !< bottom of the window model (inside surface)
-    INTEGER ::  nzt_roof  !< top of the roof model (outer surface)
-    INTEGER ::  nzb_roof  !< bottom the roof model (inside surface)
-    INTEGER ::  nzt_road  !< top of the road model
-    INTEGER ::  nzb_road  !< bottom of the road model
+    integer ::  nzt_wall  !< top of the wall model (outer surface)
+    integer ::  nzb_wall  !< bottom of the wall model (inside surface)
+    integer ::  nzt_win   !< top of the window model (outer surface)
+    integer ::  nzb_win   !< bottom of the window model (inside surface)
+    integer ::  nzt_roof  !< top of the roof model (outer surface)
+    integer ::  nzb_roof  !< bottom the roof model (inside surface)
+    integer ::  nzt_road  !< top of the road model
+    integer ::  nzb_road  !< bottom of the road model
 
     real(field_r), allocatable :: fraction_slurb(:,:) !< (.)
 
@@ -378,7 +378,7 @@ contains
 !> Default parameters for the building types. These are based on the PALM urban surface mod. (urban_surface_mod.f90)
 !> These values can only be considered valid for german buildings, and are not necessarily representative for other regions.
 !--------------------------------------------------------------------------------------------------!
- SUBROUTINE slurb_default_pars
+ subroutine slurb_default_pars
 
 !
 !-- Residential, < 1950.
@@ -789,5 +789,5 @@ contains
        0.93_field_r       &   !< parameter 14  - [-] emissivity
     /)
 
- END SUBROUTINE slurb_default_pars
+ end subroutine slurb_default_pars
 end module modslurbdata

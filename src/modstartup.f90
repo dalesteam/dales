@@ -84,7 +84,7 @@ contains
     use moddatetime,       only : initdatetime
     use modemission,       only : initemission
     use modlsm,            only : initlsm, kmax_soil
-    use modslurb,          only : initslurb
+    use modslurb,          only : initslurb, preprocess_slurb
     use moddrydeposition,  only : initdrydep
     use modfields,         only : initfields,um,vm,wm,u0,v0,w0,up,vp,wp,rhobf
     use modtracers,        only : inittracers, allocate_tracers, add_tracer
@@ -348,6 +348,7 @@ contains
     call initlsm
     call initdrydep
     call initsubgrid
+    call initslurb
 
     if (loutdirs) then
        output_prefix(1:3) = cmyidy
@@ -390,7 +391,7 @@ contains
     endif
 
     call inittstep
-    call initslurb
+    call preprocess_slurb(lwarmstart)
 
     call checkinitvalues
 
@@ -1186,7 +1187,7 @@ contains
   subroutine readrestartfiles
 
     use modsurfdata, only : ustar,thlflux,qtflux,svflux,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
-                           tsoil,phiw,tskin,Wl,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
+                 tsoil,phiw,tskin,Wl,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
                            obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
     use modraddata, only: iradiation,useMcICA, tnext_radiation => tnext, &
                           thlprad,swd,swu,lwd,lwu,swdca,swuca,lwdca,lwuca,swdir,swdif,lwc,&
@@ -1199,8 +1200,12 @@ contains
     use modmpi,     only : myid, cmyid
     use modsubgriddata, only : ekm,ekh
     use modlsm, only : kmax_soil, tile, nlu
+    use modslurb, only : enable_slurb, slurb_tile
+    use modslurbdata, only : moist_physics
+    use modlogging, only : finish
 
 
+    character(len=*), parameter :: routine = modname//'/readrestartfiles'
     character(50) :: name
     integer i,j,k,n, ilu
     !********************************************************************
@@ -1323,7 +1328,31 @@ contains
         read(ifinput) ((tile(ilu)%obuk(i,j), i=1,i2), j=1,j2)
       end do
 
+      if (enable_slurb) then
+        read(ifinput) ((slurb_tile%t_can_0(i,j), i=1,i2), j=1,j2)
+        read(ifinput) ((slurb_tile%t_can_m(i,j), i=1,i2), j=1,j2)
+        read(ifinput) (((slurb_tile%t_wall_a_0(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_wall_a_0,1))
+        read(ifinput) (((slurb_tile%t_wall_a_m(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_wall_a_m,1))
+        read(ifinput) (((slurb_tile%t_wall_b_0(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_wall_b_0,1))
+        read(ifinput) (((slurb_tile%t_wall_b_m(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_wall_b_m,1))
+        read(ifinput) (((slurb_tile%t_win_a_0(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_win_a_0,1))
+        read(ifinput) (((slurb_tile%t_win_a_m(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_win_a_m,1))
+        read(ifinput) (((slurb_tile%t_win_b_0(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_win_b_0,1))
+        read(ifinput) (((slurb_tile%t_win_b_m(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_win_b_m,1))
+        read(ifinput) (((slurb_tile%t_roof_0(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_roof_0,1))
+        read(ifinput) (((slurb_tile%t_roof_m(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_roof_m,1))
+        read(ifinput) (((slurb_tile%t_road_0(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_road_0,1))
+        read(ifinput) (((slurb_tile%t_road_m(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_road_m,1))
+        read(ifinput) ((slurb_tile%q_can_0(i,j), i=1,i2), j=1,j2)
+        read(ifinput) ((slurb_tile%q_can_m(i,j), i=1,i2), j=1,j2)
+        read(ifinput) ((slurb_tile%m_liq_roof_0(i,j), i=1,i2), j=1,j2)
+        read(ifinput) ((slurb_tile%m_liq_roof_m(i,j), i=1,i2), j=1,j2)
+        read(ifinput) ((slurb_tile%m_liq_road_0(i,j), i=1,i2), j=1,j2)
+        read(ifinput) ((slurb_tile%m_liq_road_m(i,j), i=1,i2), j=1,j2)
+      end if
+
       read(ifinput) timee
+
       close(ifinput)
     end if
 
@@ -1362,7 +1391,7 @@ contains
   ! separated from writerestartfiles to be callable from the library interface
   subroutine do_writerestartfiles
     use modsurfdata,only: ustar,thlflux,qtflux,svflux,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
-                          tsoil,phiw,tskin,Wl,ksoilmax,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
+                tsoil,phiw,tskin,Wl,ksoilmax,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
                           obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
     use modraddata, only: iradiation,useMcICA, tnext_radiation => tnext, &
                           thlprad,swd,swu,lwd,lwu,swdca,swuca,lwdca,lwuca,swdir,swdif,lwc,&
@@ -1375,6 +1404,8 @@ contains
     use modmpi,    only : cmyid,myid
     use modsubgriddata, only : ekm,ekh
     use modlsm,    only : kmax_soil, tile, nlu
+    use modslurb,  only : enable_slurb, slurb_tile
+    use modslurbdata, only : moist_physics
 
     implicit none
     integer imin,ihour
@@ -1508,6 +1539,33 @@ contains
         end do
 
         write(ifoutput)  timee
+
+        if (enable_slurb) then
+          write(ifoutput) ((slurb_tile%t_can_0(i,j), i=1,i2), j=1,j2)
+          write(ifoutput) ((slurb_tile%t_can_m(i,j), i=1,i2), j=1,j2)
+          write(ifoutput) (((slurb_tile%t_wall_a_0(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_wall_a_0,1))
+          write(ifoutput) (((slurb_tile%t_wall_a_m(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_wall_a_m,1))
+          write(ifoutput) (((slurb_tile%t_wall_b_0(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_wall_b_0,1))
+          write(ifoutput) (((slurb_tile%t_wall_b_m(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_wall_b_m,1))
+          write(ifoutput) (((slurb_tile%t_win_a_0(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_win_a_0,1))
+          write(ifoutput) (((slurb_tile%t_win_a_m(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_win_a_m,1))
+          write(ifoutput) (((slurb_tile%t_win_b_0(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_win_b_0,1))
+          write(ifoutput) (((slurb_tile%t_win_b_m(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_win_b_m,1))
+          write(ifoutput) (((slurb_tile%t_roof_0(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_roof_0,1))
+          write(ifoutput) (((slurb_tile%t_roof_m(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_roof_m,1))
+          write(ifoutput) (((slurb_tile%t_road_0(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_road_0,1))
+          write(ifoutput) (((slurb_tile%t_road_m(k,i,j), i=1,i2), j=1,j2), k=1,size(slurb_tile%t_road_m,1))
+
+          if (moist_physics) then
+            write(ifoutput) ((slurb_tile%q_can_0(i,j), i=1,i2), j=1,j2)
+            write(ifoutput) ((slurb_tile%q_can_m(i,j), i=1,i2), j=1,j2)
+            write(ifoutput) ((slurb_tile%m_liq_roof_0(i,j), i=1,i2), j=1,j2)
+            write(ifoutput) ((slurb_tile%m_liq_roof_m(i,j), i=1,i2), j=1,j2)
+            write(ifoutput) ((slurb_tile%m_liq_road_0(i,j), i=1,i2), j=1,j2)
+            write(ifoutput) ((slurb_tile%m_liq_road_m(i,j), i=1,i2), j=1,j2)
+          end if
+        end if
+
         close (ifoutput)
         linkname = name
         linkname(6:13) = "_latest_"

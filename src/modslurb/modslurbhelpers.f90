@@ -82,235 +82,235 @@ subroutine slurb_bulk_allocations
     allocate(ln_z_z0_road(i2,j2))
     allocate(ln_z_z0h_road(i2,j2))
     !-- Bulk allocation
-    ALLOCATE( slurb_tile%dz_roof(nzt_roof:nzb_roof,i2,j2) )
-    ALLOCATE( slurb_tile%dz_wall(nzt_wall:nzb_wall,i2,j2) )
-    ALLOCATE( slurb_tile%dz_road(nzt_road:nzb_road,i2,j2) )
-    ALLOCATE( slurb_tile%dz_win(nzt_win:nzb_win,i2,j2) )
-    ALLOCATE( slurb_tile%zw_win(nzt_win:nzb_win,i2,j2) )
+    allocate( slurb_tile%dz_roof(nzt_roof:nzb_roof,i2,j2) )
+    allocate( slurb_tile%dz_wall(nzt_wall:nzb_wall,i2,j2) )
+    allocate( slurb_tile%dz_road(nzt_road:nzb_road,i2,j2) )
+    allocate( slurb_tile%dz_win(nzt_win:nzb_win,i2,j2) )
+    allocate( slurb_tile%zw_win(nzt_win:nzb_win,i2,j2) )
 
-    ALLOCATE( slurb_tile%t_c_urb(i2,j2) )
-    ALLOCATE( slurb_tile%thl_rad_urb(i2,j2) )
-    ALLOCATE( slurb_tile%t_h_urb(i2,j2) )
-    ALLOCATE( slurb_tile%t_2m_urb(i2,j2) )
-    ALLOCATE( slurb_tile%shf_urb(i2,j2) )
-    ALLOCATE( slurb_tile%qsws_urb(i2,j2) )
-    ALLOCATE( slurb_tile%ol_urb(i2,j2) )
-    ALLOCATE( slurb_tile%rib_urb(i2,j2) )
-    ALLOCATE( slurb_tile%ram_urb(i2,j2) )
-    ALLOCATE( slurb_tile%usws_urb(i2,j2) )
-    ALLOCATE( slurb_tile%vsws_urb(i2,j2) )
-    ALLOCATE( slurb_tile%thlskin(i2,j2) )
-    ALLOCATE( slurb_tile%qtskin(i2,j2) )
+    allocate( slurb_tile%t_c_urb(i2,j2) )
+    allocate( slurb_tile%thl_rad_urb(i2,j2) )
+    allocate( slurb_tile%t_h_urb(i2,j2) )
+    allocate( slurb_tile%t_2m_urb(i2,j2) )
+    allocate( slurb_tile%shf_urb(i2,j2) )
+    allocate( slurb_tile%qsws_urb(i2,j2) )
+    allocate( slurb_tile%ol_urb(i2,j2) )
+    allocate( slurb_tile%rib_urb(i2,j2) )
+    allocate( slurb_tile%ram_urb(i2,j2) )
+    allocate( slurb_tile%usws_urb(i2,j2) )
+    allocate( slurb_tile%vsws_urb(i2,j2) )
+    allocate( slurb_tile%thlskin(i2,j2) )
+    allocate( slurb_tile%qtskin(i2,j2) )
 
-    ALLOCATE( slurb_tile%albedo_urb(i2,j2) )
-    ALLOCATE( slurb_tile%emiss_urb(i2,j2) )
+    allocate( slurb_tile%albedo_urb(i2,j2) )
+    allocate( slurb_tile%emiss_urb(i2,j2) )
 
-    ALLOCATE( slurb_tile%t_indoor(i2,j2) )
-    ALLOCATE( slurb_tile%t_soil(i2,j2) )
+    allocate( slurb_tile%t_indoor(i2,j2) )
+    allocate( slurb_tile%t_soil(i2,j2) )
 
-    ALLOCATE( slurb_tile%tt_can(i2,j2) )
-    ALLOCATE( slurb_tile%tt_wall_a(nzt_wall:nzb_wall,i2,j2) )
-    ALLOCATE( slurb_tile%tt_wall_b(nzt_wall:nzb_wall,i2,j2) )
-    ALLOCATE( slurb_tile%tt_win_a(nzt_win:nzb_win,i2,j2) )
-    ALLOCATE( slurb_tile%tt_win_b(nzt_win:nzb_win,i2,j2) )
-    ALLOCATE( slurb_tile%tt_roof(nzt_roof:nzb_roof,i2,j2) )
-    ALLOCATE( slurb_tile%tt_road(nzt_road:nzb_road,i2,j2) )
+    allocate( slurb_tile%tt_can(i2,j2) )
+    allocate( slurb_tile%tt_wall_a(nzt_wall:nzb_wall,i2,j2) )
+    allocate( slurb_tile%tt_wall_b(nzt_wall:nzb_wall,i2,j2) )
+    allocate( slurb_tile%tt_win_a(nzt_win:nzb_win,i2,j2) )
+    allocate( slurb_tile%tt_win_b(nzt_win:nzb_win,i2,j2) )
+    allocate( slurb_tile%tt_roof(nzt_roof:nzb_roof,i2,j2) )
+    allocate( slurb_tile%tt_road(nzt_road:nzb_road,i2,j2) )
 
-    ALLOCATE( slurb_tile%pt_wall_a(i2,j2) )
-    ALLOCATE( slurb_tile%pt_wall_b(i2,j2) )
-    ALLOCATE( slurb_tile%pt_win_a(i2,j2) )
-    ALLOCATE( slurb_tile%pt_win_b(i2,j2) )
-    ALLOCATE( slurb_tile%pt_roof(i2,j2) )
-    ALLOCATE( slurb_tile%pt_road(i2,j2) )
+    allocate( slurb_tile%pt_wall_a(i2,j2) )
+    allocate( slurb_tile%pt_wall_b(i2,j2) )
+    allocate( slurb_tile%pt_win_a(i2,j2) )
+    allocate( slurb_tile%pt_win_b(i2,j2) )
+    allocate( slurb_tile%pt_roof(i2,j2) )
+    allocate( slurb_tile%pt_road(i2,j2) )
 
-    ALLOCATE( slurb_tile%shf_can(i2,j2) )
-    ALLOCATE( slurb_tile%shf_roof(i2,j2) )
-    ALLOCATE( slurb_tile%shf_road(i2,j2) )
-    ALLOCATE( slurb_tile%shf_wall_a(i2,j2) )
-    ALLOCATE( slurb_tile%shf_wall_b(i2,j2) )
-    ALLOCATE( slurb_tile%shf_win_a(i2,j2) )
-    ALLOCATE( slurb_tile%shf_win_b(i2,j2) )
+    allocate( slurb_tile%shf_can(i2,j2) )
+    allocate( slurb_tile%shf_roof(i2,j2) )
+    allocate( slurb_tile%shf_road(i2,j2) )
+    allocate( slurb_tile%shf_wall_a(i2,j2) )
+    allocate( slurb_tile%shf_wall_b(i2,j2) )
+    allocate( slurb_tile%shf_win_a(i2,j2) )
+    allocate( slurb_tile%shf_win_b(i2,j2) )
 
-    ALLOCATE( slurb_tile%shf_external(i2,j2) )
-    ALLOCATE( slurb_tile%shf_traffic(i2,j2) )
+    allocate( slurb_tile%shf_external(i2,j2) )
+    allocate( slurb_tile%shf_traffic(i2,j2) )
 
-    ALLOCATE( slurb_tile%ghf_road(i2,j2) )
-    ALLOCATE( slurb_tile%ghf_roof(i2,j2) )
-    ALLOCATE( slurb_tile%ghf_wall_a(i2,j2) )
-    ALLOCATE( slurb_tile%ghf_wall_b(i2,j2) )
-    ALLOCATE( slurb_tile%ghf_win_a(i2,j2) )
-    ALLOCATE( slurb_tile%ghf_win_b(i2,j2) )
+    allocate( slurb_tile%ghf_road(i2,j2) )
+    allocate( slurb_tile%ghf_roof(i2,j2) )
+    allocate( slurb_tile%ghf_wall_a(i2,j2) )
+    allocate( slurb_tile%ghf_wall_b(i2,j2) )
+    allocate( slurb_tile%ghf_win_a(i2,j2) )
+    allocate( slurb_tile%ghf_win_b(i2,j2) )
 
-    ALLOCATE( slurb_tile%rad_lw_in_urb(i2,j2) )
-    ALLOCATE( slurb_tile%rad_sw_in_urb(i2,j2) )
-    ALLOCATE( slurb_tile%rad_lw_out_urb(i2,j2) )
-    ALLOCATE( slurb_tile%rad_sw_out_urb(i2,j2) )
+    allocate( slurb_tile%rad_lw_in_urb(i2,j2) )
+    allocate( slurb_tile%rad_sw_in_urb(i2,j2) )
+    allocate( slurb_tile%rad_lw_out_urb(i2,j2) )
+    allocate( slurb_tile%rad_sw_out_urb(i2,j2) )
 
-    ALLOCATE( slurb_tile%rad_lw_net_urb(i2,j2) )
-    ALLOCATE( slurb_tile%rad_sw_net_urb(i2,j2) )
+    allocate( slurb_tile%rad_lw_net_urb(i2,j2) )
+    allocate( slurb_tile%rad_sw_net_urb(i2,j2) )
 
-    ALLOCATE( slurb_tile%rad_lw_net_can(i2,j2) )
+    allocate( slurb_tile%rad_lw_net_can(i2,j2) )
 
-    ALLOCATE( slurb_tile%rad_lw_net_roof(i2,j2) )
-    ALLOCATE( slurb_tile%rad_sw_net_roof(i2,j2) )
-    ALLOCATE( slurb_tile%rad_lw_net_road(i2,j2) )
-    ALLOCATE( slurb_tile%rad_sw_net_road(i2,j2) )
-    ALLOCATE( slurb_tile%rad_sw_in_road(i2,j2) )
-    ALLOCATE( slurb_tile%rad_lw_net_wall_a(i2,j2) )
-    ALLOCATE( slurb_tile%rad_sw_net_wall_a(i2,j2) )
-    ALLOCATE( slurb_tile%rad_lw_net_wall_b(i2,j2) )
-    ALLOCATE( slurb_tile%rad_sw_net_wall_b(i2,j2) )
-    ALLOCATE( slurb_tile%rad_lw_net_win_a(i2,j2) )
-    ALLOCATE( slurb_tile%rad_sw_net_win_a(i2,j2) )
-    ALLOCATE( slurb_tile%rad_sw_in_win_a(i2,j2) )
-    ALLOCATE( slurb_tile%rad_lw_net_win_b(i2,j2) )
-    ALLOCATE( slurb_tile%rad_sw_net_win_b(i2,j2) )
-    ALLOCATE( slurb_tile%rad_sw_in_win_b(i2,j2) )
+    allocate( slurb_tile%rad_lw_net_roof(i2,j2) )
+    allocate( slurb_tile%rad_sw_net_roof(i2,j2) )
+    allocate( slurb_tile%rad_lw_net_road(i2,j2) )
+    allocate( slurb_tile%rad_sw_net_road(i2,j2) )
+    allocate( slurb_tile%rad_sw_in_road(i2,j2) )
+    allocate( slurb_tile%rad_lw_net_wall_a(i2,j2) )
+    allocate( slurb_tile%rad_sw_net_wall_a(i2,j2) )
+    allocate( slurb_tile%rad_lw_net_wall_b(i2,j2) )
+    allocate( slurb_tile%rad_sw_net_wall_b(i2,j2) )
+    allocate( slurb_tile%rad_lw_net_win_a(i2,j2) )
+    allocate( slurb_tile%rad_sw_net_win_a(i2,j2) )
+    allocate( slurb_tile%rad_sw_in_win_a(i2,j2) )
+    allocate( slurb_tile%rad_lw_net_win_b(i2,j2) )
+    allocate( slurb_tile%rad_sw_net_win_b(i2,j2) )
+    allocate( slurb_tile%rad_sw_in_win_b(i2,j2) )
 
-    ALLOCATE( slurb_tile%pt_can(i2,j2) )
-    ALLOCATE( slurb_tile%uv_abs_can(i2,j2) )
-    ALLOCATE( slurb_tile%uv_eff_can(i2,j2) )
-    ALLOCATE( slurb_tile%us_can(i2,j2) )
-    ALLOCATE( slurb_tile%rib_can(i2,j2) )
-    ALLOCATE( slurb_tile%ol_can(i2,j2) )
+    allocate( slurb_tile%pt_can(i2,j2) )
+    allocate( slurb_tile%uv_abs_can(i2,j2) )
+    allocate( slurb_tile%uv_eff_can(i2,j2) )
+    allocate( slurb_tile%us_can(i2,j2) )
+    allocate( slurb_tile%rib_can(i2,j2) )
+    allocate( slurb_tile%ol_can(i2,j2) )
 
-    ALLOCATE( slurb_tile%rib_roof(i2,j2) )
-    ALLOCATE( slurb_tile%ol_roof(i2,j2) )
-    ALLOCATE( slurb_tile%rib_road(i2,j2) )
-    ALLOCATE( slurb_tile%ol_road(i2,j2) )
+    allocate( slurb_tile%rib_roof(i2,j2) )
+    allocate( slurb_tile%ol_roof(i2,j2) )
+    allocate( slurb_tile%rib_road(i2,j2) )
+    allocate( slurb_tile%ol_road(i2,j2) )
 
-    ALLOCATE( slurb_tile%us_roof(i2,j2) )
-    ALLOCATE( slurb_tile%us_road(i2,j2) )
+    allocate( slurb_tile%us_roof(i2,j2) )
+    allocate( slurb_tile%us_road(i2,j2) )
 
-    ALLOCATE( slurb_tile%hw_can(i2,j2) )
-    ALLOCATE( slurb_tile%anisotropic_canyon(i2,j2) )
-    ALLOCATE( slurb_tile%theta_can(i2,j2) )
-    ALLOCATE( slurb_tile%h_bld(i2,j2) )
-    ALLOCATE( slurb_tile%f_bld(i2,j2) )
-    ALLOCATE( slurb_tile%f_bld_frn(i2,j2) )
-    ALLOCATE( slurb_tile%f_win(i2,j2) )
-    ALLOCATE( slurb_tile%svf_road(i2,j2) )
-    ALLOCATE( slurb_tile%svf_wall(i2,j2) )
-    ALLOCATE( slurb_tile%z0_urb(i2,j2) )
+    allocate( slurb_tile%hw_can(i2,j2) )
+    allocate( slurb_tile%anisotropic_canyon(i2,j2) )
+    allocate( slurb_tile%theta_can(i2,j2) )
+    allocate( slurb_tile%h_bld(i2,j2) )
+    allocate( slurb_tile%f_bld(i2,j2) )
+    allocate( slurb_tile%f_bld_frn(i2,j2) )
+    allocate( slurb_tile%f_win(i2,j2) )
+    allocate( slurb_tile%svf_road(i2,j2) )
+    allocate( slurb_tile%svf_wall(i2,j2) )
+    allocate( slurb_tile%z0_urb(i2,j2) )
 
-    ALLOCATE( slurb_tile%rah_roof(i2,j2) )
-    ALLOCATE( slurb_tile%rah_road(i2,j2) )
-    ALLOCATE( slurb_tile%rah_can(i2,j2) )
+    allocate( slurb_tile%rah_roof(i2,j2) )
+    allocate( slurb_tile%rah_road(i2,j2) )
+    allocate( slurb_tile%rah_can(i2,j2) )
 
-    IF ( facade_rah_doe )  THEN
-       ALLOCATE( slurb_tile%rah_wall_a(i2,j2) )
-       ALLOCATE( slurb_tile%rah_wall_b(i2,j2) )
-       ALLOCATE( slurb_tile%rah_win_a(i2,j2) )
-       ALLOCATE( slurb_tile%rah_win_b(i2,j2) )
-    ELSE
-       ALLOCATE( slurb_tile%rah_facade(i2,j2) )
-    ENDIF
+    if ( facade_rah_doe )  then
+       allocate( slurb_tile%rah_wall_a(i2,j2) )
+       allocate( slurb_tile%rah_wall_b(i2,j2) )
+       allocate( slurb_tile%rah_win_a(i2,j2) )
+       allocate( slurb_tile%rah_win_b(i2,j2) )
+    else
+       allocate( slurb_tile%rah_facade(i2,j2) )
+    endif
 
-    ALLOCATE( slurb_tile%lambda_roof(nzt_roof:nzb_roof,i2,j2) )
-    ALLOCATE( slurb_tile%c_roof(nzt_roof:nzb_roof,i2,j2) )
-    ALLOCATE( slurb_tile%albedo_roof(i2,j2) )
-    ALLOCATE( slurb_tile%emiss_roof(i2,j2) )
-    ALLOCATE( slurb_tile%z0_roof(i2,j2) )
-    ALLOCATE( slurb_tile%z0h_roof(i2,j2) )
-    ALLOCATE( slurb_tile%lambda_wall(nzt_wall:nzb_wall,i2,j2) )
-    ALLOCATE( slurb_tile%c_wall(nzt_wall:nzb_wall,i2,j2) )
-    ALLOCATE( slurb_tile%albedo_wall(i2,j2) )
-    ALLOCATE( slurb_tile%emiss_wall(i2,j2) )
-    ALLOCATE( slurb_tile%z0_wall(i2,j2) )
-    ALLOCATE( slurb_tile%lambda_win(nzt_win:nzb_win,i2,j2) )
-    ALLOCATE( slurb_tile%c_win(nzt_win:nzb_win,i2,j2) )
-    ALLOCATE( slurb_tile%albedo_wall_win(i2,j2) )
-    ALLOCATE( slurb_tile%albedo_win(i2,j2) )
-    ALLOCATE( slurb_tile%emiss_win(i2,j2) )
-    ALLOCATE( slurb_tile%transmissivity_win(i2,j2) )
-    ALLOCATE( slurb_tile%absorption_win(nzt_win:nzb_win,i2,j2) )
-    ALLOCATE( slurb_tile%lambda_road(nzt_road:nzb_road,i2,j2) )
-    ALLOCATE( slurb_tile%c_road(nzt_road:nzb_road,i2,j2) )
-    ALLOCATE( slurb_tile%albedo_road(i2,j2) )
-    ALLOCATE( slurb_tile%emiss_road(i2,j2) )
-    ALLOCATE( slurb_tile%z0_road(i2,j2) )
-    ALLOCATE( slurb_tile%z0h_road(i2,j2) )
+    allocate( slurb_tile%lambda_roof(nzt_roof:nzb_roof,i2,j2) )
+    allocate( slurb_tile%c_roof(nzt_roof:nzb_roof,i2,j2) )
+    allocate( slurb_tile%albedo_roof(i2,j2) )
+    allocate( slurb_tile%emiss_roof(i2,j2) )
+    allocate( slurb_tile%z0_roof(i2,j2) )
+    allocate( slurb_tile%z0h_roof(i2,j2) )
+    allocate( slurb_tile%lambda_wall(nzt_wall:nzb_wall,i2,j2) )
+    allocate( slurb_tile%c_wall(nzt_wall:nzb_wall,i2,j2) )
+    allocate( slurb_tile%albedo_wall(i2,j2) )
+    allocate( slurb_tile%emiss_wall(i2,j2) )
+    allocate( slurb_tile%z0_wall(i2,j2) )
+    allocate( slurb_tile%lambda_win(nzt_win:nzb_win,i2,j2) )
+    allocate( slurb_tile%c_win(nzt_win:nzb_win,i2,j2) )
+    allocate( slurb_tile%albedo_wall_win(i2,j2) )
+    allocate( slurb_tile%albedo_win(i2,j2) )
+    allocate( slurb_tile%emiss_win(i2,j2) )
+    allocate( slurb_tile%transmissivity_win(i2,j2) )
+    allocate( slurb_tile%absorption_win(nzt_win:nzb_win,i2,j2) )
+    allocate( slurb_tile%lambda_road(nzt_road:nzb_road,i2,j2) )
+    allocate( slurb_tile%c_road(nzt_road:nzb_road,i2,j2) )
+    allocate( slurb_tile%albedo_road(i2,j2) )
+    allocate( slurb_tile%emiss_road(i2,j2) )
+    allocate( slurb_tile%z0_road(i2,j2) )
+    allocate( slurb_tile%z0h_road(i2,j2) )
 
-    ALLOCATE( slurb_tile%conductivity_roof(nzt_roof:nzb_roof,i2,j2) )
-    ALLOCATE( slurb_tile%conductivity_wall(nzt_wall:nzb_wall,i2,j2) )
-    ALLOCATE( slurb_tile%conductivity_win(nzt_win:nzb_win,i2,j2) )
-    ALLOCATE( slurb_tile%conductivity_road(nzt_road:nzb_road,i2,j2) )
+    allocate( slurb_tile%conductivity_roof(nzt_roof:nzb_roof,i2,j2) )
+    allocate( slurb_tile%conductivity_wall(nzt_wall:nzb_wall,i2,j2) )
+    allocate( slurb_tile%conductivity_win(nzt_win:nzb_win,i2,j2) )
+    allocate( slurb_tile%conductivity_road(nzt_road:nzb_road,i2,j2) )
 
-    ALLOCATE( slurb_tile%z_mo(i2,j2) )
-    ALLOCATE( slurb_tile%z_mo_can(i2,j2) )
-    ALLOCATE( slurb_tile%uv_abs_can_coef(i2,j2) )
-    ALLOCATE( slurb_tile%wall_hor_a_ratio(i2,j2) )
+    allocate( slurb_tile%z_mo(i2,j2) )
+    allocate( slurb_tile%z_mo_can(i2,j2) )
+    allocate( slurb_tile%uv_abs_can_coef(i2,j2) )
+    allocate( slurb_tile%wall_hor_a_ratio(i2,j2) )
 
 
-    ALLOCATE( slurb_tile%lw_roof_coef(1:2,i2,j2) )
-    ALLOCATE( slurb_tile%lw_road_coef(1:4,i2,j2) )
-    ALLOCATE( slurb_tile%lw_wall_coef(1:6,i2,j2) )
-    ALLOCATE( slurb_tile%lw_win_coef(1:6,i2,j2) )
-    ALLOCATE( slurb_tile%sw_ref_denom(i2,j2) )
+    allocate( slurb_tile%lw_roof_coef(1:2,i2,j2) )
+    allocate( slurb_tile%lw_road_coef(1:4,i2,j2) )
+    allocate( slurb_tile%lw_wall_coef(1:6,i2,j2) )
+    allocate( slurb_tile%lw_win_coef(1:6,i2,j2) )
+    allocate( slurb_tile%sw_ref_denom(i2,j2) )
 
-    ALLOCATE( slurb_tile%us_urb(i2,j2) )
-    ALLOCATE( slurb_tile%uv_eff1(i2,j2) )
-    ALLOCATE( slurb_tile%uv_abs1(i2,j2) )
-    ALLOCATE( slurb_tile%pt1(i2,j2) )
+    allocate( slurb_tile%us_urb(i2,j2) )
+    allocate( slurb_tile%uv_eff1(i2,j2) )
+    allocate( slurb_tile%uv_abs1(i2,j2) )
+    allocate( slurb_tile%pt1(i2,j2) )
 
-    ALLOCATE( slurb_tile%t_can_0(i2,j2) )
-    ALLOCATE( slurb_tile%t_can_m(i2,j2) )
-    ALLOCATE( slurb_tile%t_wall_a_0(nzt_wall:nzb_wall,i2,j2) )
-    ALLOCATE( slurb_tile%t_wall_a_m(nzt_wall:nzb_wall,i2,j2) )
-    ALLOCATE( slurb_tile%t_wall_b_0(nzt_wall:nzb_wall,i2,j2) )
-    ALLOCATE( slurb_tile%t_wall_b_m(nzt_wall:nzb_wall,i2,j2) )
-    ALLOCATE( slurb_tile%t_win_a_0(nzt_win:nzb_win,i2,j2) )
-    ALLOCATE( slurb_tile%t_win_a_m(nzt_win:nzb_win,i2,j2) )
-    ALLOCATE( slurb_tile%t_win_b_0(nzt_win:nzb_win,i2,j2) )
-    ALLOCATE( slurb_tile%t_win_b_m(nzt_win:nzb_win,i2,j2) )
-    ALLOCATE( slurb_tile%t_roof_0(nzt_roof:nzb_roof,i2,j2) )
-    ALLOCATE( slurb_tile%t_roof_m(nzt_roof:nzb_roof,i2,j2) )
-    ALLOCATE( slurb_tile%t_road_0(nzt_road:nzb_road,i2,j2) )
-    ALLOCATE( slurb_tile%t_road_m(nzt_road:nzb_road,i2,j2) )
+    allocate( slurb_tile%t_can_0(i2,j2) )
+    allocate( slurb_tile%t_can_m(i2,j2) )
+    allocate( slurb_tile%t_wall_a_0(nzt_wall:nzb_wall,i2,j2) )
+    allocate( slurb_tile%t_wall_a_m(nzt_wall:nzb_wall,i2,j2) )
+    allocate( slurb_tile%t_wall_b_0(nzt_wall:nzb_wall,i2,j2) )
+    allocate( slurb_tile%t_wall_b_m(nzt_wall:nzb_wall,i2,j2) )
+    allocate( slurb_tile%t_win_a_0(nzt_win:nzb_win,i2,j2) )
+    allocate( slurb_tile%t_win_a_m(nzt_win:nzb_win,i2,j2) )
+    allocate( slurb_tile%t_win_b_0(nzt_win:nzb_win,i2,j2) )
+    allocate( slurb_tile%t_win_b_m(nzt_win:nzb_win,i2,j2) )
+    allocate( slurb_tile%t_roof_0(nzt_roof:nzb_roof,i2,j2) )
+    allocate( slurb_tile%t_roof_m(nzt_roof:nzb_roof,i2,j2) )
+    allocate( slurb_tile%t_road_0(nzt_road:nzb_road,i2,j2) )
+    allocate( slurb_tile%t_road_m(nzt_road:nzb_road,i2,j2) )
 
-    IF ( moist_physics )  THEN
-       ALLOCATE( slurb_tile%tq_can(i2,j2))
-       ALLOCATE( slurb_tile%tm_liq_roof(i2,j2) )
-       ALLOCATE( slurb_tile%tm_liq_road(i2,j2) )
-       ALLOCATE( slurb_tile%tm_roof_runoff(i2,j2) )
-       ALLOCATE( slurb_tile%tm_road_runoff(i2,j2) )
-       ALLOCATE( slurb_tile%tm_roof_precep(i2,j2) )
-       ALLOCATE( slurb_tile%tm_road_precep(i2,j2) )
+    if ( moist_physics )  then
+       allocate( slurb_tile%tq_can(i2,j2))
+       allocate( slurb_tile%tm_liq_roof(i2,j2) )
+       allocate( slurb_tile%tm_liq_road(i2,j2) )
+       allocate( slurb_tile%tm_roof_runoff(i2,j2) )
+       allocate( slurb_tile%tm_road_runoff(i2,j2) )
+       allocate( slurb_tile%tm_roof_precep(i2,j2) )
+       allocate( slurb_tile%tm_road_precep(i2,j2) )
 
-       ALLOCATE( slurb_tile%vpt_roof(i2,j2) )
-       ALLOCATE( slurb_tile%vpt_road(i2,j2) )
+       allocate( slurb_tile%vpt_roof(i2,j2) )
+       allocate( slurb_tile%vpt_road(i2,j2) )
 
-       ALLOCATE( slurb_tile%q_roof(i2,j2) )
-       ALLOCATE( slurb_tile%q_road(i2,j2) )
-       ALLOCATE( slurb_tile%qs_roof(i2,j2) )
-       ALLOCATE( slurb_tile%qs_road(i2,j2) )
+       allocate( slurb_tile%q_roof(i2,j2) )
+       allocate( slurb_tile%q_road(i2,j2) )
+       allocate( slurb_tile%qs_roof(i2,j2) )
+       allocate( slurb_tile%qs_road(i2,j2) )
 
-       ALLOCATE( slurb_tile%qsws_can(i2,j2) )
-       ALLOCATE( slurb_tile%qsws_roof(i2,j2) )
-       ALLOCATE( slurb_tile%qsws_road(i2,j2) )
-       ALLOCATE( slurb_tile%qsws_liq_roof(i2,j2) )
-       ALLOCATE( slurb_tile%qsws_liq_road(i2,j2) )
+       allocate( slurb_tile%qsws_can(i2,j2) )
+       allocate( slurb_tile%qsws_roof(i2,j2) )
+       allocate( slurb_tile%qsws_road(i2,j2) )
+       allocate( slurb_tile%qsws_liq_roof(i2,j2) )
+       allocate( slurb_tile%qsws_liq_road(i2,j2) )
 
-       ALLOCATE( slurb_tile%c_liq_roof(i2,j2) )
-       ALLOCATE( slurb_tile%c_liq_road(i2,j2) )
+       allocate( slurb_tile%c_liq_roof(i2,j2) )
+       allocate( slurb_tile%c_liq_road(i2,j2) )
 
-       ALLOCATE( slurb_tile%vpt_can(i2,j2) )
+       allocate( slurb_tile%vpt_can(i2,j2) )
 
-       ALLOCATE( slurb_tile%q1(i2,j2) )
-       ALLOCATE( slurb_tile%vpt1(i2,j2) )
+       allocate( slurb_tile%q1(i2,j2) )
+       allocate( slurb_tile%vpt1(i2,j2) )
 
-       ALLOCATE( slurb_tile%qsws_external(i2,j2) )
+       allocate( slurb_tile%qsws_external(i2,j2) )
 
-       ALLOCATE( slurb_tile%q_can_0(i2,j2) )
-       ALLOCATE( slurb_tile%q_can_m(i2,j2) )
-       ALLOCATE( slurb_tile%m_liq_roof_0(i2,j2) )
-       ALLOCATE( slurb_tile%m_liq_roof_m(i2,j2) )
-       ALLOCATE( slurb_tile%m_liq_road_0(i2,j2) )
-       ALLOCATE( slurb_tile%m_liq_road_m(i2,j2) )
+       allocate( slurb_tile%q_can_0(i2,j2) )
+       allocate( slurb_tile%q_can_m(i2,j2) )
+       allocate( slurb_tile%m_liq_roof_0(i2,j2) )
+       allocate( slurb_tile%m_liq_roof_m(i2,j2) )
+       allocate( slurb_tile%m_liq_road_0(i2,j2) )
+       allocate( slurb_tile%m_liq_road_m(i2,j2) )
 
-    ENDIF
+    endif
 
-    ALLOCATE( slurb_tile%dt_max(i2,j2) )
+    allocate( slurb_tile%dt_max(i2,j2) )
 
 
 
@@ -439,14 +439,14 @@ subroutine slurb_bulk_allocations
     slurb_tile%rah_road(:,:) = ieee_value(slurb_tile%rah_road,ieee_signaling_nan)
     slurb_tile%rah_can(:,:) = ieee_value(slurb_tile%rah_can,ieee_signaling_nan)
 
-    IF ( facade_rah_doe )  THEN
+    if ( facade_rah_doe )  then
        slurb_tile%rah_wall_a(:,:) = ieee_value(slurb_tile%rah_wall_a,ieee_signaling_nan)
        slurb_tile%rah_wall_b(:,:) = ieee_value(slurb_tile%rah_wall_b,ieee_signaling_nan)
        slurb_tile%rah_win_a(:,:) = ieee_value(slurb_tile%rah_win_a,ieee_signaling_nan)
        slurb_tile%rah_win_b(:,:) = ieee_value(slurb_tile%rah_win_b,ieee_signaling_nan)
-    ELSE
+    else
        slurb_tile%rah_facade(:,:) = ieee_value(slurb_tile%rah_facade,ieee_signaling_nan)
-    ENDIF
+    endif
 
     slurb_tile%lambda_roof(:,:,:) = ieee_value(slurb_tile%lambda_roof,ieee_signaling_nan)
     slurb_tile%c_roof(:,:,:) = ieee_value(slurb_tile%c_roof,ieee_signaling_nan)
@@ -522,7 +522,7 @@ subroutine slurb_bulk_allocations
     ! slurb_tile%t_roof_0 => slurb_tile%t_roof_m; slurb_tile%t_roof_m => slurb_tile%t_roof_0
     ! slurb_tile%t_road_0 => slurb_tile%t_road_m; slurb_tile%t_road_m => slurb_tile%t_road_0
 
-    IF ( moist_physics )  THEN
+    if ( moist_physics )  then
        slurb_tile%tq_can(:,:) = ieee_value(slurb_tile%tq_can,ieee_signaling_nan)
        slurb_tile%tm_liq_roof(:,:) = ieee_value(slurb_tile%tm_liq_roof,ieee_signaling_nan)
        slurb_tile%tm_liq_road(:,:) = ieee_value(slurb_tile%tm_liq_road,ieee_signaling_nan)
@@ -562,247 +562,247 @@ subroutine slurb_bulk_allocations
        slurb_tile%m_liq_road_0(:,:) = ieee_value(slurb_tile%m_liq_road_0,ieee_signaling_nan)
        slurb_tile%m_liq_road_m(:,:) = ieee_value(slurb_tile%m_liq_road_m,ieee_signaling_nan)
 
-    ENDIF
+    endif
 
     slurb_tile%dt_max(:,:) = ieee_value(slurb_tile%dt_max,ieee_signaling_nan)
 #endif
 end subroutine slurb_bulk_allocations
 
 subroutine slurb_bulk_deallocations
-    DEALLOCATE(fraction_slurb)
+    deallocate(fraction_slurb)
 
-    DEALLOCATE(ln_z_z0_roof)
-    DEALLOCATE(ln_z_z0h_roof)
-    DEALLOCATE(ln_z_z0_urb)
-    DEALLOCATE(pt_surface)
-    DEALLOCATE(ln_z_z0_road)
-    DEALLOCATE(ln_z_z0h_road)
+    deallocate(ln_z_z0_roof)
+    deallocate(ln_z_z0h_roof)
+    deallocate(ln_z_z0_urb)
+    deallocate(pt_surface)
+    deallocate(ln_z_z0_road)
+    deallocate(ln_z_z0h_road)
     !-- Bulk allocation
-    DEALLOCATE( slurb_tile%dz_roof)
-    DEALLOCATE( slurb_tile%dz_wall)
-    DEALLOCATE( slurb_tile%dz_road)
-    DEALLOCATE( slurb_tile%dz_win)
-    DEALLOCATE( slurb_tile%zw_win)
+    deallocate( slurb_tile%dz_roof)
+    deallocate( slurb_tile%dz_wall)
+    deallocate( slurb_tile%dz_road)
+    deallocate( slurb_tile%dz_win)
+    deallocate( slurb_tile%zw_win)
 
-    DEALLOCATE( slurb_tile%t_c_urb)
-    DEALLOCATE( slurb_tile%thl_rad_urb)
-    DEALLOCATE( slurb_tile%t_h_urb)
-    DEALLOCATE( slurb_tile%t_2m_urb)
-    DEALLOCATE( slurb_tile%shf_urb)
-    DEALLOCATE( slurb_tile%qsws_urb)
-    DEALLOCATE( slurb_tile%ol_urb)
-    DEALLOCATE( slurb_tile%rib_urb)
-    DEALLOCATE( slurb_tile%ram_urb)
-    DEALLOCATE( slurb_tile%usws_urb)
-    DEALLOCATE( slurb_tile%vsws_urb)
-    DEALLOCATE( slurb_tile%thlskin)
-    DEALLOCATE( slurb_tile%qtskin)
+    deallocate( slurb_tile%t_c_urb)
+    deallocate( slurb_tile%thl_rad_urb)
+    deallocate( slurb_tile%t_h_urb)
+    deallocate( slurb_tile%t_2m_urb)
+    deallocate( slurb_tile%shf_urb)
+    deallocate( slurb_tile%qsws_urb)
+    deallocate( slurb_tile%ol_urb)
+    deallocate( slurb_tile%rib_urb)
+    deallocate( slurb_tile%ram_urb)
+    deallocate( slurb_tile%usws_urb)
+    deallocate( slurb_tile%vsws_urb)
+    deallocate( slurb_tile%thlskin)
+    deallocate( slurb_tile%qtskin)
 
-    DEALLOCATE( slurb_tile%albedo_urb)
-    DEALLOCATE( slurb_tile%emiss_urb)
+    deallocate( slurb_tile%albedo_urb)
+    deallocate( slurb_tile%emiss_urb)
 
-    DEALLOCATE( slurb_tile%t_indoor)
-    DEALLOCATE( slurb_tile%t_soil)
+    deallocate( slurb_tile%t_indoor)
+    deallocate( slurb_tile%t_soil)
 
-    DEALLOCATE( slurb_tile%tt_can)
-    DEALLOCATE( slurb_tile%tt_wall_a)
-    DEALLOCATE( slurb_tile%tt_wall_b)
-    DEALLOCATE( slurb_tile%tt_win_a)
-    DEALLOCATE( slurb_tile%tt_win_b)
-    DEALLOCATE( slurb_tile%tt_roof)
-    DEALLOCATE( slurb_tile%tt_road)
+    deallocate( slurb_tile%tt_can)
+    deallocate( slurb_tile%tt_wall_a)
+    deallocate( slurb_tile%tt_wall_b)
+    deallocate( slurb_tile%tt_win_a)
+    deallocate( slurb_tile%tt_win_b)
+    deallocate( slurb_tile%tt_roof)
+    deallocate( slurb_tile%tt_road)
 
-    DEALLOCATE( slurb_tile%pt_wall_a)
-    DEALLOCATE( slurb_tile%pt_wall_b)
-    DEALLOCATE( slurb_tile%pt_win_a)
-    DEALLOCATE( slurb_tile%pt_win_b)
-    DEALLOCATE( slurb_tile%pt_roof)
-    DEALLOCATE( slurb_tile%pt_road)
+    deallocate( slurb_tile%pt_wall_a)
+    deallocate( slurb_tile%pt_wall_b)
+    deallocate( slurb_tile%pt_win_a)
+    deallocate( slurb_tile%pt_win_b)
+    deallocate( slurb_tile%pt_roof)
+    deallocate( slurb_tile%pt_road)
 
-    DEALLOCATE( slurb_tile%shf_can)
-    DEALLOCATE( slurb_tile%shf_roof)
-    DEALLOCATE( slurb_tile%shf_road)
-    DEALLOCATE( slurb_tile%shf_wall_a)
-    DEALLOCATE( slurb_tile%shf_wall_b)
-    DEALLOCATE( slurb_tile%shf_win_a)
-    DEALLOCATE( slurb_tile%shf_win_b)
+    deallocate( slurb_tile%shf_can)
+    deallocate( slurb_tile%shf_roof)
+    deallocate( slurb_tile%shf_road)
+    deallocate( slurb_tile%shf_wall_a)
+    deallocate( slurb_tile%shf_wall_b)
+    deallocate( slurb_tile%shf_win_a)
+    deallocate( slurb_tile%shf_win_b)
 
-    DEALLOCATE( slurb_tile%shf_external)
-    DEALLOCATE( slurb_tile%shf_traffic)
+    deallocate( slurb_tile%shf_external)
+    deallocate( slurb_tile%shf_traffic)
 
-    DEALLOCATE( slurb_tile%ghf_road)
-    DEALLOCATE( slurb_tile%ghf_roof)
-    DEALLOCATE( slurb_tile%ghf_wall_a)
-    DEALLOCATE( slurb_tile%ghf_wall_b)
-    DEALLOCATE( slurb_tile%ghf_win_a)
-    DEALLOCATE( slurb_tile%ghf_win_b)
+    deallocate( slurb_tile%ghf_road)
+    deallocate( slurb_tile%ghf_roof)
+    deallocate( slurb_tile%ghf_wall_a)
+    deallocate( slurb_tile%ghf_wall_b)
+    deallocate( slurb_tile%ghf_win_a)
+    deallocate( slurb_tile%ghf_win_b)
 
-    DEALLOCATE( slurb_tile%rad_lw_in_urb)
-    DEALLOCATE( slurb_tile%rad_sw_in_urb)
-    DEALLOCATE( slurb_tile%rad_lw_out_urb)
-    DEALLOCATE( slurb_tile%rad_sw_out_urb)
+    deallocate( slurb_tile%rad_lw_in_urb)
+    deallocate( slurb_tile%rad_sw_in_urb)
+    deallocate( slurb_tile%rad_lw_out_urb)
+    deallocate( slurb_tile%rad_sw_out_urb)
 
-    DEALLOCATE( slurb_tile%rad_lw_net_urb)
-    DEALLOCATE( slurb_tile%rad_sw_net_urb)
+    deallocate( slurb_tile%rad_lw_net_urb)
+    deallocate( slurb_tile%rad_sw_net_urb)
 
-    DEALLOCATE( slurb_tile%rad_lw_net_can)
+    deallocate( slurb_tile%rad_lw_net_can)
 
-    DEALLOCATE( slurb_tile%rad_lw_net_roof)
-    DEALLOCATE( slurb_tile%rad_sw_net_roof)
-    DEALLOCATE( slurb_tile%rad_lw_net_road)
-    DEALLOCATE( slurb_tile%rad_sw_net_road)
-    DEALLOCATE( slurb_tile%rad_sw_in_road)
-    DEALLOCATE( slurb_tile%rad_lw_net_wall_a)
-    DEALLOCATE( slurb_tile%rad_sw_net_wall_a)
-    DEALLOCATE( slurb_tile%rad_lw_net_wall_b)
-    DEALLOCATE( slurb_tile%rad_sw_net_wall_b)
-    DEALLOCATE( slurb_tile%rad_lw_net_win_a)
-    DEALLOCATE( slurb_tile%rad_sw_net_win_a)
-    DEALLOCATE( slurb_tile%rad_sw_in_win_a)
-    DEALLOCATE( slurb_tile%rad_lw_net_win_b)
-    DEALLOCATE( slurb_tile%rad_sw_net_win_b)
-    DEALLOCATE( slurb_tile%rad_sw_in_win_b)
+    deallocate( slurb_tile%rad_lw_net_roof)
+    deallocate( slurb_tile%rad_sw_net_roof)
+    deallocate( slurb_tile%rad_lw_net_road)
+    deallocate( slurb_tile%rad_sw_net_road)
+    deallocate( slurb_tile%rad_sw_in_road)
+    deallocate( slurb_tile%rad_lw_net_wall_a)
+    deallocate( slurb_tile%rad_sw_net_wall_a)
+    deallocate( slurb_tile%rad_lw_net_wall_b)
+    deallocate( slurb_tile%rad_sw_net_wall_b)
+    deallocate( slurb_tile%rad_lw_net_win_a)
+    deallocate( slurb_tile%rad_sw_net_win_a)
+    deallocate( slurb_tile%rad_sw_in_win_a)
+    deallocate( slurb_tile%rad_lw_net_win_b)
+    deallocate( slurb_tile%rad_sw_net_win_b)
+    deallocate( slurb_tile%rad_sw_in_win_b)
 
-    DEALLOCATE( slurb_tile%pt_can)
-    DEALLOCATE( slurb_tile%uv_abs_can)
-    DEALLOCATE( slurb_tile%uv_eff_can)
-    DEALLOCATE( slurb_tile%us_can)
-    DEALLOCATE( slurb_tile%rib_can)
-    DEALLOCATE( slurb_tile%ol_can)
+    deallocate( slurb_tile%pt_can)
+    deallocate( slurb_tile%uv_abs_can)
+    deallocate( slurb_tile%uv_eff_can)
+    deallocate( slurb_tile%us_can)
+    deallocate( slurb_tile%rib_can)
+    deallocate( slurb_tile%ol_can)
 
-    DEALLOCATE( slurb_tile%rib_roof)
-    DEALLOCATE( slurb_tile%ol_roof)
-    DEALLOCATE( slurb_tile%rib_road)
-    DEALLOCATE( slurb_tile%ol_road)
+    deallocate( slurb_tile%rib_roof)
+    deallocate( slurb_tile%ol_roof)
+    deallocate( slurb_tile%rib_road)
+    deallocate( slurb_tile%ol_road)
 
-    DEALLOCATE( slurb_tile%us_roof)
-    DEALLOCATE( slurb_tile%us_road)
+    deallocate( slurb_tile%us_roof)
+    deallocate( slurb_tile%us_road)
 
-    DEALLOCATE( slurb_tile%hw_can)
-    DEALLOCATE( slurb_tile%anisotropic_canyon)
-    DEALLOCATE( slurb_tile%theta_can)
-    DEALLOCATE( slurb_tile%h_bld)
-    DEALLOCATE( slurb_tile%f_bld)
-    DEALLOCATE( slurb_tile%f_bld_frn)
-    DEALLOCATE( slurb_tile%f_win)
-    DEALLOCATE( slurb_tile%svf_road)
-    DEALLOCATE( slurb_tile%svf_wall)
-    DEALLOCATE( slurb_tile%z0_urb)
+    deallocate( slurb_tile%hw_can)
+    deallocate( slurb_tile%anisotropic_canyon)
+    deallocate( slurb_tile%theta_can)
+    deallocate( slurb_tile%h_bld)
+    deallocate( slurb_tile%f_bld)
+    deallocate( slurb_tile%f_bld_frn)
+    deallocate( slurb_tile%f_win)
+    deallocate( slurb_tile%svf_road)
+    deallocate( slurb_tile%svf_wall)
+    deallocate( slurb_tile%z0_urb)
 
-    DEALLOCATE( slurb_tile%rah_roof)
-    DEALLOCATE( slurb_tile%rah_road)
-    DEALLOCATE( slurb_tile%rah_can)
+    deallocate( slurb_tile%rah_roof)
+    deallocate( slurb_tile%rah_road)
+    deallocate( slurb_tile%rah_can)
 
-    IF ( facade_rah_doe )  THEN
-       DEALLOCATE( slurb_tile%rah_wall_a)
-       DEALLOCATE( slurb_tile%rah_wall_b)
-       DEALLOCATE( slurb_tile%rah_win_a)
-       DEALLOCATE( slurb_tile%rah_win_b)
-    ELSE
-       DEALLOCATE( slurb_tile%rah_facade)
-    ENDIF
+    if ( facade_rah_doe )  then
+       deallocate( slurb_tile%rah_wall_a)
+       deallocate( slurb_tile%rah_wall_b)
+       deallocate( slurb_tile%rah_win_a)
+       deallocate( slurb_tile%rah_win_b)
+    else
+       deallocate( slurb_tile%rah_facade)
+    endif
 
-    DEALLOCATE( slurb_tile%lambda_roof)
-    DEALLOCATE( slurb_tile%c_roof)
-    DEALLOCATE( slurb_tile%albedo_roof)
-    DEALLOCATE( slurb_tile%emiss_roof)
-    DEALLOCATE( slurb_tile%z0_roof)
-    DEALLOCATE( slurb_tile%z0h_roof)
-    DEALLOCATE( slurb_tile%lambda_wall)
-    DEALLOCATE( slurb_tile%c_wall)
-    DEALLOCATE( slurb_tile%albedo_wall)
-    DEALLOCATE( slurb_tile%emiss_wall)
-    DEALLOCATE( slurb_tile%z0_wall)
-    DEALLOCATE( slurb_tile%lambda_win)
-    DEALLOCATE( slurb_tile%c_win)
-    DEALLOCATE( slurb_tile%albedo_wall_win)
-    DEALLOCATE( slurb_tile%albedo_win)
-    DEALLOCATE( slurb_tile%emiss_win)
-    DEALLOCATE( slurb_tile%transmissivity_win)
-    DEALLOCATE( slurb_tile%absorption_win)
-    DEALLOCATE( slurb_tile%lambda_road)
-    DEALLOCATE( slurb_tile%c_road)
-    DEALLOCATE( slurb_tile%albedo_road)
-    DEALLOCATE( slurb_tile%emiss_road)
-    DEALLOCATE( slurb_tile%z0_road)
-    DEALLOCATE( slurb_tile%z0h_road)
+    deallocate( slurb_tile%lambda_roof)
+    deallocate( slurb_tile%c_roof)
+    deallocate( slurb_tile%albedo_roof)
+    deallocate( slurb_tile%emiss_roof)
+    deallocate( slurb_tile%z0_roof)
+    deallocate( slurb_tile%z0h_roof)
+    deallocate( slurb_tile%lambda_wall)
+    deallocate( slurb_tile%c_wall)
+    deallocate( slurb_tile%albedo_wall)
+    deallocate( slurb_tile%emiss_wall)
+    deallocate( slurb_tile%z0_wall)
+    deallocate( slurb_tile%lambda_win)
+    deallocate( slurb_tile%c_win)
+    deallocate( slurb_tile%albedo_wall_win)
+    deallocate( slurb_tile%albedo_win)
+    deallocate( slurb_tile%emiss_win)
+    deallocate( slurb_tile%transmissivity_win)
+    deallocate( slurb_tile%absorption_win)
+    deallocate( slurb_tile%lambda_road)
+    deallocate( slurb_tile%c_road)
+    deallocate( slurb_tile%albedo_road)
+    deallocate( slurb_tile%emiss_road)
+    deallocate( slurb_tile%z0_road)
+    deallocate( slurb_tile%z0h_road)
 
-    DEALLOCATE( slurb_tile%conductivity_roof)
-    DEALLOCATE( slurb_tile%conductivity_wall)
-    DEALLOCATE( slurb_tile%conductivity_win)
-    DEALLOCATE( slurb_tile%conductivity_road)
+    deallocate( slurb_tile%conductivity_roof)
+    deallocate( slurb_tile%conductivity_wall)
+    deallocate( slurb_tile%conductivity_win)
+    deallocate( slurb_tile%conductivity_road)
 
-    DEALLOCATE( slurb_tile%z_mo)
-    DEALLOCATE( slurb_tile%z_mo_can)
-    DEALLOCATE( slurb_tile%uv_abs_can_coef)
-    DEALLOCATE( slurb_tile%wall_hor_a_ratio)
+    deallocate( slurb_tile%z_mo)
+    deallocate( slurb_tile%z_mo_can)
+    deallocate( slurb_tile%uv_abs_can_coef)
+    deallocate( slurb_tile%wall_hor_a_ratio)
 
 
-    DEALLOCATE( slurb_tile%lw_roof_coef)
-    DEALLOCATE( slurb_tile%lw_road_coef)
-    DEALLOCATE( slurb_tile%lw_wall_coef)
-    DEALLOCATE( slurb_tile%lw_win_coef)
-    DEALLOCATE( slurb_tile%sw_ref_denom)
+    deallocate( slurb_tile%lw_roof_coef)
+    deallocate( slurb_tile%lw_road_coef)
+    deallocate( slurb_tile%lw_wall_coef)
+    deallocate( slurb_tile%lw_win_coef)
+    deallocate( slurb_tile%sw_ref_denom)
 
-    DEALLOCATE( slurb_tile%us_urb)
-    DEALLOCATE( slurb_tile%uv_eff1)
-    DEALLOCATE( slurb_tile%uv_abs1)
-    DEALLOCATE( slurb_tile%pt1)
+    deallocate( slurb_tile%us_urb)
+    deallocate( slurb_tile%uv_eff1)
+    deallocate( slurb_tile%uv_abs1)
+    deallocate( slurb_tile%pt1)
 
-    DEALLOCATE( slurb_tile%t_can_0)
-    DEALLOCATE( slurb_tile%t_can_m)
-    DEALLOCATE( slurb_tile%t_wall_a_0)
-    DEALLOCATE( slurb_tile%t_wall_a_m)
-    DEALLOCATE( slurb_tile%t_wall_b_0)
-    DEALLOCATE( slurb_tile%t_wall_b_m)
-    DEALLOCATE( slurb_tile%t_win_a_0)
-    DEALLOCATE( slurb_tile%t_win_a_m)
-    DEALLOCATE( slurb_tile%t_win_b_0)
-    DEALLOCATE( slurb_tile%t_win_b_m)
-    DEALLOCATE( slurb_tile%t_roof_0)
-    DEALLOCATE( slurb_tile%t_roof_m)
-    DEALLOCATE( slurb_tile%t_road_0)
-    DEALLOCATE( slurb_tile%t_road_m)
+    deallocate( slurb_tile%t_can_0)
+    deallocate( slurb_tile%t_can_m)
+    deallocate( slurb_tile%t_wall_a_0)
+    deallocate( slurb_tile%t_wall_a_m)
+    deallocate( slurb_tile%t_wall_b_0)
+    deallocate( slurb_tile%t_wall_b_m)
+    deallocate( slurb_tile%t_win_a_0)
+    deallocate( slurb_tile%t_win_a_m)
+    deallocate( slurb_tile%t_win_b_0)
+    deallocate( slurb_tile%t_win_b_m)
+    deallocate( slurb_tile%t_roof_0)
+    deallocate( slurb_tile%t_roof_m)
+    deallocate( slurb_tile%t_road_0)
+    deallocate( slurb_tile%t_road_m)
 
-    IF ( moist_physics )  THEN
-       DEALLOCATE( slurb_tile%tq_can)
-       DEALLOCATE( slurb_tile%tm_liq_roof)
-       DEALLOCATE( slurb_tile%tm_liq_road)
-       DEALLOCATE( slurb_tile%tm_roof_runoff)
-       DEALLOCATE( slurb_tile%tm_road_runoff)
-       DEALLOCATE( slurb_tile%tm_roof_precep)
-       DEALLOCATE( slurb_tile%tm_road_precep)
-       DEALLOCATE( slurb_tile%vpt_roof)
-       DEALLOCATE( slurb_tile%vpt_road)
+    if ( moist_physics )  then
+       deallocate( slurb_tile%tq_can)
+       deallocate( slurb_tile%tm_liq_roof)
+       deallocate( slurb_tile%tm_liq_road)
+       deallocate( slurb_tile%tm_roof_runoff)
+       deallocate( slurb_tile%tm_road_runoff)
+       deallocate( slurb_tile%tm_roof_precep)
+       deallocate( slurb_tile%tm_road_precep)
+       deallocate( slurb_tile%vpt_roof)
+       deallocate( slurb_tile%vpt_road)
 
-       DEALLOCATE( slurb_tile%q_roof)
-       DEALLOCATE( slurb_tile%q_road)
-       DEALLOCATE( slurb_tile%qs_roof)
-       DEALLOCATE( slurb_tile%qs_road)
+       deallocate( slurb_tile%q_roof)
+       deallocate( slurb_tile%q_road)
+       deallocate( slurb_tile%qs_roof)
+       deallocate( slurb_tile%qs_road)
 
-       DEALLOCATE( slurb_tile%qsws_can)
-       DEALLOCATE( slurb_tile%qsws_roof)
-       DEALLOCATE( slurb_tile%qsws_road)
-       DEALLOCATE( slurb_tile%qsws_liq_roof)
-       DEALLOCATE( slurb_tile%qsws_liq_road)
+       deallocate( slurb_tile%qsws_can)
+       deallocate( slurb_tile%qsws_roof)
+       deallocate( slurb_tile%qsws_road)
+       deallocate( slurb_tile%qsws_liq_roof)
+       deallocate( slurb_tile%qsws_liq_road)
 
-       DEALLOCATE( slurb_tile%c_liq_roof)
-       DEALLOCATE( slurb_tile%c_liq_road)
+       deallocate( slurb_tile%c_liq_roof)
+       deallocate( slurb_tile%c_liq_road)
 
-       DEALLOCATE( slurb_tile%vpt_can)
+       deallocate( slurb_tile%vpt_can)
 
-       DEALLOCATE( slurb_tile%q1)
-       DEALLOCATE( slurb_tile%vpt1)
+       deallocate( slurb_tile%q1)
+       deallocate( slurb_tile%vpt1)
 
-       DEALLOCATE( slurb_tile%qsws_external)
+       deallocate( slurb_tile%qsws_external)
 
-       DEALLOCATE( slurb_tile%q_can_0)
-       DEALLOCATE( slurb_tile%q_can_m)
-       DEALLOCATE( slurb_tile%m_liq_roof_0)
-       DEALLOCATE( slurb_tile%m_liq_roof_m)
-       DEALLOCATE( slurb_tile%m_liq_road_0)
-       DEALLOCATE( slurb_tile%m_liq_road_m)
-    ENDIF
+       deallocate( slurb_tile%q_can_0)
+       deallocate( slurb_tile%q_can_m)
+       deallocate( slurb_tile%m_liq_roof_0)
+       deallocate( slurb_tile%m_liq_roof_m)
+       deallocate( slurb_tile%m_liq_road_0)
+       deallocate( slurb_tile%m_liq_road_m)
+    endif
 end subroutine slurb_bulk_deallocations
 
 
@@ -811,7 +811,7 @@ end subroutine slurb_bulk_deallocations
     ! ------------
     ! Swap timelevel of the SLUrb model.
     !--------------------------------------------------------------------------------------------------!
- SUBROUTINE slurb_set_previous_timestep()
+ subroutine slurb_set_previous_timestep()
     use modglobal, only: rk3step
 
     if (rk3step == 1) then
@@ -827,7 +827,7 @@ end subroutine slurb_bulk_deallocations
         slurb_tile%m_liq_road_m(:,:) = slurb_tile%m_liq_road_0(:,:)
     endif
 
- END SUBROUTINE slurb_set_previous_timestep
+ end subroutine slurb_set_previous_timestep
 
   !--------------------------------------------------------------------------------------------------!
     ! Description:
@@ -835,20 +835,20 @@ end subroutine slurb_bulk_deallocations
     !> This function computes the magnus formula (Press et al., 1992).
     !> The magnus formula is needed to calculate the saturation vapor pressure.
     !--------------------------------------------------------------------------------------------------!
- FUNCTION magnus( t )
+ function magnus( t )
     !$ACC ROUTINE SEQ
 
     IMPLICIT NONE
 
-    REAL(field_r), INTENT(IN) ::  t  !< temperature (K)
+    real(field_r), intent(in) ::  t  !< temperature (K)
 
-    REAL(field_r) ::  magnus
+    real(field_r) ::  magnus
 
     !
     !-- Saturation vapor pressure for a specific temperature:
     magnus =  611.2_field_r * EXP( 17.62_field_r * ( t - 273.15_field_r ) / ( t - 29.65_field_r  ) )
 
- END FUNCTION magnus
+ end function magnus
 
     !--------------------------------------------------------------------------------------------------!
     ! Description:
@@ -857,27 +857,27 @@ end subroutine slurb_bulk_deallocations
     !> This is used to initialize the material temperatures for roofs, walls, windows and roads,
     !> shortening the time required for the spinup. For windows, SW absorption is not considered.
     !--------------------------------------------------------------------------------------------------!
- !TODOSELF PURE
- FUNCTION calc_1d_heat_equation( result_size , t_bc_1, t_bc_2, lambda ) RESULT( t_result )
+ !TODOSELF pure
+ function calc_1d_heat_equation( result_size , t_bc_1, t_bc_2, lambda ) RESULT( t_result )
 
-    INTEGER, INTENT(IN) ::  result_size  !< output target size
+    integer, intent(in) ::  result_size  !< output target size
 
-    REAL(field_r), INTENT(IN) ::  t_bc_1  !< outer t boundary condition
-    REAL(field_r), INTENT(IN) ::  t_bc_2  !< inner t boundary condition
+    real(field_r), intent(in) ::  t_bc_1  !< outer t boundary condition
+    real(field_r), intent(in) ::  t_bc_2  !< inner t boundary condition
 
-    REAL(field_r), DIMENSION(:), INTENT(IN) ::  lambda  !< total layer heat conductivity
+    real(field_r), dimension(:), intent(in) ::  lambda  !< total layer heat conductivity
 
-    INTEGER ::  ix  !< iteration counter
-    INTEGER ::  kx  !< layer running index
+    integer ::  ix  !< iteration counter
+    integer ::  kx  !< layer running index
 
-    REAL(field_r), PARAMETER ::  omega = 1.0_field_r   !< relaxation to control convergence
-    REAL(field_r), PARAMETER ::  tol = 1.0E-6_field_r  !< maximum residual for convergence
+    real(field_r), PARAMETER ::  omega = 1.0_field_r   !< relaxation to control convergence
+    real(field_r), PARAMETER ::  tol = 1.0E-6_field_r  !< maximum residual for convergence
 
-    REAL(field_r) ::  res    !< iteration residual for convergence check
-    REAL(field_r) ::  t_old  !< previous t of layer for convergence check
+    real(field_r) ::  res    !< iteration residual for convergence check
+    real(field_r) ::  t_old  !< previous t of layer for convergence check
 
-    REAL(field_r), DIMENSION(result_size) ::  t_result  !< result t profile
-    REAL(field_r), DIMENSION(1:result_size+1) ::  t     !< intermediate t array containing also the BCs
+    real(field_r), dimension(result_size) ::  t_result  !< result t profile
+    real(field_r), dimension(1:result_size+1) ::  t     !< intermediate t array containing also the BCs
 
 
     !
@@ -894,22 +894,22 @@ end subroutine slurb_bulk_deallocations
  
     !
     !-- Gauss-Seidel iteration.
-    DO  ix = 1, 1000
-       DO  kx = LBOUND( t, 1 )+1, UBOUND( t, 1 )-1
+    do  ix = 1, 1000
+       do  kx = LBOUND( t, 1 )+1, UBOUND( t, 1 )-1
           t_old = t(kx)
           res = 0.0_field_r
           t(kx) = ( lambda(kx) * ( t(kx+1) - t(kx) ) + lambda(kx-1) * ( t(kx-1) - t(kx) ) ) /      &
                   ( lambda(kx) + lambda(kx-1) ) * omega + t(kx)
           res = MAX( res, ABS( t(kx) - t_old ) )
-       ENDDO
+       enddo
     !
     !--    Check for convergence using the stored maximum residual.
-       IF ( res < tol )  EXIT
-    ENDDO
+       if ( res < tol )  EXIT
+    enddo
     !
     !-- Return the solution.
     t_result(:) = t(LBOUND( t, 1 ):UBOUND( t, 1 )-1)
 
- END FUNCTION calc_1d_heat_equation
+ end function calc_1d_heat_equation
 
 end module modslurbhelpers

@@ -1101,8 +1101,7 @@ subroutine calc_bulk_bcs
                     H(i,j)      = H(i,j)     + fraction_slurb(i,j) * slurb_tile%shf_urb(i,j)
                     LE(i,j)     = LE(i,j)    + fraction_slurb(i,j) * slurb_tile%qsws_urb(i,j)
                     ! G0(i,j)     = G0(i,j)    + tile(ilu)%frac(i,j) * tile(ilu)%G(i,j)
-                    ustar(i,j)  = ustar(i,j) + fraction_slurb(i,j) * (slurb_tile%f_bld(i,j) * slurb_tile%us_roof(i,j) &
-                                                                + (1 - slurb_tile%f_bld(i,j)) * slurb_tile%us_can(i,j))
+                    ustar(i,j)  = ustar(i,j) + fraction_slurb(i,j) * slurb_tile%us_urb(i,j)
                     tskin(i,j)  = tskin(i,j) + fraction_slurb(i,j) * slurb_tile%thlskin(i,j)
                     qskin(i,j)  = qskin(i,j) + fraction_slurb(i,j) * slurb_tile%qtskin(i,j)
                     albedo(i,j) = albedo(i,j) + fraction_slurb(i,j) * slurb_tile%albedo_urb(i,j)
@@ -2172,10 +2171,12 @@ subroutine init_lsm_tiles
       tile(ilu) % thlskin(:,:) = thlprof(1)
       tile(ilu) % qtskin (:,:) = qtprof(1)
       tile(ilu) % obuk   (:,:) = -0.1
+      tile(ilu) % db     (:,:) = 0.0
 
       !$acc update device(tile(ilu)%thlskin)
       !$acc update device(tile(ilu)%qtskin)
       !$acc update device(tile(ilu)%obuk)
+      !$acc update device(tile(ilu)%db)
     end do
 
 end subroutine init_lsm_tiles
@@ -2797,6 +2798,7 @@ subroutine init_heterogeneous_nc
 
     ! initialize tskin
     tskin(:,:) = 0
+    tskin_radiative(:,:) = 0
     do ilu=1,nlu
         if (tile(ilu)%lushort == "slb") then; cycle; endif
        tskin(:,:) = tskin(:,:) + tile(ilu)%base_frac(:,:) * tile(ilu)%tskin(:,:)
