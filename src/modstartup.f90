@@ -1187,7 +1187,7 @@ contains
   subroutine readrestartfiles
 
     use modsurfdata, only : ustar,thlflux,qtflux,svflux,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
-                 tsoil,tsoilm,phiw,phiwm,tskin,Wl,Wlm,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
+                 tsoil,phiw,tskin,Wl,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
                            obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
     use modraddata, only: iradiation,useMcICA, tnext_radiation => tnext, &
                           thlprad,swd,swu,lwd,lwu,swdca,swuca,lwdca,lwuca,swdir,swdif,lwc,&
@@ -1207,7 +1207,7 @@ contains
 
     character(len=*), parameter :: routine = modname//'/readrestartfiles'
     character(50) :: name
-    integer i,j,k,n, ilu, ios
+    integer i,j,k,n, ilu
     !********************************************************************
 
   !    1.0 Read initfiles
@@ -1391,7 +1391,7 @@ contains
   ! separated from writerestartfiles to be callable from the library interface
   subroutine do_writerestartfiles
     use modsurfdata,only: ustar,thlflux,qtflux,svflux,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
-                tsoil,tsoilm,phiw,phiwm,tskin,Wl,Wlm,ksoilmax,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
+                tsoil,phiw,tskin,Wl,ksoilmax,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
                           obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
     use modraddata, only: iradiation,useMcICA, tnext_radiation => tnext, &
                           thlprad,swd,swu,lwd,lwu,swdca,swuca,lwdca,lwuca,swdir,swdif,lwc,&
@@ -1539,11 +1539,6 @@ contains
         end do
 
         write(ifoutput)  timee
-
-        ! Preserve previous-time-level LSM state for warmstart consistency.
-        write(ifoutput) (((tsoilm(i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
-        write(ifoutput) (((phiwm (i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
-        write(ifoutput) ((Wlm    (i,j),   i=1,i2), j=1,j2)
 
         if (enable_slurb) then
           write(ifoutput) ((slurb_tile%t_can_0(i,j), i=1,i2), j=1,j2)
