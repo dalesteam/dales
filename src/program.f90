@@ -344,8 +344,8 @@ program DALES
           call writerestartfiles
         end if
 
-        host_is_updated=.false.; call update_host
         call reset_tendencies
+        host_is_updated=.false.; call update_host
 
 #if defined(_OPENACC)
         host_is_updated = .false.
