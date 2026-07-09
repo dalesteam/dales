@@ -341,14 +341,12 @@ program DALES
           call msebudg2
           !call stressbudgetstat
           call heterostats
-          host_is_updated=.false.; call update_host
 
           call testwctime
           call writerestartfiles
-       else
-          host_is_updated=.false.; call update_host
         end if
 
+        host_is_updated=.false.; call update_host
         call reset_tendencies
 
 #if defined(_OPENACC)
