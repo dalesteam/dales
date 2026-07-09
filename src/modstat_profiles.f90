@@ -167,7 +167,7 @@ contains
     profiles = 0
 
     !$acc enter data copyin(profiles) create(slab_average) async
-!$omp target enter data map(to:profiles) map(alloc:slab_average)
+    !$omp target enter data map(to:profiles) map(alloc:slab_average)
 
     if (lprocblock) then
       my_task_writes = .true. ! All MPI ranks write to a file
@@ -313,8 +313,8 @@ contains
     if (write_stats) then
 
       !$acc parallel loop collapse(2) default(present)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+      !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do n = 1, nvar
         do k = 1, kmax
           profiles(k,n) = profiles(k,n) / nsamples
@@ -322,7 +322,7 @@ contains
       end do
 
       !$acc update host(profiles)
-!!$omp target update from(profiles)
+      !$omp target update from(profiles)
 
       if (my_task_writes) then
         call writestat_nc(ncid, 1, tncname, [rtimee], nrec, .true.)
@@ -331,8 +331,8 @@ contains
 
       ! Reset averages
       !$acc parallel loop collapse(2) default(present) async
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+      !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do n = 1, nvar
         do k = 1, kmax
           profiles(k,n) = 0
