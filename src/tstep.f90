@@ -133,8 +133,8 @@ subroutine tstep_update
         peclettotl = 0.0
         cfl_sq_l = -1.0
         !$acc parallel loop collapse(3) default(present) reduction(max:cfl_sq_l, peclettotl)
-!!$omp target teams loop reduction(max:cfl_sq_l,peclettotl) collapse(3)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+        !$omp target teams loop reduction(max:cfl_sq_l,peclettotl) collapse(3)&
+        !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
         do k = 1, kmax
           do j = 2, j1
             do i = 2, i1
@@ -182,8 +182,8 @@ subroutine tstep_update
         peclettotl = 1e-5
         cfl_sq_l = -1.0
         !$acc parallel loop collapse(3) default(present) reduction(max:cfl_sq_l, peclettotl)
-!!$omp target teams loop reduction(max:cfl_sq_l,peclettotl) collapse(3)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+        !$omp target teams loop reduction(max:cfl_sq_l,peclettotl) collapse(3)&
+        !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
         do k = 1, kmax
           do j = 2, j1
             do i = 2, i1
