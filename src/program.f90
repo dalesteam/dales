@@ -181,7 +181,7 @@ program DALES
   call init_profiles
   call init_precursor
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
   call update_gpu
 #endif
 
@@ -193,11 +193,9 @@ program DALES
   do while (timeleft > 0)
     do simid = 1, Nsim
 
-      call update_gpu
       if (simid == refid) call tstep_update
 
       do rk3step = 1, 3
-        call update_gpu
         call timer_tic('program/timestep', istep)
 
 
@@ -347,7 +345,6 @@ program DALES
 
         call reset_tendencies
 
-        host_is_updated=.false.; call update_host
 #if defined(DALES_GPU)
         host_is_updated = .false.
 #endif
