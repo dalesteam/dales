@@ -314,9 +314,7 @@ contains
     use modraddata, only   :lwu,lwd,swu,swd
     use modthermodynamics, only: qsat_tab
     use modtracers, only : get_tracer_index
-#if defined(_OPENACC)
-    use modgpu, only: update_host
-#endif
+
     implicit none
 
     integer(KIND=selected_int_kind(4)), allocatable :: field(:,:,:)
@@ -344,28 +342,28 @@ contains
 
 
     !$acc update self(u0) if(lu) async
-!!$omp target update from(u0) if(lu)
+    !$omp target update from(u0) if(lu)
     !$acc update self(v0) if(lv) async
-!!$omp target update from(v0) if(lv)
+    !$omp target update from(v0) if(lv)
     !$acc update self(w0) if(lw) async
-!!$omp target update from(w0) if(lw)
+    !$omp target update from(w0) if(lw)
     !$acc update self(qt0) if(lqt) async
-!!$omp target update from(qt0) if(lqt)
+    !$omp target update from(qt0) if(lqt)
     !$acc update self(ql0) if(lql) async
-!!$omp target update from(ql0) if(lql)
+    !$omp target update from(ql0) if(lql)
     !$acc update self(thl0) if(lthl) async
-!!$omp target update from(thl0) if(lthl)
+    !$omp target update from(thl0) if(lthl)
     !$acc update self(sv0) if(any(lsv)) async
-!!$omp target update from(sv0) if(any(lsv))
+    !$omp target update from(sv0) if(any(lsv))
     !$acc update self(thv0h, thvh) if(lbuoy) async
-!!$omp target update from(thv0h,thvh) if(lbuoy)
+    !$omp target update from(thv0h,thvh) if(lbuoy)
     !$acc update self(e120) if(le12) async
-!!$omp target update from(e120) if(le12)
+    !$omp target update from(e120) if(le12)
     !$acc update self(ekm) if(lekm) async
-!!$omp target update from(ekm) if(lekm)
+    !$omp target update from(ekm) if(lekm)
     !$acc update self(ekh) if(lekh) async
-!!$omp target update from(ekh) if(lekh)
-    !$acc wait    
+    !$omp target update from(ekh) if(lekh)
+    !$acc wait
 
     if (lbinary) allocate(field(2-ih:i1+ih,2-jh:j1+jh,k1))
     if (lnetcdf) allocate(vars(ceiling(1.0*imax/ncoarse),ceiling(1.0*jmax/ncoarse),khigh-klow+1,nvar))
