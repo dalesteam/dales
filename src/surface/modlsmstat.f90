@@ -203,6 +203,8 @@ contains
         kdim_soil = kmax_soil
     end if
 
+    ! FIXME: handle GPU transfers for LSM here
+
     tsoilav  = 0.
     phiwav  = 0.
     lambdaav  = 0.
