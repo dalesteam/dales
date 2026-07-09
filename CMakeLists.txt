@@ -136,6 +136,7 @@ if( ENABLE_ACC OR ENABLE_OMP_GPU )
   if( ${CMAKE_Fortran_COMPILER_ID} MATCHES LLVMFlang )
     add_compile_definitions( DALES_AMDGPU )
     if( ENABLE_OMP_GPU )
+      # Arch can be found from `amdgpu-arch` command
       ecbuild_add_fortran_flags( "-fopenmp --offload-arch=native" )
     endif()
   endif()
