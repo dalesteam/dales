@@ -130,6 +130,7 @@ set( dales_srcs
 
 if( ENABLE_LCM )
 	list( APPEND dales_srcs
+		modlcm_namelist.f90
 		modlcm_adapter.f90
 	)
 endif()
