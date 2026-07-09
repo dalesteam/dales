@@ -11,6 +11,7 @@ module modlcm_adapter
   use modfields, only : tmp0
   use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1, &
                         ih, jh, kh, dx, dy, dzf, zf, zh, rdt
+  use modlcm_namelist, only : lcm_apply_namelist_config
   use modmpi, only : myidx, myidy, nprocx, nprocy, nbrwest,  &
                      nbreast, nbrsouth, nbrnorth, periods
 
@@ -28,6 +29,7 @@ contains
 
   subroutine init_lcm()
     call lcm_init_config(lcm_config)
+    call lcm_apply_namelist_config(lcm_config)
     call lcm_set_config(lcm_config)
 
     call lcm_init_grid(                                                   &
