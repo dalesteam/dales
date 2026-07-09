@@ -348,8 +348,8 @@ subroutine reset_tendencies()
 
   ! set all tendencies to zero
   !$acc parallel loop collapse(3) default(present) async(1)
-!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+  !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+  !$omp defaultmap(present:allocatable)
   do k = 1, k1
     do j = 2, j2     ! i2, j2 here to include one ghost cell,
       do i = 2, i2   ! needed for up, vp with open boundaries
@@ -366,8 +366,8 @@ subroutine reset_tendencies()
   ! Scalars
   if (nsv > 0) then
     !$acc parallel loop collapse(4) default(present) async(2)
-!!$omp target teams loop collapse(4) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(4) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do n = 1, nsv
       do k = 1, k1
         do j = 2, j1
