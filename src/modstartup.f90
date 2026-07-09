@@ -1351,7 +1351,7 @@ contains
   !  if trestart = 0, no periodic restart files will be written.
   subroutine writerestartfiles
     use modglobal, only : trestart,itrestart,tnextrestart,dt_lim,timee,timeleft,rk3step
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
     use modgpu, only: update_host
 #endif
     implicit none
@@ -1366,7 +1366,7 @@ contains
     ! if trestart < 0, don't write any restart files
     if ((timee>=tnextrestart .and. trestart > 0) .or. (timeleft==0 .and. trestart >= 0)) then
       tnextrestart = tnextrestart+itrestart
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
       call update_host
 #endif
       call do_writerestartfiles
