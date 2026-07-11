@@ -89,6 +89,7 @@ module modchecksim
     "initial step", "timee", "dt_lim" , "idtmax", "velocity", "diffusion"]
 
   logical :: lchecktend = .false.
+  logical :: lprintstage = .false.
   logical :: lstop      = .false.
 
   real :: wtime
@@ -109,7 +110,7 @@ contains
 
     integer :: ierr
 
-    namelist /NAMCHECKSIM/ tcheck, lchecktend, lstop
+    namelist /NAMCHECKSIM/ tcheck, lchecktend, lstop, lprintstage
 
     if (myid == 0) then
       open(ifnamopt, file=nml_filename, status='old', iostat=ierr)
@@ -122,6 +123,7 @@ contains
     call D_MPI_BCAST(tcheck, 1, 0, comm3d, mpierr)
     call D_MPI_BCAST(lchecktend, 1, 0, comm3d, mpierr)
     call D_MPI_BCAST(lstop, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(lprintstage, 1, 0, comm3d, mpierr)
 
   end subroutine checksim_read_namelist
 
@@ -341,10 +343,20 @@ contains
 
   end subroutine chkdiv
 
+  subroutine printstage(step)
+    character(len=*), intent(in) :: step
+    real :: wtime
+    if (lprintstage .and. myid == 0) then
+       wtime = MPI_Wtime()
+       write(*, *) wtime, step
+    end if
+  end subroutine printstage
+  
   !> Check tendencies of various prognostic variables.
   subroutine checktend(step)
-
     character(len=*), intent(in) :: step
+
+    call printstage(step)
 
     call check_array(qtp, "qtp", step, [-0.01_field_r, 0.01_field_r], stop_if_invalid=lstop, dump_if_invalid=.true.)
     call check_array(thlp, "thlp", step, [-20.0_field_r, 20.0_field_r], stop_if_invalid=lstop, dump_if_invalid=.true.)
