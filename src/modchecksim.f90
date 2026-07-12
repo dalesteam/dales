@@ -55,6 +55,7 @@ module modchecksim
   public :: checksim
   public :: chkdiv
 
+  public :: printstage
   public :: checktend
   public :: check_array
   public :: lchecktend

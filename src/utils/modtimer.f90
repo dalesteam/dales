@@ -197,9 +197,13 @@ contains
 
     integer :: idx
     integer :: nvtx_id
+    real    :: wtime
 
     if (.not. ltimer) return
-
+    if (myid == 0) then
+       wtime = MPI_Wtime()
+       write(*, *) wtime, '*', timer_name
+    end if
     level = level + 1
 
     if (level > max_level .and. max_level > 0) return

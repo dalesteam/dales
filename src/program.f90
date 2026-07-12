@@ -66,7 +66,7 @@ program DALES
 !----------------------------------------------------------------
   use modscalarpulse,  only : initscalarpulse, scalarpulse
   use modcape,         only : initcape,exitcape,docape
-  use modchecksim,     only : initchecksim, checksim
+  use modchecksim,     only : initchecksim, checksim, printstage
   use modstat_nc,      only : initstat_nc
   !use modspectra2,     only : dospecs,initspectra2,tanhfilter
   use modtimestat,     only : inittimestat, timestat, exittimestat
@@ -287,6 +287,7 @@ program DALES
         call lateral_sponge
 
         call tstep_integrate                        ! Apply tendencies to all variables
+        call printstage('tstep_integrate')
 
         call msebudg1
         ! NOTE: the tendencies are not zeroed yet, but kept for analysis and statistcis
@@ -303,8 +304,10 @@ program DALES
     !   3.8   LIQUID WATER CONTENT AND DIAGNOSTIC FIELDS
     !-----------------------------------------------------
         call thermodynamics
+        call printstage('thermodynamics')
         call leibniztend
         call writesamptend
+        call printstage('writesamptend')
     !-----------------------------------------------------
     !   3.9  WRITE RESTARTFILES AND DO STATISTICS
     !------------------------------------------------------
@@ -314,36 +317,49 @@ program DALES
           call checksim
           call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
           call genstat  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
+          call printstage('genstat')
           call write_profiles
+          call printstage('write_profiles')
           call radstat
+          call printstage('radstat')
           call lsmstat
           !call depstat
           call sampling
+          call printstage('sampling')
           call quadrant
           call crosssection
+          call printstage('crosssection')
           call AGScross
           call lsmcrosssection
           call depcrosssection
           !call tanhfilter
           call docape
+          call printstage('docape')
           !call projection
           call cloudfield
           call fielddump
+          call printstage('fielddump')
           call radfield
+          call printstage('radfield')
           !call particles
 
           call budgetstat
+          call printstage('budgetstat')
           call varbudget
+          call printstage('varbudget')
           call msebudg2
+          call printstage('msebudg2')
           !call stressbudgetstat
           call heterostats
-
+          call printstage('heterostats')   
           call testwctime
+          call printstage('testwctime')   
           call writerestartfiles
+          call printstage('writerestartfiles')
         end if
 
         call reset_tendencies
-
+        call printstage('reset_tendencies')
 #if defined(_OPENACC)
         host_is_updated = .false.
 #endif
