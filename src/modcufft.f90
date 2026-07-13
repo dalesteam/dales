@@ -8,6 +8,10 @@ module modcufft
   use modprecision, only: pois_r
   use modtranspose, only: t_transposer
   use modgpu,       only: workspace_0
+  use hicfft,       only: plan_t, HICFFT_FWD_TYPE, HICFFT_BWD_TYPE, hicfftDestroy, &
+                          hicfftExecForward, hicfftExecBackward, hicfftGetSize, &
+                          hicfftPlanMany, hicfftSetAutoAllocation, &
+                          hicfftsetWorkArea
 
   implicit none
 
@@ -26,16 +30,15 @@ module modcufft
     integer :: nphix, nphiy
     integer :: konx, kony, iony, jonx
 
-    integer :: planx, planxi, plany, planyi !< Plan handles
+    type(plan_t) :: planx, planxi, plany, planyi !< Plan handles
 
-    integer(int_ptr_kind()) :: worksize, max_worksize !< Size of the required workspace
+    integer(c_intptr_t) :: worksize, max_worksize !< Size of the required workspace
 
     type(t_transposer) :: transposer
 
   contains
     !< Setup plans, workspace, etc
     subroutine cufftinit(p, Fp, d, xyrt, ps, pe, qs, qe)
-      use cufft
       use modgpu, only: workspace_0, allocate_workspace
 
       implicit none
@@ -48,7 +51,6 @@ module modcufft
 
       integer(kind=8) :: sz
       integer :: fftsize, inembed, onembed, idist, odist, istride, ostride
-      integer :: CUFFT_FWD_TYPE, CUFFT_BWD_TYPE
 
       ! Dimensions of the transposes
       ! For explanation of the variables, see modfftw.f90/fftwinit
@@ -88,15 +90,6 @@ module modcufft
         Fp(1:iony,1:jonx,1:kmax) => p_halo(1:iony*jonx*kmax)
       end if
 
-      ! Precision
-#if POIS_PRECISION==32
-      CUFFT_FWD_TYPE = CUFFT_R2C
-      CUFFT_BWD_TYPE = CUFFT_C2R
-#else
-      CUFFT_FWD_TYPE = CUFFT_D2Z
-      CUFFT_BWD_TYPE = CUFFT_Z2D
-#endif
-
       ! x-direction
       fftsize = itot
       inembed = itot
@@ -106,8 +99,8 @@ module modcufft
       istride = 1
       ostride = 1
 
-      istat = cufftSetAutoAllocation(planx, 0)
-      istat = cufftPlanMany( &
+      istat = hicfftSetAutoAllocation(planx, 0)
+      istat = hicfftPlanMany( &
         planx, &
         1, &
         fftsize, &
@@ -117,13 +110,13 @@ module modcufft
         onembed, &
         ostride, &
         odist, &
-        CUFFT_FWD_TYPE, &
+        HICFFT_FWD_TYPE, &
         jmax*konx &
       )
       call check_exitcode(istat)
 
-      istat = cufftSetAutoAllocation(planxi, 0)
-      istat = cufftPlanMany( &
+      istat = hicfftSetAutoAllocation(planxi, 0)
+      istat = hicfftPlanMany( &
         planxi, &
         1, &
         fftsize, &
@@ -133,7 +126,7 @@ module modcufft
         inembed, &
         istride, &
         idist, &
-        CUFFT_BWD_TYPE, &
+        HICFFT_BWD_TYPE, &
         jmax*konx &
       )
 
@@ -149,8 +142,8 @@ module modcufft
       istride = 1
       ostride = 1
 
-      istat = cufftSetAutoAllocation(plany, 0)
-      istat = cufftPlanMany( &
+      istat = hicfftSetAutoAllocation(plany, 0)
+      istat = hicfftPlanMany( &
         plany, &
         1, &
         fftsize, &
@@ -160,14 +153,14 @@ module modcufft
         onembed, &
         ostride, &
         odist, &
-        CUFFT_FWD_TYPE, &
+        HICFFT_FWD_TYPE, &
         iony*konx&
       )
 
       call check_exitcode(istat)
 
-      istat = cufftSetAutoAllocation(planyi, 0)
-      istat = cufftPlanMany( &
+      istat = hicfftSetAutoAllocation(planyi, 0)
+      istat = hicfftPlanMany( &
         planyi, &
         1, &
         fftsize, &
@@ -177,7 +170,7 @@ module modcufft
         inembed, &
         istride, &
         idist, &
-        CUFFT_BWD_TYPE, &
+        HICFFT_BWD_TYPE, &
         iony*konx&
       )
 
@@ -186,13 +179,13 @@ module modcufft
       ! Determine the workspace needed for FFTs and transposes
       max_worksize = -1
       
-      istat = cufftGetSize(planx, worksize)
+      istat = hicfftGetSize(planx, worksize)
       max_worksize = max(max_worksize, worksize)
-      istat = cufftGetSize(planxi, worksize)
+      istat = hicfftGetSize(planxi, worksize)
       max_worksize = max(max_worksize, worksize)
-      istat = cufftGetSize(plany, worksize)
+      istat = hicfftGetSize(plany, worksize)
       max_worksize = max(max_worksize, worksize)
-      istat = cufftGetSize(planyi, worksize)
+      istat = hicfftGetSize(planyi, worksize)
       max_worksize = max(max_worksize, worksize)
       
       ! max_worksize is in bytes, so convert it to number of elements by dividing by the size of a real number
@@ -204,10 +197,10 @@ module modcufft
 
       !$acc host_data use_device(workspace_0)
 !!$omp target update from(workspace_0)
-      istat = cufftSetWorkArea(planx, workspace_0)
-      istat = cufftSetWorkArea(planxi, workspace_0)
-      istat = cufftSetWorkArea(plany, workspace_0)
-      istat = cufftSetWorkArea(planyi, workspace_0)
+      istat = hicfftSetWorkArea(planx, workspace_0)
+      istat = hicfftSetWorkArea(planxi, workspace_0)
+      istat = hicfftSetWorkArea(plany, workspace_0)
+      istat = hicfftSetWorkArea(planyi, workspace_0)
       !$acc end host_data
 !!$omp target update to(workspace_0)
 
@@ -252,10 +245,10 @@ module modcufft
 
       nullify(p, Fp)
 
-      istat = cufftDestroy(planx)
-      istat = cufftDestroy(planxi)
-      istat = cufftDestroy(plany)
-      istat = cufftDestroy(planyi)
+      istat = hicfftDestroy(planx)
+      istat = hicfftDestroy(planxi)
+      istat = hicfftDestroy(plany)
+      istat = hicfftDestroy(planyi)
       
     end subroutine cufftexit
 
@@ -331,9 +324,6 @@ module modcufft
 
     !< Forward transforms 
     subroutine cufftf(p, Fp)
-      use cufft
-
-      implicit none
 
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
       integer :: i, j, k, ii
@@ -344,26 +334,19 @@ module modcufft
 
       !$acc host_data use_device(px)
 !!$omp target update from(px)
-#if POIS_PRECISION==32
-      istat = cufftExecR2C(planx, px, px)
-#else
-      istat = cufftExecD2Z(planx, px, px)
-#endif
+      istat = hicfftExecForward(planx, px, px)
       !$acc end host_data
 !!$omp target update to(px)
-      
+
       call postprocess_f_fft(px, (/2*nphix, jmax, konx/), itot)
       call transposer%x_to_y(px, py, workspace_0)
-      
+
       !$acc host_data use_device(py)
 !!$omp target update from(py)
-#if POIS_PRECISION==32
-      istat = cufftExecR2C(plany, py, py)
-#else
-      istat = cufftExecD2Z(plany, py, py)
-#endif
+      istat = hicfftExecForward(plany, py, py)
       !$acc end host_data
 !!$omp target update to(py)
+
       call postprocess_f_fft(py, (/2*nphiy, konx, iony/), jtot)
 
       call transposer%y_to_z(py, Fp, workspace_0)
@@ -374,9 +357,6 @@ module modcufft
 
     !< Backward transforms
     subroutine cufftb(p, Fp)
-      use cufft
-
-      implicit none
       
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
       integer :: i, j, k, ii
@@ -388,11 +368,7 @@ module modcufft
 
       !$acc host_data use_device(py)
 !!$omp target update from(py)
-#if POIS_PRECISION==32
-      istat = cufftExecC2R(planyi, py, py)
-#else
-      istat = cufftExecZ2D(planyi, py,  py)
-#endif
+      istat = hicfftExecBackward(planyi, py, py)
       !$acc end host_data
 !!$omp target update to(py)
 
@@ -402,11 +378,7 @@ module modcufft
 
       !$acc host_data use_device(px)
 !!$omp target update from(px)
-#if POIS_PRECISION==32
-      istat = cufftExecC2R(planxi, px, px)
-#else
-      istat = cufftExecZ2D(planxi, px, px)
-#endif
+      istat = hicfftExecBackward(planxi, px, px)
       !$acc end host_data
 !!$omp target update to(px)
 
