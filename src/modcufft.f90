@@ -315,7 +315,7 @@ module modcufft
       
       call transposer%z_to_x(p, px, workspace_0)
 
-      call hicfftExecForward(planx, px, px) 
+      call hicfftExecForward(planx, px, px)
       
       call postprocess_f_fft(px, (/2*nphix, jmax, konx/), itot)
       call transposer%x_to_y(px, py, workspace_0)
