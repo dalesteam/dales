@@ -1,8 +1,9 @@
 !> Interface to either cuFFT or hipFFT. Prevents a preprocessor mess in modgpufft.
 module hicfft
   use iso_c_binding
-  use modprecision, only: pois_r
-#if HAVE_CUDA
+  use modprecision,    only: pois_r
+  use fortran_support, only: finish
+#if USE_CUDA
   use cufft
 #elif HAVE_HIP
   use hipfort_hipfft
@@ -22,16 +23,18 @@ module hicfft
   public :: hicfftPlanMany
   public :: hicfftSetAutoAllocation
   public :: hicfftSetWorkArea
+  
+  character(len=*), parameter :: modname = "hicfft"
 
   type plan_t
-#if HAVE_HIP
-    type(c_ptr) :: handle
-#else
+#if USE_CUDA
     integer :: handle
+#else
+    type(c_ptr) :: handle
 #endif
   end type plan_t
 
-#if HAVE_CUDA
+#if USE_CUDA
 #if POIS_PRECISION==32
   integer, parameter :: HICFFT_FWD_TYPE = CUFFT_R2C
   integer, parameter :: HICFFT_BWD_TYPE = CUFFT_C2R
@@ -54,104 +57,126 @@ module hicfft
 
 contains
 
-  function hicfftDestroy(plan) result(istat)
+  subroutine hicfftDestroy(plan)
     type(plan_t), intent(inout) :: plan
-    integer :: istat
-#if HAVE_CUDA
-    istat = cufftDestroy(plan%handle)
+    character(len=*), parameter :: routine = modname//"hicfftDestroy"
+#if USE_CUDA
+    call check(cufftDestroy(plan%handle), routine)
 #elif HAVE_HIP
-    istat = hipfftDestroy(plan%handle)
+    call check(hipfftDestroy(plan%handle), routine)
 #endif
-  end function hicfftDestroy
+  end subroutine hicfftDestroy
 
-  function hicfftExecForward(plan, idata, odata) result(istat)
+  subroutine hicfftExecForward(plan, idata, odata)
     type(plan_t), intent(in) :: plan
     real(pois_r), intent(in) :: idata(:,:,:)
     real(pois_r), intent(out) :: odata(:,:,:)
-    integer :: istat
+    character(len=*), parameter :: routine = modname//"hicfftExecForward"
+    !$acc host_data use_device(idata, odata)
 #if POIS_PRECISION==32
-#if HAVE_CUDA
-    istat = cufftExecR2C(plan%handle, idata, odata)
+#if USE_CUDA
+    call check(cufftExecR2C(plan%handle, idata, odata), routine)
 #elif HAVE_HIP
-    istat = hipfftExecR2C(plan%handle, c_loc(idata), c_loc(odata))
+    call check(hipfftExecR2C(plan%handle, c_loc(idata), c_loc(odata)), routine)
 #endif
 #else
-#if HAVE_CUDA
-    istat = cufftExecD2Z(plan%handle, idata, odata)
+#if USE_CUDA
+    call check(cufftExecD2Z(plan%handle, idata, odata), routine)
 #elif HAVE_HIP
-    istat = hipfftExecD2Z(plan%handle, c_loc(idata), c_loc(odata))
+    call check(hipfftExecD2Z(plan%handle, c_loc(idata), c_loc(odata)), routine)
 #endif
 #endif
-  end function hicfftExecForward
+    !$acc end host_data
+  end subroutine hicfftExecForward
 
-  function hicfftExecBackward(plan, idata, odata) result(istat)
+  subroutine hicfftExecBackward(plan, idata, odata)
     type(plan_t), intent(in) :: plan
     real(pois_r), intent(in) :: idata(:,:,:)
     real(pois_r), intent(out) :: odata(:,:,:)
-    integer :: istat
+    character(len=*), parameter :: routine = modname//"hicfftExecBackward"
+    !$acc host_data use_device(idata, odata)
 #if POIS_PRECISION==32
-#if HAVE_CUDA
-    istat = cufftExecC2R(plan%handle, idata, odata)
+#if USE_CUDA
+    call check(cufftExecC2R(plan%handle, idata, odata), routine)
 #elif HAVE_HIP
-    istat = hipfftExecC2R(plan%handle, c_loc(idata), c_loc(odata))
+    call check(hipfftExecC2R(plan%handle, c_loc(idata), c_loc(odata)), routine)
 #endif
 #else
-#if HAVE_CUDA
-    istat = cufftExecZ2D(plan%handle, idata, odata)
+#if USE_CUDA
+    call check(cufftExecZ2D(plan%handle, idata, odata), routine)
 #elif HAVE_HIP
-    istat = hipfftExecZ2D(plan%handle, c_loc(idata), c_loc(odata))
+    call check(hipfftExecZ2D(plan%handle, c_loc(idata), c_loc(odata)), routine)
 #endif
 #endif
-  end function hicfftExecBackward
+    !$acc end host_data
+  end subroutine hicfftExecBackward
 
-  function hicfftGetSize(plan, workSize) result(istat)
+  subroutine hicfftGetSize(plan, workSize)
     type(plan_t), intent(in) :: plan
     integer(8), intent(out) :: workSize
-    integer :: istat
-#if HAVE_CUDA
-    istat = cufftGetSize(plan%handle, workSize)
+    character(len=*), parameter :: routine = modname//"hicfftGetSize"
+#if USE_CUDA
+    call check(cufftGetSize(plan%handle, workSize), routine)
 #elif HAVE_HIP
-    istat = hipfftGetSize(plan%handle, c_loc(workSize))
+    call check(hipfftGetSize(plan%handle, c_loc(workSize)), routine)
 #endif
-  end function hicfftGetSize
+  end subroutine hicfftGetSize
 
- function hicfftPlanMany(plan, rank, n, inembed, istride, idist, onembed, &
-                          ostride, odist, myType, batch) result(istat)
+  subroutine hicfftPlanMany(plan, rank, n, inembed, istride, idist, onembed, &
+                          ostride, odist, myType, batch)
     type(plan_t), intent(inout) :: plan
     integer, intent(in) :: rank, n, inembed, istride, idist, onembed, ostride, &
                            odist, myType, batch
-    integer :: istat 
-#if HAVE_CUDA
-    istat = cufftPlanMany(plan%handle, rank, n, inembed, istride, idist, &
-                          onembed, ostride, odist, myType, batch)
+    character(len=*), parameter :: routine = modname//"hicfftPlanMany"
+#if USE_CUDA
+    call check(cufftPlanMany(plan%handle, rank, n, inembed, istride, idist, &
+                             onembed, ostride, odist, myType, batch), routine)
 #elif HAVE_HIP
-    istat = hipfftPlanMany(plan%handle, rank, n, inembed, istride, idist, &
-                           onembed, ostride, odist, myType, batch)
+    call check(hipfftPlanMany(plan%handle, rank, n, inembed, istride, idist, &
+                              onembed, ostride, odist, myType, batch), routine)
 #endif
-  end function hicfftPlanMany
+  end subroutine hicfftPlanMany
 
-  function hicfftSetAutoAllocation(plan, autoAllocate) result(istat)
+  subroutine hicfftSetAutoAllocation(plan, autoAllocate)
     type(plan_t), intent(inout) :: plan
     integer, intent(in) :: autoAllocate
-    integer :: istat
-#if HAVE_CUDA
-    istat = cufftSetAutoAllocation(plan%handle, autoAllocate)
+    character(len=*), parameter :: routine = modname//"hicfftSetAutoAllocation"
+#if USE_CUDA
+    call check(cufftSetAutoAllocation(plan%handle, autoAllocate), routine)
 #elif HAVE_HIP
-    istat = hipfftSetAutoAllocation(plan%handle, autoAllocate)
+    call check(hipfftSetAutoAllocation(plan%handle, autoAllocate), routine)
 #endif
-  end function hicfftSetAutoAllocation
+  end subroutine hicfftSetAutoAllocation
 
-  function hicfftSetWorkArea(plan, workspace) result(istat)
+  subroutine hicfftSetWorkArea(plan, workspace)
     type(plan_t), intent(inout) :: plan
     real(pois_r), intent(in) :: workspace(:)
-    integer :: istat
+    character(len=*), parameter :: routine = modname//"hicfftSetWorkArea"
     !$acc host_data use_device(workspace)
-#if HAVE_CUDA
-    istat = cufftSetWorkArea(plan%handle, workspace)
+#if USE_CUDA
+    call check(cufftSetWorkArea(plan%handle, workspace), routine)
 #elif HAVE_HIP
-    istat = hipfftSetWorkArea(plan%handle, c_loc(workspace))
+    call check(hipfftSetWorkArea(plan%handle, c_loc(workspace)), routine)
 #endif
     !$acc end host_data
-  end function hicfftSetWorkArea
+  end subroutine hicfftSetWorkArea
+
+  subroutine check(istat, routine)
+
+    integer,          intent(in) :: istat
+    character(len=*), intent(in) :: routine
+
+    character(len=64) :: msg
+
+    if (istat /= 0) then
+#if USE_CUDA
+      write(msg, *) "cuFFT returned non-zero exit code", istat
+#elif HAVE_HIP
+      write(msg, *) "hipFFT returned non-zero exit code", istat
+#endif
+      call finish(routine, msg)
+    end if
+
+  end subroutine check
 
 end module hicfft
