@@ -21,7 +21,6 @@ module modcufft
 
   save
     real :: norm_fac !< Normalization factor
-    integer :: istat !< cuFFT return status 
 
     real(pois_r), allocatable, target :: p_halo(:) !< Pressure with halos
     real(pois_r), allocatable, target :: p_nohalo(:)
@@ -99,8 +98,7 @@ module modcufft
       istride = 1
       ostride = 1
 
-      istat = hicfftSetAutoAllocation(planx, 0)
-      istat = hicfftPlanMany( &
+      call hicfftPlanMany( &
         planx, &
         1, &
         fftsize, &
@@ -113,10 +111,9 @@ module modcufft
         HICFFT_FWD_TYPE, &
         jmax*konx &
       )
-      call check_exitcode(istat)
+      call hicfftSetAutoAllocation(planx, 0)
 
-      istat = hicfftSetAutoAllocation(planxi, 0)
-      istat = hicfftPlanMany( &
+      call hicfftPlanMany( &
         planxi, &
         1, &
         fftsize, &
@@ -129,8 +126,7 @@ module modcufft
         HICFFT_BWD_TYPE, &
         jmax*konx &
       )
-
-      call check_exitcode(istat)
+      call hicfftSetAutoAllocation(planxi, 0)
 
       ! y-direction
 
@@ -142,8 +138,7 @@ module modcufft
       istride = 1
       ostride = 1
 
-      istat = hicfftSetAutoAllocation(plany, 0)
-      istat = hicfftPlanMany( &
+      call hicfftPlanMany( &
         plany, &
         1, &
         fftsize, &
@@ -156,11 +151,9 @@ module modcufft
         HICFFT_FWD_TYPE, &
         iony*konx&
       )
+      call hicfftSetAutoAllocation(plany, 0)
 
-      call check_exitcode(istat)
-
-      istat = hicfftSetAutoAllocation(planyi, 0)
-      istat = hicfftPlanMany( &
+      call hicfftPlanMany( &
         planyi, &
         1, &
         fftsize, &
@@ -173,19 +166,18 @@ module modcufft
         HICFFT_BWD_TYPE, &
         iony*konx&
       )
-
-      call check_exitcode(istat)
+      call hicfftSetAutoAllocation(planyi, 0)
 
       ! Determine the workspace needed for FFTs and transposes
       max_worksize = -1
       
-      istat = hicfftGetSize(planx, worksize)
+      call hicfftGetSize(planx, worksize)
       max_worksize = max(max_worksize, worksize)
-      istat = hicfftGetSize(planxi, worksize)
+      call hicfftGetSize(planxi, worksize)
       max_worksize = max(max_worksize, worksize)
-      istat = hicfftGetSize(plany, worksize)
+      call hicfftGetSize(plany, worksize)
       max_worksize = max(max_worksize, worksize)
-      istat = hicfftGetSize(planyi, worksize)
+      call hicfftGetSize(planyi, worksize)
       max_worksize = max(max_worksize, worksize)
       
       ! max_worksize is in bytes, so convert it to number of elements by dividing by the size of a real number
@@ -195,16 +187,10 @@ module modcufft
 
       call allocate_workspace(int(worksize))
 
-      !$acc host_data use_device(workspace_0)
-!!$omp target update from(workspace_0)
-      istat = hicfftSetWorkArea(planx, workspace_0)
-      istat = hicfftSetWorkArea(planxi, workspace_0)
-      istat = hicfftSetWorkArea(plany, workspace_0)
-      istat = hicfftSetWorkArea(planyi, workspace_0)
-      !$acc end host_data
-!!$omp target update to(workspace_0)
-
-      call check_exitcode(istat)
+      call hicfftSetWorkArea(planx, workspace_0)
+      call hicfftSetWorkArea(planxi, workspace_0)
+      call hicfftSetWorkArea(plany, workspace_0)
+      call hicfftSetWorkArea(planyi, workspace_0)
 
       if (nprocs == 1) then
         allocate(xyrt(2-ih:i1+ih,2-jh:j1+jh))
@@ -245,10 +231,10 @@ module modcufft
 
       nullify(p, Fp)
 
-      istat = hicfftDestroy(planx)
-      istat = hicfftDestroy(planxi)
-      istat = hicfftDestroy(plany)
-      istat = hicfftDestroy(planyi)
+      call hicfftDestroy(planx)
+      call hicfftDestroy(planxi)
+      call hicfftDestroy(plany)
+      call hicfftDestroy(planyi)
       
     end subroutine cufftexit
 
@@ -329,23 +315,15 @@ module modcufft
       integer :: i, j, k, ii
 
       call timer_tic('modcufft/cufftf', 1)
-      
+
       call transposer%z_to_x(p, px, workspace_0)
 
-      !$acc host_data use_device(px)
-!!$omp target update from(px)
-      istat = hicfftExecForward(planx, px, px)
-      !$acc end host_data
-!!$omp target update to(px)
+      call hicfftExecForward(planx, px, px)
 
       call postprocess_f_fft(px, (/2*nphix, jmax, konx/), itot)
       call transposer%x_to_y(px, py, workspace_0)
 
-      !$acc host_data use_device(py)
-!!$omp target update from(py)
-      istat = hicfftExecForward(plany, py, py)
-      !$acc end host_data
-!!$omp target update to(py)
+      call hicfftExecForward(plany, py, py)
 
       call postprocess_f_fft(py, (/2*nphiy, konx, iony/), jtot)
 
@@ -366,23 +344,13 @@ module modcufft
       call transposer%z_to_y(Fp, py, workspace_0)
       call preprocess_b_fft(py, (/2*nphiy, konx, iony/), jtot)
 
-      !$acc host_data use_device(py)
-!!$omp target update from(py)
-      istat = hicfftExecBackward(planyi, py, py)
-      !$acc end host_data
-!!$omp target update to(py)
+      call hicfftExecBackward(planyi, py, py)
 
-      call check_exitcode(istat)
       call transposer%y_to_x(py, px, workspace_0)
       call preprocess_b_fft(px, (/2*nphix, jmax, konx/), itot)
 
-      !$acc host_data use_device(px)
-!!$omp target update from(px)
-      istat = hicfftExecBackward(planxi, px, px)
-      !$acc end host_data
-!!$omp target update to(px)
+      call hicfftExecBackward(planxi, px, px)
 
-      call check_exitcode(istat)
       call transposer%x_to_z(px, p, workspace_0)
       
       !$acc parallel loop collapse(3) default(present)
@@ -448,18 +416,6 @@ module modcufft
       end do
 
     end subroutine preprocess_b_fft
-
-    !< Checks the exitcode of cuFFT calls
-    subroutine check_exitcode(istat)
-      implicit none
-      integer, intent(in) :: istat
-      character(len=*), parameter :: routine = modname//'/check_exitcode'
-      
-      if ( istat /= 0 ) then
-        call finish(routine, "cuFFT returned nonzero exitcode: ", istat)
-      end if
-
-    end subroutine check_exitcode
 
 #else
   contains
