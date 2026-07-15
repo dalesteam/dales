@@ -38,6 +38,7 @@ module modcolstat
   logical :: lcolstat = .false.
   integer :: nsamples = 1
   logical :: l_sbtke_beg_set = .false.
+  real(field_r), allocatable :: sbtke_beg_col(:,:), sbtke_last_col(:,:)
   integer :: npoints = 0
   integer :: x_idx(max_points) = 0
   integer :: y_idx(max_points) = 0
@@ -47,33 +48,6 @@ module modcolstat
   integer, allocatable :: i_local(:), j_local(:), global_index(:)
   real(field_r), allocatable :: locx(:), locy(:)
 
-  ! Per-profile storage, dimensioned as (kmax, nlocal, nvar) unless noted.
-  real(field_r), allocatable :: rhof_col(:,:), rhobf_col(:,:), rhobh_col(:,:), presh_col(:,:)
-  real(field_r), allocatable :: u_col(:,:), v_col(:,:), w_col(:,:), thl_col(:,:), thv_col(:,:), qt_col(:,:), ql_col(:,:)
-  real(field_r), allocatable :: wthls_col(:,:), wthlr_col(:,:), wthlt_col(:,:), wthvs_col(:,:), wthvr_col(:,:), wthvt_col(:,:)
-  real(field_r), allocatable :: wqts_col(:,:), wqtr_col(:,:), wqtt_col(:,:), wqls_col(:,:), wqlr_col(:,:), wqlt_col(:,:)
-  real(field_r), allocatable :: uws_col(:,:), uwr_col(:,:), uwt_col(:,:), vws_col(:,:), vwr_col(:,:), vwt_col(:,:)
-  real(field_r), allocatable :: w2s_col(:,:), w2r_col(:,:), skew_col(:,:), u2r_col(:,:), v2r_col(:,:)
-  real(field_r), allocatable :: thl2r_col(:,:), thv2r_col(:,:), th2r_col(:,:), qt2r_col(:,:), ql2r_col(:,:)
-  real(field_r), allocatable :: cs_col(:,:), cfrac_col(:,:), hur_col(:,:), hus_col(:,:), ta_col(:,:)
-  real(field_r), allocatable :: clw_col(:,:), cli_col(:,:), plw_col(:,:), pli_col(:,:)
-
-  real(field_r), allocatable :: sv_col(:,:,:), svp_col(:,:,:), sv2r_col(:,:,:)
-  real(field_r), allocatable :: wsvs_col(:,:,:), wsvr_col(:,:,:), wsvt_col(:,:,:)
-
-  real(field_r), allocatable :: tker_col(:,:), shr_col(:,:), buo_col(:,:), trsp_col(:,:), ptrsp_col(:,:)
-  real(field_r), allocatable :: sbtke_col(:,:), sbshr_col(:,:), sbbuo_col(:,:), sbdiss_col(:,:)
-  real(field_r), allocatable :: sbstor_col(:,:), sbbudg_col(:,:), sbresid_col(:,:), ekm_col(:,:), khkm_col(:,:)
-  real(field_r), allocatable :: sbtke_beg_col(:,:), sbtke_last_col(:,:)
-
-  real(field_r), allocatable :: thltend_col(:,:), thllwtend_col(:,:), thlswtend_col(:,:), thlradls_col(:,:)
-  real(field_r), allocatable :: lwu_col(:,:), lwd_col(:,:), swu_col(:,:), swd_col(:,:)
-  real(field_r), allocatable :: lwuca_col(:,:), lwdca_col(:,:), swuca_col(:,:), swdca_col(:,:)
-  real(field_r), allocatable :: thllwtendca_col(:,:), thlswtendca_col(:,:)
-
-  ! genstat variables
-  ! modbudget variables
-  ! radstat variables
 contains
 
   subroutine initcolstat
@@ -144,8 +118,6 @@ contains
     allocate(i_local(nlocal), j_local(nlocal), global_index(nlocal))
     allocate(locx(nlocal), locy(nlocal))
     allocate(locx_all(npoints), locy_all(npoints))
-    call allocate_profile_arrays(nlocal)
-    call zero_profile_arrays()
 
     ! here we determine the global index of each local point, and the local x,y coordinates of each point
     nlocal = 0
@@ -288,6 +260,8 @@ contains
     
     deallocate(locx_all, locy_all)
 
+    allocate(sbtke_beg_col(kmax, nlocal), sbtke_last_col(kmax,nlocal))
+
   end subroutine initcolstat
 
   subroutine colstat
@@ -300,12 +274,32 @@ contains
     real(field_r) :: weres_loc(k1), ptrsp_loc(k1), buo_loc(k1), trsp_loc(k1), shr_loc(k1)
     real(field_r) :: u2r_inst, v2r_inst, w_prime, w2r_inst, wsvs_loc, wsvr_loc
     real(field_r) :: scale_rn, ilratio, prof_tmp(kmax)
-    logical :: any_write
+
+    ! genstat variables
+    real(field_r), pointer :: rhof_col(:), rhobf_col(:), rhobh_col(:), presh_col(:)
+    real(field_r), pointer :: u_col(:), v_col(:), w_col(:), thl_col(:), thv_col(:), qt_col(:), ql_col(:)
+    real(field_r), pointer :: wthls_col(:), wthlr_col(:), wthlt_col(:), wthvs_col(:), wthvr_col(:), wthvt_col(:)
+    real(field_r), pointer :: wqts_col(:), wqtr_col(:), wqtt_col(:), wqls_col(:), wqlr_col(:), wqlt_col(:)
+    real(field_r), pointer :: uws_col(:), uwr_col(:), uwt_col(:), vws_col(:), vwr_col(:), vwt_col(:)
+    real(field_r), pointer :: w2s_col(:), w2r_col(:), skew_col(:), u2r_col(:), v2r_col(:)
+    real(field_r), pointer :: thl2r_col(:), thv2r_col(:), th2r_col(:), qt2r_col(:), ql2r_col(:)
+    real(field_r), pointer :: cs_col(:), cfrac_col(:), hur_col(:), hus_col(:), ta_col(:)
+    real(field_r), pointer :: clw_col(:), cli_col(:), plw_col(:), pli_col(:)
+
+    real(field_r), pointer :: sv_col(:), svp_col(:), sv2r_col(:)
+    real(field_r), pointer :: wsvs_col(:), wsvr_col(:), wsvt_col(:)
+    ! modbudget variables
+    real(field_r), pointer :: tker_col(:), shr_col(:), buo_col(:), trsp_col(:), ptrsp_col(:)
+    real(field_r), pointer :: sbtke_col(:), sbshr_col(:), sbbuo_col(:), sbdiss_col(:)
+    real(field_r), pointer :: sbstor_col(:), sbbudg_col(:), sbresid_col(:), ekm_col(:), khkm_col(:)
+    ! radstat variables
+    real(field_r), pointer :: thltend_col(:), thllwtend_col(:), thlswtend_col(:), thlradls_col(:)
+    real(field_r), pointer :: lwu_col(:), lwd_col(:), swu_col(:), swd_col(:)
+    real(field_r), pointer :: lwuca_col(:), lwdca_col(:), swuca_col(:), swdca_col(:)
+    real(field_r), pointer :: thllwtendca_col(:), thlswtendca_col(:)
 
     if (.not. lcolstat) return
     if (.not. allocated(i_local)) return
-
-    any_write = .false.
 
     if (.not. is_sampling_timestep(ofile_id)) return
     ! ----------------------------------------------------------------
@@ -321,40 +315,42 @@ contains
       trsp_loc = 0.0_field_r
       shr_loc = 0.0_field_r
 
+      call get_pointers(col_idx)
+
 
       do k = 1, kmax
-        u_col(k,col_idx)     = u_col(k,col_idx)    + u0(i,j,k)
-        v_col(k,col_idx)     = v_col(k,col_idx)    + v0(i,j,k)
-        w_col(k,col_idx)     = w_col(k,col_idx)    + w0(i,j,k)
-        thl_col(k,col_idx)   = thl_col(k,col_idx)  + thl0(i,j,k)
-        qt_col(k,col_idx)    = qt_col(k,col_idx)   + qt0(i,j,k)
-        ql_col(k,col_idx)    = ql_col(k,col_idx)   + ql0(i,j,k)
-        ta_col(k,col_idx)    = ta_col(k,col_idx)   + tmp0(i,j,k)
-        thv_col(k,col_idx)   = thv_col(k,col_idx)  + thv0(i,j,k)
+        u_col(k)     = u_col(k)    + u0(i,j,k)
+        v_col(k)     = v_col(k)    + v0(i,j,k)
+        w_col(k)     = w_col(k)    + w0(i,j,k)
+        thl_col(k)   = thl_col(k)  + thl0(i,j,k)
+        qt_col(k)    = qt_col(k)   + qt0(i,j,k)
+        ql_col(k)    = ql_col(k)   + ql0(i,j,k)
+        ta_col(k)    = ta_col(k)   + tmp0(i,j,k)
+        thv_col(k)   = thv_col(k)  + thv0(i,j,k)
 
-        presh_col(k,col_idx)  = presh_col(k,col_idx)  + presh(k)
-        rhof_col(k,col_idx)   = rhof_col(k,col_idx)   + rhof(k)
-        rhobf_col(k,col_idx)  = rhobf_col(k,col_idx)  + rhobf(k)
-        rhobh_col(k,col_idx)  = rhobh_col(k,col_idx)  + rhobh(k)
+        presh_col(k)  = presh_col(k)  + presh(k)
+        rhof_col(k)   = rhof_col(k)   + rhof(k)
+        rhobf_col(k)  = rhobf_col(k)  + rhobf(k)
+        rhobh_col(k)  = rhobh_col(k)  + rhobh(k)
 
         ! Moments — use local instantaneous values for consistent skewness
         u2r_inst = (um(i,j,k) + cu - umav(k))**2
         v2r_inst = (vm(i,j,k) + cv - vmav(k))**2
         w_prime  = wm(i,j,k) - wmav(k)
         w2r_inst = w_prime**2
-        u2r_col(k,col_idx)   = u2r_col(k,col_idx)   + u2r_inst
-        v2r_col(k,col_idx)   = v2r_col(k,col_idx)   + v2r_inst
-        w2r_col(k,col_idx)   = w2r_col(k,col_idx)   + w2r_inst
-        w2s_col(k,col_idx)   = w2s_col(k,col_idx)   + e12m(i,j,k)**2
-        thl2r_col(k,col_idx) = thl2r_col(k,col_idx) + (thlm(i,j,k) - thlmav(k))**2
-        thv2r_col(k,col_idx) = thv2r_col(k,col_idx) + (thv0(i,j,k) - thvmav(k))**2
+        u2r_col(k)   = u2r_col(k)   + u2r_inst
+        v2r_col(k)   = v2r_col(k)   + v2r_inst
+        w2r_col(k)   = w2r_col(k)   + w2r_inst
+        w2s_col(k)   = w2s_col(k)   + e12m(i,j,k)**2
+        thl2r_col(k) = thl2r_col(k) + (thlm(i,j,k) - thlmav(k))**2
+        thv2r_col(k) = thv2r_col(k) + (thv0(i,j,k) - thvmav(k))**2
         ! Match modgenstat: th2 uses thlm moments around thmav.
-        th2r_col(k,col_idx)  = th2r_col(k,col_idx)  + (thlm(i,j,k) - thmav(k))**2
-        qt2r_col(k,col_idx)  = qt2r_col(k,col_idx)  + (qtm(i,j,k) - qtmav(k))**2
-        ql2r_col(k,col_idx)  = ql2r_col(k,col_idx)  + (ql0(i,j,k) - qlmav(k))**2
+        th2r_col(k)  = th2r_col(k)  + (thlm(i,j,k) - thmav(k))**2
+        qt2r_col(k)  = qt2r_col(k)  + (qtm(i,j,k) - qtmav(k))**2
+        ql2r_col(k)  = ql2r_col(k)  + (ql0(i,j,k) - qlmav(k))**2
 
         ! Accumulate w'^3 and normalize later with slab w2av, matching modgenstat.
-        skew_col(k,col_idx) = skew_col(k,col_idx) + w_prime**3
+        skew_col(k) = skew_col(k) + w_prime**3
 
         if (k == 1) then
           wthls_loc = thlflux(i,j)
@@ -446,50 +442,51 @@ contains
                     *((v0(i,j,k)-v0(i,j,k-1))/dzh(k)+(w0(i,j,k)-w0(i,j-1,k))*dyi)
         end if
 
-        wthls_col(k,col_idx) = wthls_col(k,col_idx) + wthls_loc
-        wthlr_col(k,col_idx) = wthlr_col(k,col_idx) + wthlr_loc
-        wthlt_col(k,col_idx) = wthlt_col(k,col_idx) + wthls_loc + wthlr_loc
-        wthvs_col(k,col_idx) = wthvs_col(k,col_idx) + wthvs_loc
-        wthvr_col(k,col_idx) = wthvr_col(k,col_idx) + wthvr_loc
-        wthvt_col(k,col_idx) = wthvt_col(k,col_idx) + wthvs_loc + wthvr_loc
-        wqts_col(k,col_idx)  = wqts_col(k,col_idx)  + wqts_loc
-        wqtr_col(k,col_idx)  = wqtr_col(k,col_idx)  + wqtr_loc
-        wqtt_col(k,col_idx)  = wqtt_col(k,col_idx)  + wqts_loc  + wqtr_loc
-        wqls_col(k,col_idx)  = wqls_col(k,col_idx)  + wqls_loc
-        wqlr_col(k,col_idx)  = wqlr_col(k,col_idx)  + wqlr_loc
-        wqlt_col(k,col_idx)  = wqlt_col(k,col_idx)  + wqls_loc  + wqlr_loc
-        uws_col(k,col_idx)   = uws_col(k,col_idx)   + uws_loc
-        uwr_col(k,col_idx)   = uwr_col(k,col_idx)   + uwr_loc
-        uwt_col(k,col_idx)   = uwt_col(k,col_idx)   + uws_loc   + uwr_loc
-        vws_col(k,col_idx)   = vws_col(k,col_idx)   + vws_loc
-        vwr_col(k,col_idx)   = vwr_col(k,col_idx)   + vwr_loc
-        vwt_col(k,col_idx)   = vwt_col(k,col_idx)   + vws_loc   + vwr_loc
+        wthls_col(k) = wthls_col(k) + wthls_loc
+        wthlr_col(k) = wthlr_col(k) + wthlr_loc
+        wthlt_col(k) = wthlt_col(k) + wthls_loc + wthlr_loc
+        wthvs_col(k) = wthvs_col(k) + wthvs_loc
+        wthvr_col(k) = wthvr_col(k) + wthvr_loc
+        wthvt_col(k) = wthvt_col(k) + wthvs_loc + wthvr_loc
+        wqts_col(k)  = wqts_col(k)  + wqts_loc
+        wqtr_col(k)  = wqtr_col(k)  + wqtr_loc
+        wqtt_col(k)  = wqtt_col(k)  + wqts_loc  + wqtr_loc
+        wqls_col(k)  = wqls_col(k)  + wqls_loc
+        wqlr_col(k)  = wqlr_col(k)  + wqlr_loc
+        wqlt_col(k)  = wqlt_col(k)  + wqls_loc  + wqlr_loc
+        uws_col(k)   = uws_col(k)   + uws_loc
+        uwr_col(k)   = uwr_col(k)   + uwr_loc
+        uwt_col(k)   = uwt_col(k)   + uws_loc   + uwr_loc
+        vws_col(k)   = vws_col(k)   + vws_loc
+        vwr_col(k)   = vwr_col(k)   + vwr_loc
+        vwt_col(k)   = vwt_col(k)   + vws_loc   + vwr_loc
 
 
-        cs_col(k,col_idx)    = cs_col(k,col_idx)    + csz(k)
-        hus_col(k,col_idx)   = hus_col(k,col_idx)   + (qt0(i,j,k) - ql0(i,j,k))
-        hur_col(k,col_idx)   = hur_col(k,col_idx)   + 100.0_field_r * (qt0(i,j,k) - ql0(i,j,k)) / qsat_tab(tmp0(i,j,k), presf(k))
+        cs_col(k)    = cs_col(k)    + csz(k)
+        hus_col(k)   = hus_col(k)   + (qt0(i,j,k) - ql0(i,j,k))
+        hur_col(k)   = hur_col(k)   + 100.0_field_r * (qt0(i,j,k) - ql0(i,j,k)) / qsat_tab(tmp0(i,j,k), presf(k))
 
         ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdn) / (tup-tdn)))
-        clw_col(k,col_idx)   = clw_col(k,col_idx)   + ql0(i,j,k) * ilratio
-        cli_col(k,col_idx)   = cli_col(k,col_idx)   + ql0(i,j,k) * (1.0_field_r - ilratio)
-        if (ql0(i,j,k) > 0.0_field_r) cfrac_col(k,col_idx) = cfrac_col(k,col_idx) + 1.0_field_r
+        clw_col(k)   = clw_col(k)   + ql0(i,j,k) * ilratio
+        cli_col(k)   = cli_col(k)   + ql0(i,j,k) * (1.0_field_r - ilratio)
+        if (ql0(i,j,k) > 0.0_field_r) cfrac_col(k) = cfrac_col(k) + 1.0_field_r
         
         iqr = get_tracer_index("qr")
         if (iqr > 0) then
           if (imicro == imicro_sice .or. imicro == imicro_sice2) then
               ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))
-              plw_col(k,col_idx) = plw_col(k,col_idx) + sv0(i,j,k,iqr) * ilratio
-              pli_col(k,col_idx) = pli_col(k,col_idx) + sv0(i,j,k,iqr) * (1-ilratio)
+              plw_col(k) = plw_col(k) + sv0(i,j,k,iqr) * ilratio
+              pli_col(k) = pli_col(k) + sv0(i,j,k,iqr) * (1-ilratio)
           else
-            plw_col(k,col_idx) = plw_col(k,col_idx) + sv0(i,j,k,iqr)
+            plw_col(k) = plw_col(k) + sv0(i,j,k,iqr)
           end if
         end if
 
         do n = 1, nsv
-          sv_col(k,n,col_idx)   = sv_col(k,n,col_idx)   + svm(i,j,k,n)
-          svp_col(k,n,col_idx)  = svp_col(k,n,col_idx)  + svp(i,j,k,n)
-          sv2r_col(k,n,col_idx) = sv2r_col(k,n,col_idx) + (svm(i,j,k,n) - svmav(k,n))**2
+          call get_sv_pointer(n)
+          sv_col(k)   = sv_col(k)   + svm(i,j,k,n)
+          svp_col(k)  = svp_col(k)  + svp(i,j,k,n)
+          sv2r_col(k) = sv2r_col(k) + (svm(i,j,k,n) - svmav(k,n))**2
           if (k == 1) then
             wsvs_loc = svflux(i,j,n)
             wsvr_loc = 0.0_field_r
@@ -498,9 +495,9 @@ contains
             wsvs_loc = -ekhalf * (sv0(i,j,k,n) - sv0(i,j,k-1,n)) / dzh(k)
             wsvr_loc = (w0(i,j,k) - wmav(k)) * ((sv0(i,j,k,n)*dzf(k-1) + sv0(i,j,k-1,n)*dzf(k)) / (2.0_field_r*dzh(k)))
           end if
-          wsvs_col(k,n,col_idx) = wsvs_col(k,n,col_idx) + wsvs_loc
-          wsvr_col(k,n,col_idx) = wsvr_col(k,n,col_idx) + wsvr_loc
-          wsvt_col(k,n,col_idx) = wsvt_col(k,n,col_idx) + wsvs_loc + wsvr_loc
+          wsvs_col(k) = wsvs_col(k) + wsvs_loc
+          wsvr_col(k) = wsvr_col(k) + wsvr_loc
+          wsvt_col(k) = wsvt_col(k) + wsvs_loc + wsvr_loc
         end do
 
         ! Budget terms
@@ -524,63 +521,63 @@ contains
         end if
 
         ! Accumulate budget terms (method from modbudget)
-        shr_col(k,col_idx)   = shr_col(k,col_idx)   + shr_loc(k)
-        buo_col(k,col_idx)   = buo_col(k,col_idx)   + buo_loc(k)
-        ptrsp_col(k,col_idx) = ptrsp_col(k,col_idx) + ptrsp_loc(k)
+        shr_col(k)   = shr_col(k)   + shr_loc(k)
+        buo_col(k)   = buo_col(k)   + buo_loc(k)
+        ptrsp_col(k) = ptrsp_col(k) + ptrsp_loc(k)
 
         egp = 0.5*rhobf(k)*( (0.5*(u0(i,j,k)+u0(i+1,j,k))-(u0av(k)-cu))**2 &
                   +(0.5*(v0(i,j,k)+v0(i,j+1,k))-(v0av(k)-cv))**2 &
                   +(0.5*(w0(i,j,k)+w0(i,j,k+1))             )**2 )
         weres_loc(k) = egp * 0.5_field_r * (w0(i,j,k) + w0(i,j,k+1))
-        tker_col(k,col_idx)  = tker_col(k,col_idx) + egp
+        tker_col(k)  = tker_col(k) + egp
         
         sbtke_inst = e120(i,j,k)**2 * rhobf(k)
-        sbtke_col(k,col_idx)  = sbtke_col(k,col_idx) + sbtke_inst
+        sbtke_col(k)  = sbtke_col(k) + sbtke_inst
         if (.not. l_sbtke_beg_set) sbtke_beg_col(k,col_idx) = sbtke_inst
         sbtke_last_col(k,col_idx) = sbtke_inst
-        ekm_col(k,col_idx)    = ekm_col(k,col_idx)    + ekm(i,j,k)
+        ekm_col(k)    = ekm_col(k)    + ekm(i,j,k)
         if (ekm(i,j,k) > eps1) then
-          khkm_col(k,col_idx) = khkm_col(k,col_idx) + ekh(i,j,k) / ekm(i,j,k)
+          khkm_col(k) = khkm_col(k) + ekh(i,j,k) / ekm(i,j,k)
         end if
 
 
 
-        thltend_col(k,col_idx) = thltend_col(k,col_idx) + thlprad(i,j,k)
+        thltend_col(k) = thltend_col(k) + thlprad(i,j,k)
         
         !absolute values to handle different sign conventions in radiation code
-        thllwtend_col(k,col_idx) = thllwtend_col(k,col_idx) + &
+        thllwtend_col(k) = thllwtend_col(k) + &
             (abs(lwd(i,j,k+1)) - abs(lwu(i,j,k+1)) - abs(lwd(i,j,k)) + abs(lwu(i,j,k))) / &
             (rhof(k)*exnf(k)*cp*dzf(k))
-        thlswtend_col(k,col_idx) = thlswtend_col(k,col_idx) + &
+        thlswtend_col(k) = thlswtend_col(k) + &
             (abs(swd(i,j,k+1)) - abs(swu(i,j,k+1)) - abs(swd(i,j,k)) + abs(swu(i,j,k))) / &
             (rhof(k)*exnf(k)*cp*dzf(k))
 
-        thlradls_col(k,col_idx) = thlradls_col(k,col_idx) + thlpcar(k)
+        thlradls_col(k) = thlradls_col(k) + thlpcar(k)
 
-        lwu_col(k,col_idx)  = lwu_col(k,col_idx)  + abs(lwu(i,j,k))
-        lwd_col(k,col_idx)  = lwd_col(k,col_idx)  + abs(lwd(i,j,k))
-        swu_col(k,col_idx)  = swu_col(k,col_idx)  + abs(swu(i,j,k))
-        swd_col(k,col_idx)  = swd_col(k,col_idx)  + abs(swd(i,j,k))
+        lwu_col(k)  = lwu_col(k)  + abs(lwu(i,j,k))
+        lwd_col(k)  = lwd_col(k)  + abs(lwd(i,j,k))
+        swu_col(k)  = swu_col(k)  + abs(swu(i,j,k))
+        swd_col(k)  = swd_col(k)  + abs(swd(i,j,k))
 
         ! assume clear-sky fluxes are already calculated in modradstat and available as lwuca/lwdca/swuca/swdca; if not, these will just accumulate zeros and not contribute to the final averages
-        lwuca_col(k,col_idx) = lwuca_col(k,col_idx) + abs(lwuca(i,j,k))
-        lwdca_col(k,col_idx) = lwdca_col(k,col_idx) + abs(lwdca(i,j,k))
-        swuca_col(k,col_idx) = swuca_col(k,col_idx) + abs(swuca(i,j,k))
-        swdca_col(k,col_idx) = swdca_col(k,col_idx) + abs(swdca(i,j,k))
+        lwuca_col(k) = lwuca_col(k) + abs(lwuca(i,j,k))
+        lwdca_col(k) = lwdca_col(k) + abs(lwdca(i,j,k))
+        swuca_col(k) = swuca_col(k) + abs(swuca(i,j,k))
+        swdca_col(k) = swdca_col(k) + abs(swdca(i,j,k))
 
-        thllwtendca_col(k,col_idx) = thllwtendca_col(k,col_idx) + &
+        thllwtendca_col(k) = thllwtendca_col(k) + &
             (-lwdca(i,j,k+1) - lwuca(i,j,k+1) + lwdca(i,j,k) + lwuca(i,j,k)) / &
             (rhof(k)*exnf(k)*cp*dzf(k))
-        thlswtendca_col(k,col_idx) = thlswtendca_col(k,col_idx) + &
+        thlswtendca_col(k) = thlswtendca_col(k) + &
             (-swdca(i,j,k+1) - swuca(i,j,k+1) + swdca(i,j,k) + swuca(i,j,k)) / &
             (rhof(k)*exnf(k)*cp*dzf(k))
 
       end do
 
       ! Post-loop: resolved transport (divergence-based)
-      trsp_col(1,col_idx) = trsp_col(1,col_idx) - weres_loc(1) / (0.5_field_r * dzh(1))
+      trsp_col(1) = trsp_col(1) - weres_loc(1) / (0.5_field_r * dzh(1))
       do k = 2, kmax
-        trsp_col(k,col_idx) = trsp_col(k,col_idx) - (weres_loc(k) - weres_loc(k-1)) / dzh(k)
+        trsp_col(k) = trsp_col(k) - (weres_loc(k) - weres_loc(k-1)) / dzh(k)
       end do
       
       ! Note: ptrsp_loc contains raw flux values accumulated into ptrsp_col.
@@ -590,9 +587,9 @@ contains
       k = 1
       !sbshr, sbbuo, sbdiss are only defined at k=1 (surface layer)
       !These are multiplied by rhobf during accumulation per modbudget convention
-      sbshr_col(k,col_idx)  = sbshr_col(k,col_idx)  + sbshr(i,j,k) * rhobf(k)
-      sbbuo_col(k,col_idx)  = sbbuo_col(k,col_idx)  + sbbuo(i,j,k) * rhobf(k)
-      sbdiss_col(k,col_idx) = sbdiss_col(k,col_idx) + sbdiss(i,j,k) * rhobf(k)
+      sbshr_col(k)  = sbshr_col(k)  + sbshr(i,j,k) * rhobf(k)
+      sbbuo_col(k)  = sbbuo_col(k)  + sbbuo(i,j,k) * rhobf(k)
+      sbdiss_col(k) = sbdiss_col(k) + sbdiss(i,j,k) * rhobf(k)
       ! sbbudg is computed from components: sum of shear, buoyancy, dissipation  
       ! Will be calculated during output normalization from accumulated sbshr+sbbuo+sbdiss
 
@@ -604,397 +601,241 @@ contains
     ! Write pass — every timeav: average, fill file buffers, and zero
     ! ----------------------------------------------------------------
     if (is_writing_timestep(ofile_id)) then
-      any_write = .true.
       scale_rn = 1.0_field_r / real(nsamples, kind=field_r)
 
       do col_idx = 1, size(i_local)
 
-        rhof_col(:,col_idx)   = rhof_col(:,col_idx)   * scale_rn
-        rhobf_col(:,col_idx)  = rhobf_col(:,col_idx)  * scale_rn
-        rhobh_col(:,col_idx)  = rhobh_col(:,col_idx)  * scale_rn
-        presh_col(:,col_idx)  = presh_col(:,col_idx)  * scale_rn
-        u_col(:,col_idx)      = u_col(:,col_idx)      * scale_rn
-        v_col(:,col_idx)      = v_col(:,col_idx)      * scale_rn
-        w_col(:,col_idx)      = w_col(:,col_idx)      * scale_rn
-        thl_col(:,col_idx)    = thl_col(:,col_idx)    * scale_rn
-        thv_col(:,col_idx)    = thv_col(:,col_idx)    * scale_rn
-        qt_col(:,col_idx)     = qt_col(:,col_idx)     * scale_rn
-        ql_col(:,col_idx)     = ql_col(:,col_idx)     * scale_rn
-        wthls_col(:,col_idx)  = wthls_col(:,col_idx)  * scale_rn
-        wthlr_col(:,col_idx)  = wthlr_col(:,col_idx)  * scale_rn
-        wthlt_col(:,col_idx)  = wthlt_col(:,col_idx)  * scale_rn
-        wthvs_col(:,col_idx)  = wthvs_col(:,col_idx)  * scale_rn
-        wthvr_col(:,col_idx)  = wthvr_col(:,col_idx)  * scale_rn
-        wthvt_col(:,col_idx)  = wthvt_col(:,col_idx)  * scale_rn
-        wqts_col(:,col_idx)   = wqts_col(:,col_idx)   * scale_rn
-        wqtr_col(:,col_idx)   = wqtr_col(:,col_idx)   * scale_rn
-        wqtt_col(:,col_idx)   = wqtt_col(:,col_idx)   * scale_rn
-        wqls_col(:,col_idx)   = wqls_col(:,col_idx)   * scale_rn
-        wqlr_col(:,col_idx)   = wqlr_col(:,col_idx)   * scale_rn
-        wqlt_col(:,col_idx)   = wqlt_col(:,col_idx)   * scale_rn
-        uws_col(:,col_idx)    = uws_col(:,col_idx)    * scale_rn
-        uwr_col(:,col_idx)    = uwr_col(:,col_idx)    * scale_rn
-        uwt_col(:,col_idx)    = uwt_col(:,col_idx)    * scale_rn
-        vws_col(:,col_idx)    = vws_col(:,col_idx)    * scale_rn
-        vwr_col(:,col_idx)    = vwr_col(:,col_idx)    * scale_rn
-        vwt_col(:,col_idx)    = vwt_col(:,col_idx)    * scale_rn
-        w2s_col(:,col_idx)    = w2s_col(:,col_idx)    * scale_rn
-        w2r_col(:,col_idx)    = w2r_col(:,col_idx)    * scale_rn
-        skew_col(:,col_idx)   = skew_col(:,col_idx)   * scale_rn
+        call get_pointers(col_idx)
+
+        rhof_col(:)   = rhof_col(:)   * scale_rn
+        rhobf_col(:)  = rhobf_col(:)  * scale_rn
+        rhobh_col(:)  = rhobh_col(:)  * scale_rn
+        presh_col(:)  = presh_col(:)  * scale_rn
+        u_col(:)      = u_col(:)      * scale_rn
+        v_col(:)      = v_col(:)      * scale_rn
+        w_col(:)      = w_col(:)      * scale_rn
+        thl_col(:)    = thl_col(:)    * scale_rn
+        thv_col(:)    = thv_col(:)    * scale_rn
+        qt_col(:)     = qt_col(:)     * scale_rn
+        ql_col(:)     = ql_col(:)     * scale_rn
+        wthls_col(:)  = wthls_col(:)  * scale_rn
+        wthlr_col(:)  = wthlr_col(:)  * scale_rn
+        wthlt_col(:)  = wthlt_col(:)  * scale_rn
+        wthvs_col(:)  = wthvs_col(:)  * scale_rn
+        wthvr_col(:)  = wthvr_col(:)  * scale_rn
+        wthvt_col(:)  = wthvt_col(:)  * scale_rn
+        wqts_col(:)   = wqts_col(:)   * scale_rn
+        wqtr_col(:)   = wqtr_col(:)   * scale_rn
+        wqtt_col(:)   = wqtt_col(:)   * scale_rn
+        wqls_col(:)   = wqls_col(:)   * scale_rn
+        wqlr_col(:)   = wqlr_col(:)   * scale_rn
+        wqlt_col(:)   = wqlt_col(:)   * scale_rn
+        uws_col(:)    = uws_col(:)    * scale_rn
+        uwr_col(:)    = uwr_col(:)    * scale_rn
+        uwt_col(:)    = uwt_col(:)    * scale_rn
+        vws_col(:)    = vws_col(:)    * scale_rn
+        vwr_col(:)    = vwr_col(:)    * scale_rn
+        vwt_col(:)    = vwt_col(:)    * scale_rn
+        w2s_col(:)    = w2s_col(:)    * scale_rn
+        w2r_col(:)    = w2r_col(:)    * scale_rn
+        skew_col(:)   = skew_col(:)   * scale_rn
         do k = 1, kmax
-          skew_col(k,col_idx) = skew_col(k,col_idx) / max(w2av(k)**1.5_field_r, epsilon(1.0_field_r))
+          skew_col(k) = skew_col(k) / max(w2av(k)**1.5_field_r, epsilon(1.0_field_r))
         end do
-        u2r_col(:,col_idx)    = u2r_col(:,col_idx)    * scale_rn
-        v2r_col(:,col_idx)    = v2r_col(:,col_idx)    * scale_rn
-        thl2r_col(:,col_idx)  = thl2r_col(:,col_idx)  * scale_rn
-        thv2r_col(:,col_idx)  = thv2r_col(:,col_idx)  * scale_rn
-        th2r_col(:,col_idx)   = th2r_col(:,col_idx)   * scale_rn
-        qt2r_col(:,col_idx)   = qt2r_col(:,col_idx)   * scale_rn
-        ql2r_col(:,col_idx)   = ql2r_col(:,col_idx)   * scale_rn
-        cs_col(:,col_idx)     = cs_col(:,col_idx)     * scale_rn
-        cfrac_col(:,col_idx)  = cfrac_col(:,col_idx)  * scale_rn
-        hur_col(:,col_idx)    = hur_col(:,col_idx)    * scale_rn
-        hus_col(:,col_idx)    = hus_col(:,col_idx)    * scale_rn
-        ta_col(:,col_idx)     = ta_col(:,col_idx)     * scale_rn
-        clw_col(:,col_idx)    = clw_col(:,col_idx)    * scale_rn
-        cli_col(:,col_idx)    = cli_col(:,col_idx)    * scale_rn
-        plw_col(:,col_idx)    = plw_col(:,col_idx)    * scale_rn
-        pli_col(:,col_idx)    = pli_col(:,col_idx)    * scale_rn
-        tker_col(:,col_idx)   = tker_col(:,col_idx)   * scale_rn
-        shr_col(:,col_idx)    = shr_col(:,col_idx)    * scale_rn
-        buo_col(:,col_idx)    = buo_col(:,col_idx)    * scale_rn
-        trsp_col(:,col_idx)   = trsp_col(:,col_idx)   * scale_rn
-        ptrsp_col(:,col_idx)  = ptrsp_col(:,col_idx)  * scale_rn
+        u2r_col(:)    = u2r_col(:)    * scale_rn
+        v2r_col(:)    = v2r_col(:)    * scale_rn
+        thl2r_col(:)  = thl2r_col(:)  * scale_rn
+        thv2r_col(:)  = thv2r_col(:)  * scale_rn
+        th2r_col(:)   = th2r_col(:)   * scale_rn
+        qt2r_col(:)   = qt2r_col(:)   * scale_rn
+        ql2r_col(:)   = ql2r_col(:)   * scale_rn
+        cs_col(:)     = cs_col(:)     * scale_rn
+        cfrac_col(:)  = cfrac_col(:)  * scale_rn
+        hur_col(:)    = hur_col(:)    * scale_rn
+        hus_col(:)    = hus_col(:)    * scale_rn
+        ta_col(:)     = ta_col(:)     * scale_rn
+        clw_col(:)    = clw_col(:)    * scale_rn
+        cli_col(:)    = cli_col(:)    * scale_rn
+        plw_col(:)    = plw_col(:)    * scale_rn
+        pli_col(:)    = pli_col(:)    * scale_rn
+        tker_col(:)   = tker_col(:)   * scale_rn
+        shr_col(:)    = shr_col(:)    * scale_rn
+        buo_col(:)    = buo_col(:)    * scale_rn
+        trsp_col(:)   = trsp_col(:)   * scale_rn
+        ptrsp_col(:)  = ptrsp_col(:)  * scale_rn
 
         ! Match modbudget staggering: report full-level values from adjacent half levels.
-        prof_tmp = shr_col(:,col_idx)
+        prof_tmp = shr_col(:)
         do k = 1, kmax-1
-          shr_col(k,col_idx) = 0.5_field_r * (prof_tmp(k) + prof_tmp(k+1))
+          shr_col(k) = 0.5_field_r * (prof_tmp(k) + prof_tmp(k+1))
         end do
-        shr_col(kmax,col_idx) = prof_tmp(kmax)
+        shr_col(kmax) = prof_tmp(kmax)
 
-        prof_tmp = buo_col(:,col_idx)
+        prof_tmp = buo_col(:)
         do k = 1, kmax-1
-          buo_col(k,col_idx) = 0.5_field_r * (prof_tmp(k) + prof_tmp(k+1))
+          buo_col(k) = 0.5_field_r * (prof_tmp(k) + prof_tmp(k+1))
         end do
-        buo_col(kmax,col_idx) = prof_tmp(kmax)
+        buo_col(kmax) = prof_tmp(kmax)
 
-        prof_tmp = trsp_col(:,col_idx)
+        prof_tmp = trsp_col(:)
         do k = 1, kmax-1
-          trsp_col(k,col_idx) = 0.5_field_r * (prof_tmp(k) + prof_tmp(k+1))
+          trsp_col(k) = 0.5_field_r * (prof_tmp(k) + prof_tmp(k+1))
         end do
-        trsp_col(kmax,col_idx) = prof_tmp(kmax)
+        trsp_col(kmax) = prof_tmp(kmax)
         
         ! Convert ptrsp from accumulated raw flux to divergence form (matching modbudget):
         ! ptrsp_final(k) = -(ptrsp_flux(k+1) - ptrsp_flux(k)) / dzf(k)
-        prof_tmp = ptrsp_col(:,col_idx)
-        ptrsp_col(1,col_idx) = 0.0_field_r  ! ptrsp(1) = 0 (no divergence at surface)
+        prof_tmp = ptrsp_col(:)
+        ptrsp_col(1) = 0.0_field_r  ! ptrsp(1) = 0 (no divergence at surface)
         do k = 2, kmax-1
-          ptrsp_col(k,col_idx) = -(prof_tmp(k+1) - prof_tmp(k)) / dzf(k)
+          ptrsp_col(k) = -(prof_tmp(k+1) - prof_tmp(k)) / dzf(k)
         end do
-        ptrsp_col(kmax,col_idx) = 0.0_field_r
+        ptrsp_col(kmax) = 0.0_field_r
         
-        sbtke_col(:,col_idx)  = sbtke_col(:,col_idx)  * scale_rn
-        sbshr_col(:,col_idx)  = sbshr_col(:,col_idx)  * scale_rn
-        sbbuo_col(:,col_idx)  = sbbuo_col(:,col_idx)  * scale_rn
-        sbdiss_col(:,col_idx) = sbdiss_col(:,col_idx) * scale_rn
+        sbtke_col(:)  = sbtke_col(:)  * scale_rn
+        sbshr_col(:)  = sbshr_col(:)  * scale_rn
+        sbbuo_col(:)  = sbbuo_col(:)  * scale_rn
+        sbdiss_col(:) = sbdiss_col(:) * scale_rn
         ! sbbudg = sum of shear + buoyancy + dissipation (per modbudget convention)
-        sbbudg_col(:,col_idx) = sbshr_col(:,col_idx) + sbbuo_col(:,col_idx) + sbdiss_col(:,col_idx)
-        sbstor_col(:,col_idx)  = (sbtke_last_col(:,col_idx) - sbtke_beg_col(:,col_idx)) / max(timeav, eps1)
-        sbresid_col(:,col_idx) = sbbudg_col(:,col_idx) - sbstor_col(:,col_idx)
-        ekm_col(:,col_idx)    = ekm_col(:,col_idx)    * scale_rn
-        khkm_col(:,col_idx)   = khkm_col(:,col_idx)   * scale_rn
-        thltend_col(:,col_idx)    = thltend_col(:,col_idx)    * scale_rn
-        thllwtend_col(:,col_idx)  = thllwtend_col(:,col_idx)  * scale_rn
-        thlswtend_col(:,col_idx)  = thlswtend_col(:,col_idx)  * scale_rn
-        thlradls_col(:,col_idx)   = thlradls_col(:,col_idx)   * scale_rn
-        lwu_col(:,col_idx)    = lwu_col(:,col_idx)    * scale_rn
-        lwd_col(:,col_idx)    = lwd_col(:,col_idx)    * scale_rn
-        swu_col(:,col_idx)    = swu_col(:,col_idx)    * scale_rn
-        swd_col(:,col_idx)    = swd_col(:,col_idx)    * scale_rn
-        lwuca_col(:,col_idx)      = lwuca_col(:,col_idx)      * scale_rn
-        lwdca_col(:,col_idx)      = lwdca_col(:,col_idx)      * scale_rn
-        swuca_col(:,col_idx)      = swuca_col(:,col_idx)      * scale_rn
-        swdca_col(:,col_idx)      = swdca_col(:,col_idx)      * scale_rn
-        thllwtendca_col(:,col_idx) = thllwtendca_col(:,col_idx) * scale_rn
-        thlswtendca_col(:,col_idx) = thlswtendca_col(:,col_idx) * scale_rn
+        sbbudg_col(:) = sbshr_col(:) + sbbuo_col(:) + sbdiss_col(:)
+        sbstor_col(:)  = (sbtke_last_col(:,col_idx) - sbtke_beg_col(:,col_idx)) / max(timeav, eps1)
+        sbresid_col(:) = sbbudg_col(:) - sbstor_col(:)
+        ekm_col(:)    = ekm_col(:)    * scale_rn
+        khkm_col(:)   = khkm_col(:)   * scale_rn
+        thltend_col(:)    = thltend_col(:)    * scale_rn
+        thllwtend_col(:)  = thllwtend_col(:)  * scale_rn
+        thlswtend_col(:)  = thlswtend_col(:)  * scale_rn
+        thlradls_col(:)   = thlradls_col(:)   * scale_rn
+        lwu_col(:)    = lwu_col(:)    * scale_rn
+        lwd_col(:)    = lwd_col(:)    * scale_rn
+        swu_col(:)    = swu_col(:)    * scale_rn
+        swd_col(:)    = swd_col(:)    * scale_rn
+        lwuca_col(:)      = lwuca_col(:)      * scale_rn
+        lwdca_col(:)      = lwdca_col(:)      * scale_rn
+        swuca_col(:)      = swuca_col(:)      * scale_rn
+        swdca_col(:)      = swdca_col(:)      * scale_rn
+        thllwtendca_col(:) = thllwtendca_col(:) * scale_rn
+        thlswtendca_col(:) = thlswtendca_col(:) * scale_rn
         if (nsv > 0) then
-          sv_col(:,:,col_idx)   = sv_col(:,:,col_idx)   * scale_rn
-          svp_col(:,:,col_idx)  = svp_col(:,:,col_idx)  * scale_rn
-          sv2r_col(:,:,col_idx) = sv2r_col(:,:,col_idx) * scale_rn
-          wsvs_col(:,:,col_idx) = wsvs_col(:,:,col_idx) * scale_rn
-          wsvr_col(:,:,col_idx) = wsvr_col(:,:,col_idx) * scale_rn
-          wsvt_col(:,:,col_idx) = wsvt_col(:,:,col_idx) * scale_rn
+          do n = 1, nsv
+            call get_sv_pointer(n)
+            ! get pointers here
+            sv_col(:)   = sv_col(:)   * scale_rn
+            svp_col(:)  = svp_col(:)  * scale_rn
+            sv2r_col(:) = sv2r_col(:) * scale_rn
+            wsvs_col(:) = wsvs_col(:) * scale_rn
+            wsvr_col(:) = wsvr_col(:) * scale_rn
+            wsvt_col(:) = wsvt_col(:) * scale_rn
+          end do
         end if
-
       end do
-
-      call write_all_profiles_to_file()
     end if
 
-    ! Zero all accumulators after writing (all ifiles share the same timing)
-    if (any_write) then
-      call zero_profile_arrays()
-      l_sbtke_beg_set = .false.
-    end if
+    ! zeroing of buffer accumulators is done in modnetcdf_file_t
 
+    contains
+
+
+    subroutine get_pointers(col_idx)
+      integer, intent(in) :: col_idx
+      integer :: n
+      character(len=64) :: vname
+
+      call ofile%get_pointer('rhof', global_index(col_idx), rhof_col)
+      call ofile%get_pointer('rhobf', global_index(col_idx), rhobf_col)
+      call ofile%get_pointer('rhobh', global_index(col_idx), rhobh_col)
+      call ofile%get_pointer('presh', global_index(col_idx), presh_col)
+      call ofile%get_pointer('u', global_index(col_idx), u_col)
+      call ofile%get_pointer('v', global_index(col_idx), v_col)
+      call ofile%get_pointer('w', global_index(col_idx), w_col)
+      call ofile%get_pointer('thl', global_index(col_idx), thl_col)
+      call ofile%get_pointer('thv', global_index(col_idx), thv_col)
+      call ofile%get_pointer('qt', global_index(col_idx), qt_col)
+      call ofile%get_pointer('ql', global_index(col_idx), ql_col)
+      call ofile%get_pointer('wthls', global_index(col_idx), wthls_col)
+      call ofile%get_pointer('wthlr', global_index(col_idx), wthlr_col)
+      call ofile%get_pointer('wthlt', global_index(col_idx), wthlt_col)
+      call ofile%get_pointer('wthvs', global_index(col_idx), wthvs_col)
+      call ofile%get_pointer('wthvr', global_index(col_idx), wthvr_col)
+      call ofile%get_pointer('wthvt', global_index(col_idx), wthvt_col)
+      call ofile%get_pointer('wqts', global_index(col_idx), wqts_col)
+      call ofile%get_pointer('wqtr', global_index(col_idx), wqtr_col)
+      call ofile%get_pointer('wqtt', global_index(col_idx), wqtt_col)
+      call ofile%get_pointer('wqls', global_index(col_idx), wqls_col)
+      call ofile%get_pointer('wqlr', global_index(col_idx), wqlr_col)
+      call ofile%get_pointer('wqlt', global_index(col_idx), wqlt_col)
+      call ofile%get_pointer('uws', global_index(col_idx), uws_col)
+      call ofile%get_pointer('uwr', global_index(col_idx), uwr_col)
+      call ofile%get_pointer('uwt', global_index(col_idx), uwt_col)
+      call ofile%get_pointer('vws', global_index(col_idx), vws_col)
+      call ofile%get_pointer('vwr', global_index(col_idx), vwr_col)
+      call ofile%get_pointer('vwt', global_index(col_idx), vwt_col)
+      call ofile%get_pointer('w2s', global_index(col_idx), w2s_col)
+      call ofile%get_pointer('w2r', global_index(col_idx), w2r_col)
+      call ofile%get_pointer('skew', global_index(col_idx), skew_col)
+      call ofile%get_pointer('u2r', global_index(col_idx), u2r_col)
+      call ofile%get_pointer('v2r', global_index(col_idx), v2r_col)
+      call ofile%get_pointer('thl2r', global_index(col_idx), thl2r_col)
+      call ofile%get_pointer('thv2r', global_index(col_idx), thv2r_col)
+      call ofile%get_pointer('th2r', global_index(col_idx), th2r_col)
+      call ofile%get_pointer('qt2r', global_index(col_idx), qt2r_col)
+      call ofile%get_pointer('ql2r', global_index(col_idx), ql2r_col)
+      call ofile%get_pointer('cs', global_index(col_idx), cs_col)
+      call ofile%get_pointer('cfrac', global_index(col_idx), cfrac_col)
+      call ofile%get_pointer('hur', global_index(col_idx), hur_col)
+      call ofile%get_pointer('hus', global_index(col_idx), hus_col)
+      call ofile%get_pointer('ta', global_index(col_idx), ta_col)
+      call ofile%get_pointer('clw', global_index(col_idx), clw_col)
+      call ofile%get_pointer('cli', global_index(col_idx), cli_col)
+      call ofile%get_pointer('plw', global_index(col_idx), plw_col)
+      call ofile%get_pointer('pli', global_index(col_idx), pli_col)
+
+      call ofile%get_pointer('tker', global_index(col_idx), tker_col)
+      call ofile%get_pointer('shr', global_index(col_idx), shr_col)
+      call ofile%get_pointer('buo', global_index(col_idx), buo_col)
+      call ofile%get_pointer('trsp', global_index(col_idx), trsp_col)
+      call ofile%get_pointer('ptrsp', global_index(col_idx), ptrsp_col)
+      call ofile%get_pointer('sbtke', global_index(col_idx), sbtke_col)
+      call ofile%get_pointer('sbshr', global_index(col_idx), sbshr_col)
+      call ofile%get_pointer('sbbuo', global_index(col_idx), sbbuo_col)
+      call ofile%get_pointer('sbdiss', global_index(col_idx), sbdiss_col)
+      call ofile%get_pointer('sbstor', global_index(col_idx), sbstor_col)
+      call ofile%get_pointer('sbbudg', global_index(col_idx), sbbudg_col)
+      call ofile%get_pointer('sbresid', global_index(col_idx), sbresid_col)
+      call ofile%get_pointer('ekm', global_index(col_idx), ekm_col)
+      call ofile%get_pointer('khkm', global_index(col_idx), khkm_col)
+      call ofile%get_pointer('thltend', global_index(col_idx), thltend_col)
+      call ofile%get_pointer('thllwtend', global_index(col_idx), thllwtend_col)
+      call ofile%get_pointer('thlswtend', global_index(col_idx), thlswtend_col)
+      call ofile%get_pointer('thlradls', global_index(col_idx), thlradls_col)
+      call ofile%get_pointer('lwu', global_index(col_idx), lwu_col)
+      call ofile%get_pointer('lwd', global_index(col_idx), lwd_col)
+      call ofile%get_pointer('swu', global_index(col_idx), swu_col)
+      call ofile%get_pointer('swd', global_index(col_idx), swd_col)
+      call ofile%get_pointer('lwuca', global_index(col_idx), lwuca_col)
+      call ofile%get_pointer('lwdca', global_index(col_idx), lwdca_col)
+      call ofile%get_pointer('swuca', global_index(col_idx), swuca_col)
+      call ofile%get_pointer('swdca', global_index(col_idx), swdca_col)
+      call ofile%get_pointer('thllwtendca', global_index(col_idx), thllwtendca_col)
+      call ofile%get_pointer('thlswtendca', global_index(col_idx), thlswtendca_col)
+
+    end subroutine get_pointers
+
+    subroutine get_sv_pointer(n)
+      character(len=64) :: vname
+      integer, intent(in) :: n
+
+      vname = trim(tracer_prop(n)%tracname)
+      call ofile%get_pointer(vname, global_index(col_idx), sv_col)
+      call ofile%get_pointer(trim(vname)//'p', global_index(col_idx), svp_col)
+      call ofile%get_pointer(trim(vname)//'2r', global_index(col_idx), sv2r_col)
+      call ofile%get_pointer('w'//trim(vname)//'s', global_index(col_idx), wsvs_col)
+      call ofile%get_pointer('w'//trim(vname)//'r', global_index(col_idx), wsvr_col)
+      call ofile%get_pointer('w'//trim(vname)//'t', global_index(col_idx), wsvt_col)
+
+    end subroutine get_sv_pointer
   end subroutine colstat
 
-
-  subroutine write_all_profiles_to_file
-
-    integer :: n
-    character(len=64) :: vname
-
-    call write_field_to_file('rhof', rhof_col)
-    call write_field_to_file('rhobf', rhobf_col)
-    call write_field_to_file('rhobh', rhobh_col)
-    call write_field_to_file('presh', presh_col)
-    call write_field_to_file('u', u_col)
-    call write_field_to_file('v', v_col)
-    call write_field_to_file('w', w_col)
-    call write_field_to_file('thl', thl_col)
-    call write_field_to_file('thv', thv_col)
-    call write_field_to_file('qt', qt_col)
-    call write_field_to_file('ql', ql_col)
-    call write_field_to_file('wthls', wthls_col)
-    call write_field_to_file('wthlr', wthlr_col)
-    call write_field_to_file('wthlt', wthlt_col)
-    call write_field_to_file('wthvs', wthvs_col)
-    call write_field_to_file('wthvr', wthvr_col)
-    call write_field_to_file('wthvt', wthvt_col)
-    call write_field_to_file('wqts', wqts_col)
-    call write_field_to_file('wqtr', wqtr_col)
-    call write_field_to_file('wqtt', wqtt_col)
-    call write_field_to_file('wqls', wqls_col)
-    call write_field_to_file('wqlr', wqlr_col)
-    call write_field_to_file('wqlt', wqlt_col)
-    call write_field_to_file('uws', uws_col)
-    call write_field_to_file('uwr', uwr_col)
-    call write_field_to_file('uwt', uwt_col)
-    call write_field_to_file('vws', vws_col)
-    call write_field_to_file('vwr', vwr_col)
-    call write_field_to_file('vwt', vwt_col)
-    call write_field_to_file('w2s', w2s_col)
-    call write_field_to_file('w2r', w2r_col)
-    call write_field_to_file('skew', skew_col)
-    call write_field_to_file('u2r', u2r_col)
-    call write_field_to_file('v2r', v2r_col)
-    call write_field_to_file('thl2r', thl2r_col)
-    call write_field_to_file('thv2r', thv2r_col)
-    call write_field_to_file('th2r', th2r_col)
-    call write_field_to_file('qt2r', qt2r_col)
-    call write_field_to_file('ql2r', ql2r_col)
-    call write_field_to_file('cs', cs_col)
-    call write_field_to_file('cfrac', cfrac_col)
-    call write_field_to_file('hur', hur_col)
-    call write_field_to_file('hus', hus_col)
-    call write_field_to_file('ta', ta_col)
-    call write_field_to_file('clw', clw_col)
-    call write_field_to_file('cli', cli_col)
-    call write_field_to_file('plw', plw_col)
-    call write_field_to_file('pli', pli_col)
-
-    do n = 1, nsv
-      vname = trim(tracer_prop(n)%tracname)
-      call write_field_to_file(vname, sv_col(:,n,:))
-      call write_field_to_file(trim(vname)//'p', svp_col(:,n,:))
-      call write_field_to_file(trim(vname)//'2r', sv2r_col(:,n,:))
-      call write_field_to_file('w'//trim(vname)//'s', wsvs_col(:,n,:))
-      call write_field_to_file('w'//trim(vname)//'r', wsvr_col(:,n,:))
-      call write_field_to_file('w'//trim(vname)//'t', wsvt_col(:,n,:))
-    end do
-
-    call write_field_to_file('tker', tker_col)
-    call write_field_to_file('shr', shr_col)
-    call write_field_to_file('buo', buo_col)
-    call write_field_to_file('trsp', trsp_col)
-    call write_field_to_file('ptrsp', ptrsp_col)
-    call write_field_to_file('sbtke', sbtke_col)
-    call write_field_to_file('sbshr', sbshr_col)
-    call write_field_to_file('sbbuo', sbbuo_col)
-    call write_field_to_file('sbdiss', sbdiss_col)
-    call write_field_to_file('sbstor', sbstor_col)
-    call write_field_to_file('sbbudg', sbbudg_col)
-    call write_field_to_file('sbresid', sbresid_col)
-    call write_field_to_file('ekm', ekm_col)
-    call write_field_to_file('khkm', khkm_col)
-    call write_field_to_file('thltend', thltend_col)
-    call write_field_to_file('thllwtend', thllwtend_col)
-    call write_field_to_file('thlswtend', thlswtend_col)
-    call write_field_to_file('thlradls', thlradls_col)
-    call write_field_to_file('lwu', lwu_col)
-    call write_field_to_file('lwd', lwd_col)
-    call write_field_to_file('swu', swu_col)
-    call write_field_to_file('swd', swd_col)
-    call write_field_to_file('lwuca', lwuca_col)
-    call write_field_to_file('lwdca', lwdca_col)
-    call write_field_to_file('swuca', swuca_col)
-    call write_field_to_file('swdca', swdca_col)
-    call write_field_to_file('thllwtendca', thllwtendca_col)
-    call write_field_to_file('thlswtendca', thlswtendca_col)
-
-  end subroutine write_all_profiles_to_file
-
-  subroutine write_field_to_file(name, local_field)
-
-    character(len=*), intent(in) :: name
-    real(field_r), intent(in) :: local_field(:,:)
-
-    integer :: il
-    real(field_r), pointer :: ptr(:)
-
-    do il = 1, size(local_field, dim=2)
-      call ofile%get_pointer(name, global_index(il), ptr)
-      ptr = local_field(:,il)
-    end do
-
-  end subroutine write_field_to_file
-
-  subroutine allocate_profile_arrays(nlocal)
-
-    integer, intent(in) :: nlocal
-
-    allocate(rhof_col(kmax,nlocal), rhobf_col(kmax,nlocal), rhobh_col(kmax,nlocal), presh_col(kmax,nlocal))
-    allocate(u_col(kmax,nlocal), v_col(kmax,nlocal), w_col(kmax,nlocal), thl_col(kmax,nlocal), thv_col(kmax,nlocal), &
-             qt_col(kmax,nlocal), ql_col(kmax,nlocal))
-    allocate(wthls_col(kmax,nlocal), wthlr_col(kmax,nlocal), wthlt_col(kmax,nlocal), wthvs_col(kmax,nlocal), &
-             wthvr_col(kmax,nlocal), wthvt_col(kmax,nlocal))
-    allocate(wqts_col(kmax,nlocal), wqtr_col(kmax,nlocal), wqtt_col(kmax,nlocal), wqls_col(kmax,nlocal), &
-             wqlr_col(kmax,nlocal), wqlt_col(kmax,nlocal))
-    allocate(uws_col(kmax,nlocal), uwr_col(kmax,nlocal), uwt_col(kmax,nlocal), vws_col(kmax,nlocal), &
-             vwr_col(kmax,nlocal), vwt_col(kmax,nlocal))
-    allocate(w2s_col(kmax,nlocal), w2r_col(kmax,nlocal), skew_col(kmax,nlocal), u2r_col(kmax,nlocal), v2r_col(kmax,nlocal))
-    allocate(thl2r_col(kmax,nlocal), thv2r_col(kmax,nlocal), th2r_col(kmax,nlocal), qt2r_col(kmax,nlocal), ql2r_col(kmax,nlocal))
-    allocate(cs_col(kmax,nlocal), cfrac_col(kmax,nlocal), hur_col(kmax,nlocal), hus_col(kmax,nlocal), ta_col(kmax,nlocal))
-    allocate(clw_col(kmax,nlocal), cli_col(kmax,nlocal), plw_col(kmax,nlocal), pli_col(kmax,nlocal))
-
-    allocate(sv_col(kmax,nsv,nlocal), svp_col(kmax,nsv,nlocal), sv2r_col(kmax,nsv,nlocal))
-    allocate(wsvs_col(kmax,nsv,nlocal), wsvr_col(kmax,nsv,nlocal), wsvt_col(kmax,nsv,nlocal))
-
-    allocate(tker_col(kmax,nlocal), shr_col(kmax,nlocal), buo_col(kmax,nlocal), trsp_col(kmax,nlocal), ptrsp_col(kmax,nlocal))
-    allocate(sbtke_col(kmax,nlocal), sbshr_col(kmax,nlocal), sbbuo_col(kmax,nlocal), sbdiss_col(kmax,nlocal))
-    allocate(sbstor_col(kmax,nlocal), sbbudg_col(kmax,nlocal), sbresid_col(kmax,nlocal), ekm_col(kmax,nlocal), khkm_col(kmax,nlocal))
-    allocate(sbtke_beg_col(kmax,nlocal), sbtke_last_col(kmax,nlocal))
-
-    allocate(thltend_col(kmax,nlocal), thllwtend_col(kmax,nlocal), thlswtend_col(kmax,nlocal), thlradls_col(kmax,nlocal))
-    allocate(lwu_col(kmax,nlocal), lwd_col(kmax,nlocal), swu_col(kmax,nlocal), swd_col(kmax,nlocal))
-    allocate(lwuca_col(kmax,nlocal), lwdca_col(kmax,nlocal), swuca_col(kmax,nlocal), swdca_col(kmax,nlocal))
-    allocate(thllwtendca_col(kmax,nlocal), thlswtendca_col(kmax,nlocal))
-
-  end subroutine allocate_profile_arrays
-
-  subroutine zero_profile_arrays
-
-    rhof_col = 0.0_field_r
-    rhobf_col = 0.0_field_r
-    rhobh_col = 0.0_field_r
-    presh_col = 0.0_field_r
-    u_col = 0.0_field_r
-    v_col = 0.0_field_r
-    w_col = 0.0_field_r
-    thl_col = 0.0_field_r
-    thv_col = 0.0_field_r
-    qt_col = 0.0_field_r
-    ql_col = 0.0_field_r
-    wthls_col = 0.0_field_r
-    wthlr_col = 0.0_field_r
-    wthlt_col = 0.0_field_r
-    wthvs_col = 0.0_field_r
-    wthvr_col = 0.0_field_r
-    wthvt_col = 0.0_field_r
-    wqts_col = 0.0_field_r
-    wqtr_col = 0.0_field_r
-    wqtt_col = 0.0_field_r
-    wqls_col = 0.0_field_r
-    wqlr_col = 0.0_field_r
-    wqlt_col = 0.0_field_r
-    uws_col = 0.0_field_r
-    uwr_col = 0.0_field_r
-    uwt_col = 0.0_field_r
-    vws_col = 0.0_field_r
-    vwr_col = 0.0_field_r
-    vwt_col = 0.0_field_r
-    w2s_col = 0.0_field_r
-    w2r_col = 0.0_field_r
-    skew_col = 0.0_field_r
-    u2r_col = 0.0_field_r
-    v2r_col = 0.0_field_r
-    thl2r_col = 0.0_field_r
-    thv2r_col = 0.0_field_r
-    th2r_col = 0.0_field_r
-    qt2r_col = 0.0_field_r
-    ql2r_col = 0.0_field_r
-    cs_col = 0.0_field_r
-    cfrac_col = 0.0_field_r
-    hur_col = 0.0_field_r
-    hus_col = 0.0_field_r
-    ta_col = 0.0_field_r
-    clw_col = 0.0_field_r
-    cli_col = 0.0_field_r
-    plw_col = 0.0_field_r
-    pli_col = 0.0_field_r
-    sv_col = 0.0_field_r
-    svp_col = 0.0_field_r
-    sv2r_col = 0.0_field_r
-    wsvs_col = 0.0_field_r
-    wsvr_col = 0.0_field_r
-    wsvt_col = 0.0_field_r
-    tker_col = 0.0_field_r
-    shr_col = 0.0_field_r
-    buo_col = 0.0_field_r
-    trsp_col = 0.0_field_r
-    ptrsp_col = 0.0_field_r
-    sbtke_col = 0.0_field_r
-    sbshr_col = 0.0_field_r
-    sbbuo_col = 0.0_field_r
-    sbdiss_col = 0.0_field_r
-    sbtke_beg_col = 0.0_field_r
-    sbtke_last_col = 0.0_field_r
-    sbstor_col = 0.0_field_r
-    sbbudg_col = 0.0_field_r
-    sbresid_col = 0.0_field_r
-    ekm_col = 0.0_field_r
-    khkm_col = 0.0_field_r
-    thltend_col = 0.0_field_r
-    thllwtend_col = 0.0_field_r
-    thlswtend_col = 0.0_field_r
-    thlradls_col = 0.0_field_r
-    lwu_col = 0.0_field_r
-    lwd_col = 0.0_field_r
-    swu_col = 0.0_field_r
-    swd_col = 0.0_field_r
-    lwuca_col = 0.0_field_r
-    lwdca_col = 0.0_field_r
-    swuca_col = 0.0_field_r
-    swdca_col = 0.0_field_r
-    thllwtendca_col = 0.0_field_r
-    thlswtendca_col = 0.0_field_r
-
-  end subroutine zero_profile_arrays
-
-  subroutine deallocate_profile_arrays
-
-    if (allocated(rhof_col)) deallocate(rhof_col, rhobf_col, rhobh_col, presh_col)
-    if (allocated(u_col)) deallocate(u_col, v_col, w_col, thl_col, thv_col, qt_col, ql_col)
-    if (allocated(wthls_col)) deallocate(wthls_col, wthlr_col, wthlt_col, wthvs_col, wthvr_col, wthvt_col)
-    if (allocated(wqts_col)) deallocate(wqts_col, wqtr_col, wqtt_col, wqls_col, wqlr_col, wqlt_col)
-    if (allocated(uws_col)) deallocate(uws_col, uwr_col, uwt_col, vws_col, vwr_col, vwt_col)
-    if (allocated(w2s_col)) deallocate(w2s_col, w2r_col, skew_col, u2r_col, v2r_col)
-    if (allocated(thl2r_col)) deallocate(thl2r_col, thv2r_col, th2r_col, qt2r_col, ql2r_col)
-    if (allocated(cs_col)) deallocate(cs_col, cfrac_col, hur_col, hus_col, ta_col)
-    if (allocated(clw_col)) deallocate(clw_col, cli_col, plw_col, pli_col)
-    if (allocated(sv_col)) deallocate(sv_col, svp_col, sv2r_col, wsvs_col, wsvr_col, wsvt_col)
-    if (allocated(tker_col)) deallocate(tker_col, shr_col, buo_col, trsp_col, ptrsp_col)
-    if (allocated(sbtke_col)) deallocate(sbtke_col, sbshr_col, sbbuo_col, sbdiss_col)
-    if (allocated(sbtke_beg_col)) deallocate(sbtke_beg_col, sbtke_last_col)
-    if (allocated(sbstor_col)) deallocate(sbstor_col, sbbudg_col, sbresid_col, ekm_col, khkm_col)
-    if (allocated(thltend_col)) deallocate(thltend_col, thllwtend_col, thlswtend_col, thlradls_col)
-    if (allocated(lwu_col)) deallocate(lwu_col, lwd_col, swu_col, swd_col)
-    if (allocated(lwuca_col)) deallocate(lwuca_col, lwdca_col, swuca_col, swdca_col)
-    if (allocated(thllwtendca_col)) deallocate(thllwtendca_col, thlswtendca_col)
-
-  end subroutine deallocate_profile_arrays
 
   subroutine exitcolstat
 
@@ -1003,7 +844,8 @@ contains
     if (allocated(global_index)) deallocate(global_index)
     if (allocated(locx)) deallocate(locx)
     if (allocated(locy)) deallocate(locy)
-    call deallocate_profile_arrays()
+    if (allocated(sbtke_beg_col)) deallocate(sbtke_beg_col)
+    if (allocated(sbtke_last_col)) deallocate(sbtke_last_col)
 
   end subroutine exitcolstat
 
