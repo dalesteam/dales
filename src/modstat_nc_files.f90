@@ -6,6 +6,7 @@ module modstat_nc_files
                               dtmax
   use modnetcdf_file_t, only: netcdf_file_t
   use modprecision,     only: field_r, longint
+  use modtimer,         only: timer_tic, timer_toc
 
   implicit none
 
@@ -125,7 +126,6 @@ contains
 
   !> Loop over the files and write those that are due.
   subroutine write_output_files()
-    use modtimer, only: timer_tic, timer_toc
     integer :: ifile
     call timer_tic("write_output_files")
     do ifile = 1, nfiles
