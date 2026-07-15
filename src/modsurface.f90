@@ -1748,13 +1748,13 @@ contains
     real(field_r)             :: x
 
     if(zeta <= 0) then
-      x     = (1._field_r - 16._field_r * zeta) ** (0.25_field_r)
-      psim  = 3.14159265_field_r / 2._field_r - 2._field_r * atan(x) + log( (1._field_r+x) ** 2._field_r * (1._field_r + x ** 2._field_r) / 8._field_r)
+      x     = (1 - 16 * zeta) ** (0.25_field_r)
+      psim  = 3.14159265_field_r / 2 - 2 * atan(x) + log( (1+x) ** 2 * (1 + x ** 2) / 8)
       ! CvH use Wilson, 2001 rather than Businger-Dyer for correct free convection limit
       !x     = (1. + 3.6 * abs(zeta) ** (2./3.)) ** (-0.5)
       !psim = 3. * log( (1. + 1. / x) / 2.)
     else
-      psim  = -2._field_r/3._field_r * (zeta - 5._field_r/0.35_field_r)*exp(-0.35_field_r * zeta) - zeta - (10._field_r/3._field_r) / 0.35_field_r
+      psim  = -2/3 * (zeta - 5/0.35_field_r)*exp(-0.35_field_r * zeta) - zeta - (10/3) / 0.35_field_r
     end if
 
     return
@@ -1770,13 +1770,13 @@ contains
     real(field_r)             :: x
 
     if(zeta <= 0) then
-      x     = (1._field_r - 16._field_r * zeta) ** (0.25_field_r)
-      psih  = 2._field_r * log( (1._field_r + x ** 2._field_r) / 2._field_r )
+      x     = (1 - 16 * zeta) ** (0.25_field_r)
+      psih  = 2 * log( (1 + x ** 2) / 2 )
       ! CvH use Wilson, 2001
       !x     = (1. + 7.9 * abs(zeta) ** (2./3.)) ** (-0.5)
       !psih  = 3. * log( (1. + 1. / x) / 2.)
     else
-      psih  = -2._field_r/3._field_r * (zeta - 5._field_r/0.35_field_r)*exp(-0.35_field_r * zeta) - (1._field_r + (2._field_r/3._field_r) * zeta) ** (1.5_field_r) - (10._field_r/3._field_r) / 0.35_field_r + 1._field_r
+      psih  = -2/3 * (zeta - 5/0.35_field_r)*exp(-0.35_field_r * zeta) - (1 + (2/3) * zeta) ** (1.5_field_r) - (10/3) / 0.35_field_r + 1
     end if
 
     return
@@ -1793,13 +1793,13 @@ contains
     real(field_r)             :: phim
     real(field_r), intent(in) :: zeta
 
-    if (zeta < 0._field_r) then ! unstable
-       phim = (1._field_r-16._field_r*zeta)**(-0.25_field_r)
+    if (zeta < 0) then ! unstable
+       phim = (1-16*zeta)**(-0.25_field_r)
        !phimzf = (1. + 3.6 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
-    elseif ( zeta < 1._field_r) then  ! 0 < zeta < 1, stable
-       phim = (1._field_r+5._field_r*zeta)
+    elseif ( zeta < 1) then  ! 0 < zeta < 1, stable
+       phim = (1+5*zeta)
     else
-       phim = 6._field_r ! cap phi when z/L > 1
+       phim = 6 ! cap phi when z/L > 1
     endif
 
     return
@@ -1812,13 +1812,13 @@ contains
     real(field_r)             :: phih
     real(field_r), intent(in) :: zeta
 
-    if (zeta < 0._field_r) then ! unstable
-       phih = (1._field_r-16._field_r*zeta)**(-0.50_field_r)
+    if (zeta < 0) then ! unstable
+       phih = (1-16*zeta)**(-0.50_field_r)
        !phihzf = (1. + 7.9 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
-    elseif ( zeta < 1._field_r) then  ! 0 < zf(1) / obl < 1, stable
-       phih = (1._field_r+5._field_r*zeta)
+    elseif ( zeta < 1) then  ! 0 < zf(1) / obl < 1, stable
+       phih = (1+5*zeta)
     else
-     phih = 6._field_r  ! cap phi when z/L > 1
+     phih = 6  ! cap phi when z/L > 1
     endif
 
     return
