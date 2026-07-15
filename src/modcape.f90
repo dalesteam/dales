@@ -311,7 +311,7 @@ contains
 
             ttry=Tnr-0.002
             ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
-            tlonr=int((Tnr-150.)*5.)
+            tlonr=int((ttry-150.)*5.)
             thinr=tlonr+1
             tlo=ttab(tlonr)
             thi=ttab(thinr)
@@ -365,7 +365,7 @@ contains
 
             ttry=Tnr-0.002
             ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
-            tlonr=int((Tnr-150.)*5.)
+            tlonr=int((ttry-150.)*5.)
             thinr=tlonr+1
             tlo=ttab(tlonr)
             thi=ttab(thinr)
