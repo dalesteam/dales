@@ -81,12 +81,12 @@ contains
     namelist /NAMCROSSSECTION/ lcross, dtav, crossheight, crossplane, &
                                crossortho, lxy, lxz, lyz
 
-    crossheight(1)=2
-    crossheight(2:100)=-999
-    crossplane(1)=2
-    crossplane(2:100)=-999
-    crossortho(1)=2
-    crossortho(2:100)=-999
+    crossheight(1) = 2
+    crossheight(2:100) = -999
+    crossplane(1) = 2
+    crossplane(2:100) = -999
+    crossortho(1) = 2
+    crossortho(2:100) = -999
 
     dtav = dtav_glob
 
