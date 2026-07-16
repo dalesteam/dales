@@ -185,7 +185,7 @@ contains
         close (ifoutput)
       endif
 
-      dt_lim = min(dt_lim,tnext)
+      dt_lim = min(dt_lim,tnext - timee)
 
     endif
 

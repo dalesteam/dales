@@ -6,6 +6,7 @@ module modstat_nc_files
                               dtmax
   use modnetcdf_file_t, only: netcdf_file_t
   use modprecision,     only: field_r, longint
+  use modtimer,         only: timer_tic, timer_toc
 
   implicit none
 
@@ -14,6 +15,7 @@ module modstat_nc_files
   character(len=*), parameter :: modname = 'modstat_nc_files'
 
   public :: is_sampling_timestep
+  public :: is_writing_timestep
   public :: add_output_file
   public :: init_output_files
   public :: write_output_files
@@ -124,27 +126,35 @@ contains
 
   !> Loop over the files and write those that are due.
   subroutine write_output_files()
-
     integer :: ifile
-
+    call timer_tic("write_output_files")
     do ifile = 1, nfiles
       if (is_writing_timestep(ifile)) then
         call file_list(ifile)%file%write
       end if
     end do
+    call timer_toc("write_output_files")
 
   end subroutine write_output_files
 
   !> Limit the time step if needed for sampling or writing
-  subroutine stats_limit_timestep()
+  subroutine stats_limit_timestep(simulation_start)
 
-    integer          :: ifile
+    integer           :: ifile
 
-    integer(longint) :: dts       !< Delta t for sampling
-    integer(longint) :: dtw       !< Delta t for writing
-    integer(longint) :: time_left !< Time left before sampling or writing needs to be done
+    integer(longint)  :: dts       !< Delta t for sampling
+    integer(longint)  :: dtw       !< Delta t for writing
+    integer(longint)  :: time_left !< Time left before sampling or writing needs to be done
+    logical, optional :: simulation_start
+    logical           :: simulation_start_
 
-    if (rk3step == 3) then
+    if (present(simulation_start)) then
+      simulation_start_ = simulation_start
+    else
+      simulation_start_ = .false.
+    end if
+
+    if ((rk3step == 3).or.(simulation_start_)) then
       do ifile = 1, nfiles
         dts = file_list(ifile)%dt_sample
         dtw = file_list(ifile)%dt_write

@@ -173,6 +173,8 @@ program DALES
                               swap_fields, exit_precursor, &
                               lprecursor, Nsim, statid, turid, refid
   use modcloudstat,    only: init_cloudstat, do_cloudstat
+  use modcolstat,      only: initcolstat, colstat, exitcolstat
+  use modvirtualmeasurement, only: initvirtualmeasurement, virtualmeasurement, exitvirtualmeasurement
   use modstat_nc_files, only: stats_limit_timestep, init_output_files, write_output_files, close_output_files
 !----------------------------------------------------------------
 !     0.2     USE STATEMENTS FOR TIMER MODULE
@@ -239,6 +241,8 @@ program DALES
   call initscalarpulse
   call initcape
   call init_cloudstat
+  call initcolstat
+  call initvirtualmeasurement
 
   call init_profiles
   call init_precursor
@@ -253,6 +257,7 @@ program DALES
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
 !------------------------------------------------------
+  call stats_limit_timestep(simulation_start=.true.)
   call testwctime
   istep = 1
   do while (timeleft > 0)
@@ -401,6 +406,8 @@ program DALES
           !call particles
 
           call do_cloudstat
+          call colstat
+          call virtualmeasurement
     
           call budgetstat
           call varbudget

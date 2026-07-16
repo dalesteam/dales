@@ -82,7 +82,7 @@ contains
 
     if (lnetcdf) then
 
-      ofile = cross_section_file_t('cape.nc', nx=itot, ny=jtot, &
+      ofile = cross_section_file_t(trim(output_prefix)//'cape.nc', nx=itot, ny=jtot, &
                                    lgpu=.false.)
       
       call add_output_file(ofile, dtav, ofile_id)

@@ -440,7 +440,7 @@ contains
     real(field_r)     :: u_at_w_min, u_at_w_plus, v_at_w_min, v_at_w_plus
     real(field_r)     :: uspeed, ucc, vcc, z_MO
     real(field_r)     :: tau_vu_plus, tau_vu_min, tau_wu_min, tau_wu_plus, tau_uv_min, tau_uv_plus, tau_wv_min, tau_wv_plus
-    real              :: Lob
+    real(field_r)     :: Lob
     
     if (.not. lapply_ibm) return
 
@@ -522,7 +522,7 @@ contains
         Cd_zwall = fkar**2 / (log(z_MO / z0m_wall)) / (log(z_MO / z0h_wall))
       else
         retval = calc_obl_iter(thl0(i,j,k), qt0(i,j,k), real(thlroof), &
-                               real(qtroof), z_MO, real(z0m_wall), real(z0h_wall), & 
+                               real(qtroof), z_MO, z0m_wall, z0h_wall, & 
                                ucc, vcc, Lob)
 
         Cm_zwall = fkar**2 / (log(z_MO / z0m_wall) - psim(z_MO / Lob) + psim(z0m_wall / Lob))** 2

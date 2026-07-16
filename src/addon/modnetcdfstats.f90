@@ -127,7 +127,7 @@ contains
 
     if(.not.(lnetcdf)) return
     tnext = dtav-1e-6
-    dt_lim = min(dt_lim,tnext)
+    dt_lim = min(dt_lim,tnext - timee)
 
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
       stop 'NETCDFSTATS: dtav should be a integer multiple of dtmax'
@@ -210,7 +210,7 @@ contains
       return
     end if
     tnext = tnext+dtav
-    dt_lim = min(dt_lim,tnext)
+    dt_lim = min(dt_lim,tnext - timee)
 
     call do_netcdfstats
     nccall = nccall + 1

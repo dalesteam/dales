@@ -34,6 +34,7 @@ set( dales_srcs
 	modchem.f90
 	modcloudfield.f90
 	modcloudstat.f90
+	modcolstat.f90
 	modcrosssection.f90
 	modcufft.f90
 	moddatetime.f90
@@ -125,6 +126,7 @@ set( dales_srcs
 	modtranspose.f90
 	moduser.f90
 	modvarbudget.f90
+	modvirtualmeasurement.f90
 	program.f90
 	rad_rndnmb.f90
 	shr_orb_mod.f90

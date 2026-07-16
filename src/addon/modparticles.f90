@@ -145,7 +145,7 @@ contains
         tnextwrite = itimeav +btime
         nsamples = itimeav/idtav
         tnextdump  = itimedump+btime
-        dt_lim = min(dt_lim,tnext)
+        dt_lim = min(dt_lim,tnext - timee)
       end if
 
     allocate(fsm(k1))

@@ -56,7 +56,7 @@ contains
 subroutine initstattend
     use modmpi,   only : mpierr,comm3d,myid,D_MPI_BCAST
     use modglobal,only : cexpnr,dtmax,ifnamopt,fname_options,k1,dtav_glob,timeav_glob,&
-    ladaptive, dt_lim,btime,tres,ifoutput,lwarmstart,checknamelisterror
+    ladaptive, dt_lim,btime,tres,ifoutput,lwarmstart,checknamelisterror,timee
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modgenstat, only : ncid_prof=>ncid
     use fortran_support, only: nnml_output
@@ -92,7 +92,7 @@ subroutine initstattend
     tnextwrite = itimeav +btime
     nsamples = int(itimeav / idtav)
     if(.not.(ltend)) return
-    dt_lim = min(dt_lim,tnext)
+    dt_lim = min(dt_lim,tnext - timee)
 
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
       call finish(routine, 'dtav should be a integer multiple of dtmax')

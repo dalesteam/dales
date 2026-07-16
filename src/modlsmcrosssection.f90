@@ -61,6 +61,8 @@ module modlsmcrosssection
   logical :: soil_xz_enabled = .false.
   logical :: soil_xy_enabled = .false.
   logical :: surf_enabled = .false.
+  logical :: lenable_gradients = .true.
+  logical :: lenable_temp_more = .true.
 
 contains
 
@@ -68,7 +70,7 @@ contains
   subroutine initlsmcrosssection
     use modmpi,     only : myid, myidy, mpierr, comm3d, D_MPI_BCAST
     use modglobal,  only : ifnamopt, fname_options, dtmax, dtav_glob, ladaptive, &
-      j1, jmax, dy, y0, dt_lim, tres, btime, checknamelisterror, itot, jtot
+      j1, jmax, dy, y0, dt_lim, tres, btime, checknamelisterror, itot, jtot,timee, output_prefix
     use modstat_nc, only : lnetcdf
     use modsurfdata, only : isurf
     use modlsm,     only : lags
@@ -83,7 +85,8 @@ contains
     character(len=4) :: cloc
 
     namelist/NAMLSMCROSSSECTION/ &
-    lcross, lcrosssoil, dtav, crossheight, crossplane
+    lcross, lcrosssoil, dtav, crossheight, crossplane, &
+    lenable_gradients, lenable_temp_more
 
     dtav = dtav_glob
     if(myid==0)then
@@ -109,16 +112,23 @@ contains
        call warning (routine, "Ignoring lcross, lcross output implemented only for netcdf output.")
     endif
 
+     if (lenable_temp_more .and. .not. (isurf == 1 .or. isurf == 11)) then
+       lenable_temp_more = .FALSE.
+       call warning(routine, "Ignoring lenable_temp_more, extra LSM diagnostics are only available for isurf==1 or 11.")
+     endif
+
     call D_MPI_BCAST(dtav       ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lcross     ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lcrosssoil ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(crossheight,1,0,comm3d,mpierr)
     call D_MPI_BCAST(crossplane ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(lenable_gradients,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(lenable_temp_more,1,0,comm3d,mpierr)
 
     idtav = int(dtav / tres, kind=kind(idtav))
     tnext   = idtav+btime
     if(.not.(lcross .or. lcrosssoil)) return
-    dt_lim = min(dt_lim,tnext)
+    dt_lim = min(dt_lim,tnext - timee)
 
     if (lcrosssoil) then
       crossplane_global = crossplane
@@ -135,7 +145,7 @@ contains
       if (crossplane_local >= 2 .and. crossplane_local <= j1) then
         write(cloc, '(i4.4)') crossplane_global
         loc = y0 + dy * (crossplane_global - 1) + 0.5_field_r * dy
-        soil_xz_file = cross_section_file_t('lsmcrossxz.'//cloc, nx=itot, nzs=ksoilmax, loc=loc, lgpu=.false.)
+        soil_xz_file = cross_section_file_t(trim(output_prefix)//'lsmcrossxz.'//cloc, nx=itot, nzs=ksoilmax, loc=loc, lgpu=.false.)
         call soil_xz_file%add_var('tsoil', 'xz crosssection of the Soil temperature', 'K', 't0tts')
         call soil_xz_file%add_var('phiw', 'xz crosssection of the Soil moisture', 'm3/m3', 't0tts')
         call add_output_file(soil_xz_file, dtav, soil_xz_file_id)
@@ -143,7 +153,7 @@ contains
       end if
 
       write(cheight, '(i4.4)') crossheight
-      soil_xy_file = cross_section_file_t('lsmcrossxy.'//cheight, nx=itot, ny=jtot, lgpu=.false.)
+      soil_xy_file = cross_section_file_t(trim(output_prefix)//'lsmcrossxy.'//cheight, nx=itot, ny=jtot, lgpu=.false.)
       call soil_xy_file%add_var('tsoil', 'xy crosssection of the Soil temperature', 'K', 'tt0t')
       call soil_xy_file%add_var('phiw', 'xy crosssection of the Soil moisture', 'm3/m3', 'tt0t')
       call add_output_file(soil_xy_file, dtav, soil_xy_file_id)
@@ -151,7 +161,7 @@ contains
     end if
 
     if (lcross.and.lnetcdf) then
-      surf_file = cross_section_file_t('surfcross', nx=itot, ny=jtot, lgpu=.false.)
+      surf_file = cross_section_file_t(trim(output_prefix)//'surfcross', nx=itot, ny=jtot, lgpu=.false.)
       surf_enabled = .true.
       call add_output_file(surf_file, dtav, surf_file_id)
 
@@ -196,6 +206,21 @@ contains
           call surf_file%add_var('an_co2', 'Net CO2 assimilation', 'ppm m s-1', 'tt0t')
           call surf_file%add_var('resp_co2', 'CO2 respiration soil + plant', 'ppm m s-1', 'tt0t')
         end if
+      end if
+
+      if (lenable_gradients) then
+        call surf_file%add_var('dudz', 'U-wind gradient in surface layer', 's^-1', 'tt0t')
+        call surf_file%add_var('dvdz', 'V-wind gradient in surface layer', 's^-1', 'tt0t')
+        call surf_file%add_var('dqtdz', 'Specific humidity gradient in surface layer', 'kg kg^-1 m^-1', 'tt0t')
+        call surf_file%add_var('dthldz', 'Liquid water potential temperature gradient in surface layer', 'K m^-1', 'tt0t')
+      end if
+
+      if (lenable_temp_more) then
+        call surf_file%add_var('thlskin', 'Grid-cell mean skin liquid water potential temperature', 'K', 'tt0t')
+        call surf_file%add_var('qtskin', 'Grid-cell mean skin specific humidity', 'kg/kg', 'tt0t')
+        call surf_file%add_var('db', 'Grid-cell mean buoyancy difference surface-atmosphere', 'm s^-2', 'tt0t')
+        call surf_file%add_var('thl0_1', 'Lowest model level liquid water potential temperature', 'K', 'tt0t')
+        call surf_file%add_var('qt0_1', 'Lowest model level specific humidity', 'kg/kg', 'tt0t')
       end if
     end if
 
@@ -288,19 +313,23 @@ contains
   !> Do the xy lsmcrosssections and dump them to file
   subroutine wrtsurf
     use modglobal,   only : i1, j1, cp, rlv
-    use modfields,   only : rhof
+    use modfields,   only : rhof, thl0, qt0
     use modlsm,      only : f1, f2b, lags, an_co2, resp_co2
+    use modlsmdata,  only : tile, nlu
     use modstat_nc,  only : lnetcdf
     use modsurfdata, only : Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
                             cliq, rsveg, rssoil, Wl, isurf, obl, ustar, &
-                            Cs, Cm, z0h, z0m, qtflux, thlflux
+                            Cs, Cm, z0h, z0m, qtflux, thlflux, dudz, dvdz, dqtdz, dthldz, qskin
 
     implicit none
 
+    integer :: i, j, ilu_idx
     real(field_r), pointer :: qnet_ptr(:,:), h_ptr(:,:), le_ptr(:,:), g0_ptr(:,:), tskin_ptr(:,:), tendskin_ptr(:,:), &
                               rs_ptr(:,:), ra_ptr(:,:), cliq_ptr(:,:), wl_ptr(:,:), rssoil_ptr(:,:), rsveg_ptr(:,:), &
                               hfss_ptr(:,:), hfls_ptr(:,:), obuk_ptr(:,:), ustar_ptr(:,:), cs_ptr(:,:), cm_ptr(:,:), &
-                              z0h_ptr(:,:), z0m_ptr(:,:), f1_ptr(:,:), f2_b_ptr(:,:), an_co2_ptr(:,:), resp_co2_ptr(:,:)
+                  z0h_ptr(:,:), z0m_ptr(:,:), f1_ptr(:,:), f2_b_ptr(:,:), an_co2_ptr(:,:), resp_co2_ptr(:,:), &
+                  dudz_ptr(:,:), dvdz_ptr(:,:), dqtdz_ptr(:,:), dthldz_ptr(:,:), thlskin_ptr(:,:), qtskin_ptr(:,:), &
+                  db_ptr(:,:), thl0_1_ptr(:,:), qt0_1_ptr(:,:)
 
     if (.not. (lnetcdf .and. surf_enabled)) return
 
@@ -349,7 +378,7 @@ contains
       z0h_ptr(:,:) = z0h(2:i1,2:j1)
       z0m_ptr(:,:) = z0m(2:i1,2:j1)
     else if (isurf == 11) then
-      !$acc update host(H, LE, G0, tskin, obl, ustar, cliq, Wl, ra, rssoil, rsveg, f1, f2b)
+      !$acc update host(H, LE, G0, tskin, qskin, obl, ustar, cliq, Wl, ra, rssoil, rsveg, f1, f2b, dudz, dvdz, dqtdz, dthldz, thl0, qt0)
       call surf_file%get_pointer('H', h_ptr)
       call surf_file%get_pointer('LE', le_ptr)
       call surf_file%get_pointer('G0', g0_ptr)
@@ -386,6 +415,47 @@ contains
         an_co2_ptr(:,:) = an_co2(2:i1,2:j1)
         resp_co2_ptr(:,:) = resp_co2(2:i1,2:j1)
       end if
+    end if
+
+    if (lenable_gradients) then
+      call surf_file%get_pointer('dudz', dudz_ptr)
+      call surf_file%get_pointer('dvdz', dvdz_ptr)
+      call surf_file%get_pointer('dqtdz', dqtdz_ptr)
+      call surf_file%get_pointer('dthldz', dthldz_ptr)
+
+      dudz_ptr(:,:) = dudz(2:i1,2:j1)
+      dvdz_ptr(:,:) = dvdz(2:i1,2:j1)
+      dqtdz_ptr(:,:) = dqtdz(2:i1,2:j1)
+      dthldz_ptr(:,:) = dthldz(2:i1,2:j1)
+    end if
+
+    if (lenable_temp_more) then
+      do ilu_idx = 1, nlu
+        !$acc update host(tile(ilu_idx)%thlskin, tile(ilu_idx)%qtskin, tile(ilu_idx)%db, tile(ilu_idx)%frac)
+      end do
+
+      call surf_file%get_pointer('thlskin', thlskin_ptr)
+      call surf_file%get_pointer('qtskin', qtskin_ptr)
+      call surf_file%get_pointer('db', db_ptr)
+      call surf_file%get_pointer('thl0_1', thl0_1_ptr)
+      call surf_file%get_pointer('qt0_1', qt0_1_ptr)
+
+      thlskin_ptr(:,:) = tskin(2:i1,2:j1)
+      qtskin_ptr(:,:) = qskin(2:i1,2:j1)
+      thl0_1_ptr(:,:) = thl0(2:i1,2:j1,1)
+      qt0_1_ptr(:,:) = qt0(2:i1,2:j1,1)
+
+      db_ptr(:,:) = 0._field_r
+      do ilu_idx = 1, nlu
+        if (tile(ilu_idx)%lushort == "slb") then
+          cycle
+        endif
+        do j = 2, j1
+          do i = 2, i1
+            db_ptr(i,j) = db_ptr(i,j) + tile(ilu_idx)%frac(i,j) * tile(ilu_idx)%db(i,j)
+          end do
+        end do
+      end do
     end if
 
 

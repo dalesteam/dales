@@ -22,7 +22,7 @@ module modcrosssection
   use modlogging,   only: nnml_output, finish, warning
   use modglobal,         only: longint, kmax, nsv, cu, cv, itot, jtot, imax, &
                                jmax, kmax, i1, j1, ifnamopt, dtav_glob, &
-                               rk3step, checknamelisterror, dx, dy, zf, x0, y0
+                               rk3step, checknamelisterror, dx, dy, zf, x0, y0, output_prefix
   use modtracers,        only: tracer_prop
   use modnetcdf_file_t,  only: cross_section_file_t
   use modstat_nc_files,  only: add_output_file, is_sampling_timestep
@@ -166,7 +166,7 @@ contains
         ifile = ifile + 1
         write(cloc, '(i4.4)') crossheight(k)
         loc = zf(crossheight(k))
-        xy_files(ifile) = cross_section_file_t('crossxy.'//cloc, nx=itot, &
+        xy_files(ifile) = cross_section_file_t(trim(output_prefix)//'crossxy.'//cloc, nx=itot, &
                                                ny=jtot, loc=loc, lgpu=.true.)
         call add_output_file(xy_files(ifile), dtav, xy_file_ids(ifile))
       end if
@@ -195,7 +195,7 @@ contains
         crossplane_local(ifile) = crossplane_j_all(k)  ! 2-indexed; used by wrtvert
         write(cloc, '(i4.4)') crossplane(k)  ! 1-indexed global number
         loc = y0 + dy * (crossplane(k) - 1) + 0.5_field_r * dy  ! cell centre
-        xz_files(ifile) = cross_section_file_t('crossxz.'//cloc, nx=itot, &
+        xz_files(ifile) = cross_section_file_t(trim(output_prefix)//'crossxz.'//cloc, nx=itot, &
                                                nz=kmax, loc=loc, lgpu=.true.)
         call add_output_file(xz_files(ifile), dtav, xz_file_ids(ifile))
       end if
@@ -224,7 +224,7 @@ contains
         crossortho_local(ifile) = crossortho_i_all(k)  ! 2-indexed; used by wrtorth
         write(cloc, '(i4.4)') crossortho(k)  ! 1-indexed global number
         loc = x0 + dx * (crossortho(k) - 1) + 0.5_field_r * dx  ! cell centre
-        yz_files(ifile) = cross_section_file_t('crossyz.'//cloc, ny=jtot, &
+        yz_files(ifile) = cross_section_file_t(trim(output_prefix)//'crossyz.'//cloc, ny=jtot, &
                                                nz=kmax, loc=loc, lgpu=.true.)
         call add_output_file(yz_files(ifile), dtav, yz_file_ids(ifile))
       end if

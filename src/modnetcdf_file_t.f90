@@ -17,6 +17,8 @@ module modnetcdf_file_t
   public :: netcdf_file_t
   public :: time_series_file_t
   public :: profiles_file_t
+  public :: multi_profile_file_t
+  public :: multi_timeseries_file_t
   public :: cross_section_file_t
   public :: field_dump_file_t
   public :: slurb_3d_file_t
@@ -28,6 +30,14 @@ module modnetcdf_file_t
   interface profiles_file_t
     procedure :: profiles_file_init
   end interface profiles_file_t
+
+  interface multi_profile_file_t
+    procedure :: multi_profile_file_init
+  end interface multi_profile_file_t
+
+  interface multi_timeseries_file_t
+    procedure :: multi_timeseries_file_init
+  end interface multi_timeseries_file_t
 
   interface cross_section_file_t
     procedure :: cross_section_file_init
@@ -50,6 +60,7 @@ module modnetcdf_file_t
     character(len=80) :: timeinfo(1,4)  !< Metadata of time dimension.
     logical           :: lgpu = .false. !< Buffer is on GPU.
     character(len=80), allocatable :: names(:,:) !< Variable metadata.
+    character(len=80), allocatable :: index_dims(:,:) !< Dimension strings to be used for indexing (optional, default: same as dim in names).
   contains
     procedure :: add_var => netcdf_file_add_var
     procedure :: get_var_id => netcdf_file_get_var_id
@@ -83,7 +94,20 @@ module modnetcdf_file_t
     procedure :: get_pointer => time_series_file_get_pointer
   end type time_series_file_t
 
-  !> File containing vertical profiles.
+  !> File containing multiple time series in a single file.
+  type, extends(netcdf_file_t) :: multi_timeseries_file_t
+    private
+    integer :: npoints = 0 !< Number of measurement points.
+    integer :: nlocal_points = 0 !< Number of points owned by this rank.
+    integer, allocatable :: point_ids(:) !< Global contiguous point ids owned by this rank.
+    real(field_r), allocatable :: locx(:) !< X-location metadata for each point.
+    real(field_r), allocatable :: locy(:) !< Y-location metadata for each point.
+    real(field_r), allocatable :: buffer(:,:) !< Memory for variable data (nlocal_points, nvar).
+  contains
+    procedure :: open => multi_timeseries_file_open
+    procedure :: write => multi_timeseries_file_write
+    procedure :: get_pointer => multi_timeseries_file_get_pointer
+  end type multi_timeseries_file_t
   type, extends(netcdf_file_t) :: profiles_file_t
     private
     integer :: nz = 0  !< Number of vertical levels.
@@ -95,7 +119,22 @@ module modnetcdf_file_t
     procedure :: get_pointer => profiles_file_get_pointer
   end type profiles_file_t
 
-  !> File containing cross sections.
+  !> File containing multiple vertical profiles in a single file.
+  type, extends(netcdf_file_t) :: multi_profile_file_t
+    private
+    integer :: nz = 0  !< Number of vertical levels.
+    integer :: nzs = 0 !< Number of vertical levels in soil grid.
+    integer :: nprofiles = 0 !< Number of profiles/columns.
+    integer :: nlocal_profiles = 0 !< Number of profiles owned by this rank.
+    integer, allocatable :: profile_ids(:) !< Global profile ids owned by this rank.
+    real(field_r), allocatable :: locx(:) !< X-location metadata for each profile.
+    real(field_r), allocatable :: locy(:) !< Y-location metadata for each profile.
+    real(field_r), allocatable :: buffer(:,:,:) !< Memory for variable data (nz, nlocal_profiles, nvar).
+  contains
+    procedure :: open => multi_profile_file_open
+    procedure :: write => multi_profile_file_write
+    procedure :: get_pointer => multi_profile_file_get_pointer
+  end type multi_profile_file_t
   type, extends(netcdf_file_t) :: cross_section_file_t
     private
     integer       :: nx = 1      !< Number of cells in the x-direction.
@@ -156,7 +195,7 @@ module modnetcdf_file_t
 contains
 
   !> Add a variable to a NetCDF file.
-  subroutine netcdf_file_add_var(this, name, long_name, unit, dim)
+  subroutine netcdf_file_add_var(this, name, long_name, unit, dim, index_dim)
     use modstat_nc, only: print_netcdf_info
 
     class(netcdf_file_t), intent(inout) :: this
@@ -165,6 +204,7 @@ contains
     character(len=*), intent(in) :: long_name  !< Long name of variable.
     character(len=*), intent(in) :: unit       !< Unit of variable.
     character(len=*), intent(in) :: dim        !< Dimensions of variable.
+    character(len=*), intent(in), optional :: index_dim  !< Dimensions to be used for indexing (optional, default: same as dim).
 
     character(len=*), parameter :: routine = modname//'/netcdf_file_add_var'
 
@@ -184,12 +224,20 @@ contains
       allocate(tmp(this%nvar,4)) 
       if (allocated(this%names)) tmp(1:this%nvar-1,:) = this%names(:,:)
       call move_alloc(tmp, this%names)
+      allocate(tmp(this%nvar,1)) 
+      if (allocated(this%index_dims)) tmp(1:this%nvar-1,:) = this%index_dims(:,:)
+      call move_alloc(tmp, this%index_dims)
 
       ! Add info of the new variable
       this%names(this%nvar,1) = trim(name)
       this%names(this%nvar,2) = trim(long_name)
       this%names(this%nvar,3) = trim(unit)
       this%names(this%nvar,4) = trim(dim)
+      if (present(index_dim)) then
+        this%index_dims(this%nvar,1) = trim(index_dim)
+      else
+        this%index_dims(this%nvar,1) = trim(dim)
+      end if
     end if
 
   end subroutine netcdf_file_add_var
@@ -283,8 +331,8 @@ contains
 
     call nctiminfo(this%timeinfo)
 
+    call define_nc(this%ncid, 1, this%timeinfo)
     if (this%nrec == 0) then
-      call define_nc(this%ncid, 1, this%timeinfo)
       call writestat_dims_nc(this%ncid)
     end if
 
@@ -342,6 +390,169 @@ contains
 
   end subroutine time_series_file_get_pointer
 
+  !> Constructor; initialize a NetCDF file containing multiple time series.
+  function multi_timeseries_file_init(filename, npoints, lgpu, locx, locy, point_ids) result(this)
+
+    character(len=*), intent(in) :: filename !< Name of the file.
+
+    integer, intent(in) :: npoints !< Number of measurement points.
+    logical, intent(in), optional :: lgpu !< Allocate buffer on GPU.
+    real(field_r), intent(in), optional :: locx(:) !< X-location metadata for each point.
+    real(field_r), intent(in), optional :: locy(:) !< Y-location metadata for each point.
+    integer, intent(in), optional :: point_ids(:) !< Global ids for local points.
+
+    type(multi_timeseries_file_t) :: this !< New multi-timeseries file object.
+    integer :: i
+
+    if (present(lgpu)) this%lgpu = lgpu
+    this%npoints = npoints
+
+    if (present(point_ids)) then
+      this%nlocal_points = size(point_ids)
+      allocate(this%point_ids(this%nlocal_points))
+      this%point_ids = point_ids
+    else
+      this%nlocal_points = npoints
+      allocate(this%point_ids(this%nlocal_points))
+      this%point_ids = [(i, i=1,this%nlocal_points)]
+    end if
+
+    if (present(locx)) then
+      allocate(this%locx(npoints))
+      this%locx = locx
+    end if
+    if (present(locy)) then
+      allocate(this%locy(npoints))
+      this%locy = locy
+    end if
+
+    if (NC_HAVE_PARALLEL) then
+      call this%set_filename(filename)
+    else
+      call this%set_filename(filename, suffix=cmyid)
+    end if
+
+  end function multi_timeseries_file_init
+
+  !> Open the NetCDF file, define dimensions and allocate memory.
+  subroutine multi_timeseries_file_open(this)
+
+    class(multi_timeseries_file_t), intent(inout) :: this
+
+    integer :: ip
+    real(field_r), allocatable :: xcoord(:), ycoord(:)
+
+    if (NC_HAVE_PARALLEL) then
+      call open_nc(this%filename, this%ncid, this%nrec, nindex=this%npoints, &
+                   n1=merge(1, 0, allocated(this%locx)), &
+                   n2=merge(1, 0, allocated(this%locy)), comm=comm3d)
+    else
+      call open_nc(this%filename, this%ncid, this%nrec, nindex=this%nlocal_points, &
+                   n1=merge(1, 0, allocated(this%locx)), &
+                   n2=merge(1, 0, allocated(this%locy)))
+    end if
+
+    call nctiminfo(this%timeinfo)
+
+    call define_nc(this%ncid, 1, this%timeinfo, lcollective=.true.)
+    if (this%nrec == 0) then
+      if (NC_HAVE_PARALLEL) then
+        allocate(xcoord(this%npoints), ycoord(this%npoints))
+        do ip = 1, this%npoints
+          xcoord(ip) = real(ip, kind=field_r)
+          ycoord(ip) = real(ip, kind=field_r)
+        end do
+        if (allocated(this%locx)) xcoord = this%locx
+        if (allocated(this%locy)) ycoord = this%locy
+        call writestat_dims_nc(this%ncid, x_vals=xcoord, y_vals=ycoord, index_vals=this%point_ids)
+        deallocate(xcoord, ycoord)
+      else
+        allocate(xcoord(this%nlocal_points), ycoord(this%nlocal_points))
+        do ip = 1, this%nlocal_points
+          xcoord(ip) = real(ip, kind=field_r)
+          ycoord(ip) = real(ip, kind=field_r)
+          if (allocated(this%locx)) xcoord(ip) = this%locx(this%point_ids(ip))
+          if (allocated(this%locy)) ycoord(ip) = this%locy(this%point_ids(ip))
+        end do
+        call writestat_dims_nc(this%ncid, x_vals=xcoord, y_vals=ycoord, index_vals=this%point_ids)
+        deallocate(xcoord, ycoord)
+      end if
+    end if
+    call define_nc(this%ncid, this%nvar, this%names, lcollective=.true., index_dim=this%index_dims)
+
+    allocate(this%buffer(this%nlocal_points, this%nvar))
+
+    this%buffer = 0.0_field_r
+
+    !$acc enter data copyin(this, this%buffer) if(this%lgpu)
+
+  end subroutine multi_timeseries_file_open
+
+  !> Write data to disk.
+  subroutine multi_timeseries_file_write(this)
+
+    class(multi_timeseries_file_t), intent(inout) :: this
+
+    integer :: ip, ivar, point_start
+
+    !$acc update host(this%buffer) if(this%lgpu)
+
+    call writestat_nc(this%ncid, 1, this%timeinfo, [rtimee], this%nrec, lraise=.true.)
+
+    if (NC_HAVE_PARALLEL) then
+      if (this%nlocal_points > 0) then
+        point_start = this%point_ids(1)
+      else
+        point_start = 1
+      end if
+      call writestat_nc(this%ncid, this%nvar, this%names, this%buffer, this%nrec, &
+                        dim1=this%nlocal_points, offsets=[point_start])
+    else
+      call writestat_nc(this%ncid, this%nvar, this%names, this%buffer, this%nrec, &
+                        dim1=this%nlocal_points)
+    end if
+
+    !$acc parallel loop collapse(2) default(present) if(this%lgpu)
+    do ivar = 1, this%nvar
+      do ip = 1, this%nlocal_points
+        this%buffer(ip, ivar) = 0.0_field_r
+      end do
+    end do
+
+  end subroutine multi_timeseries_file_write
+
+  !> Setup a pointer to the buffer of a variable for a specific point.
+  subroutine multi_timeseries_file_get_pointer(this, name, point_idx, ptr)
+
+    class(multi_timeseries_file_t), target, intent(in) :: this
+    character(len=*), intent(in) :: name !< Name of the variable.
+    integer, intent(in) :: point_idx !< Index of the measurement point.
+
+    real(field_r), pointer, intent(out) :: ptr !< Pointer to the variable's buffer for this point.
+
+    character(len=*), parameter :: routine = modname//'/multi_timeseries_file_get_pointer'
+
+    integer :: id, local_idx
+
+    id = this%get_var_id(name)
+
+    if (id < 0) then
+      call finish(routine, 'variable '//trim(name)//' not found')
+    end if
+
+    if (point_idx < 1 .or. point_idx > this%npoints) then
+      call finish(routine, 'point index out of range')
+    end if
+
+    local_idx = findloc(this%point_ids, point_idx, dim=1)
+    if (local_idx < 1) then
+      call finish(routine, 'point index not owned by this rank')
+    end if
+
+    ptr => this%buffer(local_idx, id)
+
+  end subroutine multi_timeseries_file_get_pointer
+
   !> Constructor; initialize a NetCDF file containing vertical profiles.
   function profiles_file_init(filename, nz, nzs, lgpu) result(this)
 
@@ -379,8 +590,8 @@ contains
 
     call nctiminfo(this%timeinfo)
 
+    call define_nc(this%ncid, 1, this%timeinfo)
     if (this%nrec == 0) then
-      call define_nc(this%ncid, 1, this%timeinfo)
       call writestat_dims_nc(this%ncid)
     end if
 
@@ -447,6 +658,182 @@ contains
     ptr => this%buffer(:,id)
 
   end subroutine profiles_file_get_pointer
+
+  !> Constructor; initialize a NetCDF file containing multiple profiles.
+  function multi_profile_file_init(filename, nprofiles, nz, nzs, lgpu, locx, locy, profile_ids) result(this)
+
+    character(len=*), intent(in) :: filename !< Name of the file.
+
+    integer, intent(in) :: nprofiles !< Number of profiles.
+    integer, intent(in), optional :: nz   !< Number of vertical levels.
+    integer, intent(in), optional :: nzs  !< Number of vertical levels in the soil grid.
+    logical, intent(in), optional :: lgpu !< Allocate buffer on GPU.
+    real(field_r), intent(in), optional :: locx(:) !< X-location metadata for each profile.
+    real(field_r), intent(in), optional :: locy(:) !< Y-location metadata for each profile.
+    integer, intent(in), optional :: profile_ids(:) !< Global ids for local profiles.
+
+    type(multi_profile_file_t) :: this !< New multi-profile file object.
+    integer :: i
+
+    if (present(nz)) this%nz = nz
+    if (present(nzs)) this%nzs = nzs
+    if (present(lgpu)) this%lgpu = lgpu
+    this%nprofiles = nprofiles
+
+    if (present(profile_ids)) then
+      this%nlocal_profiles = size(profile_ids)
+      allocate(this%profile_ids(this%nlocal_profiles))
+      this%profile_ids = profile_ids
+    else
+      this%nlocal_profiles = nprofiles
+      allocate(this%profile_ids(this%nlocal_profiles))
+      this%profile_ids = [(i, i=1,this%nlocal_profiles)]
+    end if
+
+    if (present(locx)) then
+      allocate(this%locx(nprofiles))
+      this%locx = locx
+    end if
+    if (present(locy)) then
+      allocate(this%locy(nprofiles))
+      this%locy = locy
+    end if
+
+    if (NC_HAVE_PARALLEL) then
+      call this%set_filename(filename)
+    else
+      call this%set_filename(filename, suffix=cmyid)
+    end if
+
+  end function multi_profile_file_init
+
+  !> Open the NetCDF file, define dimensions and allocate memory.
+  subroutine multi_profile_file_open(this)
+
+    class(multi_profile_file_t), intent(inout) :: this
+
+    integer :: k, nlevels
+    real(field_r), allocatable :: xcoord(:), ycoord(:)
+
+    if (this%nz > 0) then
+      nlevels = this%nz
+    else if (this%nzs > 0) then
+      nlevels = this%nzs
+    else
+      nlevels = 0
+    end if
+
+    if (NC_HAVE_PARALLEL) then
+      call open_nc(this%filename, this%ncid, this%nrec, nindex=this%nprofiles, n1=this%nprofiles, n2=this%nprofiles, n3=nlevels, comm=comm3d)
+    else
+      call open_nc(this%filename, this%ncid, this%nrec, nindex=this%nlocal_profiles, n1=this%nlocal_profiles, n2=this%nlocal_profiles, n3=nlevels)
+    end if
+
+    call nctiminfo(this%timeinfo)
+
+    call define_nc(this%ncid, 1, this%timeinfo, lcollective=.true.)
+    if (this%nrec == 0) then
+
+      if (NC_HAVE_PARALLEL) then
+        allocate(xcoord(this%nprofiles), ycoord(this%nprofiles))
+        do k = 1, this%nprofiles
+          xcoord(k) = real(k, kind=field_r)
+          ycoord(k) = real(k, kind=field_r)
+        end do
+        if (allocated(this%locx)) xcoord = this%locx
+        if (allocated(this%locy)) ycoord = this%locy
+        call writestat_dims_nc(this%ncid, x_vals=xcoord, y_vals=ycoord, index_vals=this%profile_ids)
+        deallocate(xcoord, ycoord)
+      else
+        allocate(xcoord(this%nlocal_profiles), ycoord(this%nlocal_profiles))
+        do k = 1, this%nlocal_profiles
+          xcoord(k) = real(k, kind=field_r)
+          ycoord(k) = real(k, kind=field_r)
+          if (allocated(this%locx)) xcoord(k) = this%locx(this%profile_ids(k))
+          if (allocated(this%locy)) ycoord(k) = this%locy(this%profile_ids(k))
+        end do
+        call writestat_dims_nc(this%ncid, x_vals=xcoord, y_vals=ycoord, index_vals=this%profile_ids)
+        deallocate(xcoord, ycoord)
+      end if
+
+    end if
+
+    call define_nc(this%ncid, this%nvar, this%names, lcollective=.true., index_dim=this%index_dims)
+
+    if (allocated(this%buffer)) deallocate(this%buffer)
+    allocate(this%buffer(this%nlocal_profiles, nlevels, this%nvar))
+
+    this%buffer = 0.0_field_r
+
+    !$acc enter data copyin(this, this%buffer) if(this%lgpu)
+
+  end subroutine multi_profile_file_open
+
+  !> Write data to disk.
+  subroutine multi_profile_file_write(this)
+
+    class(multi_profile_file_t), intent(inout) :: this
+
+    integer :: k, ip, ivar, profile_start
+
+    !$acc update host(this%buffer) if(this%lgpu)
+
+    call writestat_nc(this%ncid, 1, this%timeinfo, [rtimee], this%nrec, lraise=.true.)
+
+    if (NC_HAVE_PARALLEL) then
+      ! Each rank writes one contiguous profile slice.
+      if (this%nlocal_profiles > 0) then
+        profile_start = this%profile_ids(1)
+      else
+        profile_start = 1
+      end if
+      call writestat_nc(this%ncid, this%nvar, this%names, this%buffer, this%nrec, &
+                        dim1=this%nlocal_profiles, dim2=size(this%buffer, dim=2), &
+                        offsets=[profile_start, 1])
+    else
+      call writestat_nc(this%ncid, this%nvar, this%names, this%buffer, this%nrec, &
+                        dim1=this%nlocal_profiles, dim2=size(this%buffer, dim=2))
+    end if
+
+    !$acc parallel loop collapse(3) default(present) if(this%lgpu)
+    do ivar = 1, this%nvar
+      do ip = 1, this%nlocal_profiles
+        do k = 1, size(this%buffer, dim=2)
+          this%buffer(ip,k,ivar) = 0.0_field_r
+        end do
+      end do
+    end do
+
+  end subroutine multi_profile_file_write
+
+  !> Setup a pointer to the buffer of a variable for a specific profile.
+  subroutine multi_profile_file_get_pointer(this, name, profile_idx, ptr)
+
+    class(multi_profile_file_t), target, intent(in) :: this
+    character(len=*), intent(in) :: name !< Name of the variable.
+    integer, intent(in) :: profile_idx !< Index of the profile.
+
+    real(field_r), pointer, intent(out) :: ptr(:) !< Pointer to the variable's buffer for this profile.
+
+    character(len=*), parameter :: routine = modname//'/multi_profile_file_get_pointer'
+
+    integer :: id, local_idx
+
+    id = this%get_var_id(name)
+
+    if (id < 0) then
+      call finish(routine, 'variable '//trim(name)//' not found')
+    end if
+
+    local_idx = findloc(this%profile_ids, profile_idx, dim=1)
+    if (local_idx < 1) then
+      call finish(routine, 'profile index not owned by this rank')
+    end if
+
+    ptr => this%buffer(local_idx, :, id)
+
+
+  end subroutine multi_profile_file_get_pointer
 
   !> Constructor; initialize a NetCDF file containing cross section data.
   function cross_section_file_init(filename, nx, ny, nz, nzs, loc, lgpu) &
@@ -600,8 +987,8 @@ contains
 
     call nctiminfo(this%timeinfo(1,:))
 
+    call define_nc(this%ncid, 1, this%timeinfo, lcollective=.true.)
     if (this%nrec == 0) then
-      call define_nc(this%ncid, 1, this%timeinfo, lcollective=.true.)
       ! TODO: this is some horrible code, clean this up
       if (this%loc > 0) then
         if (this%nx == 1) then
@@ -782,8 +1169,8 @@ contains
 
     call nctiminfo(this%timeinfo)
 
+    call define_nc(this%ncid, 1, this%timeinfo, lcollective=.true.)
     if (this%nrec == 0) then
-      call define_nc(this%ncid, 1, this%timeinfo, lcollective=.true.)
       call writestat_dims_nc(this%ncid, ncoarse=this%ncoarse, klow=this%klo, &
                              offset_x=this%x_start, offset_y=this%y_start)
     end if
@@ -928,8 +1315,8 @@ contains
 
     call nctiminfo(this%timeinfo)
 
+    call define_nc(this%ncid, 1, this%timeinfo, lcollective=.true.)
     if (this%nrec == 0) then
-      call define_nc(this%ncid, 1, this%timeinfo, lcollective=.true.)
       call writestat_dims_nc(this%ncid, ncoarse=this%ncoarse, &
                              offset_x=this%x_start, offset_y=this%y_start)
     end if

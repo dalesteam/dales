@@ -64,7 +64,7 @@ contains
 !> Initialization routine, reads namelists and inits variables
   subroutine initlsmstat
     use modmpi,    only : myid,mpierr, comm3d, D_MPI_BCAST
-    use modglobal, only : dtmax, ifnamopt,fname_options, ifoutput, cexpnr,dtav_glob,timeav_glob,ladaptive,dt_lim,btime,tres,lwarmstart,checknamelisterror
+    use modglobal, only : dtmax, ifnamopt,fname_options, ifoutput, cexpnr,dtav_glob,timeav_glob,ladaptive,dt_lim,btime,tres,lwarmstart,checknamelisterror,timee
     use modstat_nc, only : lnetcdf,define_nc,ncinfo
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
     use modsurfdata,only : ksoilmax,isurf
@@ -101,7 +101,7 @@ contains
 
 
     if(.not.(lstat)) return
-    dt_lim = min(dt_lim,tnext)
+    dt_lim = min(dt_lim,tnext - timee)
 
     if (abs(timeav/dtav-nsamples)>1e-4) then
       call finish(routine, 'timeav must be a integer multiple of dtav')

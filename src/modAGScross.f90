@@ -54,7 +54,7 @@ contains
 !> Initializing AGScross. Read out the namelist, initializing the variables
   subroutine initAGScross
     use modmpi,   only :myid,mpierr,comm3d, D_MPI_BCAST
-    use modglobal,only :ifnamopt,fname_options,dtmax, dtav_glob,ladaptive,dt_lim,tres,btime,checknamelisterror
+    use modglobal,only :ifnamopt,fname_options,dtmax, dtav_glob,ladaptive,dt_lim,tres,btime,checknamelisterror,timee, output_prefix
     use modstat_nc,only : lnetcdf
     use modsurfdata, only : lrsAgs, ksoilmax,lsplitleaf
     use modraddata,only   : irad_par,irad_rrtmg,irad_rte_rrtmgp,iradiation
@@ -88,13 +88,13 @@ contains
     idtav = int(dtav / tres, kind=kind(idtav))
     tnext   = idtav+btime
     if(.not.(lAGScross)) return
-    dt_lim = min(dt_lim,tnext)
+    dt_lim = min(dt_lim,tnext - timee)
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
       call finish(routine, 'AGScross: dtav should be a integer multiple of dtmax')
     end if
     if (ksoilmax /= 4) call finish(routine, 'ksoilmax is not equal to 4... this can give problems with AGScross.f90... update this file as well')
 
-    ags_file = cross_section_file_t('crossAGS', nx=itot, ny=jtot, lgpu=.false.)
+    ags_file = cross_section_file_t(trim(output_prefix)//'crossAGS', nx=itot, ny=jtot, lgpu=.false.)
     call add_output_file(ags_file, dtav, ags_file_id)
     ags_file_enabled = .true.
 

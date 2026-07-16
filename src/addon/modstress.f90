@@ -97,7 +97,7 @@ contains
     nsamples = itimeav/idtav
 
     if(.not.(lstress)) return
-    dt_lim = min(dt_lim,tnext)
+    dt_lim = min(dt_lim,tnext - timee)
 
     if (abs(timeav/dtav-nsamples)>1e-4) then
       stop 'timeav must be a integer multiple of dtav'

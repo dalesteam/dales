@@ -95,10 +95,10 @@ SAVE
   ! Land surface properties
 
   ! Surface properties
-  real, allocatable :: z0m        (:,:) !<  Roughness length for momentum [m]
-  real              :: z0mav    = -1
-  real, allocatable :: z0h        (:,:) !<  Roughness length for heat [m]
-  real              :: z0hav    = -1
+  real(field_r), allocatable :: z0m        (:,:) !<  Roughness length for momentum [m]
+  real(field_r)              :: z0mav    = -1
+  real(field_r), allocatable :: z0h        (:,:) !<  Roughness length for heat [m]
+  real(field_r)              :: z0hav    = -1
   real, allocatable :: tskin      (:,:) !<  Skin temperature [K]
   real, allocatable :: tskin_radiative(:,:) !<  Radiative skin temperature used in modslurb [K]
   real, allocatable :: tskinm     (:,:) !<  Skin temperature previous timestep [K]
@@ -214,8 +214,8 @@ SAVE
   logical           :: lmostlocal  = .true.   !<  Switch to apply MOST locally to get local Obukhov length
   logical           :: lsmoothflux = .false.  !<  Create uniform sensible and latent heat flux over domain
   logical           :: lneutral    = .false.  !<  Disable stability corrections
-  real, allocatable :: obl   (:,:)            !<  Obukhov length [m]
-  real              :: oblav                  !<  Spatially averaged obukhov length [m]
+  real(field_r), allocatable :: obl   (:,:)            !<  Obukhov length [m]
+  real(field_r)              :: oblav                  !<  Spatially averaged obukhov length [m]
   real, allocatable :: Cm    (:,:)            !<  Drag coefficient for momentum [-]
   real, allocatable :: Cs    (:,:)            !<  Drag coefficient for scalars [-]
   real, allocatable, target :: ustar (:,:)    !<  Friction velocity [m/s]
@@ -237,7 +237,7 @@ SAVE
   real(field_r)     :: qts                    !<  Surface specific humidity [kg/kg]
   real              :: thvs                   !<  Surface virtual temperature [K]
   real(field_r), allocatable :: svs   (:)              !<  Surface scalar concentration [-]
-  real              :: z0    = -1             !<  Surface roughness length [m]
+  real(field_r)              :: z0    = -1             !<  Surface roughness length [m]
 
   ! prescribed surface fluxes
   real              :: ustin  = -1            !<  Prescribed friction velocity [m/s]
@@ -259,10 +259,10 @@ SAVE
   integer           :: land_use(mpatch,mpatch)     =  0 !<  Indicator for the land type
   integer           :: landtype(max_lands)         = -1 !< Type nr of the land in surface.inp.xxx
   character(len=10),dimension(max_lands) :: landname = "none" !< Name of the land type in surface.inp.xxx
-  real              :: z0mav_land(max_lands)       = -1 !< Roughness length per land type for momentum [m]
-  real              :: z0hav_land(max_lands)       = -1 !< Roughness length per land type for heat [m]
-  real, allocatable :: z0mav_patch(:,:)                 !< Rougness length per patch
-  real, allocatable :: z0hav_patch(:,:)                 !< Rougness length per patch
+  real(field_r)              :: z0mav_land(max_lands)       = -1 !< Roughness length per land type for momentum [m]
+  real(field_r)              :: z0hav_land(max_lands)       = -1 !< Roughness length per land type for heat [m]
+  real(field_r), allocatable :: z0mav_patch(:,:)                 !< Rougness length per patch
+  real(field_r), allocatable :: z0hav_patch(:,:)                 !< Rougness length per patch
   real              :: thls_land(max_lands)        = -1 !< Surface liquid water potential temperature [K]
   real, allocatable :: thls_patch(:,:)                  !< Surface liquid water potential temperature [K]
   real, allocatable :: qts_patch(:,:)                   !< Surface liquid water potential temperature [K]

@@ -1,4 +1,5 @@
 module modlsmdata
+  use modprecision, only : field_r
   implicit none
 
   public
@@ -39,7 +40,8 @@ module modlsmdata
   real, allocatable :: f1(:,:), f2b(:,:)
 
   ! Random
-  real, allocatable :: du_tot(:,:), thv_1(:,:), land_frac(:,:), cveg(:,:)
+  real(field_r), allocatable :: du_tot(:,:)
+  real, allocatable :: thv_1(:,:), land_frac(:,:), cveg(:,:)
 
   ! A-Gs
   real, allocatable :: an_co2(:,:), resp_co2(:,:)
@@ -62,7 +64,7 @@ module modlsmdata
       ! Check if LU type is water
       logical           :: laqu
       ! Static properties:
-      real, allocatable :: z0m(:,:), z0h(:,:)
+      real(field_r), allocatable :: z0m(:,:), z0h(:,:)
       ! Base tile fraction (i.e. without liquid water)
       real, allocatable :: base_frac(:,:)
       ! Conductivity skin layer:
@@ -78,14 +80,15 @@ module modlsmdata
       ! Dynamic tile fraction:
       real, allocatable :: frac(:,:)
       ! Monin-obukhov / surface layer:
-      real, allocatable :: obuk(:,:), ustar(:,:), ra(:,:)
+      real(field_r), allocatable :: obuk(:,:)
+      real, allocatable :: ustar(:,:), ra(:,:)
       ! Surface fluxes:
       real, allocatable :: H(:,:), LE(:,:), G(:,:)
       real, allocatable :: wthl(:,:), wqt(:,:)
       ! Surface (potential) temperature and humidity:
       real, allocatable :: tskin(:,:), thlskin(:,:), qtskin(:,:)
       ! Buoyancy difference surface - atmosphere
-      real, allocatable :: db(:,:)
+      real(field_r), allocatable :: db(:,:)
       ! Vegetation properties:
       real, allocatable :: rs(:,:)
       real, allocatable :: f2(:,:), f3(:,:), gD(:,:)

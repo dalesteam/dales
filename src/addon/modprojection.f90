@@ -95,7 +95,7 @@ contains
 
     tnext      = idtav   +btime
     if(.not.(lproject)) return
-    dt_lim = min(dt_lim,tnext)
+    dt_lim = min(dt_lim,tnext - timee)
 
     if(ksplit>kmax) then
       stop 'projection: projection out of range'
