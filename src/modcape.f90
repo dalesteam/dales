@@ -322,7 +322,7 @@ contains
 
             Tnr = Tnr - (thlguess-thl200400(i,j))/((thlguess-thlguessmin)*500.)
             if (niter > 100) then
-               call finish('cape thermodynamics at surface not converging (', i, ',', j, ') ', thl200400(i,j), ' ', qt200400(i,j))
+               call finish('cape thermodynamics at surface not converging (', i,  j, ') ', thl200400(i,j), qt200400(i,j))
             end if
           enddo
         nitert =max(nitert,niter)
@@ -377,7 +377,7 @@ contains
             Tnr = Tnr - (thlguess-thl200400(i,j))/((thlguess-thlguessmin)*500.)
 
             if (niter > 100) then
-               call finish('cape thermodynamics not converging (', i, ',', j, ',', k,') ', thl200400(i,j), ' ', qt200400(i,j))
+               call finish('cape thermodynamics not converging (', i, j, k,') ', thl200400(i,j),  qt200400(i,j), Tnr, Tnr_old, qlma(i,j,k-1), tlonr )
             end if
           enddo
         nitert =max(nitert,niter)
