@@ -236,7 +236,7 @@ contains
   end function most_scalar_value
 
   subroutine virtualmeasurement
-    use modfields,         only: u0, v0, thl0, qt0, ql0, exnf, exnh, presf, rhof
+    use modfields,         only: u0, v0, thl0, qt0, ql0, exnf, exnh, presf, rhof, tmp0
     use modslurb,          only: slurb_tile
     use modsurfdata,       only: isurf, tskin, qskin, Qnet, G0, H, LE, ustar, obl, thlflux, qtflux, z0h, z0m, ra, rs, &
                                  rsveg, rssoil, cliq, Wl
