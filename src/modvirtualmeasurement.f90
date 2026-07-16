@@ -302,7 +302,7 @@ contains
       p_swnet = swd(i,j,1) + swu(i,j,1)
       p_lwnet = lwd(i,j,1) + lwu(i,j,1)
       p_qnet = Qnet(i,j)
-      p_t1 = (thl0(i,j,1) + rlv*ql0(i,j,1)/(cp*exnf(1))) * exnf(1)
+      p_t1 = tmp0(i,j,1)
       qt1 = qt0(i,j,1)
       p_q1 = qt0(i,j,1) - ql0(i,j,1)
       p_ql1 = ql0(i,j,1)
