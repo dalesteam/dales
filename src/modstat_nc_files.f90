@@ -129,11 +129,9 @@ contains
     integer :: ifile
     call timer_tic("write_output_files")
     do ifile = 1, nfiles
-      call timer_tic("write_output_files_file_"//trim(file_list(ifile)%file%filename))
       if (is_writing_timestep(ifile)) then
         call file_list(ifile)%file%write
       end if
-      call timer_toc("write_output_files_file_"//trim(file_list(ifile)%file%filename))
     end do
     call timer_toc("write_output_files")
 
