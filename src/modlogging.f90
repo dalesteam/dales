@@ -154,25 +154,25 @@ module modlogging
       class(*), intent(in), optional :: text
           select type(text)
           type is (integer(kind=int8))
-            write(line(istart:),'(i0)') text
+            write(line(istart:),'(i0) ') text
           type is (integer(kind=int16))
-            write(line(istart:),'(i0)') text
+            write(line(istart:),'(i0) ') text
           type is (integer(kind=int32))
-            write(line(istart:),'(i0)') text
+            write(line(istart:),'(i0) ') text
           type is (integer(kind=int64))
-            write(line(istart:),'(i0)') text
+            write(line(istart:),'(i0) ') text
           type is (real(kind=real32))
-            write(line(istart:),'(1pg0)') text
+            write(line(istart:),'(1pg0) ') text
           type is (real(kind=real64))
-            write(line(istart:),'(1pg0)') text
+            write(line(istart:),'(1pg0) ') text
           type is (logical)
-            write(line(istart:),'(1l)') text
+            write(line(istart:),'(1l) ') text
           type is (character(len=*))
-            write(line(istart:),'(a)') text
+            write(line(istart:),'(a) ') text
             istart = istart + len(text)
             return
           type is (complex)
-            write(line(istart:),'("(",1pg0,",",1pg0,")")') text
+            write(line(istart:),'("(",1pg0,",",1pg0,")") ') text
           end select
           istart = len_trim(line) + 1
     end subroutine print_part
