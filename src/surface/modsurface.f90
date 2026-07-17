@@ -434,6 +434,7 @@ contains
 
     dqtdz = 0 ! need to initialize, otherwise undefined in the first call to thermodynamics, before call surface (cold start)
     ustar = 0 ! need to initialize, otherwise undefined values in the corners in the first exchange
+    svflux = 0 ! need to initialize, otherwise undefined values causing problems everywhere (valgrind complained, and adding this removes crashes)
     obl = 1e5 ! initialize since used as starting point for iteration
 
     !$acc enter data copyin(z0m, z0h, obl, tskin, qskin, Cm, Cs, &
