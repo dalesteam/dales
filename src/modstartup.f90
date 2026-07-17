@@ -1865,8 +1865,8 @@ contains
         ! in this case, theta_v is constant in height
         ! As in thermodynamics, dp/dz=-rho*g, rho=p/(Rd*T), T=thv*exnf, exnf=(p/pref0)^(rd/cp)
         ! substitute exner function in dp/dz, and solve for p(z) to get the following expression
-        prsb = (ps ** (rd/cp) - \
-                (grav * zf(k) * pref0 ** (rd/cp)) / (cp * thvb) \
+        prsb = (ps ** (rd/cp) - &
+                (grav * zf(k) * pref0 ** (rd/cp)) / (cp * thvb) &
                 ) ** (cp/rd)
         ! rho = p/(Rd * T), with T = thv exnf, exnf = (p/pref0)^(rd/cp)
         rhobf(k) = prsb / (rd * thvb * ((prsb / pref0) ** (rd/cp)))
