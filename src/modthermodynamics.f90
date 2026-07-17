@@ -31,7 +31,7 @@ module modthermodynamics
   use modfields,       only: qt0, thl0, qt0h, thl0h, ql0, presf, exnf, thvh, &
                              thv0h, qt0av, ql0av, thvf, rhof, ql0h, presh, exnh, &
                              u0, v0, sv0, u0av, v0av, thl0av, ql0av, sv0av, &
-                             tmp0, dthvdz, thl0h, qt0h, esl, qvsl, qvsi, &
+                             tmp0, dse0, qv0, dthvdz, thl0h, qt0h, esl, qvsl, qvsi, &
                              tliq0, tliqm, tliqp
   use modsurfdata,     only: qts, thls, ps, dthldz, dqtdz
   use modmpi,          only: myid, d_mpi_bcast, commwrld, slabsum
@@ -242,6 +242,18 @@ contains
 
     ! recalculate thv and rho on the basis of results
     call calthv
+
+    ! calculate qv0 and dse0
+
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
+          qv0(i,j,k) = qt0(i,j,k) - ql0(i,j,k)
+          dse0(i,j,k) = cp * tmp0(i,j,k) + grav * zf(k)
+        end do
+      end do
+    end do
 
     !$acc parallel loop collapse(3) default(present) async(1)
     do k = 1, k1
