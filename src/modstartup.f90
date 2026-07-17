@@ -1727,7 +1727,6 @@ contains
     use modsurfdata,       only : thls,ps,qts
     use modmpi,            only : myid,comm3d,mpierr,D_MPI_BCAST
     use modlogging,        only : profile_output
-    use modtesting,        only : assert_requals
     implicit none
 
     character(len=*), parameter :: routine = modname//'/baseprofs'
@@ -1880,7 +1879,6 @@ contains
       !< Quasi-Boussinesq (Similar to Dales 3, except for buoyancy term now depending on slab mean state)
       if (thls < 0) call finish(routine, 'thls has not been initialized but is needed for setting up the base profiles when ibas_prf=ibas_bou=2.')
       thvb = calc_virt_pot_temp(thl=thls, qt=qts, ql=0._field_r, exn=1._field_r) ! using thls, q_l assumed to be 0 during first time step
-      ! call assert_requals(thvb, calc_virt_pot_temp(thls,qts,0._field_r, 1._field_r), 1e-6_field_r, routine//' thvb calculation')
       ! ideal gas law: rho = p/(Rd*T), with T = thv exnf, exnf = (p/pref0)^(rd/cp)
       rhobh(1) = ps / (rd * thvb * (ps/pref0)**(rd/cp))
       do k=1,k1
