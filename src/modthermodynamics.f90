@@ -55,8 +55,6 @@ module modthermodynamics
 
   logical :: lmoist = .true.       !< Switch to calculate moisture fields.
   logical :: lnoclouds = .false.   !< Switch to enable/disable thl calculations.
-  logical :: lconstexner = .false. !< Switch to use the initial pressure profile in the exner function.
-  logical :: lbaseexner = .false.  !< Switch to use the base pressure profile in the exner function.
 
   real, allocatable :: th0av(:)
   real(field_r), allocatable :: thv0(:,:,:)
@@ -94,8 +92,7 @@ contains
     integer :: ierr
     logical :: lqlnr = .true. !< deprecated and ignored, kept for compatibility
 
-    namelist /thermodynamics/ lmoist, chi_half, lconstexner, lbaseexner, &
-                              lnoclouds, lqlnr
+    namelist /thermodynamics/ lmoist, chi_half, lnoclouds, lqlnr
 
     if (myid == 0) then
       open(ifnamopt, file=nml_filename, status='old', action='read', &
@@ -108,8 +105,6 @@ contains
 
     call d_mpi_bcast(lmoist, 1, 0, commwrld, ierr)
     call d_mpi_bcast(chi_half, 1, 0, commwrld, ierr)
-    call d_mpi_bcast(lconstexner, 1, 0, commwrld, ierr)
-    call d_mpi_bcast(lbaseexner, 1, 0, commwrld, ierr)
 
   end subroutine thermodynamics_read_namelist
 
@@ -516,14 +511,6 @@ contains
       end do
     end if
 
-    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
-      !$acc parallel loop gang(static:1) default(present)
-      do k = 1, k1
-        exnf(k) = 1 - grav * zf(k) / (cp * thls)
-        exnh(k) = 1 - grav * zh(k) / (cp * thls)
-      end do
-    endif
-
     !$acc parallel loop gang(static:1) default(present) async(1)
     do k = 1, k1
       th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
@@ -531,40 +518,9 @@ contains
 
     ! 2. Calculate the pressure profiles assuming hydrostatic equilibrium.
 
-    ! 2.1 Use first guess of theta, then recalculate theta
-
     call fromztop
 
-    !$acc parallel loop gang(static:1) default(present) async(1)
-    do k = 1, k1
-      th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
-    end do
-
-    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
-      !$acc parallel loop gang(static:1) default(present) async(1)
-      do k = 1, k1
-        exnf(k) = (presf(k) / pref0)**(rd / cp)
-      end do
-    end if
-
-    ! 2.2 Use new updated value of theta for determination of pressure
-
-    call fromztop
-
-    ! 3. Construct density profiles and exner function
-
-    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
-      !$acc serial default(present) async(1)
-      exnh(1) = (ps/pref0)**(rd/cp)
-      exnf(1) = (presf(1)/pref0)**(rd/cp)
-      !$acc end serial
-
-      !$acc parallel loop default(present) async(1)
-      do k=2,k1
-        exnf(k) = (presf(k)/pref0)**(rd/cp)
-        exnh(k) = (presh(k)/pref0)**(rd/cp)
-      end do
-    endif
+    ! 3. Construct density profiles
 
     !$acc parallel loop default(present) async(1)
     do k=1,k1
