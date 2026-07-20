@@ -170,7 +170,7 @@ contains
     call D_MPI_BCAST(min_horv                   ,            1, 0, commwrld, istat)
 
     !$acc update device(min_horv)
-!$omp target update to(min_horv)
+    !$omp target update to(min_horv)
 
   end subroutine surface_read_namelist
 
@@ -438,10 +438,10 @@ contains
 
     !$acc enter data copyin(z0m, z0h, obl, tskin, qskin, Cm, Cs, &
     !$acc&                  ustar, dudz, dvdz, thlflux, qtflux, &
-    !$acc&                  dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf, albedo, emissivity)
-!$omp target enter data map(to:z0m,z0h,obl,tskin,qskin,cm,cs,ustar,&
-!$omp dudz,dvdz,thlflux,qtflux,dqtdz,dthldz,svflux,svs,horv,ra,rs,&
-!$omp wsvsurf,albedo,emissivity)
+    !$acc&                  dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf, albedo, qnet, emissivity)
+    !$omp target enter data map(to:z0m,z0h,obl,tskin,qskin,cm,cs,ustar,&
+    !$omp dudz,dvdz,thlflux,qtflux,dqtdz,dthldz,svflux,svs,horv,ra,rs,&
+    !$omp wsvsurf,albedo,qnet,emissivity)
 
     call timer_toc('modsurface/initsurface')
   end subroutine initsurface
@@ -592,6 +592,7 @@ contains
       end do
     end do
 
+    ! BUG: use local variable lthls for reduction to prevent name conflict with namelist?
     lthls = 0.0
     qts = 0.0
     !$acc parallel loop collapse(2) default(present) reduction(+: thls, qts)
@@ -655,8 +656,8 @@ contains
 
     if (lmostlocal) then
       !$acc parallel loop collapse(2) default(present)
-       !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-       !$omp defaultmap(present:allocatable)
+      !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do j = 2, j1
         do i = 2, i1
           ustar(i,j) = sqrt(Cm(i,j)) * horv(i,j)
@@ -665,8 +666,8 @@ contains
       end do
     else
       !$acc parallel loop collapse(2) default(present)
-       !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-       !$omp defaultmap(present:allocatable)
+      !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do j = 2, j1
         do i = 2, i1
           ustar(i,j) = sqrt(Cm(i,j)) * horvav
@@ -684,7 +685,7 @@ contains
        call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
     endif
     !$acc update device(ustar)
-!$omp target update to(ustar)
+    !$omp target update to(ustar)
   end subroutine calc_friction_velocity
 
   !> Prescribes the friction velocity \f$u_*\f$
@@ -705,7 +706,7 @@ contains
       end do
     end do
 
-   !$acc update self(ustar)
+    !$acc update self(ustar)
     !$omp target update from(ustar)
     if ( lopenbc ) then
       call openboundary_excjs(ustar_3D, 2,i1,2,j1,1,1,1,1, &
@@ -714,7 +715,7 @@ contains
        call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
     endif
     !$acc update device(ustar)
-!$omp target update to(ustar)
+    !$omp target update to(ustar)
   end subroutine presc_friction_velocity
 
   !> Calculates the surfaces fluxes using the scalar values at the surface and
@@ -1311,10 +1312,11 @@ contains
 
     !$acc exit data delete(z0m, z0h, obl, tskin, qskin, Cm, Cs, &
     !$acc&                 ustar, dudz, dvdz, thlflux, qtflux, &
-    !$acc&                 dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf)
-!$omp target exit data map(delete:z0m,z0h,obl,tskin,qskin,cm,cs,ustar,&
-!$omp dudz,dvdz,thlflux,qtflux,dqtdz,dthldz,svflux,svs,horv,ra,rs,&
-!$omp wsvsurf)
+    !$acc&                 dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf, &
+    !$acc&                 albedo,qnet,emissivity)
+    !$omp target exit data map(delete:z0m,z0h,obl,tskin,qskin,cm,cs,ustar,&
+    !$omp dudz,dvdz,thlflux,qtflux,dqtdz,dthldz,svflux,svs,horv,ra,rs,&
+    !$omp wsvsurf,albedo,qnet,emissivity)
 
     return
   end subroutine exitsurface
