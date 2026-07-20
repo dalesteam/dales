@@ -176,65 +176,65 @@ contains
     !setup trace gases concentration once for all
     !it seems the array used by the set_vmr function has to be on the GPU... to be tested
     !$acc data create(tracevmr)
-!!$omp target data map(alloc:tracevmr)
+    !$omp target data map(alloc:tracevmr)
     do k=1,nlay; tracevmr(:,k) = o3(k); enddo
     !$acc update device(tracevmr)
-!$omp target update to(tracevmr)
+    !$omp target update to(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(2)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = co2(k); enddo
     !$acc update device(tracevmr)
-!$omp target update to(tracevmr)
+    !$omp target update to(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(3)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = ch4(k); enddo
     !$acc update device(tracevmr)
-!$omp target update to(tracevmr)
+    !$omp target update to(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(4)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = n2o(k); enddo
     !$acc update device(tracevmr)
-!$omp target update to(tracevmr)
+    !$omp target update to(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(5)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = o2(k); enddo
     !$acc update device(tracevmr)
-!$omp target update to(tracevmr)
+    !$omp target update to(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(6)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = cfc11(k); enddo
     !$acc update device(tracevmr)
-!$omp target update to(tracevmr)
+    !$omp target update to(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(7)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = cfc12(k); enddo
     !$acc update device(tracevmr)
-!$omp target update to(tracevmr)
+    !$omp target update to(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(8)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = cfc22(k); enddo
     !$acc update device(tracevmr)
-!$omp target update to(tracevmr)
+    !$omp target update to(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(9)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = ccl4(k); enddo
     !$acc update device(tracevmr)
-!$omp target update to(tracevmr)
+    !$omp target update to(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(10)), tracevmr))
     !$acc end data
-!!$omp end target data
+    !$omp end target data
     deallocate(tracevmr)
 
     !$acc enter data copyin(layerP, layerT, interfaceP, h2ovmr)
-!$omp target enter data map(to:layerp,layert,interfacep,h2ovmr)
+    !$omp target enter data map(to:layerp,layert,interfacep,h2ovmr)
     !$acc enter data create(interfaceT, tg_slice)
-!$omp target enter data map(alloc:interfacet,tg_slice)
+    !$omp target enter data map(alloc:interfacet,tg_slice)
     !$acc enter data create(lwUp_slice, lwDown_slice)
-!$omp target enter data map(alloc:lwup_slice,lwdown_slice)
+    !$omp target enter data map(alloc:lwup_slice,lwdown_slice)
     !$acc enter data create(swUp_slice, swDown_slice, swDownDir_slice)
-!$omp target enter data map(alloc:swup_slice,swdown_slice,&
-!$omp swdowndir_slice)
+    !$omp target enter data map(alloc:swup_slice,swdown_slice,&
+    !$omp swdowndir_slice)
     !$acc enter data create(solarZenithAngleCos)
-!$omp target enter data map(alloc:solarzenithanglecos)
+    !$omp target enter data map(alloc:solarzenithanglecos)
     !$acc enter data create(liquidRe, iceRe, LWP_slice, IWP_slice)
-!$omp target enter data map(alloc:liquidre,icere,lwp_slice,iwp_slice)
+    !$omp target enter data map(alloc:liquidre,icere,lwp_slice,iwp_slice)
     if(doclearsky) then
       !$acc enter data create(lwUpCS_slice, lwDownCS_slice)
-!$omp target enter data map(alloc:lwupcs_slice,lwdowncs_slice)
+      !$omp target enter data map(alloc:lwupcs_slice,lwdowncs_slice)
       !$acc enter data create(swUpCS_slice, swDownCS_slice)
-!$omp target enter data map(alloc:swupcs_slice,swdowncs_slice)
+      !$omp target enter data map(alloc:swupcs_slice,swdowncs_slice)
     endif
 
     ! Longwave init
@@ -252,7 +252,7 @@ contains
         class is (ty_optical_props_1scl)
           call stop_on_err(atmos_lw%alloc_1scl(ncol, nlay, k_dist_lw))
           !$acc enter data copyin(atmos_lw) create(atmos_lw%tau)
-!$omp target enter data map(to:atmos_lw) map(alloc:atmos_lw%tau)
+          !$omp target enter data map(to:atmos_lw) map(alloc:atmos_lw%tau)
       end select
 
       ! Load cloud property data
@@ -266,7 +266,7 @@ contains
         class is (ty_optical_props_1scl)
           call stop_on_err(clouds_lw%alloc_1scl(ncol, nlay))
           !$acc enter data copyin(clouds_lw) create(clouds_lw%tau)
-!$omp target enter data map(to:clouds_lw) map(alloc:clouds_lw%tau)
+          !$omp target enter data map(to:clouds_lw) map(alloc:clouds_lw%tau)
       end select
 
       ! Allocate source term and define emissivity
@@ -274,12 +274,12 @@ contains
       allocate(emis(nbndlw,ncol))
       ! we set emis from the surface data now, so emis is initialized later on
       !$acc enter data copyin(emis, sources_lw)
-!$omp target enter data map(to:emis,sources_lw)
+      !$omp target enter data map(to:emis,sources_lw)
       !$acc enter data create(sources_lw%lay_source, sources_lw%lev_source, &
       !$acc&                  sources_lw%sfc_source, sources_lw%sfc_source_Jac)
-!$omp target enter data map(alloc:sources_lw%lay_source,&
-!$omp sources_lw%lev_source,sources_lw%sfc_source,&
-!$omp sources_lw%sfc_source_jac)
+      !$omp target enter data map(alloc:sources_lw%lay_source,&
+      !$omp sources_lw%lev_source,sources_lw%sfc_source,&
+      !$omp sources_lw%sfc_source_jac)
 
       ! Define lw fluxes pointers
       fluxes_lw%flux_up => lwUp_slice(:,:)
@@ -306,8 +306,8 @@ contains
         class is (ty_optical_props_2str)
           call stop_on_err(atmos_sw%alloc_2str(ncol, nlay, k_dist_sw))
           !$acc enter data copyin(atmos_sw) create(atmos_sw%tau, atmos_sw%ssa, atmos_sw%g)
-!$omp target enter data map(to:atmos_sw) map(alloc:atmos_sw%tau,&
-!$omp atmos_sw%ssa,atmos_sw%g)
+          !$omp target enter data map(to:atmos_sw) map(alloc:atmos_sw%tau,&
+          !$omp atmos_sw%ssa,atmos_sw%g)
       end select
 
       ! Load cloud property data
@@ -321,15 +321,15 @@ contains
         class is (ty_optical_props_2str)
           call stop_on_err(clouds_sw%alloc_2str(ncol, nlay))
           !$acc enter data copyin(clouds_sw) create(clouds_sw%tau, clouds_sw%ssa, clouds_sw%g)
-!$omp target enter data map(to:clouds_sw) map(alloc:clouds_sw%tau,&
-!$omp clouds_sw%ssa,clouds_sw%g)
+          !$omp target enter data map(to:clouds_sw) map(alloc:clouds_sw%tau,&
+          !$omp clouds_sw%ssa,clouds_sw%g)
       end select
 
       ! Define boundary conditions
       allocate(inc_sw_flux(ncol,ngptsw))
       allocate(sfc_alb_dir(nbndsw,ncol), sfc_alb_dif(nbndsw,ncol))
       !$acc enter data create(inc_sw_flux, sfc_alb_dir, sfc_alb_dif)
-!$omp target enter data map(alloc:inc_sw_flux,sfc_alb_dir,sfc_alb_dif)
+      !$omp target enter data map(alloc:inc_sw_flux,sfc_alb_dir,sfc_alb_dif)
 
       fluxes_sw%flux_up => swUp_slice(:,:)
       fluxes_sw%flux_dn => swDown_slice(:,:)
@@ -460,46 +460,46 @@ contains
 
     if (rad_longw) then
       !$acc exit data delete(sources_lw)
-!$omp target exit data map(delete:sources_lw)
+      !$omp target exit data map(delete:sources_lw)
       !$acc exit data delete(emis)
-!$omp target exit data map(delete:emis)
+      !$omp target exit data map(delete:emis)
       deallocate(emis)
 
       !$acc exit data delete(atmos_lw%tau) delete(atmos_lw)
-!$omp target exit data map(delete:atmos_lw%tau,atmos_lw)
+      !$omp target exit data map(delete:atmos_lw%tau,atmos_lw)
       !$acc exit data delete(clouds_lw%tau) delete(clouds_lw)
-!$omp target exit data map(delete:clouds_lw%tau,clouds_lw)
+      !$omp target exit data map(delete:clouds_lw%tau,clouds_lw)
 
     endif
 
     if (rad_shortw) then
       !$acc exit data delete(inc_sw_flux, sfc_alb_dir, sfc_alb_dif)
-!$omp target exit data map(delete:inc_sw_flux,sfc_alb_dir,sfc_alb_dif)
+       !$omp target exit data map(delete:inc_sw_flux,sfc_alb_dir,sfc_alb_dif)
       deallocate(inc_sw_flux, sfc_alb_dir, sfc_alb_dif)
 
       !$acc exit data delete(atmos_sw%tau) delete(atmos_sw)
-!$omp target exit data map(delete:atmos_sw%tau,atmos_sw)
+      !$omp target exit data map(delete:atmos_sw%tau,atmos_sw)
       !$acc exit data delete(clouds_sw%tau) delete(clouds_sw)
-!$omp target exit data map(delete:clouds_sw%tau,clouds_sw)
+      !$omp target exit data map(delete:clouds_sw%tau,clouds_sw)
     endif
 
     !$acc exit data delete(liquidRe, iceRe, LWP_slice, IWP_slice)
-!$omp target exit data map(delete:liquidre,icere,lwp_slice,iwp_slice)
+    !$omp target exit data map(delete:liquidre,icere,lwp_slice,iwp_slice)
     !$acc exit data delete(solarZenithAngleCos)
-!$omp target exit data map(delete:solarzenithanglecos)
+    !$omp target exit data map(delete:solarzenithanglecos)
     !$acc exit data delete(lwUp_slice, lwDown_slice)
-!$omp target exit data map(delete:lwup_slice,lwdown_slice)
+    !$omp target exit data map(delete:lwup_slice,lwdown_slice)
     !$acc exit data delete(swUp_slice, swDown_slice, swDownDir_slice)
-!$omp target exit data map(delete:swup_slice,swdown_slice,&
-!$omp swdowndir_slice)
+    !$omp target exit data map(delete:swup_slice,swdown_slice,&
+    !$omp swdowndir_slice)
     !$acc exit data delete(layerP, layerT, interfaceP, interfaceT, tg_slice, h2ovmr)
-!$omp target exit data map(delete:layerp,layert,interfacep,interfacet,&
-!$omp tg_slice,h2ovmr)
+    !$omp target exit data map(delete:layerp,layert,interfacep,interfacet,&
+    !$omp tg_slice,h2ovmr)
     if(doclearsky) then
       !$acc exit data delete(lwUpCS_slice, lwDownCS_slice, &
       !$acc&                 swUpCS_slice, swDownCS_slice)
-!$omp target exit data map(delete:lwupcs_slice,lwdowncs_slice,&
-!$omp swupcs_slice,swdowncs_slice)
+      !$omp target exit data map(delete:lwupcs_slice,lwdowncs_slice,&
+      !$omp swupcs_slice,swdowncs_slice)
     endif
 
     if(isAllocated_RadInputsOutputs) then
@@ -538,8 +538,8 @@ contains
     ! Make sure the SW output is 0 if sun is down.
     ! If the sun is down, rrtmgp does not initialize the sw fluxes arrays, so we need to set them to zero here to avoid uninitialized values in the output.
     !$acc parallel loop collapse(2) default(present)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do i=1,ncol
       do k=1,nlay+1
         swUp_slice(i,k) = 0.
@@ -550,8 +550,8 @@ contains
 
     if(doclearsky) then
     !$acc parallel loop collapse(2) default(present)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
      do i=1,ncol
       do k=1,nlay+1
           swUpCS_slice(i,k) = 0.
@@ -583,7 +583,7 @@ contains
 
     allocate(nc_slice(ncol,nlay+1))
     !$acc enter data create(nc_slice)
-!$omp target enter data map(alloc:nc_slice)
+    !$omp target enter data map(alloc:nc_slice)
 
     exners = (ps/pref0)**(rd/cp)
     !reff_factor = 1e6*(3. /(4.*pi*Nc_0*rho_liq) )**(1./3.) * exp(log(sig_g)**2 )
@@ -594,8 +594,8 @@ contains
 
     ! Set up layer values within the DALES domain
     !$acc parallel loop collapse(3) default(present) private(icol)
-!!$omp target teams loop private(icol) collapse(3)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+    !$omp target teams loop private(icol) collapse(3)&
+    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k=1,kmax
       do j=jstart, jend
         do i=2,i1 !i1=imax+1
@@ -610,8 +610,8 @@ contains
 
     ! Set up temperature interface values
     !$acc parallel loop collapse(3) default(present) private(icol)
-!!$omp target teams loop private(icol) collapse(3)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+    !$omp target teams loop private(icol) collapse(3)&
+    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k=2,nlay
       do j=jstart, jend
         do i=2,i1 !i1=imax+1
@@ -621,8 +621,8 @@ contains
       enddo
     enddo
     !$acc parallel loop collapse(2) default(present) private(icol)
-!!$omp target teams loop private(icol) collapse(2)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+    !$omp target teams loop private(icol) collapse(2)&
+    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do j=jstart, jend
       do i=2,i1 !i1=imax+1
         icol=i-1+(j-jstart)*imax
@@ -633,23 +633,27 @@ contains
     enddo
 
     ! Setup cloud properties (above the DALES domain everyhting is set to zero)
-    !$acc kernels default(present)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-    LWP_slice = 0.0
-    IWP_slice = 0.0
-    liquidRe = 0.
-    iceRe = 0.
-    nc_slice = 0.0
-    !$acc end kernels
-!!$omp end target
+    !$acc parallel loop collapse(2) default(present)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
+    do j=1,nlay
+       do i=1,ncol,nlay+1
+          if (i <= nlay) then
+             LWP_slice(i,j) = 0.0
+             IWP_slice(i,j) = 0.0
+             liquidRe(i,j) = 0.
+             iceRe(i,j) = 0.
+          endif
+          nc_slice(i,j) = 0.0
+       end do
+    end do
 
     inc = get_tracer_index('Nc')
 
     if (inc > 0) then
        !$acc parallel loop collapse(3) default(present) private(icol)
-!!$omp target teams loop private(icol) collapse(3)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+       !$omp target teams loop private(icol) collapse(3)&
+       !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
        do k=1,kmax
           do j=jstart, jend
              do i=2,i1
@@ -660,8 +664,8 @@ contains
        end do
     else
        !$acc parallel loop collapse(3) default(present) private(icol)
-!!$omp target teams loop private(icol) collapse(3)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+       !$omp target teams loop private(icol) collapse(3)&
+       !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
        do k=1,kmax
           do j=jstart, jend
              do i=2,i1
@@ -673,9 +677,9 @@ contains
     endif
 
     !$acc parallel loop collapse(3) default(present) private(icol,ilratio,layerMass,qcl,qci,B_function)
-!!$omp target teams loop private(icol,ilratio,layermass,qcl,qci,&
-!!$omp b_function) collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop private(icol,ilratio,layermass,qcl,qci,&
+    !$omp b_function) collapse(3) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k=1,kmax
       do j=jstart, jend
         do i=2,i1 !i1=imax+1
@@ -719,7 +723,7 @@ contains
     enddo
 
     !$acc exit data delete(nc_slice)
-!$omp target exit data map(delete:nc_slice)
+    !$omp target exit data map(delete:nc_slice)
     deallocate(nc_slice)
 
   end subroutine setupColumnProfiles
@@ -740,8 +744,8 @@ contains
     jend   =  ibatch    * jmax/nbatch + 1
 
     !$acc parallel loop collapse(3) default(present) private(icol)
-!!$omp target teams loop private(icol) collapse(3)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+    !$omp target teams loop private(icol) collapse(3)&
+    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k=1,k1
       do j=jstart, jend
         do i=2,i1 !i1=imax+1
@@ -756,8 +760,8 @@ contains
       enddo
     enddo
     !$acc parallel loop collapse(2) default(present) private(icol)
-!!$omp target teams loop private(icol) collapse(2)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+    !$omp target teams loop private(icol) collapse(2)&
+    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do j=jstart, jend
       do i=2,i1 !i1=imax+1
         icol=i-1+(j-jstart)*imax
@@ -770,8 +774,8 @@ contains
 
     if(doclearsky) then
       !$acc parallel loop collapse(3) default(present) private(icol)
-!!$omp target teams loop private(icol) collapse(3)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+      !$omp target teams loop private(icol) collapse(3)&
+      !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do k=1,k1
         do j=jstart, jend
           do i=2,i1 !i1=imax+1
@@ -784,8 +788,8 @@ contains
         enddo
       enddo
       !$acc parallel loop collapse(2) default(present) private(icol)
-!!$omp target teams loop private(icol) collapse(2)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+      !$omp target teams loop private(icol) collapse(2)&
+      !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do j=jstart, jend
         do i=2,i1 !i1=imax+1
           icol=i-1+(j-jstart)*imax
@@ -798,8 +802,8 @@ contains
     endif
 
     !$acc parallel loop collapse(3) default(present)
-!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k=1,kmax
       do j=jstart, jend
         do i=2,i1
@@ -841,7 +845,7 @@ contains
     solarZenithAngleCos(:) =  &
          zenith(xtime*3600 + rtimee, xday, xlat, xlon) ! Used function in modraddata
     !$acc update device(solarZenithAngleCos)
-!$omp target update to(solarzenithanglecos)
+    !$omp target update to(solarzenithanglecos)
 
     sunUp = .false.
     ! if all values in solarZenithAngleCos are >= its smallest positive, non-zero element
@@ -852,8 +856,8 @@ contains
       ! Albedos can be computed as a function of solarZenithAngleCos,
       ! so it makes sense to keep the init here
       !$acc parallel loop collapse(2) default(present) private(icol)
-!!$omp target teams loop private(icol) collapse(2)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+      !$omp target teams loop private(icol) collapse(2)&
+      !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do j=jstart, jend
         do i=2,i1 !i1=imax+1
           icol=i-1+(j-jstart)*imax
@@ -880,8 +884,8 @@ contains
     jstart = (ibatch-1) * jmax/nbatch + 2
     jend   =  ibatch    * jmax/nbatch + 1
       !$acc parallel loop collapse(2) default(present) private(icol)
-!!$omp target teams loop private(icol) collapse(2)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+      !$omp target teams loop private(icol) collapse(2)&
+      !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do j=jstart, jend
         do i=2,i1 !i1=imax+1
           icol=i-1+(j-jstart)*imax
