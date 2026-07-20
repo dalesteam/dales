@@ -37,7 +37,6 @@ module modthermodynamics
   use modmicrodata,    only: imicro, imicro_bulk3, imicro_none
   use modibmdata,      only: lapply_ibm, fluid_mask
   use modslabaverage,  only: slabavg
-  use modslabaverage,  only: slabavg_gpu
   use advec_kappa,     only: halflev_kappa
   use modprecision,    only: field_r
   use modtimer,        only: timer_tic, timer_toc
@@ -273,8 +272,8 @@ contains
     !$acc wait
 
     if (.not. lapply_ibm) then
-      call slabavg_gpu(thv0h, ih, thvh)
-      call slabavg_gpu(thv0, ih, thvf)
+      call slabavg(thv0h, ih, thvh)
+      call slabavg(thv0, ih, thvf)
     else
       call slabavg(thv0h,fluid_mask,ih,thvh)
       call slabavg(thv0,fluid_mask,ih,thvf)
@@ -530,13 +529,13 @@ contains
 
     ! If the IBM is enabled, exclude the building cells from the averages
     if (.not. lapply_ibm) then
-      call slabavg_gpu(u0,ih,u0av)
-      call slabavg_gpu(v0,ih,v0av)
-      call slabavg_gpu(thl0,ih,thl0av)
-      call slabavg_gpu(qt0,ih,qt0av)
-      call slabavg_gpu(ql0,ih,ql0av)
+      call slabavg(u0,ih,u0av)
+      call slabavg(v0,ih,v0av)
+      call slabavg(thl0,ih,thl0av)
+      call slabavg(qt0,ih,qt0av)
+      call slabavg(ql0,ih,ql0av)
       do n=1,nsv
-        call slabavg_gpu(sv0(:,:,:,n),ih,sv0av(:,n))
+        call slabavg(sv0(:,:,:,n),ih,sv0av(:,n))
       end do
     else
       call slabavg(u0,fluid_mask,ih,u0av)
