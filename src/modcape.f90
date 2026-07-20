@@ -27,7 +27,7 @@
 module modcape
   use modprecision, only : field_r
   use modglobal, only : longint,kmax
-  use modlogging, only: finish
+  use modlogging, only: finish, warning
 
 implicit none
 private
@@ -136,6 +136,7 @@ contains
     use modgpu, only: update_host
 #endif
     implicit none
+    character(len=*), parameter :: routine = modname//'/docape'
 
     real, allocatable :: dcape(:,:),dscape(:,:),dcin(:,:),dscin(:,:),dcintot(:,:),capemax(:,:),&
     cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),&
@@ -308,10 +309,11 @@ contains
             esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
             qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
             thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt200400(i,j)-qsatur,0.)
+            if (qt200400(i,j) < qsatur) exit ! if below saturation, don't iterate
 
             ttry=Tnr-0.002
             ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
-            tlonr=int((Tnr-150.)*5.)
+            tlonr=int((ttry-150.)*5.)
             thinr=tlonr+1
             tlo=ttab(tlonr)
             thi=ttab(thinr)
@@ -321,6 +323,10 @@ contains
             thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt200400(i,j)-qsatur,0.)
 
             Tnr = Tnr - (thlguess-thl200400(i,j))/((thlguess-thlguessmin)*500.)
+            if (niter > 100) then
+               call warning(routine, 'thermodynamics at surface not converging (', i,  j, ') ', thl200400(i,j), qt200400(i,j))
+               exit
+            end if
           enddo
         nitert =max(nitert,niter)
         niter = 0
@@ -359,10 +365,11 @@ contains
             esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
             qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
             thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt200400(i,j)-qsatur,0.)
+            if (qt200400(i,j) < qsatur) exit ! if below saturation, don't iterate
 
             ttry=Tnr-0.002
             ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
-            tlonr=int((Tnr-150.)*5.)
+            tlonr=int((ttry-150.)*5.)
             thinr=tlonr+1
             tlo=ttab(tlonr)
             thi=ttab(thinr)
@@ -372,6 +379,11 @@ contains
             thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt200400(i,j)-qsatur,0.)
 
             Tnr = Tnr - (thlguess-thl200400(i,j))/((thlguess-thlguessmin)*500.)
+
+            if (niter > 100) then
+               call warning(routine, 'thermodynamics not converging (', i, j, k,') ', thl200400(i,j),  qt200400(i,j), Tnr, Tnr_old, qlma(i,j,k-1))
+               exit
+            end if
           enddo
         nitert =max(nitert,niter)
         niter = 0

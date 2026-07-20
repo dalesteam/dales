@@ -377,7 +377,7 @@ contains
     integer           :: i
     integer           :: val
     character(len=32) :: cloc
-    character(len=11) :: cval
+    character(len=20) :: cval
 
     if (present(stop_if_invalid)) stop_if_invalid_ = stop_if_invalid
 
@@ -413,7 +413,7 @@ contains
     integer           :: i
     real(real32)      :: val
     character(len=32) :: cloc
-    character(len=11) :: cval
+    character(len=20) :: cval
 
     if (present(stop_if_invalid)) stop_if_invalid_ = stop_if_invalid
 
@@ -456,7 +456,7 @@ contains
     integer           :: i
     real(real64)      :: val
     character(len=32) :: cloc
-    character(len=11) :: cval
+    character(len=20) :: cval
 
     if (present(stop_if_invalid)) stop_if_invalid_ = stop_if_invalid
 
@@ -498,7 +498,7 @@ contains
     integer           :: i, j
     integer           :: val
     character(len=32) :: cloc
-    character(len=11) :: cval
+    character(len=20) :: cval
 
     if (present(stop_if_invalid)) stop_if_invalid_ = stop_if_invalid
 
@@ -536,7 +536,7 @@ contains
     integer           :: i, j
     real(real32)      :: val
     character(len=32) :: cloc
-    character(len=11) :: cval
+    character(len=20) :: cval
 
     if (present(stop_if_invalid)) stop_if_invalid_ = stop_if_invalid
   
@@ -581,7 +581,7 @@ contains
     integer           :: i, j
     real(real64)      :: val
     character(len=32) :: cloc
-    character(len=11) :: cval
+    character(len=20) :: cval
 
     if (present(stop_if_invalid)) stop_if_invalid_ = stop_if_invalid
 
@@ -628,7 +628,7 @@ contains
     integer           :: i, j, k
     integer           :: val
     character(len=32) :: cloc
-    character(len=11) :: cval
+    character(len=20) :: cval
 
     if (present(stop_if_invalid)) stop_if_invalid_ = stop_if_invalid
     if (present(dump_if_invalid)) dump_if_invalid_ = dump_if_invalid
@@ -675,7 +675,7 @@ contains
     integer           :: i, j, k
     real(real32)      :: val
     character(len=32) :: cloc
-    character(len=11) :: cval
+    character(len=20) :: cval
 
     if (present(stop_if_invalid)) stop_if_invalid_ = stop_if_invalid
     if (present(dump_if_invalid)) dump_if_invalid_ = dump_if_invalid
@@ -729,7 +729,7 @@ contains
     integer      :: i, j, k
     real(real64) :: val
     character(len=32) :: cloc
-    character(len=11) :: cval
+    character(len=20) :: cval
 
     if (present(stop_if_invalid)) stop_if_invalid_ = stop_if_invalid
     if (present(dump_if_invalid)) dump_if_invalid_ = dump_if_invalid
