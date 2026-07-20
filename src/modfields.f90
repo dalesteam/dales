@@ -66,7 +66,9 @@ save
 
   ! Cloud edge variables
   real(field_r), allocatable :: ql0(:,:,:)  !<   liquid water content
+  real(field_r), allocatable :: qv0(:,:,:)  !<   water vapor content (= qt0 - ql0)
   real(field_r), allocatable, target :: tmp0(:,:,:) !<   temperature at full level
+  real(field_r), allocatable, target :: dse0(:,:,:) !<   dry static energy at full level (s = cp*T + g*z)
   real(field_r), allocatable :: thv0h(:,:,:)!<   theta_v at half level
 
   real(field_r), allocatable :: whls(:)                       !<   large scale vert velocity at half levels
@@ -176,8 +178,10 @@ subroutine initfields
 
     ! Allocation of diagnostic variables
     allocate(ql0   (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(qv0   (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(ql0h  (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(tmp0  (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(dse0  (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thv0h (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(dthvdz(2-ih:i1+ih,2-jh:j1+jh,k1))
 
@@ -242,7 +246,7 @@ subroutine initfields
     e12m=0.;e120=0.;e12p=0.
 
     rhobf=0.;rhobh=0.;drhobdzf=0.;drhobdzh=0.
-    ql0=0.;tmp0=0.;ql0h=0.;thv0h=0.;thl0h=0.;qt0h=0.
+    ql0=0.;tmp0=0.;ql0h=0.;thv0h=0.;thl0h=0.;qt0h=0.;dse0=0.;qv0=0.
     presf=0.;presh=0.;exnf=0.;exnh=0.;thvh=0.;thvf=0.;rhof=0.    ! OG
     qt0av=0.;ql0av=0.;thl0av=0.;u0av=0.;v0av=0.;
     thlprof=0.;qtprof=0.;uprof=0.;vprof=0.;e12prof=0.;
@@ -261,7 +265,7 @@ subroutine initfields
     !$acc enter data copyin(um, u0, up, vm, v0, vp, wm, w0, wp, &
     !$acc&                  thlm, thl0, thlp, qtm, qt0, qtp, &
     !$acc&                  e12m, e120, e12p, &
-    !$acc&                  rhobf, rhobh, ql0, tmp0, ql0h, thv0h, &
+    !$acc&                  rhobf, rhobh, ql0, tmp0, dse0,qv0,ql0h, thv0h, &
     !$acc&                  thl0h, qt0h, presf, presh, exnf, exnh, &
     !$acc&                  thvh, thvf, rhof, qt0av, ql0av, thl0av, &
     !$acc&                  u0av, v0av, ug, vg, dpdxl, dpdyl, &
@@ -278,7 +282,7 @@ subroutine initfields
     !$acc exit data delete(um, u0, up, vm, v0, vp, wm, w0, wp, &
     !$acc&                 thlm, thl0, thlp, qtm, qt0, qtp, &
     !$acc&                 e12m, e120, e12p, &
-    !$acc&                 rhobf, rhobh, ql0, tmp0, ql0h, thv0h, &
+    !$acc&                 rhobf, rhobh, ql0, tmp0, ql0h, qv0,dse0,thv0h, &
     !$acc&                 thl0h, qt0h, presf, presh, exnf, exnh, &
     !$acc&                 thvh, thvf, rhof, qt0av, ql0av, thl0av, &
     !$acc&                 u0av, v0av, ug, vg, dpdxl, dpdyl, &
@@ -291,7 +295,7 @@ subroutine initfields
     deallocate(up,vp,wp,thlp,e12p,qtp)
     deallocate(rhobf,rhobh)
     deallocate(drhobdzf,drhobdzh)
-    deallocate(ql0,tmp0,ql0h,thv0h,dthvdz,whls,presf,presh,initial_presf,initial_presh,exnf,exnh,thvh,thvf,rhof,qt0av,ql0av,thl0av,u0av,v0av)
+    deallocate(ql0,tmp0,dse0,qv0,ql0h,thv0h,dthvdz,whls,presf,presh,initial_presf,initial_presh,exnf,exnh,thvh,thvf,rhof,qt0av,ql0av,thl0av,u0av,v0av)
     deallocate(ug,vg,dpdxl,dpdyl,wfls)
     deallocate(dthldxls,dthldyls,dthldtls,dqtdxls,dqtdyls,dqtdtls)
     deallocate(dudxls,dudyls,dudtls,dvdxls,dvdyls,dvdtls)

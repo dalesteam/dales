@@ -57,7 +57,9 @@ save
   logical :: lbuoy = .true.      !< switch for saving the buoy field
   logical :: lcli = .false.       !< switch for saving the cli field
   logical :: lclw = .false.       !< switch for saving the clw field
-  logical :: lta = .false.        !< switch for saving the ta field
+  logical :: lta = .true.         !< switch for saving the ta field
+  logical :: lqv0 = .true.        !< switch for saving the qv0 field
+  logical :: ldse0 = .true.       !< switch for saving the dse0 field
   logical :: lplw = .false.       !< switch for saving the plw field
   logical :: lpli = .false.       !< switch for saving the pli field
   logical :: lhus = .false.       !< switch for saving the hus field
@@ -72,7 +74,8 @@ save
 
   ! indices for the variables in the netCDF vars array
   integer :: ind, ind_u=-1, ind_v=-1, ind_w=-1, ind_qt=-1, ind_ql=-1, ind_thl=-1, ind_buoy=-1, ind_sv(100)=-1
-  integer :: ind_cli=-1, ind_clw=-1, ind_ta=-1, ind_plw=-1, ind_pli=-1, ind_hus=-1, ind_hur=-1, ind_tntr=-1
+  integer :: ind_cli=-1, ind_clw=-1, ind_ta=-1, ind_qv0=-1, ind_dse0=-1
+  integer :: ind_plw=-1, ind_pli=-1, ind_hus=-1, ind_hur=-1, ind_tntr=-1
   integer :: ind_tntrs=-1, ind_tntrl=-1, ind_e12=-1, ind_ekh=-1, ind_ekm=-1
 
 contains
@@ -94,7 +97,7 @@ contains
 
     namelist/NAMFIELDDUMP/ &
          dtav,lfielddump,ldiracc,lbinary,klow,khigh,ncoarse, tmin, tmax,&
-         lu, lv, lw, lqt, lql, lthl, lbuoy, lcli, lclw, lta, lplw, lpli, lhus, lhur, ltntr, ltntrs, ltntrl, le12, lekh, lekm,  lsv
+          lu, lv, lw, lqt, lql, lthl, lbuoy, lcli, lclw, lta, lqv0, ldse0, lplw, lpli, lhus, lhur, ltntr, ltntrs, ltntrl, le12, lekh, lekm,  lsv
 
     dtav=dtav_glob
     klow=1
@@ -141,6 +144,8 @@ contains
     call D_MPI_BCAST(lcli        ,1,0,comm3d,ierr)
     call D_MPI_BCAST(lclw        ,1,0,comm3d,ierr)
     call D_MPI_BCAST(lta         ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lqv0        ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(ldse0       ,1,0,comm3d,ierr)
     call D_MPI_BCAST(lplw        ,1,0,comm3d,ierr)
     call D_MPI_BCAST(lpli        ,1,0,comm3d,ierr)
     call D_MPI_BCAST(lhus        ,1,0,comm3d,ierr)
@@ -168,7 +173,7 @@ contains
     if (lnetcdf) then
       write(fname,'(A,i3.3,A,i3.3,A)') 'fielddump.', myidx, '.', myidy, '.xxx.nc'
       fname(19:21) = cexpnr
-      nvar = 17+nsv ! maximum number of variables
+      nvar = 22+nsv ! maximum number of variables
       allocate(ncname(nvar,4))
 
       call nctiminfo(tncname(1,:))
@@ -222,6 +227,16 @@ contains
          ind_ta = ind
          ind = ind + 1
          call ncinfo(ncname(ind_ta,    :),'ta','air temperature ','K','tttt') ! new
+      end if
+      if (lqv0) then
+        ind_qv0 = ind
+        ind = ind + 1
+        call ncinfo(ncname(ind_qv0,   :),'qv0','water vapor specific humidity','kg/kg','tttt')
+      end if
+      if (ldse0) then
+        ind_dse0 = ind
+        ind = ind + 1
+        call ncinfo(ncname(ind_dse0,  :),'dse0','dry static energy','J/kg','tttt')
       end if
       if (lplw) then
          ind_plw = ind
@@ -303,7 +318,7 @@ contains
 !> if lbinary, collect data to truncated (2 byte) integers, and write them to file
 !> if lnetcdf, write to netCDF (as float32).
   subroutine fielddump
-    use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,thvh,tmp0,rhof,exnf,presf,e120
+    use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,thvh,tmp0,qv0,dse0,rhof,exnf,presf,e120
     use modsubgriddata, only: ekh,ekm
     use modsurfdata,only : thls,qts,thvs
     use modglobal, only : imax,i1,ih,jmax,j1,jh,k1,rk3step,dzf, &
@@ -349,6 +364,9 @@ contains
     !$acc update self(qt0) if(lqt) async
     !$acc update self(ql0) if(lql) async
     !$acc update self(thl0) if(lthl) async
+    !$acc update self(tmp0) if(lta .or. lcli .or. lclw .or. lplw .or. lpli .or. lhur) async
+    !$acc update self(qv0) if(lqv0) async
+    !$acc update self(dse0) if(ldse0) async
     !$acc update self(sv0) if(any(lsv)) async
     !$acc update self(thv0h, thvh) if(lbuoy) async
     !$acc update self(e120) if(le12) async
@@ -499,6 +517,8 @@ contains
          max(0._field_r,min(1._field_r,(tmp0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)-tdn)/(tup-tdn)))
 
     if (lnetcdf .and. lta) vars(:,:,:,ind_ta) = tmp0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+    if (lnetcdf .and. lqv0) vars(:,:,:,ind_qv0) = qv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+    if (lnetcdf .and. ldse0) vars(:,:,:,ind_dse0) = dse0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
 
     ! liquid and ice precip
     ! assuming simpleice is used
