@@ -29,22 +29,15 @@ module modlsm
 
     public :: initlsm, lsm, exitlsm, init_lsm_tiles
 
-#ifdef DALES_GPU
     real :: rhocp_i(1), rholv_i(1)
-#endif
+    !$acc declare create(rhocp_i, rholv_i)
+    !$omp declare target (rhocp_i, rholv_i)
 
 contains
 
 subroutine lsm
   use modglobal, only : ldrydep, ntrun
   use modtimer,  only : timer_tic, timer_toc
-  ! XXX: delete v
-  use modsurfdata, only : &
-       H, LE, G0, tskin, qskin, thlflux, qtflux, dthldz, dqtdz, &
-       dudz, dvdz, ustar, obl, cliq, ra, rsveg, rssoil, phiw, &
-       lambda, lambdah, tsoil, lambdas, gammas, lambdash, gammash, &
-       wl, wlm, phiwm
-
   use modslurb, only : slurb_radiation_model, slurb_canyon_model, slurb_energy_balance_model, slurb_set_previous_timestep, calc_canyon_resistances, calc_urban_resistances, slurb_urban_aggregation_model, slurb_update_external_vars, enable_slurb
   implicit none
 
@@ -215,7 +208,7 @@ end subroutine calc_tile_fractions
 ! Calculate changes in the liquid water reservoir
 !
 subroutine calc_liquid_reservoir
-    use modglobal,    only : rk3step, rdt, i1, j1, rhow, rlv
+    use modglobal,    only : rk3step, rdt, i1, j1, i2, j2, rhow, rlv
     use modsurfdata,  only : wl, wlm
     use modmicrodata, only : imicro, precep
     use modfields,    only : rhof
@@ -230,17 +223,20 @@ subroutine calc_liquid_reservoir
 
     rk3coef = rdt / (4. - dble(rk3step))
     if(rk3step == 1) then
-       !$acc kernels default(present) async(1)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-       wlm(:,:) = wl(:,:)
-       !$acc end kernels
-!!$omp end target
+       !$acc parallel loop collapse(2) default(present) async(1)
+       !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+       !$omp defaultmap(present:allocatable)
+       do j=1,j2
+          do i=1,i2
+             wlm(i,j) = wl(i,j)
+          end do
+       end do
     endif
 
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    ! BUG: remove defaultmap as precep array might be unallocated
+    !$omp target teams loop collapse(2) &
+    !$omp map(present: wl,wlm,wl_max,tile,rhof,cveg,throughfall,interception)
     do j=2, j1
         do i=2, i1
             wl_tend_dew = 0
@@ -302,7 +298,7 @@ end subroutine calc_liquid_reservoir
 ! Calculate root fraction weighted mean soil water content
 !
 subroutine calc_theta_mean(tile)
-    use modglobal,   only : i1, j1
+    use modglobal,   only : i1, j1, i2, j2
     use modsurfdata, only : phiw
     implicit none
 
@@ -310,17 +306,19 @@ subroutine calc_theta_mean(tile)
     integer :: i, j, k, si
     real :: theta_lim
 
-    !$acc kernels default(present) async(1)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-    tile%phiw_mean(:,:) = 0.
-    !$acc end kernels
-!!$omp end target
+    !$acc parallel loop collapse(2) default(present) async(1)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
+    do j=1,j2
+       do i=1,i2
+          tile%phiw_mean(i,j) = 0.
+       end do
+    end do
 
     do k=1, kmax_soil
         !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+        !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+        !$omp defaultmap(present:allocatable)
         do j=2,j1
             do i=2,i1
                 si = soil_index(i,j,k)
@@ -356,8 +354,8 @@ subroutine calc_canopy_resistance_js
     k = kmax_soil
 
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
         do i=2,i1
             ! si = soil_index(i,j,k)
@@ -370,8 +368,8 @@ subroutine calc_canopy_resistance_js
     enddo
 
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
         do i=2,i1
 
@@ -387,8 +385,8 @@ subroutine calc_canopy_resistance_js
     enddo
 
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
         do i=2,i1
 
@@ -408,8 +406,8 @@ subroutine calc_canopy_resistance_js
     enddo
 
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
         do i=2,i1
             si = soil_index(i,j,k)
@@ -423,8 +421,8 @@ subroutine calc_canopy_resistance_js
     enddo
 
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
         do i=2,i1
             ! Calculate canopy and soil resistance
@@ -850,8 +848,8 @@ subroutine calc_stability
   ! Calculate properties shared by all tiles:
   ! Absolute wind speed difference, and virtual potential temperature atmosphere
   !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+  !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+  !$omp defaultmap(present:allocatable)
   do j=2,j1
       do i=2,i1
           du = 0.5*(u0(i,j,1) + u0(i+1,j,1)) + cu
@@ -881,8 +879,8 @@ subroutine calc_obuk_ustar_ra(tile)
     real :: thvs
 
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
         do i=2,i1
             !if (tile%frac(i,j) > 0) then
@@ -904,8 +902,8 @@ subroutine calc_obuk_ustar_ra(tile)
     end do
 
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
         do i=2,i1
             !if (tile%frac(i,j) > 0) then
@@ -933,21 +931,17 @@ subroutine calc_tile_bcs(tile)
     integer :: i, j
     real :: Ts, esats, qsats, desatdTs, dqsatdTs, &
         rs_lim, fH, fLE, fG, num, denom, Ta, qsat_new, Qnet
-#ifndef DALES_GPU
-    real :: rhocp_i(1), rholv_i(1)
-#endif
 
     !$acc kernels default(present) async(1)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+    !$omp target defaultmap(present:aggregate)
     rhocp_i(1) = 1. / (rhof(1) * cp)
     rholv_i(1) = 1. / (rhof(1) * rlv)
     !$acc end kernels
-!!$omp end target
+    !$omp end target
 
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2, j1
         do i=2, i1
            ! if (tile%frac(i,j) > 0) then
@@ -1028,8 +1022,8 @@ subroutine calc_water_bcs(tile)
     real :: esats
 
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2, j1
       do i=2, i1
         !if (tile%frac(i,j) > 0) then
@@ -1084,18 +1078,14 @@ subroutine calc_bulk_bcs
 
     integer :: i, j
     real :: ucu, vcv, bflux
-#ifndef DALES_GPU
-    real :: rhocp_i(1), rholv_i(1)
-#endif
     real, pointer :: ustar_3D(:,:,:)
 
     !$acc kernels default(present) async(1)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+    !$omp target defaultmap(present:aggregate)
     rhocp_i(1) = 1. / (rhof(1) * cp)
     rholv_i(1) = 1. / (rhof(1) * rlv)
     !$acc end kernels
-!!$omp end target
+    !$omp end target
 
     ! Calculate surface temperature for each tile, and calculate
     ! surface fluxes (H, LE, G0, wthl, wqt) and values (thlskin, qtskin)
@@ -1109,8 +1099,8 @@ subroutine calc_bulk_bcs
     enddo
 
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
         do i=2,i1
             H(i,j) = 0
@@ -1126,13 +1116,14 @@ subroutine calc_bulk_bcs
         enddo
     enddo
 
+    if (tile(ilu)%lunum == lu_slb) then
+
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
         do i=2,i1
             do ilu=1,nlu
-                if (tile(ilu)%lushort == "slb") then
                     ! we treat the urban canyon and roof separately. SHF and LE have been aggregated in the urban tile already.
                     ! we calculate thlskin/qtskin in slurb as the weighted average of roof and canyon skin temperature/humidity, which
                     ! are each calculated like an individual LSM tile is calculated, with their own resistances.
@@ -1145,7 +1136,18 @@ subroutine calc_bulk_bcs
                     tskin(i,j)  = tskin(i,j) + fraction_slurb(i,j) * slurb_tile%thlskin(i,j)
                     qskin(i,j)  = qskin(i,j) + fraction_slurb(i,j) * slurb_tile%qtskin(i,j)
                     albedo(i,j) = albedo(i,j) + fraction_slurb(i,j) * slurb_tile%albedo_urb(i,j)
-                else
+            enddo
+        enddo
+    enddo
+
+    else
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
+    do j=2,j1
+        do i=2,i1
+            do ilu=1,nlu
                     H(i,j)      = H(i,j)     + tile(ilu)%frac(i,j) * tile(ilu)%H(i,j)
                     LE(i,j)     = LE(i,j)    + tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j)
                     G0(i,j)     = G0(i,j)    + tile(ilu)%frac(i,j) * tile(ilu)%G(i,j)
@@ -1154,15 +1156,15 @@ subroutine calc_bulk_bcs
                     qskin(i,j)  = qskin(i,j) + tile(ilu)%frac(i,j) * tile(ilu)%qtskin(i,j)
                     Qnet(i,j)   = Qnet(i,j)  + tile(ilu)%frac(i,j) * tile(ilu)%Qnet(i,j)
                     albedo(i,j) = albedo(i,j) + tile(ilu)%frac(i,j) * tile(ilu)%albedo(i,j)
-                endif
-           enddo
+            enddo
         enddo
     enddo
+    endif
 
     if (enable_slurb) then
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
         do i=2,i1
             ! we subtract the urban contribution to the skin temperature, to add the urban radiative temperature instead.
@@ -1171,8 +1173,8 @@ subroutine calc_bulk_bcs
     enddo
     end if
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
         do i=2,i1
 
@@ -1184,8 +1186,8 @@ subroutine calc_bulk_bcs
     enddo
 
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
         do i=2,i1
 
@@ -1202,8 +1204,8 @@ subroutine calc_bulk_bcs
     enddo
 
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
         do i=2,i1
 
@@ -1218,8 +1220,8 @@ subroutine calc_bulk_bcs
     enddo
 
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
         do i=2,i1
 
@@ -1236,8 +1238,8 @@ subroutine calc_bulk_bcs
     enddo
 
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
         do i=2,i1
 
@@ -1307,8 +1309,8 @@ subroutine interpolate_soil(fieldh, field, iinterp, acc)
     if (iinterp == iinterp_amean) then
         do k=2,kmax_soil
             !$acc parallel loop collapse(2) default(present) async(1) if(acc)
-!!$omp target teams loop collapse(2) if(acc)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+            !$omp target teams loop collapse(2) if(acc)&
+            !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
             do j=2,j1
                 do i=2,i1
                     fieldh(i,j,k) = 0.5*(field(i,j,k-1) + field(i,j,k))
@@ -1318,8 +1320,8 @@ subroutine interpolate_soil(fieldh, field, iinterp, acc)
     else if (iinterp == iinterp_gmean) then
         do k=2,kmax_soil
             !$acc parallel loop collapse(2) default(present) async(1) if(acc)
-!!$omp target teams loop collapse(2) if(acc)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+            !$omp target teams loop collapse(2) if(acc)&
+            !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
             do j=2,j1
                 do i=2,i1
                     fieldh(i,j,k) = sqrt(field(i,j,k-1) * field(i,j,k))
@@ -1329,8 +1331,8 @@ subroutine interpolate_soil(fieldh, field, iinterp, acc)
     else if (iinterp == iinterp_hmean) then
         do k=2,kmax_soil
             !$acc parallel loop collapse(2) default(present) async(1) if(acc)
-!!$omp target teams loop collapse(2) if(acc)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+            !$omp target teams loop collapse(2) if(acc)&
+            !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
             do j=2,j1
                 do i=2,i1
                     fieldh(i,j,k) = ((dz_soil(k-1)+dz_soil(k))*field(i,j,k-1)*field(i,j,k)) / &
@@ -1341,8 +1343,8 @@ subroutine interpolate_soil(fieldh, field, iinterp, acc)
     else if (iinterp == iinterp_max) then
         do k=2,kmax_soil
             !$acc parallel loop collapse(2) default(present) async(1) if(acc)
-!!$omp target teams loop collapse(2) if(acc)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+            !$omp target teams loop collapse(2) if(acc)&
+            !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
             do j=2,j1
                 do i=2,i1
                     fieldh(i,j,k) = max(field(i,j,k-1), field(i,j,k))
@@ -1369,8 +1371,8 @@ subroutine calc_thermal_properties
     ! Calculate diffusivity heat
     do k=1,kmax_soil
         !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+        !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+        !$omp defaultmap(present:allocatable)
         do j=2,j1
             do i=2,i1
                 si = soil_index(i,j,k)
@@ -1402,7 +1404,7 @@ end subroutine calc_thermal_properties
 ! using van Genuchten parameterisation.
 !
 subroutine calc_hydraulic_properties
-    use modglobal, only : i1, j1
+    use modglobal, only : i1, j1, i2, j2
     use modsurfdata, only : phiw, lambdas, lambdash, gammas, gammash
     implicit none
 
@@ -1412,8 +1414,8 @@ subroutine calc_hydraulic_properties
     ! Calculate diffusivity and conductivity soil moisture
     do k=1,kmax_soil
         !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+        !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+        !$omp defaultmap(present:allocatable)
         do j=2,j1
             do i=2,i1
                 si = soil_index(i,j,k)
@@ -1446,19 +1448,23 @@ subroutine calc_hydraulic_properties
 
     ! Optionally, set free drainage bottom BC
     if (lfreedrainage) then
-        !$acc kernels default(present) async(1)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-        gammash(:,:,1) = gammash(:,:,2)
-        !$acc end kernels
-!!$omp end target
+        !$acc parallel loop collapse(2) default(present) async(1)
+        !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+        !$omp defaultmap(present:allocatable)
+        do j=1,j2
+           do i=1,i2
+              gammash(i,j,1) = gammash(i,j,2)
+           end do
+        end do
     else
-        !$acc kernels default(present) async(1)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-        gammash(:,:,1) = 0.
-        !$acc end kernels
-!!$omp end target
+        !$acc parallel loop collapse(2) default(present) async(1)
+        !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+        !$omp defaultmap(present:allocatable)
+        do j=1,j2
+           do i=1,i2
+              gammash(i,j,1) = 0.
+           end do
+        end do
     end if
 
 end subroutine calc_hydraulic_properties
@@ -1467,7 +1473,7 @@ end subroutine calc_hydraulic_properties
 ! Calculate soil moisture tendency from root water extraction
 !
 subroutine calc_root_water_extraction
-    use modglobal, only : i1, j1, rhow, rlv
+    use modglobal, only : i1, j1, i2, j2, rhow, rlv
     use modsurfdata, only : phiw
     implicit none
 
@@ -1475,19 +1481,23 @@ subroutine calc_root_water_extraction
     real :: phiw_rf, phi_frac, LE
     real, parameter :: fac = 1./(rhow * rlv)
 
-    !$acc kernels default(present) async(1)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-    phiw_source = 0
-    !$acc end kernels
-!!$omp end target
+    !$acc parallel loop collapse(3) default(present) async(1)
+    !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
+    do k=1,kmax_soil
+       do j=1,j2
+          do i=1,i2
+             phiw_source(i,j,k) = 0
+          end do
+       end do
+    end do
     do ilu=1,nlu
       if ((.not. tile(ilu)%lveg).or.(tile(ilu)%lushort == "slb")) then
           cycle
       else
         !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+        !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+        !$omp defaultmap(present:allocatable)
         do j=2, j1
           do i=2, i1
               LE = tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j)
@@ -1515,7 +1525,7 @@ end subroutine calc_root_water_extraction
 ! Top flux = G0/rho_C, bottom flux = zero.
 !
 subroutine integrate_t_soil
-    use modglobal, only : rk3step, rdt, i1, j1
+    use modglobal, only : rk3step, rdt, i1, j1, i2, j2
     use modsurfdata, only : tsoil, tsoilm, lambdah, G0
 
     implicit none
@@ -1524,19 +1534,23 @@ subroutine integrate_t_soil
 
     rk3coef = rdt / (4. - dble(rk3step))
     if(rk3step == 1) then
-       !$acc kernels default(present) async(1)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-       tsoilm(:,:,:) = tsoil(:,:,:)
-       !$acc end kernels
-!!$omp end target
+       !$acc parallel loop collapse(3) default(present) async(1)
+       !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+       !$omp defaultmap(present:allocatable)
+       do k=1,kmax_soil
+          do j=1,j2
+             do i=1,i2
+                tsoilm(i,j,k) = tsoil(i,j,k)
+             end do
+          end do
+       end do
     endif
 
     ! Top soil layer
     k = kmax_soil
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
         do i=2,i1
             si = soil_index(i,j,k)
@@ -1550,8 +1564,8 @@ subroutine integrate_t_soil
     ! Bottom soil layer
     k = 1
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
         do i=2,i1
             tend = ((lambdah(i,j,k+1) * (tsoil(i,j,k+1) - tsoil(i,j,k)) * dzhi_soil(k+1)))*dzi_soil(k)
@@ -1563,8 +1577,8 @@ subroutine integrate_t_soil
     ! Interior
     do k=2,kmax_soil-1
         !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+        !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+        !$omp defaultmap(present:allocatable)
         do j=2,j1
             do i=2,i1
                 tend = ((lambdah(i,j,k+1) * (tsoil(i,j,k+1) - tsoil(i,j,k  )) * dzhi_soil(k+1)) &
@@ -1582,7 +1596,7 @@ end subroutine integrate_t_soil
 ! including a source term for root water extraction.
 !
 subroutine integrate_theta_soil
-    use modglobal, only : rk3step, rdt, i1, j1, rhow, rlv
+    use modglobal, only : rk3step, rdt, i1, j1, i2, j2, rhow, rlv
     use modsurfdata, only : phiw, phiwm, lambdash, gammash
     use modmpi, only : myidx, myidy
     use modchecksim, only : check_array, lstop
@@ -1592,12 +1606,16 @@ subroutine integrate_theta_soil
 
     rk3coef = rdt / (4. - dble(rk3step))
     if(rk3step == 1) then
-       !$acc kernels default(present) async(1)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-       phiwm(:,:,:) = phiw(:,:,:)
-       !$acc end kernels
-!!$omp end target
+       !$acc parallel loop collapse(3) default(present) async(1)
+       !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+       !$omp defaultmap(present:allocatable)
+       do k=1,kmax_soil
+          do j=1,j2
+             do i=1,i2
+                phiwm(i,j,k) = phiw(i,j,k)
+             end do
+          end do
+       end do
     endif
 
     fac = 1./(rhow * rlv)
@@ -1605,8 +1623,8 @@ subroutine integrate_theta_soil
      ! Top soil layer
     k = kmax_soil
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
         do i=2,i1
           do ilu=1,nlu
@@ -1623,8 +1641,8 @@ subroutine integrate_theta_soil
     ! Bottom soil layer
     k = 1
     !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
         do i=2,i1
             tend = ((lambdash(i,j,k+1) * (phiw(i,j,k+1) - phiw(i,j,k)) * dzhi_soil(k+1)))*dzi_soil(k) &
@@ -1637,8 +1655,8 @@ subroutine integrate_theta_soil
     ! Interior
     do k=2,kmax_soil-1
         !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+        !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+        !$omp defaultmap(present:allocatable)
         do j=2,j1
             do i=2,i1
                 tend = ((lambdash(i,j,k+1) * (phiw(i,j,k+1) - phiw(i,j,k  )) * dzhi_soil(k+1)) &
@@ -1652,7 +1670,7 @@ subroutine integrate_theta_soil
 
     ! Range check of phiw
     !$acc update host(phiw) wait(1)
-!!$omp target update from(phiw)
+    !$omp target update from(phiw)
     !$acc wait(1)
     call check_array(phiw, "phiw", "integrate_theta_soil", [0.0, 1.0],stop_if_invalid=lstop, dump_if_invalid=.false.)
 
@@ -1751,6 +1769,8 @@ subroutine initlsm
           tile(ilu)%lunum = lu_bs
        else if (trim(tile(ilu)%lushort) == 'brn') then
           tile(ilu)%lunum = lu_brn
+       else if (trim(tile(ilu)%lushort) == 'slb') then
+          tile(ilu)%lunum = lu_slb
        else
           tile(ilu)%lunum = lu_default
        endif
@@ -1760,217 +1780,181 @@ subroutine initlsm
 
 end subroutine initlsm
 
-subroutine allocate_gpu_if_nonempty(a)
-  real, allocatable :: a(..) ! assumed-rank
-  integer :: l1,u1,l2,u2,l3,u3
-
-  select rank(a)
-
-  rank (1)
-  l1 = lbound(a,1)
-  u1 = ubound(a,1)
-  if (l1 <= u1) then
-     !$acc enter data copyin(a)
-     !$omp target enter data map(to:a)
-  endif
-
-  rank (2)
-  l1 = lbound(a,1)
-  l2 = lbound(a,2)
-  u1 = ubound(a,1)
-  u2 = ubound(a,2)
-  if (l1 <= u1 .and. l2 <= u2) then
-     !$acc enter data copyin(a)
-     !$omp target enter data map(to:a)
-  endif
-
-  rank (3)
-  l1 = lbound(a,1)
-  l2 = lbound(a,2)
-  l3 = lbound(a,3)
-  u1 = ubound(a,1)
-  u2 = ubound(a,2)
-  u3 = ubound(a,3)
-  if (l1 <= u1 .and. l2 <= u2 .and. l3 <= u3) then
-     !$acc enter data copyin(a)
-     !$omp target enter data map(to:a)
-  endif
-
-end select
-
-end subroutine allocate_gpu_if_nonempty
-
 subroutine allocate_on_device()
 
-  use modsurfdata, only : tsoil, tsoilm, phiw, phiwm, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah, lambdas, gammas, lambdash, gammash, wl, wlm
+  use modsurfdata, only : tsoil, tsoilm, phiw, phiwm, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah, lambdas, gammas, lambdash, gammash, wl, wlm, qnet
 
   implicit none
 
   integer :: ilu
 
-  call allocate_gpu_if_nonempty(g0)
-  call allocate_gpu_if_nonempty(H)
-  call allocate_gpu_if_nonempty(LE)
+  !$acc enter data copyin(g0)
+  !$omp target enter data map(to:g0)
+  !$acc enter data copyin(H)
+  !$omp target enter data map(to:H)
+  !$acc enter data copyin(LE)
+  !$omp target enter data map(to:LE)
   !$acc enter data copyin(cliq)
-!$omp target enter data map(to:cliq)
+  !$omp target enter data map(to:cliq)
   !$acc enter data copyin(cveg)
-!$omp target enter data map(to:cveg)
+  !$omp target enter data map(to:cveg)
   !$acc enter data copyin(du_tot)
-!$omp target enter data map(to:du_tot)
+  !$omp target enter data map(to:du_tot)
   !$acc enter data copyin(dz_soil)
-!$omp target enter data map(to:dz_soil)
+  !$omp target enter data map(to:dz_soil)
   !$acc enter data copyin(dzhi_soil)
-!$omp target enter data map(to:dzhi_soil)
+  !$omp target enter data map(to:dzhi_soil)
   !$acc enter data copyin(dzi_soil)
-!$omp target enter data map(to:dzi_soil)
+  !$omp target enter data map(to:dzi_soil)
   !$acc enter data copyin(f1)
-!$omp target enter data map(to:f1)
+  !$omp target enter data map(to:f1)
   !$acc enter data copyin(f2b)
-!$omp target enter data map(to:f2b)
+  !$omp target enter data map(to:f2b)
   !$acc enter data copyin(gamma_t_dry)
-!$omp target enter data map(to:gamma_t_dry)
+  !$omp target enter data map(to:gamma_t_dry)
   !$acc enter data copyin(gamma_theta_max)
-!$omp target enter data map(to:gamma_theta_max)
+  !$omp target enter data map(to:gamma_theta_max)
   !$acc enter data copyin(gamma_theta_min)
-!$omp target enter data map(to:gamma_theta_min)
+  !$omp target enter data map(to:gamma_theta_min)
   !$acc enter data copyin(gamma_theta_sat)
-!$omp target enter data map(to:gamma_theta_sat)
+  !$omp target enter data map(to:gamma_theta_sat)
   !$acc enter data copyin(gammas)
-!$omp target enter data map(to:gammas)
+  !$omp target enter data map(to:gammas)
   !$acc enter data copyin(gammash)
-!$omp target enter data map(to:gammash)
+  !$omp target enter data map(to:gammash)
   !$acc enter data copyin(interception)
-!$omp target enter data map(to:interception)
+  !$omp target enter data map(to:interception)
   !$acc enter data copyin(lambda)
-!$omp target enter data map(to:lambda)
+  !$omp target enter data map(to:lambda)
   !$acc enter data copyin(lambda_theta_max)
-!$omp target enter data map(to:lambda_theta_max)
+  !$omp target enter data map(to:lambda_theta_max)
   !$acc enter data copyin(lambda_theta_min)
-!$omp target enter data map(to:lambda_theta_min)
+  !$omp target enter data map(to:lambda_theta_min)
   !$acc enter data copyin(lambdah)
-!$omp target enter data map(to:lambdah)
+  !$omp target enter data map(to:lambdah)
   !$acc enter data copyin(lambdas)
-!$omp target enter data map(to:lambdas)
+  !$omp target enter data map(to:lambdas)
   !$acc enter data copyin(lambdash)
-!$omp target enter data map(to:lambdash)
+  !$omp target enter data map(to:lambdash)
   !$acc enter data copyin(land_frac)
-!$omp target enter data map(to:land_frac)
+  !$omp target enter data map(to:land_frac)
   !$acc enter data copyin(phiw)
-!$omp target enter data map(to:phiw)
+  !$omp target enter data map(to:phiw)
   !$acc enter data copyin(phiw_source)
-!$omp target enter data map(to:phiw_source)
+  !$omp target enter data map(to:phiw_source)
   !$acc enter data copyin(phiwm)
-!$omp target enter data map(to:phiwm)
+  !$omp target enter data map(to:phiwm)
   !$acc enter data copyin(rho_C)
-!$omp target enter data map(to:rho_c)
+  !$omp target enter data map(to:rho_c)
   !$acc enter data copyin(rssoil)
-!$omp target enter data map(to:rssoil)
+  !$omp target enter data map(to:rssoil)
   !$acc enter data copyin(rsveg)
-!$omp target enter data map(to:rsveg)
+  !$omp target enter data map(to:rsveg)
   !$acc enter data copyin(soil_index)
-!$omp target enter data map(to:soil_index)
+  !$omp target enter data map(to:soil_index)
   !$acc enter data copyin(theta_fc)
-!$omp target enter data map(to:theta_fc)
+  !$omp target enter data map(to:theta_fc)
   !$acc enter data copyin(theta_res)
-!$omp target enter data map(to:theta_res)
+  !$omp target enter data map(to:theta_res)
   !$acc enter data copyin(theta_sat)
-!$omp target enter data map(to:theta_sat)
+  !$omp target enter data map(to:theta_sat)
   !$acc enter data copyin(theta_wp)
-!$omp target enter data map(to:theta_wp)
+  !$omp target enter data map(to:theta_wp)
   !$acc enter data copyin(throughfall)
-!$omp target enter data map(to:throughfall)
+  !$omp target enter data map(to:throughfall)
   !$acc enter data copyin(thv_1)
-!$omp target enter data map(to:thv_1)
+  !$omp target enter data map(to:thv_1)
   !$acc enter data copyin(tsoil)
-!$omp target enter data map(to:tsoil)
+  !$omp target enter data map(to:tsoil)
   !$acc enter data copyin(tsoilm)
-!$omp target enter data map(to:tsoilm)
+  !$omp target enter data map(to:tsoilm)
   !$acc enter data copyin(vg_a)
-!$omp target enter data map(to:vg_a)
+  !$omp target enter data map(to:vg_a)
   !$acc enter data copyin(vg_l)
-!$omp target enter data map(to:vg_l)
+  !$omp target enter data map(to:vg_l)
   !$acc enter data copyin(vg_m)
-!$omp target enter data map(to:vg_m)
+  !$omp target enter data map(to:vg_m)
   !$acc enter data copyin(wl)
-!$omp target enter data map(to:wl)
+  !$omp target enter data map(to:wl)
   !$acc enter data copyin(wl_max)
-!$omp target enter data map(to:wl_max)
+  !$omp target enter data map(to:wl_max)
   !$acc enter data copyin(wlm)
-!$omp target enter data map(to:wlm)
+  !$omp target enter data map(to:wlm)
+  !$acc enter data copyin(qnet)
+  !$omp target enter data map(to:qnet)
 
   !$acc enter data copyin(tile)
-!$omp target enter data map(to:tile)
+  !$omp target enter data map(to:tile)
   do ilu=1,nlu
      !$acc enter data copyin(tile(ilu))
-!$omp target enter data map(to:tile(ilu))
+     !$omp target enter data map(to:tile(ilu))
 
      !$acc enter data copyin(tile(ilu)%G)
-!$omp target enter data map(to:tile(ilu)%g)
+     !$omp target enter data map(to:tile(ilu)%g)
      !$acc enter data copyin(tile(ilu)%H)
-!$omp target enter data map(to:tile(ilu)%h)
+     !$omp target enter data map(to:tile(ilu)%h)
      !$acc enter data copyin(tile(ilu)%LE)
-!$omp target enter data map(to:tile(ilu)%le)
+     !$omp target enter data map(to:tile(ilu)%le)
      !$acc enter data copyin(tile(ilu)%db)
-!$omp target enter data map(to:tile(ilu)%db)
+     !$omp target enter data map(to:tile(ilu)%db)
      !$acc enter data copyin(tile(ilu)%f2)
-!$omp target enter data map(to:tile(ilu)%f2)
+     !$omp target enter data map(to:tile(ilu)%f2)
      !$acc enter data copyin(tile(ilu)%f3)
-!$omp target enter data map(to:tile(ilu)%f3)
+     !$omp target enter data map(to:tile(ilu)%f3)
      !$acc enter data copyin(tile(ilu)%frac)
-!$omp target enter data map(to:tile(ilu)%frac)
+     !$omp target enter data map(to:tile(ilu)%frac)
      !$acc enter data copyin(tile(ilu)%gD)
-!$omp target enter data map(to:tile(ilu)%gd)
+     !$omp target enter data map(to:tile(ilu)%gd)
      !$acc enter data copyin(tile(ilu)%lai)
-!$omp target enter data map(to:tile(ilu)%lai)
+     !$omp target enter data map(to:tile(ilu)%lai)
      !$acc enter data copyin(tile(ilu)%lambda_stable)
-!$omp target enter data map(to:tile(ilu)%lambda_stable)
+     !$omp target enter data map(to:tile(ilu)%lambda_stable)
      !$acc enter data copyin(tile(ilu)%lambda_unstable)
-!$omp target enter data map(to:tile(ilu)%lambda_unstable)
+     !$omp target enter data map(to:tile(ilu)%lambda_unstable)
      !$acc enter data copyin(tile(ilu)%laqu)
-!$omp target enter data map(to:tile(ilu)%laqu)
+     !$omp target enter data map(to:tile(ilu)%laqu)
      !$acc enter data copyin(tile(ilu)%laqu)
-!$omp target enter data map(to:tile(ilu)%laqu)
+     !$omp target enter data map(to:tile(ilu)%laqu)
      !$acc enter data copyin(tile(ilu)%lveg)
-!$omp target enter data map(to:tile(ilu)%lveg)
+     !$omp target enter data map(to:tile(ilu)%lveg)
      !$acc enter data copyin(tile(ilu)%obuk)
-!$omp target enter data map(to:tile(ilu)%obuk)
+     !$omp target enter data map(to:tile(ilu)%obuk)
      !$acc enter data copyin(tile(ilu)%phiw_mean)
-!$omp target enter data map(to:tile(ilu)%phiw_mean)
+     !$omp target enter data map(to:tile(ilu)%phiw_mean)
      !$acc enter data copyin(tile(ilu)%qtskin)
-!$omp target enter data map(to:tile(ilu)%qtskin)
+     !$omp target enter data map(to:tile(ilu)%qtskin)
      !$acc enter data copyin(tile(ilu)%ra)
-!$omp target enter data map(to:tile(ilu)%ra)
+     !$omp target enter data map(to:tile(ilu)%ra)
      !$acc enter data copyin(tile(ilu)%root_frac)
-!$omp target enter data map(to:tile(ilu)%root_frac)
+     !$omp target enter data map(to:tile(ilu)%root_frac)
      !$acc enter data copyin(tile(ilu)%rs)
-!$omp target enter data map(to:tile(ilu)%rs)
+     !$omp target enter data map(to:tile(ilu)%rs)
      !$acc enter data copyin(tile(ilu)%rs_min)
-!$omp target enter data map(to:tile(ilu)%rs_min)
+     !$omp target enter data map(to:tile(ilu)%rs_min)
      !$acc enter data copyin(tile(ilu)%thlskin)
-!$omp target enter data map(to:tile(ilu)%thlskin)
+     !$omp target enter data map(to:tile(ilu)%thlskin)
      !$acc enter data copyin(tile(ilu)%tskin)
-!$omp target enter data map(to:tile(ilu)%tskin)
+     !$omp target enter data map(to:tile(ilu)%tskin)
      !$acc enter data copyin(tile(ilu)%ustar)
-!$omp target enter data map(to:tile(ilu)%ustar)
+     !$omp target enter data map(to:tile(ilu)%ustar)
      !$acc enter data copyin(tile(ilu)%wqt)
-!$omp target enter data map(to:tile(ilu)%wqt)
+     !$omp target enter data map(to:tile(ilu)%wqt)
      !$acc enter data copyin(tile(ilu)%wthl)
-!$omp target enter data map(to:tile(ilu)%wthl)
+     !$omp target enter data map(to:tile(ilu)%wthl)
      !$acc enter data copyin(tile(ilu)%z0h)
-!$omp target enter data map(to:tile(ilu)%z0h)
+     !$omp target enter data map(to:tile(ilu)%z0h)
      !$acc enter data copyin(tile(ilu)%z0m)
-!$omp target enter data map(to:tile(ilu)%z0m)
+     !$omp target enter data map(to:tile(ilu)%z0m)
+     !$acc enter data copyin(tile(ilu)%Qnet)
+     !$omp target enter data map(to:tile(ilu)%Qnet)
      !$acc enter data copyin(tile(ilu)%albedo)
-!$omp target enter data map(to:tile(ilu)%albedo)
+     !$omp target enter data map(to:tile(ilu)%albedo)
   enddo
-
-  !$acc enter data create(rhocp_i, rholv_i)
-!$omp target enter data map(alloc:rhocp_i,rholv_i)
 end subroutine allocate_on_device
 
 subroutine deallocate_from_device()
 
-  use modsurfdata, only : tsoil, tsoilm, phiw, phiwm, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah, lambdas, gammas, lambdash, gammash, wl, wlm
+  use modsurfdata, only : tsoil, tsoilm, phiw, phiwm, H, LE, G0, rssoil, rsveg, cliq, lambda, lambdah, lambdas, gammas, lambdash, gammash, wl, wlm, qnet
 
   implicit none
 
@@ -1979,166 +1963,167 @@ subroutine deallocate_from_device()
   return
 
   !$acc exit data delete(G0)
-!$omp target exit data map(delete:g0)
+  !$omp target exit data map(delete:g0)
   !$acc exit data delete(H)
-!$omp target exit data map(delete:h)
+  !$omp target exit data map(delete:h)
   !$acc exit data delete(LE)
-!$omp target exit data map(delete:le)
+  !$omp target exit data map(delete:le)
   !$acc exit data delete(cliq)
-!$omp target exit data map(delete:cliq)
+  !$omp target exit data map(delete:cliq)
   !$acc exit data delete(cveg)
-!$omp target exit data map(delete:cveg)
+  !$omp target exit data map(delete:cveg)
   !$acc exit data delete(du_tot)
-!$omp target exit data map(delete:du_tot)
+  !$omp target exit data map(delete:du_tot)
   !$acc exit data delete(dz_soil)
-!$omp target exit data map(delete:dz_soil)
+  !$omp target exit data map(delete:dz_soil)
   !$acc exit data delete(dzhi_soil)
-!$omp target exit data map(delete:dzhi_soil)
+  !$omp target exit data map(delete:dzhi_soil)
   !$acc exit data delete(dzi_soil)
-!$omp target exit data map(delete:dzi_soil)
+  !$omp target exit data map(delete:dzi_soil)
   !$acc exit data delete(f1)
-!$omp target exit data map(delete:f1)
+  !$omp target exit data map(delete:f1)
   !$acc exit data delete(f2b)
-!$omp target exit data map(delete:f2b)
+  !$omp target exit data map(delete:f2b)
   !$acc exit data delete(gamma_t_dry)
-!$omp target exit data map(delete:gamma_t_dry)
+  !$omp target exit data map(delete:gamma_t_dry)
   !$acc exit data delete(gamma_theta_max)
-!$omp target exit data map(delete:gamma_theta_max)
+  !$omp target exit data map(delete:gamma_theta_max)
   !$acc exit data delete(gamma_theta_min)
-!$omp target exit data map(delete:gamma_theta_min)
+  !$omp target exit data map(delete:gamma_theta_min)
   !$acc exit data delete(gamma_theta_sat)
-!$omp target exit data map(delete:gamma_theta_sat)
+  !$omp target exit data map(delete:gamma_theta_sat)
   !$acc exit data delete(gammas)
-!$omp target exit data map(delete:gammas)
+  !$omp target exit data map(delete:gammas)
   !$acc exit data delete(gammash)
-!$omp target exit data map(delete:gammash)
+  !$omp target exit data map(delete:gammash)
   !$acc exit data delete(interception)
-!$omp target exit data map(delete:interception)
+  !$omp target exit data map(delete:interception)
   !$acc exit data delete(lambda)
-!$omp target exit data map(delete:lambda)
+  !$omp target exit data map(delete:lambda)
   !$acc exit data delete(lambda_theta_max)
-!$omp target exit data map(delete:lambda_theta_max)
+  !$omp target exit data map(delete:lambda_theta_max)
   !$acc exit data delete(lambda_theta_min)
-!$omp target exit data map(delete:lambda_theta_min)
+  !$omp target exit data map(delete:lambda_theta_min)
   !$acc exit data delete(lambdah)
-!$omp target exit data map(delete:lambdah)
+  !$omp target exit data map(delete:lambdah)
   !$acc exit data delete(lambdas)
-!$omp target exit data map(delete:lambdas)
+  !$omp target exit data map(delete:lambdas)
   !$acc exit data delete(lambdash)
-!$omp target exit data map(delete:lambdash)
+  !$omp target exit data map(delete:lambdash)
   !$acc exit data delete(land_frac)
-!$omp target exit data map(delete:land_frac)
+  !$omp target exit data map(delete:land_frac)
   !$acc exit data delete(phiw)
-!$omp target exit data map(delete:phiw)
+  !$omp target exit data map(delete:phiw)
   !$acc exit data delete(phiw_source)
-!$omp target exit data map(delete:phiw_source)
+  !$omp target exit data map(delete:phiw_source)
   !$acc exit data delete(phiwm)
-!$omp target exit data map(delete:phiwm)
+  !$omp target exit data map(delete:phiwm)
   !$acc exit data delete(rho_C)
-!$omp target exit data map(delete:rho_c)
+  !$omp target exit data map(delete:rho_c)
   !$acc exit data delete(rssoil)
-!$omp target exit data map(delete:rssoil)
+  !$omp target exit data map(delete:rssoil)
   !$acc exit data delete(rsveg)
-!$omp target exit data map(delete:rsveg)
+  !$omp target exit data map(delete:rsveg)
   !$acc exit data delete(soil_index)
-!$omp target exit data map(delete:soil_index)
+  !$omp target exit data map(delete:soil_index)
   !$acc exit data delete(theta_fc)
-!$omp target exit data map(delete:theta_fc)
+  !$omp target exit data map(delete:theta_fc)
   !$acc exit data delete(theta_res)
-!$omp target exit data map(delete:theta_res)
+  !$omp target exit data map(delete:theta_res)
   !$acc exit data delete(theta_sat)
-!$omp target exit data map(delete:theta_sat)
+  !$omp target exit data map(delete:theta_sat)
   !$acc exit data delete(theta_wp)
-!$omp target exit data map(delete:theta_wp)
+  !$omp target exit data map(delete:theta_wp)
   !$acc exit data delete(throughfall)
-!$omp target exit data map(delete:throughfall)
+  !$omp target exit data map(delete:throughfall)
   !$acc exit data delete(thv_1)
-!$omp target exit data map(delete:thv_1)
+  !$omp target exit data map(delete:thv_1)
   !$acc exit data delete(tsoil)
-!$omp target exit data map(delete:tsoil)
+  !$omp target exit data map(delete:tsoil)
   !$acc exit data delete(tsoilm)
-!$omp target exit data map(delete:tsoilm)
+  !$omp target exit data map(delete:tsoilm)
   !$acc exit data delete(vg_a)
-!$omp target exit data map(delete:vg_a)
+  !$omp target exit data map(delete:vg_a)
   !$acc exit data delete(vg_l)
-!$omp target exit data map(delete:vg_l)
+  !$omp target exit data map(delete:vg_l)
   !$acc exit data delete(vg_m)
-!$omp target exit data map(delete:vg_m)
+  !$omp target exit data map(delete:vg_m)
   !$acc exit data delete(wl)
-!$omp target exit data map(delete:wl)
+  !$omp target exit data map(delete:wl)
   !$acc exit data delete(wl_max)
-!$omp target exit data map(delete:wl_max)
+  !$omp target exit data map(delete:wl_max)
   !$acc exit data delete(wlm)
-!$omp target exit data map(delete:wlm)
+  !$omp target exit data map(delete:wlm)
+  !$acc exit data delete(qnet)
+  !$omp target exit data map(delete:qnet)
 
   do ilu=1,nlu
      !$acc exit data delete(tile(ilu)%G)
-!$omp target exit data map(delete:tile(ilu)%g)
+     !$omp target exit data map(delete:tile(ilu)%g)
      !$acc exit data delete(tile(ilu)%H)
-!$omp target exit data map(delete:tile(ilu)%h)
+     !$omp target exit data map(delete:tile(ilu)%h)
      !$acc exit data delete(tile(ilu)%LE)
-!$omp target exit data map(delete:tile(ilu)%le)
+     !$omp target exit data map(delete:tile(ilu)%le)
      !$acc exit data delete(tile(ilu)%db)
-!$omp target exit data map(delete:tile(ilu)%db)
+     !$omp target exit data map(delete:tile(ilu)%db)
      !$acc exit data delete(tile(ilu)%f2)
-!$omp target exit data map(delete:tile(ilu)%f2)
+     !$omp target exit data map(delete:tile(ilu)%f2)
      !$acc exit data delete(tile(ilu)%f3)
-!$omp target exit data map(delete:tile(ilu)%f3)
+     !$omp target exit data map(delete:tile(ilu)%f3)
      !$acc exit data delete(tile(ilu)%frac)
-!$omp target exit data map(delete:tile(ilu)%frac)
+     !$omp target exit data map(delete:tile(ilu)%frac)
      !$acc exit data delete(tile(ilu)%gD)
-!$omp target exit data map(delete:tile(ilu)%gd)
+     !$omp target exit data map(delete:tile(ilu)%gd)
      !$acc exit data delete(tile(ilu)%lai)
-!$omp target exit data map(delete:tile(ilu)%lai)
+     !$omp target exit data map(delete:tile(ilu)%lai)
      !$acc exit data delete(tile(ilu)%lambda_stable)
-!$omp target exit data map(delete:tile(ilu)%lambda_stable)
+     !$omp target exit data map(delete:tile(ilu)%lambda_stable)
      !$acc exit data delete(tile(ilu)%lambda_unstable)
-!$omp target exit data map(delete:tile(ilu)%lambda_unstable)
+     !$omp target exit data map(delete:tile(ilu)%lambda_unstable)
      !$acc exit data delete(tile(ilu)%laqu)
-!$omp target exit data map(delete:tile(ilu)%laqu)
+     !$omp target exit data map(delete:tile(ilu)%laqu)
      !$acc exit data delete(tile(ilu)%laqu)
-!$omp target exit data map(delete:tile(ilu)%laqu)
+     !$omp target exit data map(delete:tile(ilu)%laqu)
      !$acc exit data delete(tile(ilu)%lveg)
-!$omp target exit data map(delete:tile(ilu)%lveg)
+     !$omp target exit data map(delete:tile(ilu)%lveg)
      !$acc exit data delete(tile(ilu)%obuk)
-!$omp target exit data map(delete:tile(ilu)%obuk)
+     !$omp target exit data map(delete:tile(ilu)%obuk)
      !$acc exit data delete(tile(ilu)%phiw_mean)
-!$omp target exit data map(delete:tile(ilu)%phiw_mean)
+     !$omp target exit data map(delete:tile(ilu)%phiw_mean)
      !$acc exit data delete(tile(ilu)%qtskin)
-!$omp target exit data map(delete:tile(ilu)%qtskin)
+     !$omp target exit data map(delete:tile(ilu)%qtskin)
      !$acc exit data delete(tile(ilu)%ra)
-!$omp target exit data map(delete:tile(ilu)%ra)
+     !$omp target exit data map(delete:tile(ilu)%ra)
      !$acc exit data delete(tile(ilu)%root_frac)
-!$omp target exit data map(delete:tile(ilu)%root_frac)
+     !$omp target exit data map(delete:tile(ilu)%root_frac)
      !$acc exit data delete(tile(ilu)%rs)
-!$omp target exit data map(delete:tile(ilu)%rs)
+     !$omp target exit data map(delete:tile(ilu)%rs)
      !$acc exit data delete(tile(ilu)%rs_min)
-!$omp target exit data map(delete:tile(ilu)%rs_min)
+     !$omp target exit data map(delete:tile(ilu)%rs_min)
      !$acc exit data delete(tile(ilu)%thlskin)
-!$omp target exit data map(delete:tile(ilu)%thlskin)
+     !$omp target exit data map(delete:tile(ilu)%thlskin)
      !$acc exit data delete(tile(ilu)%tskin)
-!$omp target exit data map(delete:tile(ilu)%tskin)
+     !$omp target exit data map(delete:tile(ilu)%tskin)
      !$acc exit data delete(tile(ilu)%ustar)
-!$omp target exit data map(delete:tile(ilu)%ustar)
+     !$omp target exit data map(delete:tile(ilu)%ustar)
      !$acc exit data delete(tile(ilu)%wqt)
-!$omp target exit data map(delete:tile(ilu)%wqt)
+     !$omp target exit data map(delete:tile(ilu)%wqt)
      !$acc exit data delete(tile(ilu)%wthl)
-!$omp target exit data map(delete:tile(ilu)%wthl)
+     !$omp target exit data map(delete:tile(ilu)%wthl)
      !$acc exit data delete(tile(ilu)%z0h)
-!$omp target exit data map(delete:tile(ilu)%z0h)
+     !$omp target exit data map(delete:tile(ilu)%z0h)
      !$acc exit data delete(tile(ilu)%z0m)
-!$omp target exit data map(delete:tile(ilu)%z0m)
+     !$omp target exit data map(delete:tile(ilu)%z0m)
+     !$acc exit data delete(tile(ilu)%Qnet)
+     !$omp target exit data map(delete:tile(ilu)%Qnet)
      !$acc exit data delete(tile(ilu)%albedo)
-!$omp target exit data map(delete:tile(ilu)%albedo)
+     !$omp target exit data map(delete:tile(ilu)%albedo)
 
      !$acc exit data delete(tile(ilu))
-!$omp target exit data map(delete:tile(ilu))
+     !$omp target exit data map(delete:tile(ilu))
   enddo
   !$acc exit data delete(tile)
-!$omp target exit data map(delete:tile)
-
-  !$acc exit data delete(rhocp_i, rholv_i)
-!$omp target exit data map(delete:rhocp_i,rholv_i)
+  !$omp target exit data map(delete:tile)
 end subroutine deallocate_from_device
 
 !
@@ -3314,7 +3299,7 @@ end subroutine calc_root_fractions
 !
 function calc_obuk_dirichlet(L_in, du, db_in, zsl, z0m, z0h) result(res)
     implicit none
-!$omp declare target
+    !$omp declare target
     real, intent(in) :: L_in, du, db_in, zsl, z0m, z0h
 
     integer :: m, n, nlim
@@ -3460,7 +3445,7 @@ end function theta_to_psi
 pure function calc_diffusivity_vg( &
         theta_norm, vg_a, vg_l, vg_m, lambda_sat, theta_sat, theta_res) result(res)
     implicit none
-!$omp declare target
+    !$omp declare target
     real, intent(in) :: theta_norm, vg_a, vg_l, vg_m, lambda_sat, theta_sat, theta_res
     real :: res
     !$acc routine seq
@@ -3474,7 +3459,7 @@ end function calc_diffusivity_vg
 !
 pure function calc_conductivity_vg(theta_norm, vg_l, vg_m, gamma_sat) result(res)
     implicit none
-!$omp declare target
+    !$omp declare target
     real, intent(in) :: theta_norm, vg_l, vg_m, gamma_sat
     real :: res
     !$acc routine seq
