@@ -82,12 +82,12 @@ contains
     end if
 
     !$acc parallel loop gang default(present)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k = ks, ke
       fld_sum = 0
       !$acc loop vector collapse(2) reduction(+: fld_sum)
-!!$omp loop reduction(+:fld_sum) collapse(2)
+      !$omp loop reduction(+:fld_sum) collapse(2)
       do j = js, je
         do i = is, ie
           fld_sum = fld_sum + field(i,j,k)
@@ -96,14 +96,15 @@ contains
       avg(k) = fld_sum * norm_fac
     end do
 
+    ! FIXME: do mpi on GPU
+    !$omp target update from(avg)
+
     ! TODO: experiment with non-blocking allreduce
     if (do_global) then
       !$acc host_data use_device(avg)
-!!$omp target update from(avg)
       call mpi_allreduce(mpi_in_place, avg, ke, mpi_real4, mpi_sum, &
                          comm3d, mpierr)
       !$acc end host_data
-!$omp target update to(avg)
     end if
 
   end subroutine slabavg_r4
@@ -148,23 +149,13 @@ contains
       norm_fac = 1.0_real64 / (imax * jmax)
     end if
 
-    ! FIXME: investigate gpu reduction performance
-#define TEST3
-#ifdef TEST1
-    !$omp target update from(field)
-#elif defined(TEST3)
     !$acc parallel loop gang default(present)
     !$omp target teams loop defaultmap(present:aggregate)&
     !$omp defaultmap(present:allocatable)
-#endif
     do k = ks, ke
       fld_sum = 0
-#ifdef TEST3
       !$acc loop vector collapse(2) reduction(+: fld_sum)
       !$omp loop reduction(+:fld_sum) collapse(2)
-#elif defined(TEST2)
-      !$omp target teams distribute parallel do reduction(+:fld_sum) collapse(2) defaultmap(present:allocatable)
-#endif
       do j = js, je
         do i = is, ie
           fld_sum = fld_sum + field(i,j,k)
@@ -173,9 +164,8 @@ contains
       avg(k) = fld_sum * norm_fac
     end do
 
-#if defined(TEST3)
+    ! FIXME: do mpi on GPU
     !$omp target update from(avg)
-#endif
 
     if (do_global) then
       !$acc host_data use_device(avg)
@@ -183,10 +173,6 @@ contains
                          comm3d, mpierr)
       !$acc end host_data
     end if
-
-#if defined(TEST1) || defined(TEST2)
-    !$omp target update to(avg)
-#endif
 
   end subroutine slabavg_r8
 
