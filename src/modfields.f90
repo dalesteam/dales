@@ -38,9 +38,9 @@ save
   real(field_r), allocatable :: tliqm(:,:,:)     !<   liquid static energy at time step t-1 (optionally allocated)
   real(field_r), allocatable :: e12m(:,:,:)      !<   square root of turb. kin. energy at time step t-1
   real(field_r), allocatable :: qtm(:,:,:)       !<   total specific humidity at time step t
-  real(field_r), allocatable :: u0(:,:,:)        !<   x-component of velocity at time step t
-  real(field_r), allocatable :: v0(:,:,:)        !<   y-component of velocity at time step t
-  real(field_r), allocatable :: w0(:,:,:)        !<   z-component of velocity at time step t
+  real(field_r), allocatable, target :: u0(:,:,:)        !<   x-component of velocity at time step t
+  real(field_r), allocatable, target :: v0(:,:,:)        !<   y-component of velocity at time step t
+  real(field_r), allocatable, target :: w0(:,:,:)        !<   z-component of velocity at time step t
   real(field_r), allocatable :: thl0(:,:,:)      !<   liq. water pot. temperature at time step t
   real(field_r), allocatable :: tliq0(:,:,:)     !<   liquid static energy at time step t (optionally allocated)
   real(field_r), allocatable :: thl0h(:,:,:)     !<  3d-field of theta_l at half levels for kappa scheme
@@ -69,14 +69,14 @@ save
 
   ! Cloud edge variables
   real(field_r), allocatable :: ql0(:,:,:)  !<   liquid water content
-  real(field_r), allocatable :: qv0(:,:,:)  !<   water vapor content (= qt0 - ql0)
+  real(field_r), allocatable, target :: qv0(:,:,:)  !<   water vapor content (= qt0 - ql0)
   real(field_r), allocatable, target :: tmp0(:,:,:) !<   temperature at full level
   real(field_r), allocatable, target :: dse0(:,:,:) !<   dry static energy at full level (s = cp*T + g*z)
   real(field_r), allocatable :: thv0h(:,:,:)!<   theta_v at half level
 
   real(field_r), allocatable :: whls(:)                       !<   large scale vert velocity at half levels
 
-  real(field_r), allocatable :: presf(:)                      !<   hydrostatic pressure at full level
+  real(field_r), allocatable, target :: presf(:)                      !<   hydrostatic pressure at full level
   real(field_r), allocatable :: presh(:)                      !<   hydrostatic pressure at half level
   real(field_r), allocatable :: initial_presf(:)              !<   initial hydrostatic pressure at full level
   real(field_r), allocatable :: initial_presh(:)              !<   initial hydrostatic pressure at half level
@@ -84,7 +84,7 @@ save
   real(field_r), allocatable :: exnh(:)                       !<   hydrostatic exner function at half level
   real(field_r), allocatable :: thvf(:)                       !<   hydrostatic thetav at full level
   real(field_r), allocatable :: thvh(:)                       !<   hydrostatic thetav at half level
-  real(field_r), allocatable :: rhof(:)                       !<   slab averaged density at full level
+  real(field_r), allocatable, target :: rhof(:)                       !<   slab averaged density at full level
   real(field_r), allocatable :: qt0av(:)                      !<   slab averaged q_tot
   real(field_r), allocatable :: ql0av(:)                      !<   slab averaged q_liq
 

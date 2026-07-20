@@ -7,8 +7,8 @@ module modlcm_adapter
   use iso_fortran_env, only : real64
   use lcm_host_interface, only : lcm_config_t, lcm_grid_t, lcm_init_config, &
                                  lcm_init_grid, lcm_set_config, lcm_set_grid, &
-                                 lcm_attach_fields, lcm_advance
-  use modfields, only : tmp0
+                                 lcm_attach_fields, lcm_initialize, lcm_advance
+  use modfields, only : u0, v0, w0, tmp0, dse0, qv0, presf, rhof
   use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1, &
                         ih, jh, kh, dx, dy, dzf, zf, zh, rdt
   use modlcm_namelist, only : lcm_apply_namelist_config
@@ -51,7 +51,16 @@ contains
       y_dimension=1)
 
     call lcm_set_grid(lcm_grid)
-    call lcm_attach_fields(temperature=tmp0(2:i1, 2:j1, 1:kmax))
+    call lcm_attach_fields(                                             &
+      u=u0(2:i1, 2:j1, 1:kmax),                                         &
+      v=v0(2:i1, 2:j1, 1:kmax),                                         &
+      w=w0(2:i1, 2:j1, 1:kmax),                                         &
+      static_energy=dse0(2:i1, 2:j1, 1:kmax),                           &
+      temperature=tmp0(2:i1, 2:j1, 1:kmax),                             &
+      qv=qv0(2:i1, 2:j1, 1:kmax),                                       &
+      pressure=presf(1:kmax),                                           &
+      density=rhof(1:kmax))
+    call lcm_initialize()
   end subroutine init_lcm
 
   subroutine lcm_microphysics()
