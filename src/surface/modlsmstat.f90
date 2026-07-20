@@ -196,33 +196,41 @@ contains
 
     implicit none
 
-    integer kdim_soil
+    integer kdim_soil,k
     if (isurf == 1) then
         kdim_soil = ksoilmax
     else if (isurf == 11) then
         kdim_soil = kmax_soil
     end if
 
-    ! FIXME: handle GPU transfers for LSM here
+    !$acc parallel loop default(present)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
+    do k=1,kdim_soil
+       tsoilav(k)  = 0.
+       phiwav(k)  = 0.
+       lambdaav(k)  = 0.
+       lambdasav(k)  = 0.
+       gammasav(k) = 0.
+    end do
 
-    tsoilav  = 0.
-    phiwav  = 0.
-    lambdaav  = 0.
-    lambdasav  = 0.
-    gammasav = 0.
-
-    call slabsum(tsoilav ,1,kdim_soil,tsoil ,1,i2,1,j2,1,kdim_soil,2,i1,2,j1,1,kdim_soil)
-    call slabsum(phiwav ,1,kdim_soil,phiw ,1,i2,1,j2,1,kdim_soil,2,i1,2,j1,1,kdim_soil)
-    call slabsum(lambdaav ,1,kdim_soil,lambda ,1,i2,1,j2,1,kdim_soil,2,i1,2,j1,1,kdim_soil)
-    call slabsum(lambdasav ,1,kdim_soil,lambdas ,1,i2,1,j2,1,kdim_soil,2,i1,2,j1,1,kdim_soil)
-    call slabsum(gammasav ,1,kdim_soil,gammas ,1,i2,1,j2,1,kdim_soil,2,i1,2,j1,1,kdim_soil)
+    call slabsum(tsoilav ,1,kdim_soil,tsoil ,1,i2,1,j2,1,kdim_soil,2,i1,2,j1,1,kdim_soil,on_gpu=.true.)
+    call slabsum(phiwav ,1,kdim_soil,phiw ,1,i2,1,j2,1,kdim_soil,2,i1,2,j1,1,kdim_soil,on_gpu=.true.)
+    call slabsum(lambdaav ,1,kdim_soil,lambda ,1,i2,1,j2,1,kdim_soil,2,i1,2,j1,1,kdim_soil,on_gpu=.true.)
+    call slabsum(lambdasav ,1,kdim_soil,lambdas ,1,i2,1,j2,1,kdim_soil,2,i1,2,j1,1,kdim_soil,on_gpu=.true.)
+    call slabsum(gammasav ,1,kdim_soil,gammas ,1,i2,1,j2,1,kdim_soil,2,i1,2,j1,1,kdim_soil,on_gpu=.true.)
  !    ADD SLAB AVERAGES TO TIME MEAN
 
-    phiwmn = phiwmn + phiwav/ijtot
-    tsoilmn = tsoilmn + tsoilav/ijtot
-    lambdamn = lambdamn + lambdaav/ijtot
-    lambdasmn = lambdasmn + lambdasav/ijtot
-    gammasmn = gammasmn + gammasav/ijtot
+    !$acc parallel loop default(present)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
+    do k=1,kdim_soil
+       phiwmn(k) = phiwmn(k) + phiwav(k)/ijtot
+       tsoilmn(k) = tsoilmn(k) + tsoilav(k)/ijtot
+       lambdamn(k) = lambdamn(k) + lambdaav(k)/ijtot
+       lambdasmn(k) = lambdasmn(k) + lambdasav(k)/ijtot
+       gammasmn(k) = gammasmn(k) + gammasav(k)/ijtot
+    end do
 
   end subroutine do_lsmstat
 
@@ -253,11 +261,20 @@ contains
       nminut  = int(nsecs/60)-nhrs*60
       nsecs   = mod(nsecs,60)
 
-      phiwmn   = phiwmn    /nsamples
-      tsoilmn   = tsoilmn    /nsamples
-      lambdamn   = lambdamn    /nsamples
-      lambdasmn   = lambdasmn    /nsamples
-      gammasmn   = gammasmn   /nsamples
+      !$acc parallel loop default(present)
+      !$omp target teams loop defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
+      do k=1,kdim_soil
+         phiwmn(k)   = phiwmn(k)    /nsamples
+         tsoilmn(k)   = tsoilmn(k)    /nsamples
+         lambdamn(k)   = lambdamn(k)    /nsamples
+         lambdasmn(k)   = lambdasmn(k)    /nsamples
+         gammasmn(k)   = gammasmn(k)   /nsamples
+      end do
+
+      !$acc update self(tsoilmn,phiwmn,lambdamn,lambdasmn,gammasmn)
+      !$omp target update from(tsoilmn,phiwmn,lambdamn,lambdasmn,gammasmn)
+
   !     ----------------------
   !     2.0  write the fields
   !           ----------------
@@ -305,11 +322,16 @@ contains
       end if
     end if ! end if(myid==0)
 
-    phiwmn = 0.0
-    tsoilmn = 0.0
-    lambdamn = 0.0
-    lambdasmn = 0.0
-    gammasmn  = 0.0
+    !$acc parallel loop default(present)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
+    do k=1,kdim_soil
+       phiwmn(k) = 0.0
+       tsoilmn(k) = 0.0
+       lambdamn(k) = 0.0
+       lambdasmn(k) = 0.0
+       gammasmn(k)  = 0.0
+    end do
 
     deallocate(vars)
 
