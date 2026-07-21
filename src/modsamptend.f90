@@ -462,42 +462,42 @@ subroutine initsamptend
       end if
       if (lsamptendnr) then
         call ncinfo(ncname(ifield +1,:,isamp),'nrtendhadv'//samplname(isamp),&
-        trim(longsamplname(isamp))//' '//'RDNC horizontal advective tendency','/kg/s',dimst)
+        trim(longsamplname(isamp))//' '//'RDNC horizontal advective tendency','1/kg/s',dimst)
         call ncinfo(ncname(ifield +2,:,isamp),'nrtendvadv'//samplname(isamp),&
-        trim(longsamplname(isamp))//' '//'RDNC vertical advective tendency','/kg/s',dimst)
+        trim(longsamplname(isamp))//' '//'RDNC vertical advective tendency','1/kg/s',dimst)
         call ncinfo(ncname(ifield +3,:,isamp),'nrtenddif'//samplname(isamp),&
-        trim(longsamplname(isamp))//' '//'RDNC diffusive tendency','/kg/s',dimst)
+        trim(longsamplname(isamp))//' '//'RDNC diffusive tendency','1/kg/s',dimst)
         call ncinfo(ncname(ifield +4,:,isamp),'nrtendrad'//samplname(isamp),&
-        trim(longsamplname(isamp))//' '//'RDNC radiative tendency','/kg/s',dimst)
+        trim(longsamplname(isamp))//' '//'RDNC radiative tendency','1/kg/s',dimst)
         call ncinfo(ncname(ifield +5,:,isamp),'nrtendmicro'//samplname(isamp),&
-        trim(longsamplname(isamp))//' '//'RDNC microphysical tendency','/kg/s',dimst)
+        trim(longsamplname(isamp))//' '//'RDNC microphysical tendency','1/kg/s',dimst)
         call ncinfo(ncname(ifield +6,:,isamp),'nrtendls'//samplname(isamp),&
-        trim(longsamplname(isamp))//' '//'RDNC large scale tendency','/kg/s',dimst)
+        trim(longsamplname(isamp))//' '//'RDNC large scale tendency','1/kg/s',dimst)
         call ncinfo(ncname(ifield +7,:,isamp),'nrtendtop'//samplname(isamp),&
-        trim(longsamplname(isamp))//' '//'RDNC top boundary tendency','/kg/s',dimst)
+        trim(longsamplname(isamp))//' '//'RDNC top boundary tendency','1/kg/s',dimst)
         call ncinfo(ncname(ifield +8,:,isamp),'nrtendaddon'//samplname(isamp),&
-        trim(longsamplname(isamp))//' '//'RDNC addons tendency','/kg/s',dimst)
+        trim(longsamplname(isamp))//' '//'RDNC addons tendency','1/kg/s',dimst)
         call ncinfo(ncname(ifield +9,:,isamp),'nrtendtot'//samplname(isamp),&
-        trim(longsamplname(isamp))//' '//'RDNC total tendency','/kg/s',dimst)
+        trim(longsamplname(isamp))//' '//'RDNC total tendency','1/kg/s',dimst)
         ifield = ifield + 9
         if (ltendleib) then
           call ncinfo(ncname(ifield +1,:,isamp),'nrtendleib'//samplname(isamp),&
-          trim(longsamplname(isamp))//' '//'RDNC total tendency with leibniz terms','/kg/s',dimst)
+          trim(longsamplname(isamp))//' '//'RDNC total tendency with leibniz terms','1/kg/s',dimst)
           ifield = ifield + 1
         end if
         if (ltenddec) then
           call ncinfo(ncname(ifield +1,:,isamp),'nrm'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'RDNC block average','kg/kg',dimst)
           call ncinfo(ncname(ifield +2,:,isamp),'nrw'//samplname(isamp),&
-          trim(longsamplname(isamp))//' '//'RDNC west edge average','/kg',dimsu)
+          trim(longsamplname(isamp))//' '//'RDNC west edge average','1/kg',dimsu)
           call ncinfo(ncname(ifield +3,:,isamp),'nrs'//samplname(isamp),&
-          trim(longsamplname(isamp))//' '//'RDNC south edge average','/kg',dimsv)
+          trim(longsamplname(isamp))//' '//'RDNC south edge average','1/kg',dimsv)
           call ncinfo(ncname(ifield +4,:,isamp),'unrw'//samplname(isamp),&
-          trim(longsamplname(isamp))//' '//'u*nr west edge average','/kg m/s',dimsu)
+          trim(longsamplname(isamp))//' '//'u*nr west edge average','1/kg m/s',dimsu)
           call ncinfo(ncname(ifield +5,:,isamp),'vnrs'//samplname(isamp),&
-          trim(longsamplname(isamp))//' '//'v*nr south edge average','/kg m/s',dimsv)
+          trim(longsamplname(isamp))//' '//'v*nr south edge average','1/kg m/s',dimsv)
           call ncinfo(ncname(ifield +6,:,isamp),'wnrm'//samplname(isamp),&
-          trim(longsamplname(isamp))//' '//'Vertical RDNC flux block average','/kg m/s',dimsm)
+          trim(longsamplname(isamp))//' '//'Vertical RDNC flux block average','1/kg m/s',dimsm)
           ifield = ifield + 6
         end if
       end if
