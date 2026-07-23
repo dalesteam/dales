@@ -93,22 +93,17 @@ contains
 
     character(len=*), parameter :: routine = modname//'/initpois'
 
-! #ifndef DALES_AMDGPU
 #ifdef DALES_GPU
     if (solver_id /= 200) then
        call finish(routine, 'Running on GPU requires solver_id = 200 (cufft)')
     end if
 #endif
-! #endif
 
     if (solver_id == 0) then
       call fft2dinit(p, Fp, d, xyrt, ps, pe, qs, qe)
     else if (solver_id == 100) then
       ! FFTW based solver
       call fftwinit(p, Fp, d, xyrt, ps,pe,qs,qe)
-#ifdef DALES_AMDGPU
-      !$omp target enter data map(to: p, fp, xyrt, d)
-#endif
     else if (solver_id == 200) then
       call cufftinit(p, Fp, d, xyrt, ps, pe, qs, qe)
     else
@@ -152,9 +147,6 @@ contains
       call fft2dexit(p,Fp,d,xyrt)
     else if (solver_id == 100) then
       ! FFTW based solver
-#ifdef DALES_AMDGPU
-      !$omp target exit data map (delete: p, fp, xyrt, d)
-#endif
       call fftwexit(p,Fp,d,xyrt)
     else if (solver_id == 200) then
       call cufftexit(p, Fp, d, xyrt)
@@ -194,25 +186,13 @@ contains
       ! Backward FFT
       call fft2db(p, Fp)
     else if (solver_id == 100) then
-#ifdef DALES_AMDGPU
-      !$omp target update from(p)
-#endif
       ! Forward FFT
       call fftwf(p, Fp)
-#ifdef DALES_AMDGPU
-      !$omp target update to(Fp)
-#endif
 
       call solmpj
-#ifdef DALES_AMDGPU
-      !$omp target update from(Fp)
-#endif
 
       ! Backward FFT
       call fftwb(p, Fp)
-#ifdef DALES_AMDGPU
-      !$omp target update to(p)
-#endif
     else if (solver_id == 200) then
       call cufftf(p, Fp)
 
