@@ -56,9 +56,7 @@ contains
       precond_id, maxiter_precond, hypre_logging
 
     ! Set a default solver based on how DALES is compiled.
-#if defined(DALES_AMDGPU)
-    solver_id = 100
-#elif defined(DALES_GPU)
+#if defined(DALES_GPU)
     solver_id = 200
 #elif defined(USE_FFTW)
     solver_id = 100
@@ -95,13 +93,13 @@ contains
 
     character(len=*), parameter :: routine = modname//'/initpois'
 
-#ifndef DALES_AMDGPU
+! #ifndef DALES_AMDGPU
 #ifdef DALES_GPU
     if (solver_id /= 200) then
        call finish(routine, 'Running on GPU requires solver_id = 200 (cufft)')
     end if
 #endif
-#endif
+! #endif
 
     if (solver_id == 0) then
       call fft2dinit(p, Fp, d, xyrt, ps, pe, qs, qe)
@@ -136,9 +134,9 @@ contains
 
     allocate(a(kmax), b(kmax), c(kmax))
     !$acc enter data copyin(pup, pvp)
-!$omp target enter data map(to:pup,pvp)
+    !$omp target enter data map(to:pup,pvp)
     !$acc enter data create(pwp, a, b, c)
-!$omp target enter data map(alloc:pwp,a,b,c)
+    !$omp target enter data map(alloc:pwp,a,b,c)
 
   end subroutine initpois
 
@@ -161,7 +159,7 @@ contains
     else if (solver_id == 200) then
       call cufftexit(p, Fp, d, xyrt)
       !$acc exit data delete(pup, pvp, pwp, a, b, c)
-!$omp target exit data map(delete:pup,pvp,pwp,a,b,c)
+      !$omp target exit data map(delete:pup,pvp,pwp,a,b,c)
     else
       ! HYPRE based solver
       !call fft2dexit(p,Fp,d,xyrt)

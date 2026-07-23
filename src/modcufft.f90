@@ -17,7 +17,7 @@ module modcufft
 
   character(len=*), parameter :: modname = 'modcufft'
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
 
   save
     real :: norm_fac !< Normalization factor
@@ -58,7 +58,7 @@ module modcufft
       sz = transposer%get_buffer_size()
 
       !$acc enter data copyin(transposer)
-!$omp target enter data map(to:transposer)
+      !$omp target enter data map(to:transposer)
 
       konx = transposer%konx
       iony = transposer%iony
@@ -77,7 +77,7 @@ module modcufft
       allocate(p_nohalo(sz))
 
       !$acc enter data create(p_halo, p_nohalo)
-!$omp target enter data map(alloc:p_halo,p_nohalo)
+      !$omp target enter data map(alloc:p_halo,p_nohalo)
 
       p(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => p_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax) ! z-aligned
       px(1:nphix*2,1:jmax,1:konx) => p_nohalo(1:konx*jmax*(nphix*2)) ! x-aligned
@@ -213,18 +213,17 @@ module modcufft
       norm_fac = 1 / real((itot*jtot))
 
       !$acc enter data copyin(xyrt, d)
-!$omp target enter data map(to:xyrt,d)
+      !$omp target enter data map(to:xyrt,d)
 
     end subroutine cufftinit
 
     !< Exit routine
     subroutine cufftexit(p, Fp, d, xyrt)
-      use cufft
 
       implicit none
 
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
-      real(pois_r), allocatable :: d(:,:,:), xyrt(:,:,:)
+      real(pois_r), allocatable :: d(:,:,:), xyrt(:,:)
 
 
       deallocate(d, xyrt, p_halo, p_nohalo)
@@ -354,8 +353,8 @@ module modcufft
       call transposer%x_to_z(px, p, workspace_0)
       
       !$acc parallel loop collapse(3) default(present)
-!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+      !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do k=1,kmax
         do j=2,j1
           do i=2,i1
@@ -382,8 +381,8 @@ module modcufft
       sz_3 = dim(3)
 
       !$acc parallel loop collapse(2) default(present)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+      !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do k = 1, sz_3
         do j = 1, sz_2
           arr(2,j,k) = arr(len+1,j,k)
@@ -406,8 +405,8 @@ module modcufft
       sz_3 = dim(3)
 
       !$acc parallel loop collapse(2) default(present)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+      !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do k = 1, sz_3
         do j = 1, sz_2
           arr(len+1,j,k) = arr(2,j,k)
