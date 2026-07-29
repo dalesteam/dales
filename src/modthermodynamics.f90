@@ -76,6 +76,7 @@ contains
 
   !> Calculate the virtual potential temperature.
   elemental function calc_virt_pot_temp(thl, qt, ql, exn) result(thv)
+    !$omp declare target
 
     real(field_r), intent(in) :: thl  !< Liquid water potential temperature [K]
     real(field_r), intent(in) :: qt   !< Total water specific humidity [kg/kg]
@@ -181,8 +182,9 @@ contains
       too_cold = .false.
       too_hot = .false.
 
-      !$omp target update to(thl0, qt0, presf, presh, exnf, exnh, ql0, ql0h)
-      !$omp target update to(zf, zh, dzf, dzhi)
+      !$omp target update to(u0, v0, thl0, qt0, ql0)
+      !$omp target update to(presf, presh, exnf, exnh, ql0h)
+      !$omp target update to(zf, zh, dzf, dzhi, dthldz, dqtdz)
 
       !$acc parallel loop collapse(3) default(present) async(1) private(T) &
       !$acc firstprivate(too_cold, too_hot)
@@ -218,9 +220,7 @@ contains
       call saturation_adjustment(qt0, thl0, presf, exnf, ql0, opt_stream=1)
 #endif
 
-
       call diagfld_gpu
-      !$omp target update from(th0av, exnf, exnh, thvf, rhof)
 
       ! Interpolate thl and qt to the half levels
       call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
@@ -232,8 +232,6 @@ contains
 #else
       call saturation_adjustment(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1)
 #endif
-      !$omp target update from(thl0h, qt0h, ql0h, ql0)
-
 
       if (imicro /= imicro_none) then
         call calc_saturation_humidities(qt0, ql0, thl0, presf, exnf, esl, &
@@ -254,8 +252,8 @@ contains
     call calthv
 
     !$acc parallel loop collapse(3) default(present) async(1)
-!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
@@ -266,15 +264,15 @@ contains
     end do
 
     !$acc parallel loop gang(static:1) default(present) async wait(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k = 1, k1
       thvh(k) = 0.0_field_r
     end do
 
     !$acc parallel loop gang(static:1) default(present) async wait(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k = 1, k1
       thvf(k) = 0.0_field_r
     end do
@@ -282,28 +280,32 @@ contains
     !$acc wait
 
     if (.not. lapply_ibm) then
-      call slabavg(thv0h, ih, thvh)
-      call slabavg(thv0, ih, thvf)
+      call slabavg_gpu(thv0h, ih, thvh)
+      call slabavg_gpu(thv0, ih, thvf)
     else
       call slabavg(thv0h,fluid_mask,ih,thvh)
       call slabavg(thv0,fluid_mask,ih,thvf)
     end if
 
     !$acc serial default(present) async(1)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target defaultmap(present:allocatable)
     thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
     !$acc end serial
-!!$omp end target
+    !$omp end target
 
     !$acc parallel loop default(present) async(1)
-!!$omp target teams loop defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k = 1, k1
       rhof(k) = presf(k)/(rd*thvf(k)*exnf(k))
     end do
 
     !$acc wait
+    !$omp target update from(thv0h,tmp0,dthvdz)
+    !$omp target update from(esl, qvsl, qvsi)
+    !$omp target update from(thl0h, qt0h, ql0h, ql0)
+    !$omp target update from(th0av, exnf, exnh, thvf, rhof, dzh)
+    !$omp target update from(thv0, thvh, thvf, rhof)
 
     call timer_toc(routine)
 
@@ -321,8 +323,8 @@ contains
     integer :: i, j, k
 
     !$acc parallel loop collapse(3) default(present) async(1)
-!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k = 1,k1
        do j = 2,j1
           do i = 2,i1
@@ -349,8 +351,8 @@ contains
 
     if (lmoist) then
       !$acc parallel loop collapse(3) default(present) async(1)
-!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+      !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do k = 2, k1
         do j = 2, j1
           do i = 2, i1
@@ -365,10 +367,10 @@ contains
       !$acc private(a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, &
       !$acc         chi_sat, chi, dthv, del_thv_dry, del_thv_sat, temp, qs, dq, dth) &
       !$acc async(1)
-!!$omp target teams loop private(a_dry,b_dry,a_moist,b_moist,c_liquid,&
-!!$omp epsilon,eps_i,chi_sat,chi,dthv,del_thv_dry,del_thv_sat,temp,qs,&
-!!$omp dq,dth) collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+      !$omp target teams loop private(a_dry,b_dry,a_moist,b_moist,c_liquid,&
+      !$omp epsilon,eps_i,chi_sat,chi,dthv,del_thv_dry,del_thv_sat,temp,qs,&
+      !$omp dq,dth) collapse(3) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do k = 2, kmax
         do j = 2 , j1
           do i = 2, i1
@@ -417,8 +419,8 @@ contains
       end do
 
       !$acc parallel loop collapse(2) default(present) private(temp, qs, a_surf, b_surf) async(1)
-!!$omp target teams loop private(temp,qs,a_surf,b_surf) collapse(2)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+      !$omp target teams loop private(temp,qs,a_surf,b_surf) collapse(2)&
+      !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do j=2,j1
         do i=2,i1
           if(ql0(i,j,1)>0) then
@@ -441,8 +443,8 @@ contains
 
     else
       !$acc parallel loop collapse(3) default(present) async(1)
-!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+       !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+       !$omp defaultmap(present:allocatable)
       do k = 2, k1
         do j = 2, j1
           do i = 2, i1
@@ -452,8 +454,8 @@ contains
       end do
 
       !$acc parallel loop collapse(3) default(present) async(1)
-!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+      !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do k = 2, kmax
         do j = 2, j1
           do i = 2, i1
@@ -463,8 +465,8 @@ contains
       end do
 
       !$acc parallel loop collapse(2) default(present) async(1)
-!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+      !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do j = 2, j1
         do i = 2, i1
           dthvdz(i,j,1) = dthldz(i,j)
@@ -473,8 +475,8 @@ contains
     end if
 
     !$acc parallel loop collapse(3) default(present) async(1)
-!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable)
+    !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
@@ -550,8 +552,6 @@ contains
       end do
     end do
 
-    !XXX: reduction on CPU
-    !$omp target update from(u0av, v0av, thl0av, th0av, qt0av, ql0av, sv0av)
     !$acc wait
 
     ! If the IBM is enabled, exclude the building cells from the averages
@@ -574,9 +574,6 @@ contains
         call slabavg(sv0(:,:,:,n),fluid_mask,ih,sv0av(:,n))
       end do
     end if
-
-    !XXX: reduction on CPU
-    !$omp target update to(u0av, v0av, thl0av, qt0av, ql0av, sv0av)
 
     if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
       !$acc parallel loop gang(static:1) default(present)
@@ -1114,8 +1111,8 @@ contains
     !$acc parallel loop gang vector collapse(3) default(present) async(stream) &
     !$acc private(b, qli, qsat, qti, Tl)
     ! FIXME: GPU divergence
-    !!$omp target teams loop private(b,qli,qsat,qti,tl) collapse(3)&
-    !!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+    !$omp target teams loop private(b,qli,qsat,qti,tl) collapse(3)&
+    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
@@ -1141,7 +1138,6 @@ contains
         end do
       end do
     end do
-    !$omp target update to(ql)
 
     call timer_toc(routine)
 
@@ -1174,8 +1170,8 @@ contains
 
     !$acc parallel loop collapse(3) default(present) async(1) &
     !$acc private(qsat, T, interp_w, tlo, esi)
-!!$omp target teams loop private(qsat,t,interp_w,tlo,esi) collapse(3)&
-!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+    !$omp target teams loop private(qsat,t,interp_w,tlo,esi) collapse(3)&
+    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
