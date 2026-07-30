@@ -221,7 +221,9 @@ program DALES
     !-----------------------------------------------------
     !   3.2   RADIATION
     !-----------------------------------------------------
+        call update_gpu
         call radiation !radiation scheme
+        host_is_updated=.false.; call update_host
         call samptend(tend_rad)
 
     !-----------------------------------------------------

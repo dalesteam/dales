@@ -227,7 +227,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine radiation
     use modmpi, only: myid, MPI_Wtime
-    use modglobal, only : timee, dt_lim,rk3step
+    use modglobal, only : timee, dt_lim,rk3step,i1,ih,j1,jh,k1
     use modfields, only : thlp
     use moduser,   only : rad_user
     use modradfull,only : radfull
@@ -238,6 +238,7 @@ contains
     use modprecursor, only: swap
     implicit none
     real wtime
+    integer :: i,j,k
 
     if(timee<tnext .and. rk3step==3) then
       dt_lim = min(dt_lim,tnext-timee)
@@ -248,12 +249,16 @@ contains
 
       wtime = MPI_Wtime()
 
-      !$acc kernels default(present)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-      thlprad = 0.0
-      !$acc end kernels
-!!$omp end target
+      !$acc parallel loop collapse(3) default(present)
+      !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+      do k=1,k1
+         do j=2-jh,j1+jh
+            do i=2-ih,i1+ih
+               thlprad(i,j,k) = 0.0
+            end do
+         end do
+      end do
 
       if (enable_slurb) then
         ! tskin_radiative has been modified by modslurb to take into account the longwave radiation
@@ -297,12 +302,16 @@ contains
       end if
     end if
     
-    !$acc kernels default(present)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-    thlp = thlp + thlprad
-    !$acc end kernels
-!!$omp end target
+    !$acc parallel loop collapse(3) default(present)
+    !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+    do k=1,k1
+       do j=2-jh,j1+jh
+          do i=2-ih,i1+ih
+             thlp(i,j,k) = thlp(i,j,k) + thlprad(i,j,k)
+          end do
+       end do
+    end do
 
     call timer_toc('modradiation/radiation')
 
@@ -548,18 +557,20 @@ subroutine radpar
   use modglobal,    only : i1,j1,kmax
   use modfields,    only : thlpcar
   implicit none
-  integer k
+  integer i,j,k
 
   call timer_tic('modradiation/radprof', 1)
-    
-  !$acc kernels default(present)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+
+  !$acc parallel loop collapse(3) default(present)
+  !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+  !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
   do k=1,kmax
-    thlprad(2:i1,2:j1,k) = thlprad(2:i1,2:j1,k) + thlpcar(k)
+     do j=2,j1
+        do i=2,i1
+           thlprad(i,j,k) = thlprad(i,j,k) + thlpcar(k)
+        end do
+     end do
   end do
-  !$acc end kernels
-!!$omp end target
 
   call timer_toc('modradiation/radprof')
 
