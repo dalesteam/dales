@@ -213,7 +213,7 @@ contains
              mse0(:,:,k)  = cp * tmp0(:,:,k) + grav * zf(k) + rlv * (qt0(:,:,k) - ql0(:,:,k))
           end do
 
-          ! FIXME: mpi on gpu
+          ! FIXME: mse0 is updated on host but read on gpu here
           call excjs(mse0, 2,i1,2,j1,1,k1,ih,jh)   ! get mse halo for advection
 
           u0_save = u0
@@ -223,6 +223,7 @@ contains
           w0 = 0
           msep = 0
           !advect uv
+          ! FIXME: mse0 is updated on host but read on gpu here
           !$omp target update to(mse0,msep)
           call advect_scalar(mse0, msep, iadv_thl)
 
@@ -235,6 +236,7 @@ contains
           v0 = 0
           msep = 0
           ! advect w
+          ! FIXME: mse0 is updated on host but read on gpu here
           !$omp target update to(msep)
           call advect_scalar(mse0, msep, iadv_thl)
           !$omp target update from(msep)
