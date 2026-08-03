@@ -2290,7 +2290,7 @@ end subroutine init_lsm_tiles
 subroutine init_homogeneous
     use modglobal,   only : ifnamopt, fname_options, checknamelisterror, lwarmstart, eps1
     use modmpi,      only : myid, comm3d, mpierr, D_MPI_BCAST
-    use modsurfdata, only : tsoil, tsoilm, phiw, phiwm, wl, wlm, wmax, albedoav
+    use modsurfdata, only : tsoil, tsoilm, phiw, phiwm, wl, wlm, wmax, albedoav, thls
     use fortran_support, only: nnml_output
     implicit none
 
@@ -2468,7 +2468,12 @@ subroutine init_homogeneous
 
     tile(ilu_hv) % gD(:,:) = gD_high
 
+    tile(ilu_lv) % tskin(:,:) = thls
+    tile(ilu_hv) % tskin(:,:) = thls
+    tile(ilu_bs) % tskin(:,:) = thls
+    tile(ilu_ap) % tskin(:,:) = thls
     tile(ilu_aq) % tskin(:,:) = tskin_water
+    tile(ilu_ws) % tskin(:,:) = thls
 
     tile(ilu_lv) % albedo(:,:) = albedoav
     tile(ilu_hv) % albedo(:,:) = albedoav
@@ -2520,6 +2525,10 @@ subroutine init_homogeneous
             tile(ilu_ap)%base_frac(:,:) + &
             tile(ilu_bs)%base_frac(:,:)) / land_frac(:,:)
     where (wl_max == 0) wl_max = eps1
+
+    do ilu=1,nlu
+        tile(ilu)%frac(:,:) = tile(ilu)%base_frac(:,:)
+    end do
 
     ! Cleanup!
     deallocate(t_soil_p, theta_soil_p, soil_index_p)
