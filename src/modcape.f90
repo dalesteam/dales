@@ -247,11 +247,21 @@ contains
 
     do j=2,j1
     do i=2,i1
-        thl200400(i,j)=thl200400(i,j)/200.
-        qt200400(i,j)=qt200400(i,j)/200.
+        thl200400(i,j)=thl200400(i,j)/min(zf(k1)-200,200._field_r)
+        qt200400(i,j)=qt200400(i,j)/min(zf(k1)-200,200._field_r)
     enddo
     enddo
 
+    if (zf(k1)<200.) then
+      write(*,*) 'WARNING: top of domain is below 200 m, thl200400 and qt200400 will be zero, setting to thl,qt(k1)'
+      do j=2,j1
+      do i=2,i1
+      thl200400(i,j)=thl0(i,j,k1)
+      qt200400(i,j)=qt0(i,j,k1)
+      end do
+    end do
+    end if
+    
     iqr = get_tracer_index("qr")
     if (iqr == 0) then
        iqr = get_tracer_index("qhr")
