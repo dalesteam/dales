@@ -437,6 +437,9 @@ subroutine calc_canopy_resistance_ags
     !  - Canopy upscaling (DALES / IFS Eq. 8.101 style)
     !  - Leaf-type switch: forests vs low vegetation (Eq. 8.118 / 8.114+8.119)
     !
+    ! NOTE: The Ags constants for different vegetation LU are available in GitHub:
+    ! https://github.com/adoyenne/DALES_input_generator/blob/main/dales_openBC_setup/scripts/land_surface/ags_parameters.py
+    !
     ! References:
     !  - CTESSEL Technical Documentation, Eq. 8.101, 8.114, 8.118, 8.119
     !  - Lloyd & Taylor (1994), Functional Ecology 8:315-323
