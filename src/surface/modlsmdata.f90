@@ -6,6 +6,9 @@ module modlsmdata
   logical :: llsm            ! On/off switch LSM
   logical :: lfreedrainage   ! Free drainage bottom BC for soil moisture
   logical :: lags            ! Switch for A-Gs scheme
+  logical :: lsplitleaf      ! Switch for split leaf approach in A-Gs scheme
+  logical :: lrelaxgc        ! Switch for gc relaxation in A-Gs scheme
+  logical :: lrelaxci        ! Switch for ci relaxation in A-Gs scheme
 
   ! Interpolation types soil from full to half level
   integer :: iinterp_t, iinterp_theta
@@ -43,6 +46,8 @@ module modlsmdata
 
   ! A-Gs
   real, allocatable :: an_co2(:,:), resp_co2(:,:)
+  real, allocatable :: ci_old       (:,:)  !<  Old value for ci
+  real, allocatable :: gc_old       (:,:)  !<  Old value for gc
   integer :: co2_index = -1
 
   ! Land use number
@@ -97,6 +102,31 @@ module modlsmdata
       real, allocatable :: Qnet(:,:)
       ! Tile albedo
       real, allocatable :: albedo(:,:)
+      
+      ! ============================================================
+      ! Vegetation physiological parameters (AGS photosynthesis scheme)
+      ! ============================================================
+
+      ! Stomatal conductance at 25oC
+      real, allocatable :: gm25(:,:) !m s-1
+
+      ! Maximum carboxylation / photosynthetic capacity at 25oC
+      real, allocatable :: Ammax25(:,:) !µg CO2 m-2 s-1
+ 
+      ! Initial / reference quantum efficiency factor (light response scaling)
+      real, allocatable :: f0field(:,:) !dimensionless (-)
+      
+      ! Initial slope of light response curve (quantum yield parameter)
+      real, allocatable :: alpha0field(:,:) !mol CO2 mol-1 photons
+      
+      ! CO₂ compensation point at 298 K (25oC)
+      real, allocatable :: co2_comp298(:,:) !µmol mol-1 (ppm)
+      
+      ! Temperature sensitivity parameter for stomatal conductance
+      real, allocatable :: T1gmfield(:,:) ! K
+
+      ! Temperature sensitivity parameter for photosynthesis capacity (Ammax)
+      real, allocatable :: T1Amfield(:,:) !K
 
   ! LU dependent deposition parameters
       ! In-canopy resistance parameters

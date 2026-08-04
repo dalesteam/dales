@@ -426,393 +426,478 @@ subroutine calc_canopy_resistance_js
 
 end subroutine calc_canopy_resistance_js
 
-!
-! Calculate canopy and soil resistances using A-Gs (plant physiology).
-! In addition, this calculates/sets the surface CO2 fluxes...
-!
 subroutine calc_canopy_resistance_ags
 
-    use modglobal,   only : i1, j1, nsv
+    !=========================================================================
+    ! Compute canopy resistance, assimilation, and CO2 plant and soil respiration fluxes
+    !
+    ! Includes:
+    !  - Plant (autotrophic) respiration and assimilation
+    !  - Soil (heterotrophic) respiration
+    !  - Canopy upscaling (DALES / IFS Eq. 8.101 style)
+    !  - Leaf-type switch: forests vs low vegetation (Eq. 8.118 / 8.114+8.119)
+    !
+    ! NOTE: The Ags constants for different vegetation LU are available in GitHub:
+    ! https://github.com/adoyenne/DALES_input_generator/blob/main/dales_openBC_setup/scripts/land_surface/ags_parameters.py
+    !
+    ! References:
+    !  - CTESSEL Technical Documentation, Eq. 8.101, 8.114, 8.118, 8.119
+    !  - Lloyd & Taylor (1994), Functional Ecology 8:315-323
+    !  - Raich & Schlesinger (1992), Tellus B 44:81-99
+    !=========================================================================
+
+    use modglobal,   only : i1, j1, nsv, rk3step, rdt,xtime,rtimee,xday,xlat,xlon
     use modfields,   only : rhof, exnh, qt0, presf, svm
+    use modsurfdata, only : tskin, phiw, tsoil, svflux, albedo
     use modsurface,  only : E1, ps
-    use modsurfdata, only : svflux, tskin, phiw, tsoil
-    use modraddata,  only : swd
-    use modemisdata, only : l_emission, svco2ags, svco2sum, svco2veg
+    use modraddata,  only : swd,swdir,swdif,zenith
+    use modlsmdata,  only : nlu, kmax_soil, dz_soil, zh_soil, an_co2, resp_co2, ci_old, gc_old
+    use modemisdata, only : l_emission, svco2ags, svco2veg, svco2sum
     use modtracers,  only : tracer_prop
 
     implicit none
     
     character(len=*), parameter :: routine = modname//'/calc_canopy_resistance_ags'
 
-    ! NOTE: these should become a namelist switches...
-    logical, parameter :: lsplitleaf = .false.
-    logical, parameter :: lrelaxgc = .false.
+    logical :: ci_old_set = .false.       ! initialization flag for old ci set
+    logical :: gc_old_set = .false.       ! initialization flag for old gc set
     
+    integer :: planttype = 3 !now, only planttype = 3 is implemented now!
 
-    real :: Ts, co2_comp, gm, fmin0, fmin, esatsurf, e, Ds, Dmax, cfrac, co2_abs, ci, to_mgm3, from_mgm3  
-    real :: Ammax, fstr, Am, Rdark, PAR, alphac, AGSa1, Dstar, tempy, An, gc_inf, gcco2, fw, t_mean, th_mean, rs_co2
-    real :: cland, theta_min, theta_rel, denom, temp_an, temp_resp
-    integer :: i, j, k, l, si, ilu_bs
+    ! Grid indices
+    integer :: i, j, k, l, ilu, itg, si, co2_index_sum
 
-    ! Fixed constants (** = same in DALES and IFS, !! = different in DALES and IFS)
-    ! Now, constants are put in array with two separate vegetation types: C3 (1) and C4 (2): 
+    ! Leaf and soil temperatures (K) and moisture fraction
+    real :: Ts, t_mean, th_mean, fw, fstr, theta_min, theta_rel
+
+    ! CO2 variables (mg/m³)
+    real :: co2_abs, co2_comp, ci
+
+    ! Photosynthesis variables
+    real :: gm, Ammax, Ds
+    real :: fmin, fmin0, cfrac
+    real :: PAR, PARdir, PARdif, alphac, Am, An_leaf, Rdark, An, An_gc, lai_eff, rs_co2
     
-    ! Define constants: 
-    real :: Q10gm, Q10am, Q10lambda, T1gm, T2gm, T1Am, T2Am, gmin, ad, Kx, alpha0, R10, gm298, Ammax298, f0, co2_comp298, bare_soil_fraction
+    real :: gm25_loc, Ammax25_loc, f0_loc, D0, alpha0_loc, co2_comp298_loc, Dmax_loc, T1gm_loc, T1Am_loc
     
-    character(len=3), dimension(3) :: soil_water_types = ['bs ', 'brn', 'ws ']
-    character(len=3), dimension(2) :: soil_types = ['bs ', 'brn']
+    real :: ci_inf, alpha, rk3coef
     
-    real, dimension(2) :: Q10gm_array = [2.0, 2.0]        ! (**) Parameter to calculate the mesophyll conductance [-]
-    real, dimension(2) :: Q10am_array = [2.0, 2.0]        ! (**) Parameter to calculate max primary productivity [-]
-    real, dimension(2) :: Q10lambda_array = [1.5, 1.5]    ! (!!) Parameter to calculate the CO2 compensation concentration. (2 in IFS, 1.5 in DALES) [-]
+    ! Canopy conductance and resistance
+    real :: gc_inf, gcco2, R_leaf_flux,  &
+    theta_eff, R_root_flux, R_soil_flux
 
-    ! Reference temperatures calculation mesophyll conductance:
-    real, dimension(2) :: T1gm_array = [278, 286]         ! (**)
-    real, dimension(2) :: T2gm_array = [301, 309]         ! (!!: IFS=309, DALES=301 (default), 309 (C4))
+    ! PAR-driven upscaling auxiliary variables
+    real :: AGSa1, Dstar, tempy
 
-    ! Reference temperatues calculation max primary productivity:
-    real, dimension(2) :: T1Am_array = [281, 286]         ! (!!: IFS=281, DALES=286 (C4))
-    real, dimension(2) :: T2Am_array = [311, 311]         ! (**)
+    ! Conversion between mg/m³ and mol/m³
+    real :: to_mgm3, from_mgm3
 
+    ! Vapour pressure at leaf surface
+    real :: esatsurf, e
 
-    real, parameter :: nuco2q = 1.6       ! Ratio molecular viscosity water to carbon dioxide
-    real, dimension(2) :: gmin_array = [2.5e-4, 2.5e-4]   ! cuticular (minimum) conductance [mm s-1]. NOTE: = g_cu in IFS?
-    real, dimension(2) :: ad_array =  [0.07, 0.15]        ! Regression coefficient to calculate Cfrac
-    real, dimension(2) :: Kx_array = [0.7, 0.7]           ! Extinction coefficient PAR [mground m−1leaf]
-    real, dimension(2) :: alpha0_array =  [0.017, 0.014]  ! Light use efficiency at low light conditions (mg J−1)
+    ! Leaf-specific coefficients
+    real :: a, b
 
+    ! -------------------------------
+    ! Constants (CTESSEL / IFS)
+    ! -------------------------------
+    real, parameter :: Q10gm     = 2.0       ! gm temperature sensitivity
+    real, parameter :: Q10Am     = 2.0       ! Ammax temperature sensitivity
+    real, parameter :: Q10lambda = 1.5       ! CO2 compensation temperature sensitivity
+    real, parameter :: nuco2q    = 1.6       ! ratio of diffusivities (H2O / CO2)
+    real, parameter :: gmin      = 2.5e-4    ! Minimum stomatal conductance (m/s)
+    real, parameter :: Mair      = 28.97     ! Molecular mass air (g/mol)
+    real, parameter :: Mco2      = 44.01     ! Molecular mass CO2 (g/mol)
+    real, parameter :: Kx        = 0.7       ! Extinction coefficient PAR [mground m−1leaf]
+    real, parameter :: ad        = 0.07      ! Regression coefficient to calculate Cfrac
+    ! Temperature limits (K)
+    real, parameter :: T2gm = 305.0
+    real, parameter :: T2Am = 311.0
 
-    real, parameter :: Mair = 28.97
-    real, parameter :: Mco2 = 44.01
-    real, parameter :: max_safe = 1.0e25
-    real, parameter :: min_safe = -1.0e25
-    real, parameter :: gc_max_threshold = 20.0           ! mm s⁻¹ (CO₂) (tune if needed)
+    ! Heterotrophic respiration constants
+    real, parameter :: Eact0 = 53.3e3       ! Activation energy (J/mol)
+    real, parameter :: R10_soil = 0.1       ! Base soil respiration at 10°C (mg CO2 m-2 s-1)
+    real, parameter :: Cw = 1.6e-3          ! Constant water stress correction
+    real, parameter :: wsmax = 0.55         ! Upper reference value soil water   # NOTE: I guess these are soil dependant?
+    real, parameter :: wsmin = 0.005        ! Lower reference value soil water   # NOTE: see line above :-)
     
-   
-    real, parameter :: max_resp_flux = 1.5      ! Max realistic respiration (mg/m²/s) (tune if needed)
+    real, parameter :: gc_max_threshold = 20.0e-3   ! m/s (CO2)
+    
+    real, parameter :: max_resp_flux = 5.0      ! Max realistic respiration (mg/m²/s) (tune if needed)
     real, parameter :: min_resp_flux = 0.0      ! Respiration must be ≥ 0
 
-    real, parameter :: max_an_flux   = 0.0      ! Assimilation must be ≤ 0
-    real, parameter :: min_an_flux   = -10.0     ! Max realistic CO₂ net uptake (mg/m²/s)  (tune if needed)
-
-    ! Parameters respiration Jacobs (2006)
-    real, parameter :: Cw = 1.6e-3                        ! Constant water stress correction
-    real, parameter :: wsmax = 0.55                       ! Upper reference value soil water   # NOTE: I guess these are soil dependant?
-    real, parameter :: wsmin = 0.005                      ! Lower reference value soil water   # NOTE: see line above :-)
-    real, dimension(2) :: R10_array =   [0.23, 0.1]       ! Respiration at 10oC (Jacobs 2007)
-    real, parameter :: Eact0 = 53.3e3                     ! Activation energy (J/mol)
-    real, parameter :: Eact_soil = 47.0e3                 ! Activation energy for soil (J/mol)  Lloyd & Taylor (1994), Functional Ecology 8:315-323.
-    real, parameter :: R_soil    = 0.15                   ! Base soil respiration at 10°C (mg CO₂ m⁻² s⁻¹) Raich & Schlesinger (1992), Tellus B 44:81-99.
-
-    ! Vegetation specific constants
-    ! TODO: link to lookup table IFS
-    ! Vegetation specific constants  
-    real, dimension(2) :: gm298_array = [3.0, 7.0]        ! Mesophyll conductance at 298 K [mm s-1] NOTE: Much lower than DALES...
-    real, dimension(2) :: Ammax298_array = [2.2, 1.7]     ! CO2 maximal primary productivity [mg CO2 m-2 s-1]
-    real, dimension(2) :: f0_array = [0.89, 0.85]         ! Maximum value Cfrac (constant or equation in IFS)
-    real, dimension(2) :: co2_comp298_array = [68.5, 4.3] ! CO2 compensation concentration = Lambda(25) in IFS  [mg m-3] CLASS model
-
-    ! For sw_splitleaf
-    !nr_gauss = 3                                 ! Amount of bins to use for Gaussian integrations
-    !weight_g = np.array([0.2778,0.4444,0.2778])  ! Weights of the Gaussian bins (must add up to 1)
-    !angle_g  = np.array([0.1127,   0.5,0.8873])  ! Sines of the leaf angles compared to the sun in the first Gaussian integration
-    !LAI_g    = np.array([0.1127,   0.5,0.8873])  ! Ratio of integrated LAI at locations where shaded leaves are evaluated in the second Gaussian integration
-    !sigma    = 0.2                               ! Scattering coefficient
-    !kdfbl    = 0.8                               ! Diffuse radiation extinction coefficient for black leaves
-
+    real, parameter :: max_an_flux   = 5.0      ! Net Assimilation must be ≤ 5
+    real, parameter :: min_an_flux   = -15.0    ! Max realistic CO2 net Assimilation (mg/m2/s)  (tune if needed)
+    
+    real, parameter :: kgc        = 0.00113     !<  Standard stomatal response rate (corresponding to a time scale of 14.75 min.) [1/s]
+    real, parameter :: kci        = 0.00113     !<  Standard internal CO2 response rate (corresponding to a time scale of 14.75 min.) [1/s]
+  
+    !Variables for 2leaf AGS
+    integer,parameter         :: nr_gauss   =                        3 !<  Amount of bins to use for Gaussian integrations
+    real, dimension(nr_gauss) :: weight_g   = (/0.2778,0.4444,0.2778/) !<  Weights of the Gaussian bins (must add up to 1)
+    real, dimension(nr_gauss) :: angle_g    = (/0.1127,   0.5,0.8873/) !<  Sines of the leaf angles compared to the sun in the first Gaussian integration
+    real, dimension(nr_gauss) :: LAI_g      = (/0.1127,   0.5,0.8873/) !<  Ratio of integrated LAI at locations where shaded leaves are evaluated in the second Gaussian integration
+    real                      :: sigma      =                      0.2 !<  Scattering coefficient
+    real                      :: kdfbl      =                      0.8 !<  Diffuse radiation extinction coefficient for black leaves
+    real                      :: minsinbeta =                      1.e-10
+    
+    real     :: sinbeta, kdrbl, kdf, kdr, ref, ref_dir
+    real     :: iLAI, fSL
+    real     :: PARdfU, PARdfD, PARdfT, PARdrU, PARdrD, PARdrT, dirPAR, difPAR
+    real     :: HdfT, HdrT, dirH, Hshad, Hsun(nr_gauss), Fshad, Fsun, gshad, gsun
+    real     :: Hleaf(nr_gauss+1), Fleaf(nr_gauss+1), gleaf(nr_gauss+1), Agl(nr_gauss+1)
+    real     :: Fnet(nr_gauss), gnet(nr_gauss)
+    
+    co2_index_sum = -1
+    
     ! Find CO2 index and set conversions
     do l = 1, nsv
-    
-        ! Check for either co2 or co2sum tracers
-        if (trim(tracer_prop(l)%tracname) == 'co2') then
-        !if (trim(tracer_prop(l)%tracname) == 'co2' .or. trim(tracer_prop(l)%tracname) == 'co2sum') then
-        
-            ! Handle emission vs. non-emission cases
-            !if (l_emission .and. (svco2sum .ge. 1)) then
-                !co2_index = svco2sum
-            !else
-                ! For non-emission, use regular co2
-                if (trim(tracer_prop(l)%tracname) == 'co2') then
-                    co2_index = tracer_prop(l)%trac_idx
-                endif
-            !endif
-        
+
+        if (trim(tracer_prop(l)%tracname) == 'co2' .or. &
+            trim(tracer_prop(l)%tracname) == 'co2sum') then
+
+            if (svco2sum >= 1) then
+                co2_index_sum = svco2sum
+            else if (trim(tracer_prop(l)%tracname) == 'co2') then
+                co2_index = tracer_prop(l)%trac_idx
+            end if
+
             if (trim(tracer_prop(l)%unit) == 'ppb') then
-                to_mgm3 = rhof(1) * Mco2 / Mair * 1.e-3  ! convert ppb (1e-9) to mg/m3
+                to_mgm3   = rhof(1) * Mco2 / Mair * 1.e-3
                 from_mgm3 = 1.0 / to_mgm3
 
-            elseif (trim(tracer_prop(l)%unit) == 'ppm') then
-                to_mgm3 = rhof(1) * Mco2 / Mair          ! convert ppm (1e-6) to mg/m3
-                from_mgm3 = 1.0 / to_mgm3 
-            else
-                call finish(routine, 'ERROR: CO2 has unsupported unit - ', trim(tracer_prop(l)%unit), 'CO2 must use either ppm or ppb units')
-            endif
-        endif
-    enddo
+            else if (trim(tracer_prop(l)%unit) == 'ppm') then
+                to_mgm3   = rhof(1) * Mco2 / Mair
+                from_mgm3 = 1.0 / to_mgm3
 
+            else
+                call finish(routine, 'ERROR: CO2 tracer has unsupported unit "' // &
+                    trim(tracer_prop(l)%unit) // '". CO2 must use either ppm or ppb.')
+            end if
+
+            exit
+        end if
+
+    end do
+    ! ----------------------------------------
+    ! Loop over model grid
+    ! ----------------------------------------
+    
+    rk3coef = rdt / (4. - dble(rk3step))
     
     do j = 2, j1
         do i = 2, i1
-            
-            ! Initialize CO2 fluxes
+
+            ! Reset grid-level CO2 fluxes [mg/m²/s]
             resp_co2(i,j) = 0.0
-            an_co2(i,j) = 0.0
-        
-            ! Get atmospheric CO2 concentration
-            co2_abs = svm(i,j,1,co2_index)*to_mgm3  !(in mg/m³)
-
-            ! Get soil index
-            si = soil_index(i, j, kmax_soil)
-
-            ! Compute surface temperature
+            an_co2(i,j)   = 0.0
+            
+            ! Surface temperature (K)
             Ts = tskin(i,j) * exnh(1)
 
-            ! Calculate mean t_soil and theta_soil for calculation soil respiration
-            t_mean = 0
+            ! Mean soil temperature (K) and volumetric water content [-]
+            t_mean  = 0
             th_mean = 0
             do k=1, kmax_soil
                 t_mean  = t_mean  + tsoil(i,j,k) * dz_soil(k)
                 th_mean = th_mean + phiw(i,j,k)  * dz_soil(k)
             enddo
-            t_mean  = t_mean  / (-zh_soil(1))
-            th_mean = th_mean / (-zh_soil(1))
-
-            ! Water stress function:
-            fw = Cw * wsmax / (th_mean + wsmin)
             
-            ! Loop over land use types
-            do ilu = 1, nlu
-                if (tile(ilu)%lushort == "slb") then; cycle; endif
-               
-               if  (tile(ilu)%lveg .and. trim(tile(ilu)%lushort) /= 'aqu') then
-               ! For vegetation tiles only, excluding aquatic
-
-                select case (trim(tile(ilu)%lushort))
-                !C3 and C4 types  
-                ! C3 type:
-                  case ('fbd', 'fce', 'sem', 'urb', 'brn', 'crp', 'ara')
-                        Q10gm = Q10gm_array(1)
-                        Q10am = Q10am_array(1)
-                        Q10lambda = Q10lambda_array(1)
-                        T1gm = T1gm_array(1)
-                        T2gm = T2gm_array(1)
-                        T1Am = T1Am_array(1)
-                        T2Am = T2Am_array(1)
-                        gmin = gmin_array(1)
-                        ad = ad_array(1)
-                        Kx = Kx_array(1)
-                        alpha0 = alpha0_array(1)
-                        R10 = R10_array(1)
-                        gm298 = gm298_array(1)
-                        Ammax298 = Ammax298_array(1)
-                        f0 = f0_array(1)
-                        co2_comp298 = co2_comp298_array(1)
-                       
-                   ! C4 type:
-                   case ('grs')
-                         Q10gm = Q10gm_array(2)
-                        Q10am = Q10am_array(2)
-                        Q10lambda = Q10lambda_array(2)
-                        T1gm = T1gm_array(2)
-                        T2gm = T2gm_array(2)
-                        T1Am = T1Am_array(2)
-                        T2Am = T2Am_array(2)
-                        gmin = gmin_array(2)
-                        ad = ad_array(2)
-                        Kx = Kx_array(2)
-                        alpha0 = alpha0_array(2)
-                        R10 = R10_array(2)
-                        gm298 = gm298_array(2)
-                        Ammax298 = Ammax298_array(2)
-                        f0 = f0_array(2)
-                        co2_comp298 = co2_comp298_array(2)
-
-                ! Unknown vegetation type
-                case default
-                        print *, 'Warning: Unknown vegetation type "', trim(tile(ilu)%lushort), '" – using C4 constants by default.'
-                        Q10gm = Q10gm_array(2)
-                        Q10am = Q10am_array(2)
-                        Q10lambda = Q10lambda_array(2)
-                        T1gm = T1gm_array(2)
-                        T2gm = T2gm_array(2)
-                        T1Am = T1Am_array(2)
-                        T2Am = T2Am_array(2)
-                        gmin = gmin_array(2)
-                        ad = ad_array(2)
-                        Kx = Kx_array(2)
-                        alpha0 = alpha0_array(2)
-                        R10 = R10_array(2)
-                        gm298 = gm298_array(2)
-                        Ammax298 = Ammax298_array(2)
-                        f0 = f0_array(2)
-                        co2_comp298 = co2_comp298_array(2)
-
-                end select
-
-                ! Calculate the CO2 compensation concentration (IFS eq. 8.92 mg/m³)
-                ! "The compensation point Γ is defined as the CO2 concentration at which the net CO2 assimilation of a fully lit leaf becomes zero."
-                ! NOTE: The old DALES LSM used the atmospheric `thl`, IFS uses the surface temperature.
-                co2_comp = rhof(1) * co2_comp298 * Q10lambda**(0.1 * (Ts - 298.0)) !mg/m³
-
-                ! Calculate the mesophyll conductance (IFS eq. 8.93)
-                ! "The mesophyll conductance gm describes the transport of CO2 from the substomatal cavities to the mesophyll cells where the carbon is fixed."
-                ! NOTE: The old DALES LSM used the atmospheric `thl`, IFS uses the surface temperature.
-                gm = gm298 * Q10gm**(0.1 * (Ts - 298.0)) / ((1. + exp(0.3 * (T1gm - Ts))) * (1. + exp(0.3 * (Ts - T2gm)))) / 1000.
-                
-                ! Calculate CO2 concentration inside the leaf (ci)
-                ! NOTE: Differs from IFS
-                fmin0 = gmin/nuco2q - (1./9.)*gm
-                fmin  = (-fmin0 + (fmin0**2 + 4*gmin/nuco2q*gm)**0.5) / (2.*gm)
-
-                ! Calculate atmospheric moisture deficit
-                ! NOTE: "Therefore Ci/Cs is specified as a function of atmospheric moisture deficit Ds at the leaf surface"
-                ! In DALES, this uses a mix between esat(surface) and e(atmosphere)
-                ! In IFS, this uses (in kg kg-1): qsat(Ts)-qs instead of qsat(Ts)-qa!
-                ! NOTE: Old DALES LSM used the surface pressure in the calculation of `e`, not sure why...
-                esatsurf = 0.611e3 * exp(17.2694 * (Ts - 273.16) / (Ts - 35.86))
-                e = qt0(i,j,1) * presf(1) / 0.622
-                Ds = (esatsurf - e) / 1000.
-
-                ! This seems to differ from IFS?
-                Dmax = max(1e-3, (f0-fmin)/ad)  ! Avoid division by zero
-
-                ! Coupling factor (IFS eq. 8.101)
-                cfrac = max(0.01, f0 * (1.0 - Ds/Dmax) + fmin * (Ds/Dmax))
-                
-
-                    
-                ! CO2 concentration in leaf (IFS eq. ???): 
-                ci = cfrac * (co2_abs - co2_comp) + co2_comp
-
-                ! Max gross primary production in high light conditions (Ag) (IFS eq. 8.94)
-                ! NOTE: The old DALES LSM used the atmospheric `thl`, IFS uses the surface temperature.
-                Ammax = Ammax298 * Q10am**(0.1 * (Ts - 298.0)) / ((1.0 + exp(0.3 * (T1Am - Ts))) * (1. + exp(0.3 * (Ts - T2Am))))
-
-                ! Effect of soil moisture stress on gross assimilation rate for all both types.
-                ! NOTE: this seems to be different in IFS...
-                fstr = max(1.0e-3, min(1.0, tile(ilu)%phiw_mean(i,j)))
-
-                ! Gross assimilation rate (Am, IFS eq. 8.97)
-                Am = Ammax * (1 - exp(-(gm * (ci - co2_comp) / Ammax)))
-                
-                if(ieee_is_nan(Am)) then
-                    tile(ilu)%rs(i,j) = 0.0
-                else
-                    ! Autotrophic dark respiration (IFS eq. 8.99)
-                    Rdark = Am/9.
-
-                    !PAR = 0.40 * max(0.1,-swdav * cveg(i,j))
-                    PAR = 0.5 * max(0.1, -swd(i,j,1))
-
-                    ! Light use efficiency
-                    alphac = alpha0 * (co2_abs - co2_comp) / (co2_abs + 2*co2_comp)
-                      
-                    if (lsplitleaf) then
-                        call finish(routine, 'Splitleaf A-Gs not (yet) implemented!')
-                        
-                    else
-                        ! Calculate upscaling from leaf to canopy: net flow CO2 into the plant (An)
-                        AGSa1  = 1.0 / (1 - f0)
-                        Dstar  = Dmax / (AGSa1 * (f0 - fmin))
-                        tempy  = alphac * Kx * PAR / (Am + Rdark)
-
-                        An = (Am + Rdark) * (1 - 1.0 / (Kx * tile(ilu)%lai(i,j)) * (E1(tempy * exp(-Kx * tile(ilu)%lai(i,j))) - E1(tempy)))
-                        gc_inf = tile(ilu)%lai(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2_abs - co2_comp) * (1 + Ds / Dstar)))
-                        
-                        ! At nighttime it might become unrealistic, so I put this here to prevent it being lower than gmin:
-                        ! Cap the value at a realistic:
-                    
-                        gc_inf = min(max(gc_inf, tile(ilu)%lai(i,j) * gmin), tile(ilu)%lai(i,j) * gc_max_threshold)
-                    
-                    endif
-
-                    if (lrelaxgc) then
-                        call finish(routine, 'Relax GC A-Gs not (yet) implemented!')
-                !  if (gc_old_set) then
-                !    gcco2       = gc_old(i,j) + min(kgc*rk3coef, 1.0) * (gc_inf - gc_old(i,j))
-                !    if (rk3step ==3) then
-                !      gc_old(i,j) = gcco2
-                !    endif
-                !  else
-                !    gcco2 = gc_inf
-                !    gc_old(i,j) = gcco2
-                !  endif
-                    else
-                        gcco2 = gc_inf
-                    endif
-
-                    !cland = cveg(i,j) + bare_soil_fraction
-
-                    ! Surface resistances for moisture and carbon dioxide
-                    tile(ilu)%rs(i,j) = 1.0 / (1.6 * gcco2)
-
-                    rs_co2 = 1. / gcco2
-
-                    ! Calculate plant (autotrophic) respiration and assimilation for this tile (mg/m2/s)
-                    resp_co2(i,j) = resp_co2(i,j) + tile(ilu)%frac(i,j) * R10 * (1.-fw) * exp(Eact0 / (283.15 * 8.314) * (1.0 - 283.15 / t_mean))
-                    
-                    ! Calculate net plant assimilation (mg/m2/s)
-                    an_co2(i,j) = an_co2(i,j) + tile(ilu)%frac(i,j) * (-(co2_abs - ci) / (tile(ilu)%ra(i,j) + rs_co2))
-                                                                        
-               endif
-               
-            ! Bare soil - use soil resistance ! f2b: reduction soil resistance as f(theta)
-            else if (any(soil_types == trim(tile(ilu)%lushort))) then
-                theta_min = theta_wp(si)
-                theta_rel = (phiw(i,j,kmax_soil) - theta_min) / max(1e-9, theta_fc(si) - theta_min)
-                f2b(i,j) = 1.0 / min(1.0, max(1e-9, theta_rel))
-                tile(ilu)%rs(i,j) = tile(ilu)%rs_min(i,j) / f2b(i,j)
-                    
-                ! Calculate soil (heterotrophic) respiration (mg/m2/s)
-                resp_co2(i,j) = resp_co2(i,j) + tile(ilu)%frac(i,j) * R_soil * &
-                    (1/f2b(i,j)) * &  ! Soil moisture scaling
-                    exp(Eact_soil / (283.15 * 8.314) * (1.0 - 283.15 / t_mean))
-                    
-                cycle
-               
-            else if (trim(tile(ilu)%lushort) == 'ws' .or. trim(tile(ilu)%lushort) == 'aqu') then     
-                ! Water leaf surface - zero resistance
-                tile(ilu)%rs(i,j) = 0.0
-                cycle
-            else 
-                ! Non-vegetated, non-soil, non-water tiles (e.g., urban, ice) get minimum resistance
-                tile(ilu)%rs(i,j) = tile(ilu)%rs_min(i,j) 
+            ! Sum over dz to get proper soil depth (check what is dz_soil!)
+            t_mean  = t_mean  / sum(dz_soil(1:kmax_soil))
+            th_mean = th_mean / sum(dz_soil(1:kmax_soil))
+            
+            
+            ! NOTE: this seems to be different in IFS...          
+            fw       = Cw * wsmax / (th_mean + wsmin)
+            fw = max(0.05, min(1.0, fw))
+            
+            ! PAR (µmol m-2 s-1)
+            PAR = max(0.0, -0.5 * swd(i,j,1))
+            
+            if (lsplitleaf) then
+                PARdir   = 0.50 * max(0.1_field_r,abs(swdir(i,j,1)))
+                PARdif   = 0.50 * max(0.1_field_r,abs(swdif(i,j,1)))
             endif
             
-        enddo !end loop over nlu
+            ! Ambient CO2 (mg/m³)
+            co2_abs = svm(i,j,1,co2_index)*to_mgm3  !(in mg/m³)
 
-        ! Set CO2 fluxes (svflux):
-        ! Final check to be physically reasonable:
-        
-        ! --- Check respiration (should be positive, reasonable) ---
-        if (resp_co2(i,j) /= resp_co2(i,j) .or. resp_co2(i,j) > max_resp_flux .or. resp_co2(i,j) < min_resp_flux) then
-            print *, "WARNING: Unrealistic resp_co2:", resp_co2(i,j), "→ substituting 0"
-            resp_co2(i,j) = 0.0
-        endif
+            ! ----------------------------------------
+            ! Loop over tiles in each grid cell
+            ! ----------------------------------------
+            do ilu = 1, nlu
 
-        ! --- Check assimilation (should be negative, reasonable) ---
-        if (an_co2(i,j) /= an_co2(i,j) .or. an_co2(i,j) > max_an_flux .or. an_co2(i,j) < min_an_flux) then
-            print *, "WARNING: Unrealistic an_co2:", an_co2(i,j), "→ substituting 0"
-            an_co2(i,j) = 0.0
-        endif
-        
-        
-        resp_co2(i,j) = resp_co2(i,j)* from_mgm3 ! Convert mg/m²/s to unit m/s (unit are units of CO2 in the model)
-        an_co2(i,j) = an_co2(i,j) * from_mgm3    ! Convert mg/m²/s to unit m/s (unit are units of CO2 in the model)
-        
-        if (svco2ags .ge. 1) then
-            svflux(i,j,svco2ags) = resp_co2(i,j)  !Kinematic scalar flux [unit m/s]
-        else if (svco2veg .ge. 1) then
-            svflux(i,j,svco2veg) = an_co2(i,j)  !Kinematic scalar flux [unit m/s]
-        endif 
-        
-        svflux(i,j,co2_index) = resp_co2(i,j) + an_co2(i,j)  !Kinematic scalar flux [unit m/s] 
-        
+                lai_eff = max(1e-3, tile(ilu)%lai(i,j))
+                si = soil_index(i,j,kmax_soil)
+                An_gc = 0
+                AGSa1 = 0  
+                Dstar = 0
+                tempy = 0
 
-        enddo 
-    enddo 
+                ! -------------------------------
+                ! Vegetated tiles
+                ! -------------------------------
+                if (tile(ilu)%lveg) then
+ 
+                    ! -------------------------------
+                    ! Vegetation-type constants (read from lsm nc-input!)
+                    ! -------------------------------
+                    gm25_loc=tile(ilu)%gm25(i,j)
+                    Ammax25_loc=tile(ilu)%Ammax25(i,j)
+                    f0_loc=tile(ilu)%f0field(i,j)
+                    alpha0_loc=tile(ilu)%alpha0field(i,j)
+                    co2_comp298_loc=tile(ilu)%co2_comp298(i,j)
+                    T1gm_loc=tile(ilu)%T1gmfield(i,j)
+                    T1Am_loc=tile(ilu)%T1Amfield(i,j)
+                
+                    ! -------------------------------
+                    ! Effect of soil moisture stress on gross assimilation rate
+                    fstr = max(1.e-3, min(1.0, tile(ilu)%phiw_mean(i,j))) !note: phiw_mean is already normalised above to [0,1]
+                
+                    ! --------------------------------------------------
+                    ! CO2 compensation concentration Γ(T)
+                    ! Convert CO2 compensation from ppm to mg/m³ (like co2_abs)
+                    co2_comp = co2_comp298_loc * to_mgm3 * Q10lambda**(0.1*(Ts-298.15))
+                    ! -------------------------------
+                    ! Leaf mesophyll conductance gm(T) [m/s]
+                    ! -------------------------------
+                    gm = gm25_loc * Q10gm**(0.1*(Ts-298.15)) / &
+                         ((1.+exp(0.3*(T1gm_loc-Ts))) * (1.+exp(0.3*(Ts-T2gm))))
+
+                    ! -------------------------------
+                    ! Vapour pressure deficit at leaf surface Ds [in kPa]
+                    ! -------------------------------        
+                    esatsurf = 0.611e3 * exp(17.2694*(Ts-273.16)/(Ts-35.86))
+                    e    = qt0(i,j,1) * presf(1) / 0.622
+                    Ds   = (esatsurf - e) / 1000.0 ! In kPa
+                
+                    ! -------------------------------
+                    ! Ci / Cs coupling factor
+                    ! -------------------------------
+                    fmin0 = gmin/nuco2q - (1.0/9.0) * gm
+                    fmin  = (-fmin0 + sqrt(fmin0**2 + 4*gmin/nuco2q*gm)) / (2*gm)
+                    D0       = (f0_loc - fmin) / ad !in kPa
+                
+                    cfrac = f0_loc * (1.0 - Ds/D0) + fmin * (Ds/D0)
+                    cfrac = max(1.e-3, min(1.0, cfrac))
+                                
+                    if (lrelaxci) then
+
+                       ci_inf = cfrac * (co2_abs - co2_comp) + co2_comp
+
+                       if (ci_old_set) then
+
+                          alpha = min(kci*rk3coef,1.0)
+
+                          ci = ci_old(i,j) + alpha * (ci_inf - ci_old(i,j))
+
+                          if (rk3step == 3) ci_old(i,j) = ci
+
+                       else
+                          ci = ci_inf
+                          ci_old(i,j) = ci
     
+                          if (rk3step == 3) ci_old_set = .true.
+                       endif
+
+                    else
+                       ci = cfrac * (co2_abs - co2_comp) + co2_comp
+                    endif
+
+                    ! -------------------------------
+                    ! Gross assimilation rate (Am) and maximum (Ammax) [mg/m²/s]
+                    ! -------------------------------
+                    Ammax = Ammax25_loc * Q10Am**(0.1*(Ts-298.15)) / &
+                        ((1.+exp(0.3*(T1Am_loc-Ts))) * (1.+exp(0.3*(Ts-T2Am))))
+                  
+                    ! Calculate gross assimilation rate (Am)
+                    Am  = Ammax * (1 - exp( -(gm * (ci - co2_comp) / Ammax) ) )
+
+                    Am = max(0.0, Am)
+                
+                    Rdark    = (1.0/9) * Am
+
+                    ! -------------------------------
+                    ! PAR-driven DALES leaf-to-canopy upscaling
+                    ! -------------------------------               
+                    alphac = alpha0_loc * max(co2_abs - co2_comp, 0.0) / (co2_abs + 2*co2_comp)
+                    alphac = max(alphac, 1e-6)
+                                
+                    if(lsplitleaf) then !split-leaf scheme
+                                 
+                        sinbeta  = max(zenith(xtime*3600 + rtimee,xday,xlat,xlon), minsinbeta)
+                        kdrbl    = 0.5 / sinbeta                                     ! Direct radiation extinction coefficient for black leaves
+                        kdf      = kdfbl * sqrt(1.0-sigma)
+                        kdr      = kdrbl * sqrt(1.0-sigma)
+                        ref      = (1.0 - sqrt(1.0-sigma)) / (1.0 + sqrt(1.0-sigma)) ! Reflection coefficient
+                        ref_dir  = 2 * ref / (1.0 + 1.6 * sinbeta)
+
+                        do itg = 1, nr_gauss ! loop over the different LAI locations
+                     
+                            iLAI   = lai_eff * LAI_g(itg)    ! Integrated LAI between here and canopy top; Gaussian distributed
+                            fSL    = exp(-kdrbl * iLAI)      ! Fraction of sun-lit leaves
+
+                            PARdfD = PARdif * (1.0-ref)     * exp(-kdf * iLAI    )     ! Total downward PAR due to diffuse radiation at canopy top
+                            PARdrD = PARdir * (1.0-ref_dir) * exp(-kdr * iLAI    )     ! Total downward PAR due to direct radiation at canopy top
+                            PARdfU = PARdif * (1.0-ref)     * exp(-kdf * lai_eff) * albedo(i,j) * (1.0-ref) * exp(-kdf * (lai_eff-iLAI)) ! Total upward (reflected) PAR that originates as diffuse radiation
+                            PARdrU = PARdir * (1.0-ref_dir) * exp(-kdr * lai_eff) * albedo(i,j) * (1.0-ref) * exp(-kdf * (lai_eff-iLAI)) ! Total upward (reflected) PAR that originates as direct radiation
+                            PARdfT = PARdfD + PARdfU                                   ! Total PAR due to diffuse radiation at canopy top
+                            PARdrT = PARdrD + PARdrU                                   ! Total PAR due to direct radiation at canopy top
+
+                            dirPAR = (1.0-sigma) * PARdir * fSL                        ! Purely direct PAR (can only be downward)
+                            difPAR = PARdfT + PARdrT - dirPAR                          ! Total diffuse radiation
+
+                            HdfT   = kdf * PARdfD + kdf * PARdfU
+                            HdrT   = kdr * PARdrD + kdf * PARdrU
+                            dirH   = kdrbl * dirPAR
+                            Hshad  = HdfT + HdrT - dirH
+
+                            Hsun   = Hshad + angle_g * (1.0-sigma) * kdrbl * PARdir / sum(angle_g * weight_g)
+
+                            Hleaf(1)              = Hshad
+                            Hleaf(2:(nr_gauss+1)) = Hsun
+                     
+                            Agl = fstr * (Am + Rdark) * &
+                                (1.0 - exp(-alphac * Hleaf / (Am + Rdark)))
+                     
+                            if (PAR < 1.) then
+                                gleaf = gmin/nuco2q
+                            else
+                                gleaf = gmin/nuco2q + Agl/max(1.e-6, co2_abs - ci)
+                            endif
+
+                            !Fleaf  = -(co2abs - ci) / (ra(i,j) + 1.0 / gleaf)
+                            Fleaf  = Agl - Rdark
+                            Fshad  = Fleaf(1)
+                            Fsun   = sum(weight_g * Fleaf(2:(nr_gauss+1)))
+                            gshad  = gleaf(1)
+                            gsun   = sum(weight_g * gleaf(2:(nr_gauss+1)))
+
+                            Fnet(itg) = Fsun * fSL + Fshad * (1 - fSL)
+                            gnet(itg) = gsun * fSL + gshad * (1 - fSL)
+
+                          end do !itg
+                   
+                          ! Canopy biochemical net CO2 uptake
+                          An_gc    = lai_eff * sum(weight_g * Fnet)
+                          
+                          gc_inf   = lai_eff * sum(weight_g * gnet)
+                
+                    else !big-leaf scheme
+
+                       ! -------------------------------
+                       ! Leaf-level light-limited net assimilation (IFS Eq. 8.103)
+                       ! -------------------------------
+
+                       AGSa1 = 1.0 / max(1e-3, (1.0 - f0_loc))
+    
+                       Dstar    = D0 / (AGSa1 * (f0_loc - fmin))
+                          
+                       tempy = alphac * Kx * PAR / (Am + Rdark)
+                   
+                       ! Exponential integral upscaling (net assimilation An)
+                       ! Canopy biochemical net CO2 uptake
+                       An_gc = (Am + Rdark) * (1.0 - 1.0/(Kx * lai_eff) * &
+                            (E1(tempy * exp(-Kx * lai_eff)) - E1(tempy)))
+                   
+                       ! Leaf-scale infinite canopy conductance [m/s]
+                       gc_inf = lai_eff * (gmin/nuco2q + AGSa1 * fstr * max(0.0, An_gc) / ((co2_abs - co2_comp) * (1 + Ds / Dstar)))
+
+                    endif !end leaf scheme switch
+                  
+                    if (lrelaxgc) then
+                        if (gc_old_set) then
+                            gcco2 = gc_old(i,j) + min(kgc*rk3coef, 1.0) * (gc_inf - gc_old(i,j))
+                            if (rk3step == 3) gc_old(i,j) = gcco2
+                        else
+                            gcco2 = gc_inf
+                            gc_old(i,j)= gcco2
+                        endif
+                    else                
+                        gcco2 = gc_inf
+                    endif 
+          
+                    ! Convert to canopy resistance [s/m]
+                    ! Calculate surface resistances for moisture and carbon dioxide:
+                    tile(ilu)%rs(i,j) = 1.0 / (1.6 * gcco2)
+                    rs_co2    = 1.0 / gcco2
+                
+                    ! the resistance-law net flux of CO2 into the plant (- because we calulate the loss of atm. CO2)
+                    An = - (co2_abs - ci) / (tile(ilu)%ra(i,j) + rs_co2)
+                
+                    ! Values < 1 s/m imply unrealistically high conductance.
+                    ! Values > 1e5 s/m indicate stomatal closure or numerical instability.
+                    if (tile(ilu)%rs(i,j) < 1.0  .or. tile(ilu)%rs(i,j) > 1e5) then
+                        print *, "WARNING: Tile", ilu, "rs out of bounds:", tile(ilu)%rs(i,j)
+                    endif
+                
+                    ! Net leaf-level CO2 flux for this tile [mg/m²/s] 
+                    ! (net assimilation including leaf respiration!):
+                    an_co2(i,j) = an_co2(i,j) + tile(ilu)%frac(i,j) * An
+                
+                else !non-vegetated tiles
+                
+                    ! =========================================================
+                    ! UNIFIED DRY SOIL RESISTANCE (burned + bare soil)
+                    ! =========================================================
+                    if (tile(ilu)%lunum == lu_brn .or. tile(ilu)%lunum == lu_bs) then
+                        ! --- Define moisture reference ---
+                        if (tile(ilu)%lunum == lu_brn) then
+                            ! Burned land: degraded soil structure
+                            theta_min = cveg(i,j) * theta_wp(si) + (1.0 - cveg(i,j)) * theta_res(si)
+                        else
+                            ! Bare soil: standard physical lower bound
+                            theta_min = theta_wp(si)
+                        end if
+
+                        ! --- Normalized soil moisture availability ---
+                        theta_rel = (phiw(i,j,kmax_soil) - theta_min) / &
+                                    max(1e-5, theta_fc(si) - theta_min)
+                           
+                        ! f2b: reduction soil resistance as f(theta)    
+                        f2b(i,j)  = 1./min(1., max(1e-5, theta_rel))   !1.e-9
+                        
+                        ! --- Resistance  ---
+                        tile(ilu)%rs(i,j) = tile(ilu)%rs_min(i,j) / f2b(i,j)
+                        tile(ilu)%rs(i,j) = max(1.0, min(tile(ilu)%rs(i,j), 1e5))
+                    
+                    else if (ilu == ilu_ws) then
+                        ! ===== Watered soil (treated as land) =====
+                        tile(ilu)%rs(i,j) = 10
+                    else   !all other tiles like water, urban and etc..
+                        tile(ilu)%rs(i,j) = tile(ilu)%rs_min(i,j)
+                    endif  
+                
+                endif !end veg/non-veg switch
+            enddo !end tile loop
+            
+            !Soil respiration [mg/m²/s]:
+            R_soil_flux   = R10_soil * (1 - fw)* exp( Eact0 / (283.15 * 8.314) * (1.0 - 283.15 / ( t_mean )))
+            resp_co2(i,j) = cveg(i,j) * R_soil_flux
+            
+            ! Set CO2 fluxes (svflux):
+            ! Final check to be physically reasonable:
+            ! --- Check respiration (should be positive, reasonable) ---
+            if (resp_co2(i,j) /= resp_co2(i,j) .or. resp_co2(i,j) > max_resp_flux .or. resp_co2(i,j) < min_resp_flux) then
+              print *, "WARNING: Unrealistic resp_co2:", resp_co2(i,j), "→ substituting with 0"
+              resp_co2(i,j) = 0.0
+            endif
+
+            ! --- Check NET assimilation  ---
+            if (an_co2(i,j) /= an_co2(i,j) .or. an_co2(i,j) > max_an_flux .or. an_co2(i,j) < min_an_flux) then
+              print *, "WARNING: Unrealistic an_co2:", an_co2(i,j), "→ substituting with 0"
+              an_co2(i,j) = 0.0
+            endif
+
+            ! Save to output variables (unit either ppm or ppb)
+            if (svco2ags > 0) svflux(i,j,svco2ags) = resp_co2(i,j)   * from_mgm3     ! Convert back to unit m/s
+            if (svco2veg > 0) svflux(i,j,svco2veg) = an_co2(i,j)     * from_mgm3     ! Convert back to unit m/s
+            if (co2_index_sum > 0) svflux(i,j,co2_index_sum) = (resp_co2(i,j) + an_co2(i,j)) * from_mgm3 !Kinematic scalar flux [unit m/s] 
+            svflux(i,j,co2_index) = (resp_co2(i,j) + an_co2(i,j)) * from_mgm3     !Kinematic scalar flux [unit m/s] 
+        enddo
+    enddo
+
 end subroutine calc_canopy_resistance_ags
 
 !
@@ -1583,7 +1668,8 @@ subroutine initlsm
 
     ! Namelist definition
     namelist /NAMLSM/ &
-        lheterogeneous, lfreedrainage, lags, dz_soil, iinterp_t, iinterp_theta, co2_index, nlu
+        lheterogeneous, lfreedrainage, lags, lsplitleaf, lrelaxgc, lrelaxci, dz_soil, & 
+        iinterp_t, iinterp_theta, co2_index, nlu
     llsm = (isurf == 11)
 
     if (llsm) then
@@ -1602,6 +1688,9 @@ subroutine initlsm
         call D_MPI_BCAST(lheterogeneous,  1, 0, comm3d, mpierr)
         call D_MPI_BCAST(lfreedrainage,   1, 0, comm3d, mpierr)
         call D_MPI_BCAST(lags,            1, 0, comm3d, mpierr)
+        call D_MPI_BCAST(lsplitleaf,      1, 0, comm3d, mpierr)
+        call D_MPI_BCAST(lrelaxgc,        1, 0, comm3d, mpierr)
+        call D_MPI_BCAST(lrelaxci,        1, 0, comm3d, mpierr)
         call D_MPI_BCAST(nlu,             1, 0, comm3d, mpierr)
         call D_MPI_BCAST(iinterp_t,       1, 0, comm3d, mpierr)
         call D_MPI_BCAST(iinterp_theta,   1, 0, comm3d, mpierr)
@@ -1885,7 +1974,7 @@ subroutine exitlsm
     ! Allocated from `create_soil_grid`:
     deallocate( z_soil, dz_soil, dzi_soil, zh_soil, dzh_soil, dzhi_soil )
 
-    if (lags) deallocate(an_co2, resp_co2)
+    if (lags) deallocate(an_co2, resp_co2, ci_old, gc_old)
 
     ! Tiles, allocated from `allocate_tile`:
     do ilu=1,nlu
@@ -2031,6 +2120,8 @@ subroutine allocate_fields
     if (lags) then
         allocate(an_co2(i2, j2))
         allocate(resp_co2(i2, j2))
+        allocate(ci_old(i2, j2))
+        allocate(gc_old(i2, j2))
     endif
 
     ! Allocate the tiled variables
@@ -2133,6 +2224,16 @@ subroutine allocate_tile(tile)
     ! Gamma parameter for calculating soil compensation point
 !    allocate(tile % gamma_soil_default(i2, j2))
 
+    if (lags) then
+       allocate( tile % gm25(i2, j2))
+       allocate( tile % Ammax25(i2, j2))
+       allocate( tile % f0field(i2, j2))
+       allocate( tile % alpha0field(i2, j2))
+       allocate( tile % co2_comp298(i2, j2))
+       allocate( tile % T1gmfield(i2, j2))
+       allocate( tile % T1Amfield(i2, j2))
+    endif
+
 end subroutine allocate_tile
 
 !
@@ -2156,6 +2257,8 @@ subroutine deallocate_tile(tile)
 !   deallocate( tile%Tmin, tile%Topt, tile%Tmax)
 !   deallocate( tile%gs_max, tile%vpd_min, tile%vpd_max)
 !   deallocate( tile%gamma_stom, tile%gamma_soil_c_fac, tile%gamma_soil_default)
+    if (lags) deallocate( tile%gm25, tile%Ammax25,tile%f0field, tile%alpha0field, &
+           tile%co2_comp298, tile%T1gmfield, tile%T1Amfield )
 
 end subroutine deallocate_tile
 
@@ -2434,7 +2537,8 @@ subroutine init_heterogeneous_nc
     use modmpi,      only : myid, myidx, myidy
     use modglobal,   only : imax, jmax, itot, jtot, ldrydep
 
-    use modsurfdata, only : tsoil, tskin, tskin_radiative, phiw, wl, wlm, wmax, albedoav
+    use modsurfdata, only : tsoil, tskin, tskin_radiative, phiw, wl, wlm, wmax, albedoav, &
+        gm25, Ammax25, f0field, alpha0field, co2_comp298, T1gmfield, T1Amfield
     use modlogging, only : profile_output
     use modstat_nc, only: read_nc_field
     use modslurb, only: enable_slurb
@@ -2538,6 +2642,15 @@ subroutine init_heterogeneous_nc
     tile(nlu)%G = 0
     tile(nlu)%ustar = 0
     tile(nlu)%albedo = 0
+    if (lags) then
+        tile(ilu)%gm25 = 0
+        tile(ilu)%Ammax25 = 0
+        tile(ilu)%f0field = 0
+        tile(ilu)%alpha0field = 0
+        tile(ilu)%co2_comp298 = 0
+        tile(ilu)%T1gmfield = 0
+        tile(ilu)%T1Amfield = 0
+    endif 
 
     ! 2D surface fields
     do ilu=1,nlu-1
@@ -2558,6 +2671,15 @@ subroutine init_heterogeneous_nc
       tile(ilu)%G = 0
       tile(ilu)%ustar = 0
       tile(ilu)%albedo = 0
+      if (lags) then
+        tile(ilu)%gm25 = 0
+        tile(ilu)%Ammax25 = 0
+        tile(ilu)%f0field = 0
+        tile(ilu)%alpha0field = 0
+        tile(ilu)%co2_comp298 = 0
+        tile(ilu)%T1gmfield = 0
+        tile(ilu)%T1Amfield = 0
+      endif  
 
       write(profile_output,*) 'reading variables for LU type: ', trim(tile(ilu)%lushort)
       ! LU cover
@@ -2622,6 +2744,43 @@ subroutine init_heterogeneous_nc
                               requirefill=.true.,fillvalue=albedoav, &
                               start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                               count = (/imax, jmax/) )
+      if (lags) then                        
+        !gm25
+        call check( nf90_inq_varid( ncid, 'gm25_'//trim(tile(ilu)%lushort), varid) )
+        call check( nf90_get_var(ncid, varid, tile(ilu)%gm25(2:i1, 2:j1) , &
+                              start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                              count = (/imax, jmax/) ) )                
+        !Ammax25
+        call check( nf90_inq_varid( ncid, 'Ammax25_'//trim(tile(ilu)%lushort), varid) )
+        call check( nf90_get_var(ncid, varid, tile(ilu)%Ammax25(2:i1, 2:j1) , &
+                              start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                              count = (/imax, jmax/) ) )
+        !f0
+        call check( nf90_inq_varid( ncid, 'f0_'//trim(tile(ilu)%lushort), varid) )
+        call check( nf90_get_var(ncid, varid, tile(ilu)%f0field(2:i1, 2:j1) , &
+                              start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                              count = (/imax, jmax/) ) )
+        !alpha0
+        call check( nf90_inq_varid( ncid, 'alpha0_'//trim(tile(ilu)%lushort), varid) )
+        call check( nf90_get_var(ncid, varid, tile(ilu)%alpha0field(2:i1, 2:j1) , &
+                              start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                              count = (/imax, jmax/) ) )
+        !co2_comp298
+        call check( nf90_inq_varid( ncid, 'co2_comp298_'//trim(tile(ilu)%lushort), varid) )
+        call check( nf90_get_var(ncid, varid, tile(ilu)%co2_comp298(2:i1, 2:j1) , &
+                              start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                              count = (/imax, jmax/) ) )
+        !T1gm
+        call check( nf90_inq_varid( ncid, 'T1gm_'//trim(tile(ilu)%lushort), varid) )
+        call check( nf90_get_var(ncid, varid, tile(ilu)%T1gmfield(2:i1, 2:j1) , &
+                              start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                              count = (/imax, jmax/) ) )
+        !T1Am
+        call check( nf90_inq_varid( ncid, 'T1Am_'//trim(tile(ilu)%lushort), varid) )
+        call check( nf90_get_var(ncid, varid, tile(ilu)%T1Amfield(2:i1, 2:j1) , &
+                              start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                              count = (/imax, jmax/) ) )
+      endif
 
     !!! deposition parameters
     if (ldrydep) then
