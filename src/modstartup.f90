@@ -591,7 +591,7 @@ contains
              call finish(routine, 'Cannot open the file ', 'prof.inp.'//cexpnr)
           end if
           read (ifinput,'(a512)') chmess
-          write(*,     '(a512)') chmess
+          !write(*,     '(a512)') chmess
           read (ifinput,'(a512)') chmess
 
           do k = 1, kmax
@@ -619,7 +619,7 @@ contains
         end do
 
         if (minval(e12prof(1:kmax)) < e12min) then
-          write(*,*)  'e12 value is zero (or less) in prof.inp'
+          call message(routine, 'e12 value is zero (or less) in prof.inp')
           do k = 1, kmax
             e12prof(k) = max(e12prof(k),e12min)
           end do

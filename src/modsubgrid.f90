@@ -32,7 +32,7 @@ module modsubgrid
 use modsubgriddata
 use modprecision, only: field_r
 use modtimer
-use modlogging, only: finish
+use modlogging, only: message, finish
 implicit none
 save
   character(len=*), parameter :: modname = 'modsubgrid'
@@ -94,18 +94,17 @@ contains
       anis_fac = 1.   !horizontal = vertical diffusion
     endif
 
-    if (myid==0) then
-      write (profile_output,*) 'cf    = ',cf
-      write (profile_output,*) 'cm    = ',cm
-      write (profile_output,*) 'ch    = ',ch
-      write (profile_output,*) 'ch1   = ',ch1
-      write (profile_output,*) 'ch2   = ',ch2
-      write (profile_output,*) 'ceps  = ',ceps
-      write (profile_output,*) 'ceps1 = ',ce1
-      write (profile_output,*) 'ceps2 = ',ce2
-      write (profile_output,*) 'cs    = ',cs
-      write (profile_output,*) 'Rigc  = ',Rigc
-    endif
+    call message(routine, 'cf    = ', cf)
+    call message(routine, 'cm    = ', cm)
+    call message(routine, 'ch    = ', ch)
+    call message(routine, 'ch1   = ', ch1)
+    call message(routine, 'ch2   = ', ch2)
+    call message(routine, 'ceps  = ', ceps)
+    call message(routine, 'ceps1 = ', ce1)
+    call message(routine, 'ceps2 = ', ce2)
+    call message(routine, 'cs    = ', cs)
+    call message(routine, 'Rigc  = ', Rigc)
+
 
     !$acc enter data copyin(ekm, ekh, zlt, csz, anis_fac, &
     !$acc&                  sbdiss, sbshr, sbbuo)

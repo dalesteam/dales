@@ -1811,8 +1811,8 @@ subroutine initlsm
 
         ! check if nlu_file==nlu-1 ('wet skin' is not in file)
         if (.not. lheterogeneous) then
-          write(6,"(A100, i3)") "Homogeneous land use; Note that 1 additional LU type (ws) is added on runtime. &
-                                &Include it in nlu  ", nlu
+          call message (routine, "Homogeneous land use; Note that 1 additional LU type (ws) is added on runtime. &
+                                 &Include it in nlu ", nlu)
         end if
 
         allocate(tile(nlu), stat=ierr)
@@ -2832,7 +2832,7 @@ subroutine init_heterogeneous_nc
 
     write(input_file(9:11), '(i3.3)') iexpnr
 
-    write(profile_output,"(A18, A32)") "Reading LSM input: ", input_file
+    call message(routine, "Reading LSM input: ", input_file)
     call check( nf90_open(input_file, nf90_nowrite, ncid) )
     if (myid==0) then
       call check( nf90_inq_dimid(ncid, 'nlu', varid) )
@@ -2957,7 +2957,7 @@ subroutine init_heterogeneous_nc
         tile(ilu)%T1Amfield = 0
       endif  
 
-      write(profile_output,*) 'reading variables for LU type: ', trim(tile(ilu)%lushort)
+      call message (routine, 'reading variables for LU type: ', trim(tile(ilu)%lushort))
       ! LU cover
       call check( nf90_inq_varid( ncid, 'cover_'//trim(tile(ilu)%lushort), varid) )
       call check( nf90_get_var(ncid, varid, tile(ilu)%base_frac(2:i1, 2:j1) , &

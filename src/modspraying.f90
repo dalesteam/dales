@@ -17,7 +17,7 @@ module modspraying
                              isv_salt,tracer, lsalt_sponge, lcoupled, &
                              my_process_sprays, target_mode, isv_salt_n
   use modtracers,      only: add_tracer, get_tracer_index
-
+  use modlogging,      only: message, warning, finish
   implicit none
 
   private
@@ -94,31 +94,19 @@ contains
     k_spray = k_glob_spray
 
     ! are the local coordinates actually in the domain?
-    if (i_spray >= 2 .and. i_spray <= i1 .and. &
+    if ((lwater_spraying .or. lsalt_spraying) .and. &
+        i_spray >= 2 .and. i_spray <= i1 .and. &
         j_spray >= 2 .and. j_spray <= j1 .and. &
         k_spray >= 1 .and. k_spray <= kmax) then
-      write(profile_output,*) 'spraying point at myidx = ',myidx, ' myidy = ', myidy
-      write(profile_output,*) 'global locations ',i_glob_spray,j_glob_spray,k_glob_spray
-      write(profile_output,*) 'local locations ',i_spray,j_spray,k_spray
+      call message(routine,'spraying point at myidx = ',myidx, ' myidy = ', myidy)
+      call message(routine,'global locations ',i_glob_spray,j_glob_spray,k_glob_spray)
+      call message(routine,'local locations ',i_spray,j_spray,k_spray)
       my_process_sprays = .true.
     else  ! if not, there is no sprayer here
       my_process_sprays = .false.
       i_spray = -999
       j_spray = -999
       k_spray = -999
-    endif
-
-    if (myid==0) then
-      write(profile_output,*) 'Spraying data used: '
-      write(profile_output,*) 'lwater_spraying     ',lwater_spraying
-      write(profile_output,*) 'lsalt_spraying      ',lsalt_spraying
-      write(profile_output,*) 'i_glob_spray        ',i_glob_spray
-      write(profile_output,*) 'j_glob_spray        ',j_glob_spray
-      write(profile_output,*) 'k_glob_spray        ',k_glob_spray
-      write(profile_output,*) 'water_spray_rate    ',water_spray_rate
-      write(profile_output,*) 'salt_spray_rate     ',salt_spray_rate
-      write(profile_output,*) 'salt scalar number  ',isv_salt
-      write(profile_output,*)
     endif
 
   end subroutine initspraying
