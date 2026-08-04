@@ -167,7 +167,18 @@ contains
       end if
       if (rad_shortw) then
         call shr_orb_params(iyear,eccen,obliq,mvelp,obliqr,lambm0,mvelpp,.false.)
-        if (myid==0) write(profile_output,*) 'orb_params = ',eccen,obliq,mvelp,obliqr,lambm0,mvelpp
+        ! the function zenith() doesn't actually use these parameters
+        ! so not printing them for now
+        ! todo: iyear here should probably be equal to xyear from namelist
+        !call message(routine, 'Orbital parameters:')
+        !call message(routine, '  year    = ', iyear)
+        !call message(routine, '  eccen   = ', eccen)
+        !call message(routine, '  obliq   = ', obliq)
+        !call message(routine, '  mvelp   = ', mvelp)
+        !call message(routine, '  obliqr  = ', obliqr)
+        !call message(routine, '  lambm0  = ', lambm0)
+        !call message(routine, '  mvelpp  = ', mvelpp)
+
         call rrtmg_sw_ini(cpdair)
       end if
       isInitializedRrtmg = .true.
