@@ -37,7 +37,7 @@ implicit none
 character(len=*), parameter :: modname = 'modAGScross'
 
 private
-PUBLIC :: initAGScross, AGScross,exitAGScross
+public :: initAGScross, AGScross, exitAGScross
 save
 !NetCDF variables
   integer,parameter :: nvar = 35 !gc_CO2,PAR,Qnet,LE,H,G0 added, and swdir swdif conditionally
@@ -127,7 +127,7 @@ contains
     call ncinfo(ncnameAGS(19,:),'tsoil3', 'xy AGScross of tsoil lvl 3 ','K      ','tt0t')
     call ncinfo(ncnameAGS(20,:),'tsoil4', 'xy AGScross of tsoil lvl 4 ','K      ','tt0t')
     call ncinfo(ncnameAGS(21,:),'wtheta', 'xy AGScross of kin. heat fl','K m/s  ','tt0t')
-    call ncinfo(ncnameAGS(22,:),'wq    ', 'xy AGScross of kin. wat. fl','- m/s  ','tt0t')
+    call ncinfo(ncnameAGS(22,:),'wq    ', 'xy AGScross of kin. wat. fl','m/s    ','tt0t')
     call ncinfo(ncnameAGS(23,:),'lwp   ', 'xy AGScross of liq. wat. p.','kg/m2  ','tt0t')
     call ncinfo(ncnameAGS(24,:),'tau   ', 'xy AGScross of opt. thickn.','-      ','tt0t')
     call ncinfo(ncnameAGS(25,:),'swd   ', 'xy AGScross of SW down rad.','W/m2   ','tt0t')
@@ -135,7 +135,7 @@ contains
     call ncinfo(ncnameAGS(27,:),'lwd   ', 'xy AGScross of LW down rad.','W/m2   ','tt0t')
     call ncinfo(ncnameAGS(28,:),'lwu   ', 'xy AGScross of LW up rad.  ','W/m2   ','tt0t')
     call ncinfo(ncnameAGS(29,:),'ci    ', 'xy AGScross of int CO2 conc','mg/m3  ','tt0t')
-    call ncinfo(ncnameAGS(30,:),'gc_CO2', 'xy AGScross of gc_CO2      ','mm/s?  ','tt0t')
+    call ncinfo(ncnameAGS(30,:),'gc_CO2', 'xy AGScross of gc_CO2      ','mm/s   ','tt0t')  ! unit unclear
     call ncinfo(ncnameAGS(31,:),'PAR   ', 'xy AGScross of PAR         ','W/m2   ','tt0t')
     call ncinfo(ncnameAGS(32,:),'Qnet  ', 'xy AGScross of Qnet        ','W/m2   ','tt0t')
     call ncinfo(ncnameAGS(33,:),'LE    ', 'xy AGScross of LE          ','W/m2   ','tt0t')
