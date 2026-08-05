@@ -98,7 +98,7 @@ contains
     use modtestbed,        only : inittestbed
     use modboundary,       only : initboundary,ksp
     use modthermodynamics, only : initthermodynamics
-    use modmicrophysics,   only : initmicrophysics
+    use modmicrophysics,   only : initmicrophysics, initmicrophysics_state
     use modsubgrid,        only : initsubgrid
     use modmpi,            only : initmpi,commwrld,myid,myidx,myidy,cmyidy,nprocx,nprocy,mpierr,periods &
                                 , D_MPI_BCAST
@@ -395,6 +395,7 @@ contains
     call checkinitvalues
 
     call check_initial_state
+    call initmicrophysics_state
 
     call timer_toc('modstartup/startup')
 

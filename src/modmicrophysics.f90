@@ -51,7 +51,7 @@ module modmicrophysics
   use moduser,           only: micro_user
   use modlogging,        only: finish
 #ifdef USE_LCM
-  use modlcm_adapter,    only: init_lcm, lcm_microphysics
+  use modlcm_adapter,    only: prepare_lcm, init_lcm, lcm_microphysics
 #endif
 
   implicit none
@@ -60,6 +60,7 @@ module modmicrophysics
 
   public :: microphysics_read_namelist
   public :: initmicrophysics
+  public :: initmicrophysics_state
   public :: microphysics
   public :: exitmicrophysics
 
@@ -187,7 +188,7 @@ contains
         call initbulkmicro3
       case(imicro_lcm)
 #ifdef USE_LCM
-        call init_lcm
+        call prepare_lcm
 #else
         call finish(routine, &
           'LCM microphysics selected, but DALES was built without USE_LCM.')
@@ -197,6 +198,24 @@ contains
     if(laerosol) call init_aerosol()
 
   end subroutine initmicrophysics
+
+  !> Initialize selected microphysics after atmospheric fields are available.
+  subroutine initmicrophysics_state()
+#ifndef USE_LCM
+    character(len=*), parameter :: routine = modname//'/initmicrophysics_state'
+#endif
+
+    select case(imicro)
+      case(imicro_lcm)
+#ifdef USE_LCM
+        call init_lcm
+#else
+        call finish(routine, &
+          'LCM microphysics selected, but DALES was built without USE_LCM.')
+#endif
+    end select
+
+  end subroutine initmicrophysics_state
 
   !> Do the microphysics.
   subroutine microphysics
