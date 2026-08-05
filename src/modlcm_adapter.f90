@@ -7,8 +7,8 @@ module modlcm_adapter
   use iso_fortran_env, only : real64
   use lcm_host_interface, only : lcm_config_t, lcm_grid_t, lcm_init_config, &
                                  lcm_init_grid, lcm_set_config, lcm_set_grid, &
-                                 lcm_prepare, lcm_attach_fields,             &
-                                 lcm_initialize, lcm_advance
+                                 lcm_configure_runtime,                &
+                                 lcm_attach_fields, lcm_initialize, lcm_advance
   use modfields, only : u0, v0, w0, tmp0, dse0, qv0, presf, rhof
   use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1, &
                         ih, jh, kh, dx, dy, dzf, zf, zh, rdt, cp
@@ -20,7 +20,7 @@ module modlcm_adapter
 
   private
 
-  public :: prepare_lcm
+  public :: configure_lcm_runtime
   public :: init_lcm
   public :: lcm_microphysics
 
@@ -30,7 +30,7 @@ module modlcm_adapter
 
 contains
 
-  subroutine prepare_lcm()
+  subroutine configure_lcm_runtime()
     call lcm_init_config(lcm_config)
     call lcm_apply_namelist_config(lcm_config)
     call lcm_set_config(lcm_config)
@@ -54,8 +54,8 @@ contains
       y_dimension=1)
 
     call lcm_set_grid(lcm_grid)
-    call lcm_prepare()
-  end subroutine prepare_lcm
+    call lcm_configure_runtime()
+  end subroutine configure_lcm_runtime
 
   subroutine init_lcm()
     call update_lcm_static_energy_field()
