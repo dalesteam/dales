@@ -1137,10 +1137,10 @@ contains
 #endif
 
       !$acc host_data use_device(aver)
-      !$omp target data use_device_addr(aver)
+      !$omp target update from(aver)
       call MPI_ALLREDUCE(MPI_IN_PLACE, aver, kf-ks+1, MPI_REAL4, MPI_SUM, comm3d, mpierr)
       !$acc end host_data
-      !$omp end target data
+      !$omp target update to(aver)
     else
       averl       = 0.
       avers       = 0.
@@ -1189,10 +1189,10 @@ contains
 #endif
 
       !$acc host_data use_device(aver)
-      !$omp target data use_device_addr(aver)
+      !$omp target update from(aver)
       call MPI_ALLREDUCE(MPI_IN_PLACE, aver, kf-ks+1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
       !$acc end host_data
-      !$omp end target data
+      !$omp target update to(aver)
     else
       averl       = 0.
       avers       = 0.
