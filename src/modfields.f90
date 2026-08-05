@@ -120,8 +120,11 @@ save
   real(field_r), allocatable :: uprof(:)                      !<   initial u-profile
   real(field_r), allocatable :: vprof(:)                      !<   initial v-profile
   real(field_r), allocatable :: e12prof(:)                    !<   initial subgrid sqrt(TKE) profile
-  real(field_r), allocatable :: sv0av(:,:)                  !<   slab average of sv(n)
-  real(field_r), allocatable :: svprof(:,:)                 !<   initial sv(n)-profile
+  real(field_r), allocatable :: sv0av(:,:)                    !<   slab average of sv(n)
+  real(field_r), allocatable :: svprof(:,:)                   !<   initial sv(n)-profile
+  
+  real(field_r), allocatable :: baseprof_T(:)               !<   initial temperature profile at full levels
+  real(field_r), allocatable :: baseprof_P(:)               !<   initial pressure profile at full levels
 
   real(field_r), allocatable :: thlpcar(:)                    !< prescribed radiatively forced thl tendency
   real(field_r), allocatable :: qvsl(:,:,:)
@@ -223,6 +226,10 @@ subroutine initfields
     allocate(uprof  (k1))
     allocate(vprof  (k1))
     allocate(e12prof(k1))
+    allocate(baseprof_T(k1))
+    allocate(baseprof_P(k1))
+    baseprof_P = -9999.0_field_r
+    baseprof_T = -9999.0_field_r
     !allocate(sv0av  (k1,nsv))
     !allocate(svprof (k1,nsv))
     allocate(thlpcar(k1))
@@ -295,7 +302,7 @@ subroutine initfields
     deallocate(ug,vg,dpdxl,dpdyl,wfls)
     deallocate(dthldxls,dthldyls,dthldtls,dqtdxls,dqtdyls,dqtdtls)
     deallocate(dudxls,dudyls,dudtls,dvdxls,dvdyls,dvdtls)
-    deallocate(thlprof,qtprof,uprof,vprof,e12prof)
+    deallocate(thlprof,qtprof,uprof,vprof,e12prof,baseprof_T,baseprof_P)
     deallocate(thlpcar)
     deallocate(qvsl,qvsi,esl)
     deallocate(qsat)

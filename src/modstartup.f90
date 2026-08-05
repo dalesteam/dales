@@ -487,7 +487,7 @@ contains
                                   ql0,ql0h,thv0h,sv0,svm,e12m,e120,&
                                   dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,&
                                   dqtdxls,dqtdyls,dqtdtls,dpdxl,dpdyl,&
-                                  wfls,whls,ug,vg,uprof,vprof,thlprof, qtprof,e12prof, svprof,&
+                                  wfls,whls,ug,vg,uprof,vprof,thlprof, qtprof,e12prof, svprof, baseprof_T, baseprof_P,&
                                   v0av,u0av,qt0av,ql0av,thl0av,sv0av,exnf,exnh,presf,presh,initial_presf,initial_presh,rhof,&
                                   thlpcar,thvh,thvf
     use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,&
@@ -497,7 +497,6 @@ contains
                                   trestart, ladaptive,llsadv,tnextrestart,longint,lopenbc,linithetero, &
                                   iinput, input_netcdf, input_ascii, lcoriol, &
                                   dzhi, iadv_thl, iadv_qt, iadv_kappa, eps1
-    use modthermodynamics, only : lconstexner,lbaseexner
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
@@ -579,7 +578,7 @@ contains
         else if (iinput == input_netcdf) then
           call init_from_netcdf('init.'//cexpnr//'.nc', height, uprof, vprof, &
                                 thlprof, qtprof, e12prof, ug, vg, dpdxl, dpdyl, wfls, &
-                                dqtdxls, dqtdyls, dqtdtls, thlpcar, kmax)
+                                dqtdxls, dqtdyls, dqtdtls, thlpcar, baseprof_T, baseprof_P, kmax)
           if (nsv_user > 0) then
             call tracer_profs_from_netcdf('tracers.'//cexpnr//'.nc', &
                                           tracer_prop, svprof(1:kmax,:))
@@ -632,6 +631,9 @@ contains
       call D_MPI_BCAST(uprof  ,kmax,0,comm3d,mpierr)
       call D_MPI_BCAST(vprof  ,kmax,0,comm3d,mpierr)
       call D_MPI_BCAST(e12prof,kmax,0,comm3d,mpierr)
+
+      call D_MPI_BCAST(baseprof_T,kmax,0,comm3d,mpierr)
+      call D_MPI_BCAST(baseprof_P,kmax,0,comm3d,mpierr)
 
       if(myid==0)then
         if (nsv_user>0 .and. iinput == input_ascii) then
@@ -868,7 +870,7 @@ contains
 
       svs = svprof(1,:)
 
-      call baseprofs ! call baseprofs before thermodynamics
+      call baseprofs! call baseprofs before thermodynamics
 
 #if defined(_OPENACC)
       call update_gpu
@@ -924,16 +926,6 @@ contains
       call update_host
       host_is_updated = .false.
 #endif
-
-      if (.not. lbaseexner) then
-         if (lconstexner) then
-            exnf(:) = (initial_presf(:)/pref0)**(rd/cp)
-            exnh(:) = (initial_presh(:)/pref0)**(rd/cp)
-         else
-            exnf(:) = (presf(:)/pref0)**(rd/cp)
-            exnh(:) = (presh(:)/pref0)**(rd/cp)
-         endif
-      endif
 
       do k = 2, k1
         do j = 2, j1
@@ -1004,7 +996,7 @@ contains
       ! CvH - only do this for fixed timestepping. In adaptive dt comes from restartfile
       if(ladaptive .eqv. .false.) rdt=dtmax
 
-      call baseprofs !call baseprofs
+      call baseprofs
       if(lopenbc) then
         call openboundary_readboundary(tracer_prop)
       endif
@@ -1727,9 +1719,11 @@ contains
     ! Calculates the profiles corresponding to the base state
     ! In the current implementation, neither the base pressure, nor the base virtual temperature plays a role in the dynamics
     ! They are nevertheless calculated and printed to the stdin/baseprof files for user convenience
-    use modfields,         only : rhobf,rhobh,exnf,exnh
-    use modglobal,         only : k1,kmax,zf,zh,dzf,dzh,rv,rd,grav,cp,pref0,lwarmstart,ibas_prf,cexpnr,ifinput,ifoutput, ibas_usr
-    use modthermodynamics, only : lbaseexner
+    ! This is the new version of the baseprofs subroutine
+    use modfields,         only : rhobf,rhobh,exnf,exnh,baseprof_T,baseprof_P,thlprof
+    use modglobal,         only : k1,kmax,zf,zh,dzf,dzh,rv,rd,grav,cp,pref0,lwarmstart,ibas_prf,cexpnr,ifinput,ifoutput,ibas_usr, &
+                                  ibas_thv, ibas_bou, ibas_st1, ibas_st2, ibas_usr, ibas_dry
+    use modthermodynamics, only : calc_virt_pot_temp
     use modsurfdata,       only : thls,ps,qts
     use modmpi,            only : myid,comm3d,mpierr,D_MPI_BCAST
     use modlogging,        only : profile_output
@@ -1737,146 +1731,73 @@ contains
 
     character(len=*), parameter :: routine = modname//'/baseprofs'
 
-    real :: thvb,prsb ! for calculating moist adiabat
+    real :: thvb !< base virtual potential temperature (K)
+    real :: prsb ! pressure (Pa)
     integer :: j,k
-    real(field_r), allocatable :: height(:),pb(:),tb(:),pbh(:)
-    character(80) chmess
-    real :: zsurf=0.
-    real :: tsurf
-    real(field_r),dimension(4) :: zmat=(/11000.,20000.,32000.,47000./)
-    real(field_r),dimension(4) :: lapserate=(/-6.5/1000.,0.,1./1000,2.8/1000/)
-    real(field_r),dimension(4) :: pmat
-    real(field_r),dimension(4) :: tmat
+    real(field_r), allocatable :: height(:) !< the height of the full model levels (m)
+    real(field_r), allocatable :: pb(:) !< the base pressure (Pa)
+    real(field_r), allocatable :: tb(:) !< the base temperature (K)
+    real(field_r), allocatable :: pbh(:) !< the base pressure at half levels (Pa)
+    real(field_r), allocatable :: exn_calc_full(:) !< the exner function at full levels, used for calculating from theta_l
+    character(80) chmess !< used for reading in baseprofs.inp
+    real :: zsurf=0. !< surface height (m)
+    real :: tsurf   !< surface temperature (K)
+    real :: exn_surf !< surface enxer function
+    real(field_r), dimension(4) :: zmat = (/11000., 20000., 32000., 47000./) !< reference heights (m)
+    real(field_r), dimension(4) :: lapserate = (/-6.5/1000., 0., 1./1000, 2.8/1000/) !< lapse rates (K/m)
+    real(field_r), dimension(4) :: pmat !< reference pressures (Pa)
+    real(field_r), dimension(4) :: tmat !< reference temperatures (K)
 
-    allocate (height(k1),pb(k1),tb(k1),pbh(k1))
+    logical :: used_baseprof_inp !< whether the base profile been read from baseprof.inp or not
 
-    if(myid==0)then
 
-      if( (.not. lwarmstart) .and. (ibas_prf /= ibas_usr) ) then
+    allocate (height(k1),pb(k1),tb(k1),pbh(k1),exn_calc_full(k1))
+    used_baseprof_inp = .false.
 
-        if(ibas_prf <= 3 .and. thls < 0) then
-          call finish(routine, 'thls has not been initialized but is needed for setting up the base profiles.')
+    if(myid == 0)then
+
+      if( (.not. lwarmstart)) then
+        if (ibas_prf == ibas_thv) then !thv constant and hydrostatic balance
+          call baseprofile_thvconst_hydrostatic
+        else if(ibas_prf == ibas_bou) then ! Quasi-Boussinesq (Similar to Dales 3, except for buoyancy term now depending on slab mean state)
+          call baseprofile_quasi_boussinesq
+        else if(ibas_prf == ibas_st1) then ! use standard atmospheric lapse rate with surface temperature offset
+          call baseprofile_standard_lapserate_surftemp_offset
+        else if(ibas_prf == ibas_st2) then ! use standard atmospheric lapse rate without surface temperature offset
+          call baseprofile_standard_lapserate
+        else if (ibas_prf == ibas_dry) then ! assume dry atmosphere, using thl profile as theta profile, calculating the pressure and density
+          call baseprofile_dryatmo_thetal_hydrostatic
+        else if (ibas_prf == ibas_usr) then
+          call baseprofile_user_supplied
+        end if
+        
+        if (.not. used_baseprof_inp) then
+          ! Write background profiles in all cases, but don't overwrite an existing baseprof.inp if it was read in from file
+          ! we write up to k1 level, so that all profiles can be used for warm start, and everything is initialized
+          open (ifoutput,file='baseprof.inp.'//cexpnr)
+          write(ifoutput,*) '#baseprofiles'
+          write(ifoutput,*) '#height rhobf pb tb'
+          do k=1,k1
+            write (ifoutput,'(1f7.1,E25.17,E25.17,E25.17)') &
+                  zf (k), &
+                  rhobf (k), &
+                  pb (k), &
+                  tb (k)
+          end do
+          close(ifoutput)
+        else
         end if
 
-        if(ibas_prf==1) then !thv constant and hydrostatic balance
-          thvb=thls*(1+(rv/rd-1)*qts) ! using thls, q_l assumed to be 0 during first time step
-          do k=1,k1
-            prsb=(ps**(rd/cp)-(grav*zf(k)*pref0**(rd/cp))/(cp*thvb))**(cp/rd) !As in thermodynamics
-            rhobf(k)=prsb/(rd*thvb*((prsb/pref0)**(rd/cp)))
-          end do
-        else if(ibas_prf==2) then ! Quasi-Boussinesq (Similar to Dales 3, except for buoyancy term now depending on slab mean state)
-          thvb=thls*(1+(rv/rd-1)*qts)
-          rhobh(1)=ps/(rd*thvb*(ps/pref0)**(rd/cp))
-          do k=1,k1
-            rhobf(k)=rhobh(1)
-          end do
-        else if(ibas_prf==3) then! use standard atmospheric lapse rate with surface temperature offset
-          tsurf=thls*(ps/pref0)**(rd/cp)
-          pmat(1)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
-            log(tsurf+zmat(1)*lapserate(1))*grav)/(lapserate(1)*rd))
-          tmat(1)=tsurf+lapserate(1)*(zmat(1)-zsurf);
-          ! write(*,*)(*,*) 'make profiles'
+      else if (lwarmstart) then
 
-          do j=2,4
-            if(abs(lapserate(j))<1e-10) then
-              pmat(j)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zmat(j)*grav)/(tmat(j-1)*rd))
-            else
-              pmat(j)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
-                log(tmat(j-1)+zmat(j)*lapserate(j))*grav)/(lapserate(j)*rd))
-            endif
-            tmat(j)=tmat(j-1)+lapserate(j)*(zmat(j)-zmat(j-1));
-          enddo
-
-          do k=1,k1
-            if(zf(k)<zmat(1)) then
-              pb(k)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
-                log(tsurf+zf(k)*lapserate(1))*grav)/(lapserate(1)*rd))
-              tb(k)=tsurf+lapserate(1)*(zf(k)-zsurf)
-            else
-              j=1
-              do while(zf(k)>=zmat(j))
-                j=j+1
-              end do
-              tb(k)=tmat(j-1)+lapserate(j)*(zf(k)-zmat(j-1))
-              if(abs(lapserate(j))<1e-99) then
-                pb(k)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zf(k)*grav)/(tmat(j-1)*rd))
-              else
-                pb(k)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
-                  log(tmat(j-1)+zf(k)*lapserate(j))*grav)/(lapserate(j)*rd))
-              endif
-            endif
-            rhobf(k)=pb(k)/(rd*tb(k)) ! dry estimate
-          end do
-        else if(ibas_prf==4) then! use standard atmospheric lapse rate without surface temperature offset
-          tsurf=288.16
-          pmat(1)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
-            log(tsurf+zmat(1)*lapserate(1))*grav)/(lapserate(1)*rd))
-          tmat(1)=tsurf+lapserate(1)*(zmat(1)-zsurf);
-          ! write(*,*)(*,*) 'make profiles'
-
-          do j=2,4
-            if(abs(lapserate(j))<1e-10) then
-              pmat(j)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zmat(j)*grav)/(tmat(j-1)*rd))
-            else
-              pmat(j)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
-                log(tmat(j-1)+zmat(j)*lapserate(j))*grav)/(lapserate(j)*rd))
-            end if
-            tmat(j)=tmat(j-1)+lapserate(j)*(zmat(j)-zmat(j-1));
-          end do
-
-          do k=1,k1
-            if(zf(k)<zmat(1)) then
-              pb(k)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
-                log(tsurf+zf(k)*lapserate(1))*grav)/(lapserate(1)*rd))
-              tb(k)=tsurf+lapserate(1)*(zf(k)-zsurf)
-            else
-              j=1
-              do while(zf(k)>zmat(j))
-                j=j+1
-              end do
-              tb(k)=tmat(j-1)+lapserate(j)*(zf(k)-zmat(j-1))
-              if(abs(lapserate(j))<1e-99) then
-                pb(k)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zf(k)*grav)/(tmat(j-1)*rd))
-              else
-                pb(k)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
-                  log(tmat(j-1)+zf(k)*lapserate(j))*grav)/(lapserate(j)*rd))
-              end if
-            end if
-            rhobf(k)=pb(k)/(rd*tb(k)) ! dry estimate
-          end do
-        end if
-
-        ! Write background profiles in all cases
-        open (ifoutput,file='baseprof.inp.'//cexpnr)
-        write(ifoutput,*) '#baseprofiles'
-        write(ifoutput,*) '#height rhobf'
-        do k=1,kmax
-          write (ifoutput,'(1f7.1,E25.17)') &
-                zf (k), &
-                rhobf (k)
-        end do
-        close(ifoutput)
-
-      else ! lwarmstart or user-specified baseprof
-
-        if (lwarmstart) then
+        if (.not. (ibas_prf == ibas_usr)) then
           ibas_prf = ibas_usr
-          print *, 'WARNING: warm start requires input files for density. ibas_prf defaulted to 5'
+          print *, 'WARNING: warm start requires input files for density. ibas_prf set to 5'
         end if
+        
+        call read_baseprofile_from_file
 
-        ! Read background profiles in case of warmstart or user-provided input
-        open (ifinput,file='baseprof.inp.'//cexpnr)
-        read (ifinput,'(a80)') chmess
-        read (ifinput,'(a80)') chmess
-
-        do k = 1, kmax
-          read (ifinput,*) &
-                  height(k), &
-                  rhobf (k)
-        end do
-        close(ifinput)
-
-      end if ! end if .not. lwarmstart .and. .not.user-specified baseprof
+      end if
 
       ! Set height at k1 equal to kmax for the sake of printing to screen
       height(k1) = height(kmax)
@@ -1887,29 +1808,25 @@ contains
       end do
       rhobh(1) = rhobf(1)-(rhobf(2)-rhobf(1))*(zf(1)-zh(1))/(zf(2)-zf(1))
 
-      ! pb is only available for ibas_prf >= 3
-      if (ibas_prf >= 3) then
-        pbh(1)   = ps
-        do k = 2, k1
-          pbh(k)   = (   pb(k)*dzf(k-1)+   pb(k-1)*dzf(k))/(dzf(k)+dzf(k-1)) ! interpolate base half-level pressure like half-level base rho
-        end do 
-      end if
+      pbh(1)   = ps
+      do k = 2, k1
+        pbh(k)   = (   pb(k)*dzf(k-1)+   pb(k-1)*dzf(k))/(dzf(k)+dzf(k-1)) ! interpolate base half-level pressure like half-level base rho
+      end do 
 
-      ! write profiles and derivatives to standard output
-      write (profile_output,*) ' height   rhobf       rhobh'
+      ! write profiles to standard output
+      write (profile_output,*) ' height   rhobf       rhobh       pb       tb'
       do k=k1,1,-1
-          write (profile_output,'(1f7.1,2E25.17)') &
+          write (profile_output,'(1f7.1,2E25.17,2E25.17,E25.17,E25.17)') &
                 height (k), &
                 rhobf (k), &
-                rhobh (k)
+                rhobh (k), &
+                pb (k), &
+                tb (k)
       end do
 
       ! exner function from base profiles
-      ! TODO: pb is not available here on warm start
-      if (lbaseexner) then
-         exnf = (pb/pref0)**(rd/cp)
-         exnh = (pbh/pref0)**(rd/cp)
-      end if
+      exnf = (pb/pref0)**(rd/cp)
+      exnh = (pbh/pref0)**(rd/cp)
 
     end if ! ENDIF MYID=0
 
@@ -1917,13 +1834,215 @@ contains
     call D_MPI_BCAST(rhobf       ,k1,0,comm3d,mpierr)
     call D_MPI_BCAST(rhobh       ,k1,0,comm3d,mpierr)
 
-    if (lbaseexner) then
-       call D_MPI_BCAST(exnf        ,k1,0,comm3d,mpierr)
-       call D_MPI_BCAST(exnh        ,k1,0,comm3d,mpierr)
-    end if
+    call D_MPI_BCAST(exnf        ,k1,0,comm3d,mpierr)
+    call D_MPI_BCAST(exnh        ,k1,0,comm3d,mpierr)
 
-    deallocate(height,pb,tb,pbh)
+    deallocate(height,pb,tb,pbh,exn_calc_full)
 
+    contains
+    subroutine read_baseprofile_from_file
+      !< Read background profiles in case of warmstart or user-provided input
+      open (ifinput,file='baseprof.inp.'//cexpnr)
+      read (ifinput,'(a80)') chmess
+      read (ifinput,'(a80)') chmess
+
+      do k = 1, k1
+        read (ifinput,*) &
+                height(k), &
+                rhobf (k), &
+                pb (k), &
+                tb (k)
+      end do
+      close(ifinput)
+      used_baseprof_inp = .true.
+    end subroutine read_baseprofile_from_file
+    
+    subroutine baseprofile_thvconst_hydrostatic
+      !< thv constant and hydrostatic balance
+      if (thls < 0) call finish(routine, 'thls has not been initialized but is needed for setting up the base profiles when ibas_prf=ibas_thv=1.')
+      thvb = calc_virt_pot_temp(thl=thls, qt=qts, ql=0._field_r, exn=1._field_r) ! using thls, q_l assumed to be 0 during first time step
+      do k=1,k1
+        ! in this case, theta_v is constant in height
+        ! As in thermodynamics, dp/dz=-rho*g, rho=p/(Rd*T), T=thv*exnf, exnf=(p/pref0)^(rd/cp)
+        ! substitute exner function in dp/dz, and solve for p(z) to get the following expression
+        prsb = (ps ** (rd/cp) - &
+                (grav * zf(k) * pref0 ** (rd/cp)) / (cp * thvb) &
+                ) ** (cp/rd)
+        ! rho = p/(Rd * T), with T = thv exnf, exnf = (p/pref0)^(rd/cp)
+        rhobf(k) = prsb / (rd * thvb * ((prsb / pref0) ** (rd/cp)))
+        pb(k) = prsb
+        tb(k) = thvb * ((prsb / pref0) ** (rd/cp))
+      end do
+    end subroutine baseprofile_thvconst_hydrostatic
+
+    subroutine baseprofile_quasi_boussinesq
+      !< Quasi-Boussinesq (Similar to Dales 3, except for buoyancy term now depending on slab mean state)
+      if (thls < 0) call finish(routine, 'thls has not been initialized but is needed for setting up the base profiles when ibas_prf=ibas_bou=2.')
+      thvb = calc_virt_pot_temp(thl=thls, qt=qts, ql=0._field_r, exn=1._field_r) ! using thls, q_l assumed to be 0 during first time step
+      ! ideal gas law: rho = p/(Rd*T), with T = thv exnf, exnf = (p/pref0)^(rd/cp)
+      rhobh(1) = ps / (rd * thvb * (ps/pref0)**(rd/cp))
+      do k=1,k1
+        ! in this case, base density is constant in height
+        rhobf(k)=rhobh(1)
+        pb(k) = ps - rhobf(k) * grav * (zf(k) - zsurf) ! linear decrease of pressure with height
+        tb(k) = thvb * (pb(k)/pref0)**(rd/cp) ! temperature profile from ideal gas law
+      end do
+    end subroutine baseprofile_quasi_boussinesq
+
+    subroutine baseprofile_standard_lapserate_surftemp_offset
+      !< use standard atmospheric lapse rate with surface temperature offset
+      if (thls < 0) call finish(routine, 'thls has not been initialized but is needed for setting up the base profiles when ibas_prf=ibas_st1=3.')
+      tsurf = thls * (ps/pref0)**(rd/cp)
+      ! build full temperature profile from piecewise lapse rates and zmat
+      tmat(1) = tsurf + lapserate(1)*(zmat(1) - zsurf)
+      do j = 2, 4
+        tmat(j) = tmat(j-1) + lapserate(j)*(zmat(j) - zmat(j-1))
+      end do
+      do k = 1, k1
+        if (zf(k) < zmat(1)) then
+          tb(k) = tsurf + lapserate(1)*(zf(k) - zsurf)
+        else
+          j = 1
+          do while (zf(k) >= zmat(j))
+            j = j + 1
+          end do
+          tb(k) = tmat(j-1) + lapserate(j)*(zf(k) - zmat(j-1))
+        end if
+      end do
+      call make_lapse_profiles_from_temp(tb, zf, pb, rhobf)
+    end subroutine baseprofile_standard_lapserate_surftemp_offset
+
+    subroutine baseprofile_standard_lapserate  !< use standard atmospheric lapse rate without surface temperature offset
+      tsurf = 288.16
+      ! build full temperature profile from piecewise lapse rates and zmat
+      tmat(1) = tsurf + lapserate(1)*(zmat(1) - zsurf)
+      do j = 2, 4
+        tmat(j) = tmat(j-1) + lapserate(j)*(zmat(j) - zmat(j-1))
+      end do
+      do k = 1, k1
+        if (zf(k) < zmat(1)) then
+          tb(k) = tsurf + lapserate(1)*(zf(k) - zsurf)
+        else
+          j = 1
+          do while (zf(k) > zmat(j))
+            j = j + 1
+          end do
+          tb(k) = tmat(j-1) + lapserate(j)*(zf(k) - zmat(j-1))
+        end if
+      end do
+      call make_lapse_profiles_from_temp(tb, zf, pb, rhobf)
+    end subroutine baseprofile_standard_lapserate
+
+    subroutine baseprofile_dryatmo_thetal_hydrostatic
+      !< assume dry atmosphere, using thl profile as theta profile, calculating the pressure and density
+      if (thls < 0) call finish(routine, 'thls has not been initialized but is needed for setting up the base profiles when ibas_prf=ibas_dry=6.')
+      exn_surf = (ps/pref0)**(rd/cp)
+
+      exn_calc_full(1) = exn_surf - grav / cp * zf(1) / (0.5 * thls + 0.5 * thlprof(1))
+      do k = 2, kmax
+        exn_calc_full(k) = exn_calc_full(k-1) - grav / cp * (zf(k) - zf(k-1)) / (0.5 * thlprof(k) + 0.5 * thlprof(k-1))
+      end do
+      ! extrapolate to k1 level
+      exn_calc_full(k1) = exn_calc_full(kmax) + (zf(k1) - zf(kmax)) / (zf(kmax) - zf(kmax-1)) * (exn_calc_full(kmax) - exn_calc_full(kmax-1))
+
+      do k = 1, kmax
+        pb(k) = pref0 * exn_calc_full(k)**(cp/rd)
+        tb(k) = thlprof(k) * exn_calc_full(k)
+        rhobf(k) = pb(k) / (rd * tb(k))
+      end do
+
+      ! also extrapolate to k1 level
+      pb(k1) = pref0 * exn_calc_full(k1)**(cp/rd)
+      tb(k1) = tb(1) + (zf(k1) - zf(kmax)) / (zf(kmax) - zf(kmax-1)) * (tb(kmax) - tb(kmax-1))
+      rhobf(k1) = pb(k1) / (rd * tb(k1))
+    end subroutine baseprofile_dryatmo_thetal_hydrostatic
+
+    subroutine baseprofile_user_supplied
+      !< If user supplied both T and P netcdf profiles, use these directly, overwriting the calculated profiles.
+      !< baseprof_T and baseprof_P are filled with -9999.0 if the user did not supply a profile for that variable.
+      if (baseprof_T(1) >= 0._field_r .and. baseprof_P(1) >= 0._field_r) then
+        ! having both T and P profiles, we can directly compute the density profile from the ideal gas law assuming dry air
+        ! for the reference profile, we need a dry profile anyway.
+        ! we extrapolate the user-supplied profiles to the k1 level, and then compute the density profile from the ideal gas law.
+        baseprof_T(k1) = baseprof_T(kmax) + (zf(k1) - zf(kmax)) / (zf(kmax) - zf(kmax-1)) * (baseprof_T(kmax) - baseprof_T(kmax-1))
+        baseprof_P(k1) = baseprof_P(kmax) + (zf(k1) - zf(kmax)) / (zf(kmax) - zf(kmax-1)) * (baseprof_P(kmax) - baseprof_P(kmax-1))
+        do k = 1, k1
+          tb(k) = baseprof_T(k)
+          pb(k) = baseprof_P(k)
+          rhobf(k) = pb(k)/(rd*tb(k))
+        end do
+        return
+      else if (baseprof_T(1) > 0._field_r .and. baseprof_P(1) <= 0._field_r) then
+        ! if we have T, but not the pressure, we have to integrate using the hydrostatic balance to get the pressure profile
+        baseprof_T(k1) = baseprof_T(kmax) + (zf(k1) - zf(kmax)) / (zf(kmax) - zf(kmax-1)) * (baseprof_T(kmax) - baseprof_T(kmax-1))
+        call make_lapse_profiles_from_temp(baseprof_T, zf, pb, rhobf)
+        return
+      end if
+
+      ! we have no user-supplied profiles in netcdf, so try baseprof.inp
+      call read_baseprofile_from_file
+    end subroutine baseprofile_user_supplied
+
+    subroutine make_lapse_profiles_from_temp(temp_profile, heights, pressure_profile, density_profile)
+      !< This subroutine calculates the pressure and density profiles from a given temperature profile, assuming hydrostatic balance and ideal gas law.
+      !< Note that zero humidity is also assumed.
+      ! p = rho R T
+      ! dp/dz = -rho g = -p g / (R T)
+      ! dp/p = -g/(R T) dz
+      ! T = T0 + gamma * z
+      ! dp/p = -g/(R (T0 + gamma * z)) dz
+      ! integrate from zsurf to zf(1)
+      ! log(p1) - log(p0) = - g/R int_{k}^{zf(k+1)} dz/(T(z))
+      ! T is assumed piecewise linear in z over the layer, so we can integrate analytically
+      ! T(z) = T0 + gamma * z, so int dz/(T0 + gamma * z) = 1/gamma log(T(z))
+      ! log(p1/p0) = -g/(R gamma) log(T1/T0)
+      ! if the lapse rate gamma is zero, this is not valid, so we use p(z)=p0 exp(-g/(R T) dz) instead
+      use modprecision, only: field_r
+      implicit none
+      real(field_r), intent(in) :: temp_profile(:) !< full-level temperature (K)
+      real(field_r), intent(in) :: heights(:)       !< full-level heights (m)
+      real(field_r), intent(out) :: pressure_profile(:) !< full level pressure (Pa)
+      real(field_r), intent(out) :: density_profile(:) !< full level density (kg/m^3)
+
+      integer :: k
+      real(field_r) :: dz, dz0
+      real(field_r) :: t0, t1, gamma
+      real(field_r), parameter :: eps_gamma = 1.e-12_field_r
+
+      dz = heights(2) - heights(1)
+      t1 = temp_profile(1)
+      t0 = temp_profile(2)
+      gamma = (t0 - t1) / dz
+      t0 = t1 - gamma * (heights(1) - zsurf)
+
+      dz0 = heights(1) - zsurf
+      if (abs(gamma) < eps_gamma) then
+        pressure_profile(1) = ps * exp(-grav * dz0 / (rd * t0))
+      else
+        pressure_profile(1) = ps * exp(-(grav / (rd * gamma)) * log(t1 / t0))
+      end if
+
+      do k = 2, k1
+        dz = heights(k) - heights(k-1)
+        t0 = temp_profile(k-1)
+        t1 = temp_profile(k)
+
+        if (t0 <= 0._field_r .or. t1 <= 0._field_r) then
+          call finish('baseprofs', 'Temperature profile contains non-positive values.')
+        end if
+        gamma = (t1 - t0) / dz
+
+        if (abs(gamma) < eps_gamma) then
+          pressure_profile(k) = pressure_profile(k-1) * exp(-grav * dz / (rd * t0))
+        else
+          pressure_profile(k) = pressure_profile(k-1) * exp(-(grav / (rd * gamma)) * log(t1 / t0))
+        end if
+      end do
+
+      do k = 1, k1
+        density_profile(k) = pressure_profile(k) / (rd * temp_profile(k))
+      end do
+    end subroutine make_lapse_profiles_from_temp
   end subroutine baseprofs
 
   !> \brief Read initial profiles from init.XXX.nc
@@ -1942,13 +2061,15 @@ contains
   !! \param dqtdyls Northward gradient of the total water mixing ratio due to advection.
   !! \param dqtdtls Tendency of the total water mixing ratio.
   !! \param dthlrad Tendency of the liquid water potential temperature due to radiative heating.
+  !! \param baseprof_T Base profile of temperature at full levels.
+  !! \param baseprof_P Base profile of pressure at full levels.
   !! \param kmax Index of highest vertical level.
   !!
   !! \note Tracers are read from tracers.XXX.nc, not here.
   !! \todo Make DEPHY-compatible.
   subroutine init_from_netcdf(filename, height, uprof, vprof, thlprof, qtprof, &
                               e12prof, ug, vg, dpdxl, dpdyl, wfls, dqtdxls, dqtdyls, &
-                              dqtdtls, dthlrad, kmax)
+                              dqtdtls, dthlrad, baseprof_T, baseprof_P, kmax)
     character(*),   intent(in)  :: filename
     real(field_r),  intent(out) :: height(:)
     real(field_r),  intent(out) :: uprof(:)
@@ -1965,6 +2086,8 @@ contains
     real(field_r),  intent(out) :: dqtdyls(:)
     real(field_r),  intent(out) :: dqtdtls(:)
     real(field_r),  intent(out) :: dthlrad(:)
+    real(field_r),  intent(out) :: baseprof_T(:)
+    real(field_r),  intent(out) :: baseprof_P(:)
     integer,        intent(in)  :: kmax
 
     integer :: ncid
@@ -2004,6 +2127,10 @@ contains
                        fillvalue=0._field_r)
     call read_nc_field(ncid, "tnthetal_rad", dthlrad, start=1, count=kmax, &
                        fillvalue=0._field_r)
+    call read_nc_field(ncid, "baseprof_T", baseprof_T, start=1, count=kmax, &
+                       fillvalue=-9999._field_r)
+    call read_nc_field(ncid, "baseprof_P", baseprof_P, start=1, count=kmax, &
+                       fillvalue=-9999._field_r)
 
     call nchandle_error(nf90_close(ncid))
 
