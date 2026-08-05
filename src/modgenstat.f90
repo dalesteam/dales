@@ -1332,86 +1332,93 @@ contains
       convq   = 86400*1000.
       allocate(tmn   (k1), thmn  (k1))
 
-      !$acc kernels default(present)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-      umn    = umn    /nsamples
-      vmn    = vmn    /nsamples
-      wmn    = wmn    /nsamples
-      thvmn  = thvmn  /nsamples
-      thlmn  = thlmn  /nsamples
-      qtmn   = qtmn   /nsamples
-      qlmn   = qlmn   /nsamples
-      cfracmn= cfracmn/nsamples
-      hurmn  = hurmn /nsamples
-      clwmn  = clwmn /nsamples
-      climn  = climn /nsamples
-      plwmn  = plwmn /nsamples
-      plimn  = plimn /nsamples
-      tamn  =  tamn   /nsamples
-      qlhmn  = qlhmn  /nsamples
+      !$acc parallel loop default(present)
+      !$omp target teams loop defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+      do k=1,k1
+         umn(k)    = umn(k)    /nsamples
+         vmn(k)    = vmn(k)    /nsamples
+         wmn(k)    = wmn(k)    /nsamples
+         thvmn(k)  = thvmn(k)  /nsamples
+         thlmn(k)  = thlmn(k)  /nsamples
+         qtmn(k)   = qtmn(k)   /nsamples
+         qlmn(k)   = qlmn(k)   /nsamples
+         cfracmn(k)= cfracmn(k)/nsamples
+         hurmn(k)  = hurmn(k) /nsamples
+         clwmn(k)  = clwmn(k) /nsamples
+         climn(k)  = climn(k) /nsamples
+         plwmn(k)  = plwmn(k) /nsamples
+         plimn(k)  = plimn(k) /nsamples
+         tamn(k)   =  tamn(k) /nsamples
+         qlhmn(k)  = qlhmn(k) /nsamples
 
 
-      wthlsmn = wthlsmn/nsamples
-      wthlrmn = wthlrmn/nsamples
-      wthltmn = wthltmn/nsamples
+         wthlsmn(k) = wthlsmn(k)/nsamples
+         wthlrmn(k) = wthlrmn(k)/nsamples
+         wthltmn(k) = wthltmn(k)/nsamples
 
-      wqtsmn = wqtsmn/nsamples
-      wqtrmn = wqtrmn/nsamples
-      wqttmn = wqttmn/nsamples
+         wqtsmn(k) = wqtsmn(k)/nsamples
+         wqtrmn(k) = wqtrmn(k)/nsamples
+         wqttmn(k) = wqttmn(k)/nsamples
 
-      wqlsmn = wqlsmn/nsamples
-      wqlrmn = wqlrmn/nsamples
-      wqltmn = wqltmn/nsamples
+         wqlsmn(k) = wqlsmn(k)/nsamples
+         wqlrmn(k) = wqlrmn(k)/nsamples
+         wqltmn(k) = wqltmn(k)/nsamples
 
-      wthvsmn = wthvsmn/nsamples
-      wthvrmn = wthvrmn/nsamples
-      wthvtmn = wthvtmn/nsamples
+         wthvsmn(k) = wthvsmn(k)/nsamples
+         wthvrmn(k) = wthvrmn(k)/nsamples
+         wthvtmn(k) = wthvtmn(k)/nsamples
 
-      uwtmn  = uwtmn /nsamples
-      vwtmn  = vwtmn /nsamples
-      uwrmn  = uwrmn /nsamples
-      vwrmn  = vwrmn /nsamples
-      uwsmn  = uwsmn /nsamples
-      vwsmn  = vwsmn /nsamples
+         uwtmn(k)  = uwtmn(k) /nsamples
+         vwtmn(k)  = vwtmn(k) /nsamples
+         uwrmn(k)  = uwrmn(k) /nsamples
+         vwrmn(k)  = vwrmn(k) /nsamples
+         uwsmn(k)  = uwsmn(k) /nsamples
+         vwsmn(k)  = vwsmn(k) /nsamples
 
-      w2mn     = w2mn   /nsamples
-      skewmn   = skewmn /nsamples
-      w2submn  = w2submn/nsamples
-      qt2mn    = qt2mn  /nsamples
-      v2mn     = v2mn   /nsamples
-      u2mn     = u2mn   /nsamples
-      thl2mn   = thl2mn /nsamples
-      thv2mn   = thv2mn /nsamples
-      th2mn    = th2mn  /nsamples
-      ql2mn    = ql2mn  /nsamples
+         w2mn(k)     = w2mn(k)   /nsamples
+         skewmn(k)   = skewmn(k) /nsamples
+         w2submn(k)  = w2submn(k)/nsamples
+         qt2mn(k)    = qt2mn(k)  /nsamples
+         v2mn(k)     = v2mn(k)   /nsamples
+         u2mn(k)     = u2mn(k)   /nsamples
+         thl2mn(k)   = thl2mn(k) /nsamples
+         thv2mn(k)   = thv2mn(k) /nsamples
+         th2mn(k)    = th2mn(k)  /nsamples
+         ql2mn(k)    = ql2mn(k)  /nsamples
+
+         cszmn(k) = cszmn(k) / nsamples
+      end do
 
       if (nsv > 0) then
-        svmmn  = svmmn  / nsamples
-        svpmn  = svpmn  / nsamples
-        svptmn = svptmn / nsamples
-        sv2mn  = sv2mn  / nsamples
-        wsvsmn = wsvsmn / nsamples
-        wsvrmn = wsvrmn / nsamples
-        wsvtmn = wsvtmn / nsamples
+         !$acc parallel loop collapse(2) default(present)
+         !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+         !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+         do n=1,nsv
+            do k=1,k1
+               svmmn(k,n)  = svmmn(k,n)  / nsamples
+               svpmn(k,n)  = svpmn(k,n)  / nsamples
+               svptmn(k,n) = svptmn(k,n) / nsamples
+               sv2mn(k,n)  = sv2mn(k,n)  / nsamples
+               wsvsmn(k,n) = wsvsmn(k,n) / nsamples
+               wsvrmn(k,n) = wsvrmn(k,n) / nsamples
+               wsvtmn(k,n) = wsvtmn(k,n) / nsamples
+            end do
+         end do
       end if
-
-      cszmn = cszmn / nsamples
-      !$acc end kernels
-!!$omp end target
 
 
   !     ------------------------------------------
   !     2.0  Construct other time averaged fields
   !     ------------------------------------------
 
-      !$acc kernels default(present) copy(thmn, tmn)
-!!$omp target map(tofrom:thmn,tmn) defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-      thmn = thlmn + (rlv/cp)*qlmn/exnf
-      tmn  = thmn*exnf
-      !$acc end kernels
-!!$omp end target
+      !$acc parallel loop default(present) copy(thmn, tmn)
+      !$omp target teams loop map(tofrom:thmn,tmn) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
+      do k=1,k1
+         thmn(k) = thlmn(k) + (rlv/cp)*qlmn(k)/exnf(k)
+         tmn(k)  = thmn(k)*exnf(k)
+      end do
 
       !$acc update self(umn, vmn, wmn, thvmn, thlmn, qtmn, qlmn, cfracmn, qlhmn, &
       !$acc&            wthlsmn, wthlrmn, wthltmn, wqtsmn, wqtrmn, wqttmn, &
@@ -1419,15 +1426,15 @@ contains
       !$acc&            uwtmn, vwtmn, uwrmn, vwrmn, uwsmn, vwsmn, w2mn, skewmn, &
       !$acc&            w2submn, qt2mn, v2mn, u2mn, thl2mn, thv2mn, th2mn, ql2mn, &
       !$acc&            cszmn, cfracmn, hurmn, clwmn, climn, plwmn, plimn, tamn)
-!!$omp target update from(umn,vmn,wmn,thvmn,thlmn,qtmn,qlmn,cfracmn,&
-!!$omp qlhmn,wthlsmn,wthlrmn,wthltmn,wqtsmn,wqtrmn,wqttmn,wqlsmn,wqlrmn,&
-!!$omp wqltmn,wthvsmn,wthvrmn,wthvtmn,uwtmn,vwtmn,uwrmn,vwrmn,uwsmn,&
-!!$omp vwsmn,w2mn,skewmn,w2submn,qt2mn,v2mn,u2mn,thl2mn,thv2mn,th2mn,&
-!!$omp ql2mn,cszmn,cfracmn,hurmn,clwmn,climn,plwmn,plimn,tamn)
+      !$omp target update from(umn,vmn,wmn,thvmn,thlmn,qtmn,qlmn,cfracmn,&
+      !$omp qlhmn,wthlsmn,wthlrmn,wthltmn,wqtsmn,wqtrmn,wqttmn,wqlsmn,wqlrmn,&
+      !$omp wqltmn,wthvsmn,wthvrmn,wthvtmn,uwtmn,vwtmn,uwrmn,vwrmn,uwsmn,&
+      !$omp vwsmn,w2mn,skewmn,w2submn,qt2mn,v2mn,u2mn,thl2mn,thv2mn,th2mn,&
+      !$omp ql2mn,cszmn,cfracmn,hurmn,clwmn,climn,plwmn,plimn,tamn)
 
       !$acc update self(svmmn, svpmn, svptmn, sv2mn, wsvsmn, wsvrmn, wsvtmn) if(nsv > 0)
-!!$omp target update from(svmmn,svpmn,svptmn,sv2mn,wsvsmn,wsvrmn,&
-!!$omp wsvtmn) if(nsv>0)
+      !$omp target update from(svmmn,svpmn,svptmn,sv2mn,wsvsmn,wsvrmn,&
+      !$omp wsvtmn) if(nsv>0)
 
   !     ----------------------
   !     2.0  write the fields
@@ -1726,80 +1733,89 @@ contains
 
     end if ! end if(myid==0)
 
-      !$acc kernels default(present)
-!!$omp target defaultmap(present:aggregate)&
-!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
-      qlmnlast=qlmn
-      wthvtmnlast=wthvtmn
+    !$acc parallel loop default(present)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+    do k=1,k1
+       qlmnlast(k)=qlmn(k)
+       wthvtmnlast(k)=wthvtmn(k)
 
-      umn      = 0.
-      vmn      = 0.
-      wmn      = 0.
-      thlmn    = 0.
-      thvmn    = 0.
-      qtmn     = 0.
-      qlmn     = 0.
-      qlhmn    = 0.
-      cfracmn  = 0.
-      hurmn    = 0.
-      clwmn    = 0.
-      climn    = 0.
-      plwmn    = 0.
-      plimn    = 0.
-      tamn     = 0.
+       umn(k)      = 0.
+       vmn(k)      = 0.
+       wmn(k)      = 0.
+       thlmn(k)    = 0.
+       thvmn(k)    = 0.
+       qtmn(k)     = 0.
+       qlmn(k)     = 0.
+       qlhmn(k)    = 0.
+       cfracmn(k)  = 0.
+       hurmn(k)    = 0.
+       clwmn(k)    = 0.
+       climn(k)    = 0.
+       plwmn(k)    = 0.
+       plimn(k)    = 0.
+       tamn(k)     = 0.
 
-      wthlsmn =  0.
-      wthlrmn =  0.
-      wthltmn =  0.
+       wthlsmn(k) =  0.
+       wthlrmn(k) =  0.
+       wthltmn(k) =  0.
 
-      wthvsmn =  0.
-      wthvrmn =  0.
-      wthvtmn =  0.
+       wthvsmn(k) =  0.
+       wthvrmn(k) =  0.
+       wthvtmn(k) =  0.
 
-      wqtsmn =  0.
-      wqtrmn =  0.
-      wqttmn =  0.
+       wqtsmn(k) =  0.
+       wqtrmn(k) =  0.
+       wqttmn(k) =  0.
 
-      wqlsmn =  0.
-      wqlrmn =  0.
-      wqltmn =  0.
+       wqlsmn(k) =  0.
+       wqlrmn(k) =  0.
+       wqltmn(k) =  0.
 
-      uwtmn  =  0.
-      vwtmn  =  0.
-      uwrmn  =  0.
-      vwrmn  =  0.
-      uwsmn  =  0.
-      vwsmn  =  0.
+       uwtmn(k)  =  0.
+       vwtmn(k)  =  0.
+       uwrmn(k)  =  0.
+       vwrmn(k)  =  0.
+       uwsmn(k)  =  0.
+       vwsmn(k)  =  0.
 
 
-      u2mn     = 0.
-      v2mn     = 0.
-      w2mn     = 0.
-      w2submn  = 0.
-      skewmn   = 0.
-      qt2mn    = 0.
-      thl2mn   = 0.
-      thv2mn   = 0.
-      th2mn    = 0.
-      ql2mn    = 0.
+       u2mn(k)     = 0.
+       v2mn(k)     = 0.
+       w2mn(k)     = 0.
+       w2submn(k)  = 0.
+       skewmn(k)   = 0.
+       qt2mn(k)    = 0.
+       thl2mn(k)   = 0.
+       thv2mn(k)   = 0.
+       th2mn(k)    = 0.
+       ql2mn(k)    = 0.
 
-      svmmn   = 0.
-      svpmn   = 0.
-      svptmn  = 0.
+       cszmn(k)  = 0.
+    end do
 
-      sv2mn = 0.
+    if (nsv > 0) then
+       !$acc parallel loop collapse(2) default(present)
+       !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+       !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+       do n=1,nsv
+          do k=1,k1
+             svmmn(k,n)   = 0.
+             svpmn(k,n)   = 0.
+             svptmn(k,n)  = 0.
 
-      wsvsmn = 0.
-      wsvrmn = 0.
-      wsvtmn = 0.
+             sv2mn(k,n) = 0.
 
-      cszmn  = 0.
-      !$acc end kernels
-!!$omp end target
+             wsvsmn(k,n) = 0.
+             wsvrmn(k,n) = 0.
+             wsvtmn(k,n) = 0.
+          end do
+       end do
+    end if
 
-      deallocate(tmn, thmn)
+    deallocate(tmn, thmn)
 
-      call timer_toc('modgenstat/writestat')
+    call timer_toc('modgenstat/writestat')
   end subroutine writestat
 
   subroutine exitgenstat
