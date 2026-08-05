@@ -51,7 +51,7 @@ module modmicrophysics
   use moduser,           only: micro_user
   use modlogging,        only: finish
 #ifdef USE_LCM
-  use modlcm_adapter,    only: prepare_lcm, init_lcm, lcm_microphysics
+  use modlcm_adapter,    only: configure_lcm_runtime, init_lcm, lcm_microphysics
 #endif
 
   implicit none
@@ -188,7 +188,7 @@ contains
         call initbulkmicro3
       case(imicro_lcm)
 #ifdef USE_LCM
-        call prepare_lcm
+        call configure_lcm_runtime
 #else
         call finish(routine, &
           'LCM microphysics selected, but DALES was built without USE_LCM.')
