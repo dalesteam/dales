@@ -7,10 +7,11 @@ module modlcm_adapter
   use iso_fortran_env, only : real64
   use lcm_host_interface, only : lcm_config_t, lcm_grid_t, lcm_init_config, &
                                  lcm_init_grid, lcm_set_config, lcm_set_grid, &
-                                 lcm_attach_fields, lcm_initialize, lcm_advance
+                                 lcm_prepare, lcm_attach_fields,             &
+                                 lcm_initialize, lcm_advance
   use modfields, only : u0, v0, w0, tmp0, dse0, qv0, presf, rhof
   use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1, &
-                        ih, jh, kh, dx, dy, dzf, zf, zh, rdt
+                        ih, jh, kh, dx, dy, dzf, zf, zh, rdt, cp
   use modlcm_namelist, only : lcm_apply_namelist_config
   use modmpi, only : myidx, myidy, nprocx, nprocy, nbrwest,  &
                      nbreast, nbrsouth, nbrnorth, periods
@@ -19,15 +20,17 @@ module modlcm_adapter
 
   private
 
+  public :: prepare_lcm
   public :: init_lcm
   public :: lcm_microphysics
 
   type(lcm_grid_t), save :: lcm_grid
   type(lcm_config_t), save :: lcm_config
+  real(real64), allocatable, target, save :: lcm_static_energy(:,:,:)
 
 contains
 
-  subroutine init_lcm()
+  subroutine prepare_lcm()
     call lcm_init_config(lcm_config)
     call lcm_apply_namelist_config(lcm_config)
     call lcm_set_config(lcm_config)
@@ -51,11 +54,17 @@ contains
       y_dimension=1)
 
     call lcm_set_grid(lcm_grid)
+    call lcm_prepare()
+  end subroutine prepare_lcm
+
+  subroutine init_lcm()
+    call update_lcm_static_energy_field()
+
     call lcm_attach_fields(                                             &
       u=u0(2:i1, 2:j1, 1:kmax),                                         &
       v=v0(2:i1, 2:j1, 1:kmax),                                         &
       w=w0(2:i1, 2:j1, 1:kmax),                                         &
-      static_energy=dse0(2:i1, 2:j1, 1:kmax),                           &
+      static_energy=lcm_static_energy,                                   &
       temperature=tmp0(2:i1, 2:j1, 1:kmax),                             &
       qv=qv0(2:i1, 2:j1, 1:kmax),                                       &
       pressure=presf(1:kmax),                                           &
@@ -64,8 +73,19 @@ contains
   end subroutine init_lcm
 
   subroutine lcm_microphysics()
+    call update_lcm_static_energy_field()
     call lcm_advance(real(rdt, kind=real64))
   end subroutine lcm_microphysics
+
+  subroutine update_lcm_static_energy_field()
+    if (.not. allocated(lcm_static_energy)) then
+      allocate(lcm_static_energy(imax, jmax, kmax))
+    end if
+
+    ! LCM follows SAM-LCM and stores static energy in temperature units.
+    lcm_static_energy = real(dse0(2:i1, 2:j1, 1:kmax), real64) / &
+                        real(cp, real64)
+  end subroutine update_lcm_static_energy_field
 
 end module modlcm_adapter
 #endif
