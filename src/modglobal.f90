@@ -132,6 +132,7 @@ save
       integer, parameter :: ibas_st1    = 3 !< Standard atmosphere, with surface temperature correction
       integer, parameter :: ibas_st2    = 4 !< Standard atmosphere, surface temperature 15 Celsius
       integer, parameter :: ibas_usr    = 5 !< User specified
+      integer, parameter :: ibas_dry    = 6 !< Dry atmosphere, using thl profile as theta profile, calculating the pressure and density
 
       !Advection scheme
       integer :: iadv_mom = 5, iadv_tke = -1, iadv_thl = -1,iadv_qt = -1,iadv_sv = -1
