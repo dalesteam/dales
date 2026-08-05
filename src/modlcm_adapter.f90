@@ -7,7 +7,7 @@ module modlcm_adapter
   use iso_fortran_env, only : real64
   use lcm_host_interface, only : lcm_config_t, lcm_grid_t, lcm_init_config, &
                                  lcm_init_grid, lcm_set_config, lcm_set_grid, &
-                                 lcm_configure_runtime,                &
+                                 lcm_configure_runtime,                      &
                                  lcm_attach_fields, lcm_initialize, lcm_advance
   use modfields, only : u0, v0, w0, tmp0, dse0, qv0, presf, rhof
   use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1, &
@@ -15,6 +15,9 @@ module modlcm_adapter
   use modlcm_namelist, only : lcm_apply_namelist_config
   use modmpi, only : myidx, myidy, nprocx, nprocy, nbrwest,  &
                      nbreast, nbrsouth, nbrnorth, periods
+#ifdef LCM_VALIDATION_CHECKS
+  use modlcm_validation_debug, only : print_lcm_validation_checks
+#endif
 
   implicit none
 
@@ -58,7 +61,7 @@ contains
   end subroutine configure_lcm_runtime
 
   subroutine init_lcm()
-    call update_lcm_static_energy_field()
+    call update_lcm_static_energy_temperature_units()
 
     call lcm_attach_fields(                                             &
       u=u0(2:i1, 2:j1, 1:kmax),                                         &
@@ -70,14 +73,17 @@ contains
       pressure=presf(1:kmax),                                           &
       density=rhof(1:kmax))
     call lcm_initialize()
+#ifdef LCM_VALIDATION_CHECKS
+    call print_lcm_validation_checks(lcm_config)
+#endif
   end subroutine init_lcm
 
   subroutine lcm_microphysics()
-    call update_lcm_static_energy_field()
+    call update_lcm_static_energy_temperature_units()
     call lcm_advance(real(rdt, kind=real64))
   end subroutine lcm_microphysics
 
-  subroutine update_lcm_static_energy_field()
+  subroutine update_lcm_static_energy_temperature_units()
     if (.not. allocated(lcm_static_energy)) then
       allocate(lcm_static_energy(imax, jmax, kmax))
     end if
@@ -85,7 +91,7 @@ contains
     ! LCM follows SAM-LCM and stores static energy in temperature units.
     lcm_static_energy = real(dse0(2:i1, 2:j1, 1:kmax), real64) / &
                         real(cp, real64)
-  end subroutine update_lcm_static_energy_field
+  end subroutine update_lcm_static_energy_temperature_units
 
 end module modlcm_adapter
 #endif

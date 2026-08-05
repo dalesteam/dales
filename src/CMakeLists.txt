@@ -131,6 +131,7 @@ set( dales_srcs
 if( ENABLE_LCM )
 	list( APPEND dales_srcs
 		modlcm_namelist.f90
+		modlcm_validation_debug.f90
 		modlcm_adapter.f90
 	)
 endif()
@@ -248,6 +249,11 @@ ecbuild_add_executable( TARGET dales
                           $<$<BOOL:${ENABLE_HYPRE}>:${HYPRE_LIB}>
                           $<$<BOOL:${HAVE_HIP}>:${HIPFORT_LIB}>
 )
+
+if( ENABLE_LCM )
+  target_compile_definitions( dales PRIVATE LCM_VALIDATION_CHECKS )
+endif()
+
 # Temporary
 #if( ENABLE_ACC )
 #  target_link_options( dales PUBLIC -cuda )
