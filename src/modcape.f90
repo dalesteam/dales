@@ -43,8 +43,8 @@ save
   character(80),dimension(1,4) :: tncname
   real    :: dtav
   integer(kind=longint) :: idtav,tnext
-  logical :: lcape = .false. !< switch for doing the crosssection (on/off)
-
+  logical :: lcape = .false.     !< switch for doing the crosssection (on/off)
+  logical :: loldthermo = .true. !< switch for using old thermodynamics in cape calculation (false gives no CAPE statistics)
 contains
 
 !> Initializing cape crossections. Read out the namelist, initializing the variables
@@ -59,7 +59,7 @@ contains
     integer :: ierr
 
     namelist/NAMCAPE/ &
-    lcape, dtav
+    lcape, dtav, loldthermo
 
     dtav = dtav_glob
     if(myid==0)then
@@ -70,8 +70,9 @@ contains
       close(ifnamopt)
     end if
 
-    call D_MPI_BCAST(dtav    ,1,0,comm3d,mpierr)
-    call D_MPI_BCAST(lcape   ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(dtav       ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(lcape      ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(loldthermo ,1,0,comm3d,mpierr)
 
     idtav = int(dtav / tres, kind=kind(idtav))
     tnext   = idtav+btime
@@ -286,8 +287,21 @@ contains
     matop(i,j)=0
     enddo
     enddo
-    !calculate moist adiabat from surface, rather than cloud base: let pressure adjust to slab mean
 
+    do j=2,j1
+    do i=2,i1
+    capemax(i,j)=0.
+    cinmax(i,j)=0.
+    dcape(i,j)=0.
+    dcin(i,j)=0.
+    dscin(i,j)=0.
+    dcintot(i,j)=0.
+    dscape(i,j)=0.
+    enddo
+    enddo
+
+    if(loldthermo) then
+    !calculate moist adiabat from surface, rather than cloud base: let pressure adjust to slab mean
     nitert=0
 
     k=1
@@ -428,17 +442,6 @@ contains
 
     ! dcape and CIN of Moist Adiabat
     ! no nice interpolation yet
-    do j=2,j1
-    do i=2,i1
-    capemax(i,j)=0.
-    cinmax(i,j)=0.
-    dcape(i,j)=0.
-    dcin(i,j)=0.
-    dscin(i,j)=0.
-    dcintot(i,j)=0.
-    dscape(i,j)=0.
-    enddo
-    enddo
 
     do k=1,k1
     do j=2,j1
@@ -462,6 +465,7 @@ contains
     enddo
     enddo
     enddo
+    endif  ! closes if(loldthermo)
 
     ! Cold pool detection
     ! Rochetin et al, JAMES 2021, doi:10.1029/2020MS002402
