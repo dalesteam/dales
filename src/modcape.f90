@@ -324,7 +324,7 @@ contains
 
             Tnr = Tnr - (thlguess-thl200400(i,j))/((thlguess-thlguessmin)*500.)
             if (niter > 100) then
-               call warning(routine, 'thermodynamics at surface not converging (', i,  j, ') ', thl200400(i,j), qt200400(i,j))
+               call warning(routine, 'thermodynamics at surface not converging (', i, ', ',  j, ') ', thl200400(i,j), ', ', qt200400(i,j))
                exit
             end if
           enddo
@@ -381,7 +381,9 @@ contains
             Tnr = Tnr - (thlguess-thl200400(i,j))/((thlguess-thlguessmin)*500.)
 
             if (niter > 100) then
-               call warning(routine, 'thermodynamics not converging (', i, j, k,') ', thl200400(i,j),  qt200400(i,j), Tnr, Tnr_old, qlma(i,j,k-1))
+               call warning(routine, 'thermodynamics not converging (', i, ', ', j, ', ', k, ') ')
+               call warning(routine, 'thl = ', thl200400(i,j), ', qt = ', qt200400(i,j), ', Tnr = ', Tnr, &
+                    ', Tnr_old = ', Tnr_old, ', qlma(i,j,k-1) = ', qlma(i,j,k-1))
                exit
             end if
           enddo
