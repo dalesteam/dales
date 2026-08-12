@@ -5,16 +5,17 @@
 #endif
 module modlcm_adapter
   use iso_fortran_env, only : real64
-  use lcm_host_interface, only : lcm_config_t, lcm_grid_t, lcm_init_config, &
-                                 lcm_init_grid, lcm_set_config, lcm_set_grid, &
-                                 lcm_configure_runtime,                      &
-                                 lcm_attach_fields, lcm_initialize, lcm_advance
+  use lcm_host_interface, only : lcm_config_t, lcm_grid_t, lcm_parallel_t,   &
+                                 lcm_init_config, lcm_init_grid,              &
+                                 lcm_init_parallel, lcm_set_config,           &
+                                 lcm_set_grid, lcm_set_parallel,              &
+                                 lcm_configure_runtime, lcm_attach_fields,    &
+                                 lcm_initialize, lcm_advance
   use modfields, only : u0, v0, w0, tmp0, dse0, qv0, presf, rhof
   use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1, &
                         ih, jh, kh, dx, dy, dzf, zf, zh, rdt, cp
   use modlcm_namelist, only : lcm_apply_namelist_config
-  use modmpi, only : myidx, myidy, nprocx, nprocy, nbrwest,  &
-                     nbreast, nbrsouth, nbrnorth, periods
+  use modmpi, only : comm3d, myidx, myidy
 #ifdef LCM_VALIDATION_CHECKS
   use modlcm_validation_debug, only : print_lcm_validation_checks
 #endif
@@ -28,6 +29,7 @@ module modlcm_adapter
   public :: lcm_microphysics
 
   type(lcm_grid_t), save :: lcm_grid
+  type(lcm_parallel_t), save :: lcm_parallel
   type(lcm_config_t), save :: lcm_config
   real(real64), allocatable, target, save :: lcm_static_energy(:,:,:)
 
@@ -37,6 +39,11 @@ contains
     call lcm_init_config(lcm_config)
     call lcm_apply_namelist_config(lcm_config)
     call lcm_set_config(lcm_config)
+
+    ! LCM derives the complete Cartesian topology from DALES's existing
+    ! communicator; the adapter does not duplicate neighbor metadata.
+    call lcm_init_parallel(lcm_parallel, comm3d)
+    call lcm_set_parallel(lcm_parallel)
 
     call lcm_init_grid(                                                   &
       grid=lcm_grid,                                                      &
@@ -48,12 +55,7 @@ contains
       z_face=real(zh(1:kmax+1), kind=real64),                             &
       dz=real(dzf(1:kmax), kind=real64),                                  &
       halo_x=ih, halo_y=jh, halo_z=kh,                                    &
-      subdomain_x_index=myidx, subdomain_y_index=myidy,                   &
-      n_subdomains_x=nprocx, n_subdomains_y=nprocy,                       &
       global_i_start=myidx * imax + 1, global_j_start=myidy * jmax + 1,   &
-      west_rank=nbrwest, east_rank=nbreast,                               &
-      south_rank=nbrsouth, north_rank=nbrnorth,                           &
-      periodic_x=periods(1), periodic_y=periods(2),                       &
       y_dimension=1)
 
     call lcm_set_grid(lcm_grid)
@@ -64,9 +66,9 @@ contains
     call update_lcm_static_energy_temperature_units()
 
     call lcm_attach_fields(                                             &
-      u=u0(2:i1, 2:j1, 1:kmax),                                         &
-      v=v0(2:i1, 2:j1, 1:kmax),                                         &
-      w=w0(2:i1, 2:j1, 1:kmax),                                         &
+      u=u0(2:i1+1, 2:j1, 1:kmax),                                       &
+      v=v0(2:i1, 2:j1+1, 1:kmax),                                       &
+      w=w0(2:i1, 2:j1, 1:kmax+1),                                       &
       static_energy=lcm_static_energy,                                   &
       temperature=tmp0(2:i1, 2:j1, 1:kmax),                             &
       qv=qv0(2:i1, 2:j1, 1:kmax),                                       &
