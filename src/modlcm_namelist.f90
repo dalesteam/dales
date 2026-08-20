@@ -12,6 +12,7 @@ module modlcm_namelist
 
   public :: lcm_read_namelist
   public :: lcm_apply_namelist_config
+  public :: lcm_particle_metrics_are_requested
 
   logical :: lcm_namelist_is_set = .false.
 
@@ -40,6 +41,7 @@ module modlcm_namelist
   logical :: switch_ds, switch_moving_source, switch_diskice_sizethresh
   logical :: switch_steady_aerosol, switch_spec_aero
   logical :: track_some_particles, horiz_average_spec
+  logical :: collect_particle_exchange_metrics
   real(real32) :: r_separate_micro, supersat_threshold, alpha_spec
   real(real32) :: r_start_spec, r_end_spec, frac_ice, salinity_source
   real(real32) :: sizethresh_chen, sizethresh_diskice, inject_bottom, inject_top
@@ -97,7 +99,8 @@ contains
       inject_top, switch_spec_aero, track_some_particles,                 &
       n_track_particles, particle_ntrack, particle_ntrackstart, rho_aero, &
       vanthoff_aero, molecular_weight_aero, particle_ntrackstop,          &
-      nstep_cut_supersat, supersat_threshold
+      nstep_cut_supersat, supersat_threshold,                             &
+      collect_particle_exchange_metrics
 
     call initialize_lcm_namelist_defaults()
 
@@ -184,6 +187,7 @@ contains
     switch_spec_aero = default_config%switch_spec_aero
     track_some_particles = default_config%track_some_particles
     horiz_average_spec = default_config%horiz_average_spec
+    collect_particle_exchange_metrics = .false.
     r_separate_micro = default_config%r_separate_micro
     supersat_threshold = default_config%supersat_threshold
     alpha_spec = default_config%alpha_spec
@@ -400,6 +404,7 @@ contains
     call D_MPI_BCAST(switch_spec_aero, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(track_some_particles, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(horiz_average_spec, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(collect_particle_exchange_metrics, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(r_separate_micro, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(supersat_threshold, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(alpha_spec, 1, 0, comm3d, ierr)
@@ -445,6 +450,10 @@ contains
     call D_MPI_BCAST(ds_param, len(ds_param), 0, comm3d, ierr)
     call D_MPI_BCAST(icebreak_param, len(icebreak_param), 0, comm3d, ierr)
   end subroutine broadcast_lcm_namelist
+
+  logical function lcm_particle_metrics_are_requested() result(requested)
+    requested = collect_particle_exchange_metrics
+  end function lcm_particle_metrics_are_requested
 
 end module modlcm_namelist
 #endif

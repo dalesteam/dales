@@ -14,7 +14,9 @@ module modlcm_adapter
   use modfields, only : u0, v0, w0, tmp0, dse0, qv0, presf, rhof
   use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1, &
                         ih, jh, kh, dx, dy, dzf, zf, zh, rdt, cp
-  use modlcm_namelist, only : lcm_apply_namelist_config
+  use modlcm_metrics, only : finish_lcm_metrics, start_lcm_metrics
+  use modlcm_namelist, only : lcm_apply_namelist_config,                  &
+                              lcm_particle_metrics_are_requested
   use modmpi, only : comm3d, myidx, myidy
 #ifdef LCM_VALIDATION_CHECKS
   use modlcm_validation_debug, only : print_lcm_validation_checks
@@ -25,6 +27,7 @@ module modlcm_adapter
   private
 
   public :: configure_lcm_runtime
+  public :: exit_lcm
   public :: init_lcm
   public :: lcm_microphysics
 
@@ -75,10 +78,15 @@ contains
       pressure=presf(1:kmax),                                           &
       density=rhof(1:kmax))
     call lcm_initialize()
+    call start_lcm_metrics(lcm_particle_metrics_are_requested())
 #ifdef LCM_VALIDATION_CHECKS
     call print_lcm_validation_checks(lcm_config)
 #endif
   end subroutine init_lcm
+
+  subroutine exit_lcm()
+    call finish_lcm_metrics()
+  end subroutine exit_lcm
 
   subroutine lcm_microphysics()
     call update_lcm_static_energy_temperature_units()

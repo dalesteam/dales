@@ -51,7 +51,8 @@ module modmicrophysics
   use moduser,           only: micro_user
   use modlogging,        only: finish
 #ifdef USE_LCM
-  use modlcm_adapter,    only: configure_lcm_runtime, init_lcm, lcm_microphysics
+  use modlcm_adapter,    only: configure_lcm_runtime, exit_lcm, init_lcm, &
+                               lcm_microphysics
 #endif
 
   implicit none
@@ -258,6 +259,10 @@ contains
         call exitsimpleice
       case(imicro_bulk3)
         call exitbulkmicro3
+      case(imicro_lcm)
+#ifdef USE_LCM
+        call exit_lcm
+#endif
     end select
 
   end subroutine exitmicrophysics
