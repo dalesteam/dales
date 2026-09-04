@@ -1,0 +1,1385 @@
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeDetermineSystem.cmake:211 (message)"
+      - "external/ecbuild/cmake/ecbuild_project.cmake:62 (_project)"
+      - "CMakeLists.txt:12 (project)"
+    message: |
+      The system is: Linux - 5.4.0-153-generic - x86_64
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeDetermineFortranCompiler.cmake:179 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "external/ecbuild/cmake/ecbuild_project.cmake:62 (_project)"
+      - "CMakeLists.txt:12 (project)"
+    message: |
+      Compiling the Fortran compiler identification source file "CMakeFortranCompilerId.F" succeeded.
+      Compiler: /usr/bin/f95 
+      Build flags: 
+      Id flags: -v 
+      
+      The output was:
+      0
+      Driving: /usr/bin/f95 -v CMakeFortranCompilerId.F -l gfortran -l m -shared-libgcc
+      Using built-in specs.
+      COLLECT_GCC=/usr/bin/f95
+      COLLECT_LTO_WRAPPER=/usr/lib/gcc/x86_64-linux-gnu/9/lto-wrapper
+      OFFLOAD_TARGET_NAMES=nvptx-none:hsa
+      OFFLOAD_TARGET_DEFAULT=1
+      Target: x86_64-linux-gnu
+      Configured with: ../src/configure -v --with-pkgversion='Ubuntu 9.4.0-1ubuntu1~20.04.1' --with-bugurl=file:///usr/share/doc/gcc-9/README.Bugs --enable-languages=c,ada,c++,go,brig,d,fortran,objc,obj-c++,gm2 --prefix=/usr --with-gcc-major-version-only --program-suffix=-9 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/lib --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-gnu-unique-object --disable-vtable-verify --enable-plugin --enable-default-pie --with-system-zlib --with-target-system-zlib=auto --enable-objc-gc=auto --enable-multiarch --disable-werror --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32,m64,mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none=/build/gcc-9-Av3uEd/gcc-9-9.4.0/debian/tmp-nvptx/usr,hsa --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu
+      Thread model: posix
+      gcc version 9.4.0 (Ubuntu 9.4.0-1ubuntu1~20.04.1) 
+      COLLECT_GCC_OPTIONS='-v' '-shared-libgcc' '-mtune=generic' '-march=x86-64'
+       /usr/lib/gcc/x86_64-linux-gnu/9/f951 CMakeFortranCompilerId.F -ffixed-form -cpp=/tmp/ccxim18l.f90 -quiet -v -imultiarch x86_64-linux-gnu CMakeFortranCompilerId.F -quiet -dumpbase CMakeFortranCompilerId.F -mtune=generic -march=x86-64 -auxbase CMakeFortranCompilerId -version -fintrinsic-modules-path /usr/lib/gcc/x86_64-linux-gnu/9/finclude -fpre-include=/usr/include/finclude/math-vector-fortran.h -o /tmp/cc9lK6yn.s
+      GNU Fortran (Ubuntu 9.4.0-1ubuntu1~20.04.1) version 9.4.0 (x86_64-linux-gnu)
+      	compiled by GNU C version 9.4.0, GMP version 6.2.0, MPFR version 4.0.2, MPC version 1.1.0, isl version isl-0.22.1-GMP
+      
+      GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+      ignoring nonexistent directory "/usr/local/include/x86_64-linux-gnu"
+      ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/9/include-fixed"
+      ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/9/../../../../x86_64-linux-gnu/include"
+      #include "..." search starts here:
+      #include <...> search starts here:
+       /usr/lib/gcc/x86_64-linux-gnu/9/finclude
+       /usr/lib/gcc/x86_64-linux-gnu/9/include
+       /usr/local/include
+       /usr/include/x86_64-linux-gnu
+       /usr/include
+      End of search list.
+      GNU Fortran2008 (Ubuntu 9.4.0-1ubuntu1~20.04.1) version 9.4.0 (x86_64-linux-gnu)
+      	compiled by GNU C version 9.4.0, GMP version 6.2.0, MPFR version 4.0.2, MPC version 1.1.0, isl version isl-0.22.1-GMP
+      
+      GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+      COLLECT_GCC_OPTIONS='-v' '-shared-libgcc' '-mtune=generic' '-march=x86-64'
+       as -v --64 -o /tmp/cczEgSOk.o /tmp/cc9lK6yn.s
+      GNU assembler version 2.34 (x86_64-linux-gnu) using BFD version (GNU Binutils for Ubuntu) 2.34
+      Reading specs from /usr/lib/gcc/x86_64-linux-gnu/9/libgfortran.spec
+      rename spec lib to liborig
+      COLLECT_GCC_OPTIONS='-v' '-shared-libgcc' '-mtune=generic' '-march=x86-64'
+      COMPILER_PATH=/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/
+      LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../:/lib/:/usr/lib/
+      COLLECT_GCC_OPTIONS='-v' '-shared-libgcc' '-mtune=generic' '-march=x86-64'
+       /usr/lib/gcc/x86_64-linux-gnu/9/collect2 -plugin /usr/lib/gcc/x86_64-linux-gnu/9/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-linux-gnu/9/lto-wrapper -plugin-opt=-fresolution=/tmp/cczQtLsn.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lquadmath -plugin-opt=-pass-through=-lm -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr -m elf_x86_64 --hash-style=gnu --as-needed -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -z now -z relro /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/Scrt1.o /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crti.o /usr/lib/gcc/x86_64-linux-gnu/9/crtbeginS.o -L/usr/lib/gcc/x86_64-linux-gnu/9 -L/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/9/../../.. /tmp/cczEgSOk.o -lgfortran -lm -lgcc_s -lgcc -lquadmath -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-linux-gnu/9/crtendS.o /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crtn.o
+      COLLECT_GCC_OPTIONS='-v' '-shared-libgcc' '-mtune=generic' '-march=x86-64'
+      
+      
+      Compilation of the Fortran compiler identification source "CMakeFortranCompilerId.F" produced "a.out"
+      
+      The Fortran compiler identification is GNU, found in:
+        /home/annelot/dales-dev/build_gmd/CMakeFiles/3.27.9/CompilerIdFortran/a.out
+      
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeDetermineCompilerABI.cmake:57 (try_compile)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeTestFortranCompiler.cmake:20 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "external/ecbuild/cmake/ecbuild_project.cmake:62 (_project)"
+      - "CMakeLists.txt:12 (project)"
+    checks:
+      - "Detecting Fortran compiler ABI info"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-PQStja"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-PQStja"
+    cmakeVariables:
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_Fortran_FLAGS: ""
+      CMAKE_Fortran_FLAGS_DEBUG: "-g"
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "CMAKE_Fortran_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-PQStja'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_0f984/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_0f984.dir/build.make CMakeFiles/cmTC_0f984.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-PQStja'
+        Building Fortran object CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o
+        /usr/bin/f95   -v -c /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeFortranCompilerABI.F90 -o CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o
+        Using built-in specs.
+        COLLECT_GCC=/usr/bin/f95
+        OFFLOAD_TARGET_NAMES=nvptx-none:hsa
+        OFFLOAD_TARGET_DEFAULT=1
+        Target: x86_64-linux-gnu
+        Configured with: ../src/configure -v --with-pkgversion='Ubuntu 9.4.0-1ubuntu1~20.04.1' --with-bugurl=file:///usr/share/doc/gcc-9/README.Bugs --enable-languages=c,ada,c++,go,brig,d,fortran,objc,obj-c++,gm2 --prefix=/usr --with-gcc-major-version-only --program-suffix=-9 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/lib --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-gnu-unique-object --disable-vtable-verify --enable-plugin --enable-default-pie --with-system-zlib --with-target-system-zlib=auto --enable-objc-gc=auto --enable-multiarch --disable-werror --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32,m64,mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none=/build/gcc-9-Av3uEd/gcc-9-9.4.0/debian/tmp-nvptx/usr,hsa --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu
+        Thread model: posix
+        gcc version 9.4.0 (Ubuntu 9.4.0-1ubuntu1~20.04.1) 
+        COLLECT_GCC_OPTIONS='-v' '-c' '-o' 'CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o' '-mtune=generic' '-march=x86-64'
+         /usr/lib/gcc/x86_64-linux-gnu/9/f951 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeFortranCompilerABI.F90 -cpp=/tmp/cc62eDnW.f90 -quiet -v -imultiarch x86_64-linux-gnu /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeFortranCompilerABI.F90 -quiet -dumpbase CMakeFortranCompilerABI.F90 -mtune=generic -march=x86-64 -auxbase-strip CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o -version -fintrinsic-modules-path /usr/lib/gcc/x86_64-linux-gnu/9/finclude -fpre-include=/usr/include/finclude/math-vector-fortran.h -o /tmp/cchQNDkX.s
+        GNU Fortran (Ubuntu 9.4.0-1ubuntu1~20.04.1) version 9.4.0 (x86_64-linux-gnu)
+        	compiled by GNU C version 9.4.0, GMP version 6.2.0, MPFR version 4.0.2, MPC version 1.1.0, isl version isl-0.22.1-GMP
+        
+        GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+        ignoring nonexistent directory "/usr/local/include/x86_64-linux-gnu"
+        ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/9/include-fixed"
+        ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/9/../../../../x86_64-linux-gnu/include"
+        #include "..." search starts here:
+        #include <...> search starts here:
+         /usr/lib/gcc/x86_64-linux-gnu/9/finclude
+         /usr/lib/gcc/x86_64-linux-gnu/9/include
+         /usr/local/include
+         /usr/include/x86_64-linux-gnu
+         /usr/include
+        End of search list.
+        GNU Fortran2008 (Ubuntu 9.4.0-1ubuntu1~20.04.1) version 9.4.0 (x86_64-linux-gnu)
+        	compiled by GNU C version 9.4.0, GMP version 6.2.0, MPFR version 4.0.2, MPC version 1.1.0, isl version isl-0.22.1-GMP
+        
+        GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+        COLLECT_GCC_OPTIONS='-v' '-c' '-o' 'CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o' '-mtune=generic' '-march=x86-64'
+         as -v --64 -o CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o /tmp/cchQNDkX.s
+        GNU assembler version 2.34 (x86_64-linux-gnu) using BFD version (GNU Binutils for Ubuntu) 2.34
+        COMPILER_PATH=/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/
+        LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../:/lib/:/usr/lib/
+        COLLECT_GCC_OPTIONS='-v' '-c' '-o' 'CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o' '-mtune=generic' '-march=x86-64'
+        Linking Fortran executable cmTC_0f984
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_0f984.dir/link.txt --verbose=1
+        /usr/bin/f95  -v CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o -o cmTC_0f984 
+        Driving: /usr/bin/f95 -v CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o -o cmTC_0f984 -l gfortran -l m -shared-libgcc
+        Using built-in specs.
+        COLLECT_GCC=/usr/bin/f95
+        COLLECT_LTO_WRAPPER=/usr/lib/gcc/x86_64-linux-gnu/9/lto-wrapper
+        OFFLOAD_TARGET_NAMES=nvptx-none:hsa
+        OFFLOAD_TARGET_DEFAULT=1
+        Target: x86_64-linux-gnu
+        Configured with: ../src/configure -v --with-pkgversion='Ubuntu 9.4.0-1ubuntu1~20.04.1' --with-bugurl=file:///usr/share/doc/gcc-9/README.Bugs --enable-languages=c,ada,c++,go,brig,d,fortran,objc,obj-c++,gm2 --prefix=/usr --with-gcc-major-version-only --program-suffix=-9 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/lib --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-gnu-unique-object --disable-vtable-verify --enable-plugin --enable-default-pie --with-system-zlib --with-target-system-zlib=auto --enable-objc-gc=auto --enable-multiarch --disable-werror --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32,m64,mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none=/build/gcc-9-Av3uEd/gcc-9-9.4.0/debian/tmp-nvptx/usr,hsa --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu
+        Thread model: posix
+        gcc version 9.4.0 (Ubuntu 9.4.0-1ubuntu1~20.04.1) 
+        Reading specs from /usr/lib/gcc/x86_64-linux-gnu/9/libgfortran.spec
+        rename spec lib to liborig
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_0f984' '-shared-libgcc' '-mtune=generic' '-march=x86-64'
+        COMPILER_PATH=/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/
+        LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../:/lib/:/usr/lib/
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_0f984' '-shared-libgcc' '-mtune=generic' '-march=x86-64'
+         /usr/lib/gcc/x86_64-linux-gnu/9/collect2 -plugin /usr/lib/gcc/x86_64-linux-gnu/9/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-linux-gnu/9/lto-wrapper -plugin-opt=-fresolution=/tmp/ccLpc4mq.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lquadmath -plugin-opt=-pass-through=-lm -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr -m elf_x86_64 --hash-style=gnu --as-needed -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -z now -z relro -o cmTC_0f984 /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/Scrt1.o /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crti.o /usr/lib/gcc/x86_64-linux-gnu/9/crtbeginS.o -L/usr/lib/gcc/x86_64-linux-gnu/9 -L/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/9/../../.. CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o -lgfortran -lm -lgcc_s -lgcc -lquadmath -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-linux-gnu/9/crtendS.o /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crtn.o
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_0f984' '-shared-libgcc' '-mtune=generic' '-march=x86-64'
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-PQStja'
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeDetermineCompilerABI.cmake:127 (message)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeTestFortranCompiler.cmake:20 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "external/ecbuild/cmake/ecbuild_project.cmake:62 (_project)"
+      - "CMakeLists.txt:12 (project)"
+    message: |
+      Parsed Fortran implicit include dir info: rv=done
+        found start of include info
+        found start of implicit include info
+          add: [/usr/lib/gcc/x86_64-linux-gnu/9/finclude]
+          add: [/usr/lib/gcc/x86_64-linux-gnu/9/include]
+          add: [/usr/local/include]
+          add: [/usr/include/x86_64-linux-gnu]
+          add: [/usr/include]
+        end of search list found
+        collapse include dir [/usr/lib/gcc/x86_64-linux-gnu/9/finclude] ==> [/usr/lib/gcc/x86_64-linux-gnu/9/finclude]
+        collapse include dir [/usr/lib/gcc/x86_64-linux-gnu/9/include] ==> [/usr/lib/gcc/x86_64-linux-gnu/9/include]
+        collapse include dir [/usr/local/include] ==> [/usr/local/include]
+        collapse include dir [/usr/include/x86_64-linux-gnu] ==> [/usr/include/x86_64-linux-gnu]
+        collapse include dir [/usr/include] ==> [/usr/include]
+        implicit include dirs: [/usr/lib/gcc/x86_64-linux-gnu/9/finclude;/usr/lib/gcc/x86_64-linux-gnu/9/include;/usr/local/include;/usr/include/x86_64-linux-gnu;/usr/include]
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeDetermineCompilerABI.cmake:152 (message)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeTestFortranCompiler.cmake:20 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "external/ecbuild/cmake/ecbuild_project.cmake:62 (_project)"
+      - "CMakeLists.txt:12 (project)"
+    message: |
+      Parsed Fortran implicit link information:
+        link line regex: [^( *|.*[/\\])(ld|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        ignore line: [Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-PQStja']
+        ignore line: []
+        ignore line: [Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_0f984/fast]
+        ignore line: [/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_0f984.dir/build.make CMakeFiles/cmTC_0f984.dir/build]
+        ignore line: [gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-PQStja']
+        ignore line: [Building Fortran object CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o]
+        ignore line: [/usr/bin/f95   -v -c /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeFortranCompilerABI.F90 -o CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o]
+        ignore line: [Using built-in specs.]
+        ignore line: [COLLECT_GCC=/usr/bin/f95]
+        ignore line: [OFFLOAD_TARGET_NAMES=nvptx-none:hsa]
+        ignore line: [OFFLOAD_TARGET_DEFAULT=1]
+        ignore line: [Target: x86_64-linux-gnu]
+        ignore line: [Configured with: ../src/configure -v --with-pkgversion='Ubuntu 9.4.0-1ubuntu1~20.04.1' --with-bugurl=file:///usr/share/doc/gcc-9/README.Bugs --enable-languages=c ada c++ go brig d fortran objc obj-c++ gm2 --prefix=/usr --with-gcc-major-version-only --program-suffix=-9 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/lib --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-gnu-unique-object --disable-vtable-verify --enable-plugin --enable-default-pie --with-system-zlib --with-target-system-zlib=auto --enable-objc-gc=auto --enable-multiarch --disable-werror --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32 m64 mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none=/build/gcc-9-Av3uEd/gcc-9-9.4.0/debian/tmp-nvptx/usr hsa --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu]
+        ignore line: [Thread model: posix]
+        ignore line: [gcc version 9.4.0 (Ubuntu 9.4.0-1ubuntu1~20.04.1) ]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-c' '-o' 'CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o' '-mtune=generic' '-march=x86-64']
+        ignore line: [ /usr/lib/gcc/x86_64-linux-gnu/9/f951 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeFortranCompilerABI.F90 -cpp=/tmp/cc62eDnW.f90 -quiet -v -imultiarch x86_64-linux-gnu /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeFortranCompilerABI.F90 -quiet -dumpbase CMakeFortranCompilerABI.F90 -mtune=generic -march=x86-64 -auxbase-strip CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o -version -fintrinsic-modules-path /usr/lib/gcc/x86_64-linux-gnu/9/finclude -fpre-include=/usr/include/finclude/math-vector-fortran.h -o /tmp/cchQNDkX.s]
+        ignore line: [GNU Fortran (Ubuntu 9.4.0-1ubuntu1~20.04.1) version 9.4.0 (x86_64-linux-gnu)]
+        ignore line: [	compiled by GNU C version 9.4.0  GMP version 6.2.0  MPFR version 4.0.2  MPC version 1.1.0  isl version isl-0.22.1-GMP]
+        ignore line: []
+        ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+        ignore line: [ignoring nonexistent directory "/usr/local/include/x86_64-linux-gnu"]
+        ignore line: [ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/9/include-fixed"]
+        ignore line: [ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/9/../../../../x86_64-linux-gnu/include"]
+        ignore line: [#include "..." search starts here:]
+        ignore line: [#include <...> search starts here:]
+        ignore line: [ /usr/lib/gcc/x86_64-linux-gnu/9/finclude]
+        ignore line: [ /usr/lib/gcc/x86_64-linux-gnu/9/include]
+        ignore line: [ /usr/local/include]
+        ignore line: [ /usr/include/x86_64-linux-gnu]
+        ignore line: [ /usr/include]
+        ignore line: [End of search list.]
+        ignore line: [GNU Fortran2008 (Ubuntu 9.4.0-1ubuntu1~20.04.1) version 9.4.0 (x86_64-linux-gnu)]
+        ignore line: [	compiled by GNU C version 9.4.0  GMP version 6.2.0  MPFR version 4.0.2  MPC version 1.1.0  isl version isl-0.22.1-GMP]
+        ignore line: []
+        ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-c' '-o' 'CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o' '-mtune=generic' '-march=x86-64']
+        ignore line: [ as -v --64 -o CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o /tmp/cchQNDkX.s]
+        ignore line: [GNU assembler version 2.34 (x86_64-linux-gnu) using BFD version (GNU Binutils for Ubuntu) 2.34]
+        ignore line: [COMPILER_PATH=/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/]
+        ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../:/lib/:/usr/lib/]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-c' '-o' 'CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o' '-mtune=generic' '-march=x86-64']
+        ignore line: [Linking Fortran executable cmTC_0f984]
+        ignore line: [/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_0f984.dir/link.txt --verbose=1]
+        ignore line: [/usr/bin/f95  -v CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o -o cmTC_0f984 ]
+        ignore line: [Driving: /usr/bin/f95 -v CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o -o cmTC_0f984 -l gfortran -l m -shared-libgcc]
+        ignore line: [Using built-in specs.]
+        ignore line: [COLLECT_GCC=/usr/bin/f95]
+        ignore line: [COLLECT_LTO_WRAPPER=/usr/lib/gcc/x86_64-linux-gnu/9/lto-wrapper]
+        ignore line: [OFFLOAD_TARGET_NAMES=nvptx-none:hsa]
+        ignore line: [OFFLOAD_TARGET_DEFAULT=1]
+        ignore line: [Target: x86_64-linux-gnu]
+        ignore line: [Configured with: ../src/configure -v --with-pkgversion='Ubuntu 9.4.0-1ubuntu1~20.04.1' --with-bugurl=file:///usr/share/doc/gcc-9/README.Bugs --enable-languages=c ada c++ go brig d fortran objc obj-c++ gm2 --prefix=/usr --with-gcc-major-version-only --program-suffix=-9 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/lib --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-gnu-unique-object --disable-vtable-verify --enable-plugin --enable-default-pie --with-system-zlib --with-target-system-zlib=auto --enable-objc-gc=auto --enable-multiarch --disable-werror --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32 m64 mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none=/build/gcc-9-Av3uEd/gcc-9-9.4.0/debian/tmp-nvptx/usr hsa --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu]
+        ignore line: [Thread model: posix]
+        ignore line: [gcc version 9.4.0 (Ubuntu 9.4.0-1ubuntu1~20.04.1) ]
+        ignore line: [Reading specs from /usr/lib/gcc/x86_64-linux-gnu/9/libgfortran.spec]
+        ignore line: [rename spec lib to liborig]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_0f984' '-shared-libgcc' '-mtune=generic' '-march=x86-64']
+        ignore line: [COMPILER_PATH=/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/]
+        ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../:/lib/:/usr/lib/]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_0f984' '-shared-libgcc' '-mtune=generic' '-march=x86-64']
+        link line: [ /usr/lib/gcc/x86_64-linux-gnu/9/collect2 -plugin /usr/lib/gcc/x86_64-linux-gnu/9/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-linux-gnu/9/lto-wrapper -plugin-opt=-fresolution=/tmp/ccLpc4mq.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lquadmath -plugin-opt=-pass-through=-lm -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr -m elf_x86_64 --hash-style=gnu --as-needed -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -z now -z relro -o cmTC_0f984 /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/Scrt1.o /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crti.o /usr/lib/gcc/x86_64-linux-gnu/9/crtbeginS.o -L/usr/lib/gcc/x86_64-linux-gnu/9 -L/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/9/../../.. CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o -lgfortran -lm -lgcc_s -lgcc -lquadmath -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-linux-gnu/9/crtendS.o /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crtn.o]
+          arg [/usr/lib/gcc/x86_64-linux-gnu/9/collect2] ==> ignore
+          arg [-plugin] ==> ignore
+          arg [/usr/lib/gcc/x86_64-linux-gnu/9/liblto_plugin.so] ==> ignore
+          arg [-plugin-opt=/usr/lib/gcc/x86_64-linux-gnu/9/lto-wrapper] ==> ignore
+          arg [-plugin-opt=-fresolution=/tmp/ccLpc4mq.res] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+          arg [-plugin-opt=-pass-through=-lquadmath] ==> ignore
+          arg [-plugin-opt=-pass-through=-lm] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+          arg [-plugin-opt=-pass-through=-lc] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+          arg [--build-id] ==> ignore
+          arg [--eh-frame-hdr] ==> ignore
+          arg [-m] ==> ignore
+          arg [elf_x86_64] ==> ignore
+          arg [--hash-style=gnu] ==> ignore
+          arg [--as-needed] ==> ignore
+          arg [-dynamic-linker] ==> ignore
+          arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
+          arg [-pie] ==> ignore
+          arg [-znow] ==> ignore
+          arg [-zrelro] ==> ignore
+          arg [-o] ==> ignore
+          arg [cmTC_0f984] ==> ignore
+          arg [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/Scrt1.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/Scrt1.o]
+          arg [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crti.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crti.o]
+          arg [/usr/lib/gcc/x86_64-linux-gnu/9/crtbeginS.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/9/crtbeginS.o]
+          arg [-L/usr/lib/gcc/x86_64-linux-gnu/9] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/9]
+          arg [-L/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu]
+          arg [-L/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib]
+          arg [-L/lib/x86_64-linux-gnu] ==> dir [/lib/x86_64-linux-gnu]
+          arg [-L/lib/../lib] ==> dir [/lib/../lib]
+          arg [-L/usr/lib/x86_64-linux-gnu] ==> dir [/usr/lib/x86_64-linux-gnu]
+          arg [-L/usr/lib/../lib] ==> dir [/usr/lib/../lib]
+          arg [-L/usr/lib/gcc/x86_64-linux-gnu/9/../../..] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/9/../../..]
+          arg [CMakeFiles/cmTC_0f984.dir/CMakeFortranCompilerABI.F90.o] ==> ignore
+          arg [-lgfortran] ==> lib [gfortran]
+          arg [-lm] ==> lib [m]
+          arg [-lgcc_s] ==> lib [gcc_s]
+          arg [-lgcc] ==> lib [gcc]
+          arg [-lquadmath] ==> lib [quadmath]
+          arg [-lm] ==> lib [m]
+          arg [-lgcc_s] ==> lib [gcc_s]
+          arg [-lgcc] ==> lib [gcc]
+          arg [-lc] ==> lib [c]
+          arg [-lgcc_s] ==> lib [gcc_s]
+          arg [-lgcc] ==> lib [gcc]
+          arg [/usr/lib/gcc/x86_64-linux-gnu/9/crtendS.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/9/crtendS.o]
+          arg [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crtn.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crtn.o]
+        collapse obj [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/Scrt1.o] ==> [/usr/lib/x86_64-linux-gnu/Scrt1.o]
+        collapse obj [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crti.o] ==> [/usr/lib/x86_64-linux-gnu/crti.o]
+        collapse obj [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crtn.o] ==> [/usr/lib/x86_64-linux-gnu/crtn.o]
+        collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/9] ==> [/usr/lib/gcc/x86_64-linux-gnu/9]
+        collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu] ==> [/usr/lib/x86_64-linux-gnu]
+        collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib] ==> [/usr/lib]
+        collapse library dir [/lib/x86_64-linux-gnu] ==> [/lib/x86_64-linux-gnu]
+        collapse library dir [/lib/../lib] ==> [/lib]
+        collapse library dir [/usr/lib/x86_64-linux-gnu] ==> [/usr/lib/x86_64-linux-gnu]
+        collapse library dir [/usr/lib/../lib] ==> [/usr/lib]
+        collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/9/../../..] ==> [/usr/lib]
+        implicit libs: [gfortran;m;gcc_s;gcc;quadmath;m;gcc_s;gcc;c;gcc_s;gcc]
+        implicit objs: [/usr/lib/x86_64-linux-gnu/Scrt1.o;/usr/lib/x86_64-linux-gnu/crti.o;/usr/lib/gcc/x86_64-linux-gnu/9/crtbeginS.o;/usr/lib/gcc/x86_64-linux-gnu/9/crtendS.o;/usr/lib/x86_64-linux-gnu/crtn.o]
+        implicit dirs: [/usr/lib/gcc/x86_64-linux-gnu/9;/usr/lib/x86_64-linux-gnu;/usr/lib;/lib/x86_64-linux-gnu;/lib]
+        implicit fwks: []
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeDetermineCCompiler.cmake:123 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "external/ecbuild/cmake/ecbuild_check_compiler.cmake:13 (enable_language)"
+      - "external/ecbuild/cmake/ecbuild_system.cmake:248 (include)"
+      - "external/ecbuild/cmake/ecbuild_project.cmake:70 (include)"
+      - "CMakeLists.txt:12 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+      Compiler: /usr/bin/cc 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      
+      
+      Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "a.out"
+      
+      The C compiler identification is GNU, found in:
+        /home/annelot/dales-dev/build_gmd/CMakeFiles/3.27.9/CompilerIdC/a.out
+      
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeDetermineCompilerABI.cmake:57 (try_compile)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "external/ecbuild/cmake/ecbuild_check_compiler.cmake:13 (enable_language)"
+      - "external/ecbuild/cmake/ecbuild_system.cmake:248 (include)"
+      - "external/ecbuild/cmake/ecbuild_project.cmake:70 (include)"
+      - "CMakeLists.txt:12 (project)"
+    checks:
+      - "Detecting C compiler ABI info"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-OJCNu7"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-OJCNu7"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "CMAKE_C_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-OJCNu7'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_e89ca/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_e89ca.dir/build.make CMakeFiles/cmTC_e89ca.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-OJCNu7'
+        Building C object CMakeFiles/cmTC_e89ca.dir/CMakeCCompilerABI.c.o
+        /usr/bin/cc   -v -o CMakeFiles/cmTC_e89ca.dir/CMakeCCompilerABI.c.o -c /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeCCompilerABI.c
+        Using built-in specs.
+        COLLECT_GCC=/usr/bin/cc
+        OFFLOAD_TARGET_NAMES=nvptx-none:hsa
+        OFFLOAD_TARGET_DEFAULT=1
+        Target: x86_64-linux-gnu
+        Configured with: ../src/configure -v --with-pkgversion='Ubuntu 9.4.0-1ubuntu1~20.04.1' --with-bugurl=file:///usr/share/doc/gcc-9/README.Bugs --enable-languages=c,ada,c++,go,brig,d,fortran,objc,obj-c++,gm2 --prefix=/usr --with-gcc-major-version-only --program-suffix=-9 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/lib --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-gnu-unique-object --disable-vtable-verify --enable-plugin --enable-default-pie --with-system-zlib --with-target-system-zlib=auto --enable-objc-gc=auto --enable-multiarch --disable-werror --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32,m64,mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none=/build/gcc-9-Av3uEd/gcc-9-9.4.0/debian/tmp-nvptx/usr,hsa --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu
+        Thread model: posix
+        gcc version 9.4.0 (Ubuntu 9.4.0-1ubuntu1~20.04.1) 
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_e89ca.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64'
+         /usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -v -imultiarch x86_64-linux-gnu /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeCCompilerABI.c -quiet -dumpbase CMakeCCompilerABI.c -mtune=generic -march=x86-64 -auxbase-strip CMakeFiles/cmTC_e89ca.dir/CMakeCCompilerABI.c.o -version -fasynchronous-unwind-tables -fstack-protector-strong -Wformat -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccHQ2frj.s
+        GNU C17 (Ubuntu 9.4.0-1ubuntu1~20.04.1) version 9.4.0 (x86_64-linux-gnu)
+        	compiled by GNU C version 9.4.0, GMP version 6.2.0, MPFR version 4.0.2, MPC version 1.1.0, isl version isl-0.22.1-GMP
+        
+        GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+        ignoring nonexistent directory "/usr/local/include/x86_64-linux-gnu"
+        ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/9/include-fixed"
+        ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/9/../../../../x86_64-linux-gnu/include"
+        #include "..." search starts here:
+        #include <...> search starts here:
+         /usr/lib/gcc/x86_64-linux-gnu/9/include
+         /usr/local/include
+         /usr/include/x86_64-linux-gnu
+         /usr/include
+        End of search list.
+        GNU C17 (Ubuntu 9.4.0-1ubuntu1~20.04.1) version 9.4.0 (x86_64-linux-gnu)
+        	compiled by GNU C version 9.4.0, GMP version 6.2.0, MPFR version 4.0.2, MPC version 1.1.0, isl version isl-0.22.1-GMP
+        
+        GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+        Compiler executable checksum: c0c95c0b4209efec1c1892d5ff24030b
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_e89ca.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64'
+         as -v --64 -o CMakeFiles/cmTC_e89ca.dir/CMakeCCompilerABI.c.o /tmp/ccHQ2frj.s
+        GNU assembler version 2.34 (x86_64-linux-gnu) using BFD version (GNU Binutils for Ubuntu) 2.34
+        COMPILER_PATH=/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/
+        LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../:/lib/:/usr/lib/
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_e89ca.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64'
+        Linking C executable cmTC_e89ca
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_e89ca.dir/link.txt --verbose=1
+        /usr/bin/cc  -v CMakeFiles/cmTC_e89ca.dir/CMakeCCompilerABI.c.o -o cmTC_e89ca 
+        Using built-in specs.
+        COLLECT_GCC=/usr/bin/cc
+        COLLECT_LTO_WRAPPER=/usr/lib/gcc/x86_64-linux-gnu/9/lto-wrapper
+        OFFLOAD_TARGET_NAMES=nvptx-none:hsa
+        OFFLOAD_TARGET_DEFAULT=1
+        Target: x86_64-linux-gnu
+        Configured with: ../src/configure -v --with-pkgversion='Ubuntu 9.4.0-1ubuntu1~20.04.1' --with-bugurl=file:///usr/share/doc/gcc-9/README.Bugs --enable-languages=c,ada,c++,go,brig,d,fortran,objc,obj-c++,gm2 --prefix=/usr --with-gcc-major-version-only --program-suffix=-9 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/lib --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-gnu-unique-object --disable-vtable-verify --enable-plugin --enable-default-pie --with-system-zlib --with-target-system-zlib=auto --enable-objc-gc=auto --enable-multiarch --disable-werror --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32,m64,mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none=/build/gcc-9-Av3uEd/gcc-9-9.4.0/debian/tmp-nvptx/usr,hsa --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu
+        Thread model: posix
+        gcc version 9.4.0 (Ubuntu 9.4.0-1ubuntu1~20.04.1) 
+        COMPILER_PATH=/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/
+        LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../:/lib/:/usr/lib/
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_e89ca' '-mtune=generic' '-march=x86-64'
+         /usr/lib/gcc/x86_64-linux-gnu/9/collect2 -plugin /usr/lib/gcc/x86_64-linux-gnu/9/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-linux-gnu/9/lto-wrapper -plugin-opt=-fresolution=/tmp/ccYaKIUH.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr -m elf_x86_64 --hash-style=gnu --as-needed -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -z now -z relro -o cmTC_e89ca /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/Scrt1.o /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crti.o /usr/lib/gcc/x86_64-linux-gnu/9/crtbeginS.o -L/usr/lib/gcc/x86_64-linux-gnu/9 -L/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/9/../../.. CMakeFiles/cmTC_e89ca.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib/gcc/x86_64-linux-gnu/9/crtendS.o /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crtn.o
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_e89ca' '-mtune=generic' '-march=x86-64'
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-OJCNu7'
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeDetermineCompilerABI.cmake:127 (message)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "external/ecbuild/cmake/ecbuild_check_compiler.cmake:13 (enable_language)"
+      - "external/ecbuild/cmake/ecbuild_system.cmake:248 (include)"
+      - "external/ecbuild/cmake/ecbuild_project.cmake:70 (include)"
+      - "CMakeLists.txt:12 (project)"
+    message: |
+      Parsed C implicit include dir info: rv=done
+        found start of include info
+        found start of implicit include info
+          add: [/usr/lib/gcc/x86_64-linux-gnu/9/include]
+          add: [/usr/local/include]
+          add: [/usr/include/x86_64-linux-gnu]
+          add: [/usr/include]
+        end of search list found
+        collapse include dir [/usr/lib/gcc/x86_64-linux-gnu/9/include] ==> [/usr/lib/gcc/x86_64-linux-gnu/9/include]
+        collapse include dir [/usr/local/include] ==> [/usr/local/include]
+        collapse include dir [/usr/include/x86_64-linux-gnu] ==> [/usr/include/x86_64-linux-gnu]
+        collapse include dir [/usr/include] ==> [/usr/include]
+        implicit include dirs: [/usr/lib/gcc/x86_64-linux-gnu/9/include;/usr/local/include;/usr/include/x86_64-linux-gnu;/usr/include]
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeDetermineCompilerABI.cmake:152 (message)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "external/ecbuild/cmake/ecbuild_check_compiler.cmake:13 (enable_language)"
+      - "external/ecbuild/cmake/ecbuild_system.cmake:248 (include)"
+      - "external/ecbuild/cmake/ecbuild_project.cmake:70 (include)"
+      - "CMakeLists.txt:12 (project)"
+    message: |
+      Parsed C implicit link information:
+        link line regex: [^( *|.*[/\\])(ld|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        ignore line: [Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-OJCNu7']
+        ignore line: []
+        ignore line: [Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_e89ca/fast]
+        ignore line: [/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_e89ca.dir/build.make CMakeFiles/cmTC_e89ca.dir/build]
+        ignore line: [gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-OJCNu7']
+        ignore line: [Building C object CMakeFiles/cmTC_e89ca.dir/CMakeCCompilerABI.c.o]
+        ignore line: [/usr/bin/cc   -v -o CMakeFiles/cmTC_e89ca.dir/CMakeCCompilerABI.c.o -c /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeCCompilerABI.c]
+        ignore line: [Using built-in specs.]
+        ignore line: [COLLECT_GCC=/usr/bin/cc]
+        ignore line: [OFFLOAD_TARGET_NAMES=nvptx-none:hsa]
+        ignore line: [OFFLOAD_TARGET_DEFAULT=1]
+        ignore line: [Target: x86_64-linux-gnu]
+        ignore line: [Configured with: ../src/configure -v --with-pkgversion='Ubuntu 9.4.0-1ubuntu1~20.04.1' --with-bugurl=file:///usr/share/doc/gcc-9/README.Bugs --enable-languages=c ada c++ go brig d fortran objc obj-c++ gm2 --prefix=/usr --with-gcc-major-version-only --program-suffix=-9 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/lib --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-gnu-unique-object --disable-vtable-verify --enable-plugin --enable-default-pie --with-system-zlib --with-target-system-zlib=auto --enable-objc-gc=auto --enable-multiarch --disable-werror --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32 m64 mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none=/build/gcc-9-Av3uEd/gcc-9-9.4.0/debian/tmp-nvptx/usr hsa --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu]
+        ignore line: [Thread model: posix]
+        ignore line: [gcc version 9.4.0 (Ubuntu 9.4.0-1ubuntu1~20.04.1) ]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_e89ca.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64']
+        ignore line: [ /usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -v -imultiarch x86_64-linux-gnu /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeCCompilerABI.c -quiet -dumpbase CMakeCCompilerABI.c -mtune=generic -march=x86-64 -auxbase-strip CMakeFiles/cmTC_e89ca.dir/CMakeCCompilerABI.c.o -version -fasynchronous-unwind-tables -fstack-protector-strong -Wformat -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccHQ2frj.s]
+        ignore line: [GNU C17 (Ubuntu 9.4.0-1ubuntu1~20.04.1) version 9.4.0 (x86_64-linux-gnu)]
+        ignore line: [	compiled by GNU C version 9.4.0  GMP version 6.2.0  MPFR version 4.0.2  MPC version 1.1.0  isl version isl-0.22.1-GMP]
+        ignore line: []
+        ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+        ignore line: [ignoring nonexistent directory "/usr/local/include/x86_64-linux-gnu"]
+        ignore line: [ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/9/include-fixed"]
+        ignore line: [ignoring nonexistent directory "/usr/lib/gcc/x86_64-linux-gnu/9/../../../../x86_64-linux-gnu/include"]
+        ignore line: [#include "..." search starts here:]
+        ignore line: [#include <...> search starts here:]
+        ignore line: [ /usr/lib/gcc/x86_64-linux-gnu/9/include]
+        ignore line: [ /usr/local/include]
+        ignore line: [ /usr/include/x86_64-linux-gnu]
+        ignore line: [ /usr/include]
+        ignore line: [End of search list.]
+        ignore line: [GNU C17 (Ubuntu 9.4.0-1ubuntu1~20.04.1) version 9.4.0 (x86_64-linux-gnu)]
+        ignore line: [	compiled by GNU C version 9.4.0  GMP version 6.2.0  MPFR version 4.0.2  MPC version 1.1.0  isl version isl-0.22.1-GMP]
+        ignore line: []
+        ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+        ignore line: [Compiler executable checksum: c0c95c0b4209efec1c1892d5ff24030b]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_e89ca.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64']
+        ignore line: [ as -v --64 -o CMakeFiles/cmTC_e89ca.dir/CMakeCCompilerABI.c.o /tmp/ccHQ2frj.s]
+        ignore line: [GNU assembler version 2.34 (x86_64-linux-gnu) using BFD version (GNU Binutils for Ubuntu) 2.34]
+        ignore line: [COMPILER_PATH=/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/]
+        ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../:/lib/:/usr/lib/]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_e89ca.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64']
+        ignore line: [Linking C executable cmTC_e89ca]
+        ignore line: [/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_e89ca.dir/link.txt --verbose=1]
+        ignore line: [/usr/bin/cc  -v CMakeFiles/cmTC_e89ca.dir/CMakeCCompilerABI.c.o -o cmTC_e89ca ]
+        ignore line: [Using built-in specs.]
+        ignore line: [COLLECT_GCC=/usr/bin/cc]
+        ignore line: [COLLECT_LTO_WRAPPER=/usr/lib/gcc/x86_64-linux-gnu/9/lto-wrapper]
+        ignore line: [OFFLOAD_TARGET_NAMES=nvptx-none:hsa]
+        ignore line: [OFFLOAD_TARGET_DEFAULT=1]
+        ignore line: [Target: x86_64-linux-gnu]
+        ignore line: [Configured with: ../src/configure -v --with-pkgversion='Ubuntu 9.4.0-1ubuntu1~20.04.1' --with-bugurl=file:///usr/share/doc/gcc-9/README.Bugs --enable-languages=c ada c++ go brig d fortran objc obj-c++ gm2 --prefix=/usr --with-gcc-major-version-only --program-suffix=-9 --program-prefix=x86_64-linux-gnu- --enable-shared --enable-linker-build-id --libexecdir=/usr/lib --without-included-gettext --enable-threads=posix --libdir=/usr/lib --enable-nls --enable-clocale=gnu --enable-libstdcxx-debug --enable-libstdcxx-time=yes --with-default-libstdcxx-abi=new --enable-gnu-unique-object --disable-vtable-verify --enable-plugin --enable-default-pie --with-system-zlib --with-target-system-zlib=auto --enable-objc-gc=auto --enable-multiarch --disable-werror --with-arch-32=i686 --with-abi=m64 --with-multilib-list=m32 m64 mx32 --enable-multilib --with-tune=generic --enable-offload-targets=nvptx-none=/build/gcc-9-Av3uEd/gcc-9-9.4.0/debian/tmp-nvptx/usr hsa --without-cuda-driver --enable-checking=release --build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu]
+        ignore line: [Thread model: posix]
+        ignore line: [gcc version 9.4.0 (Ubuntu 9.4.0-1ubuntu1~20.04.1) ]
+        ignore line: [COMPILER_PATH=/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/]
+        ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/9/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/9/../../../:/lib/:/usr/lib/]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_e89ca' '-mtune=generic' '-march=x86-64']
+        link line: [ /usr/lib/gcc/x86_64-linux-gnu/9/collect2 -plugin /usr/lib/gcc/x86_64-linux-gnu/9/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-linux-gnu/9/lto-wrapper -plugin-opt=-fresolution=/tmp/ccYaKIUH.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr -m elf_x86_64 --hash-style=gnu --as-needed -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -z now -z relro -o cmTC_e89ca /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/Scrt1.o /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crti.o /usr/lib/gcc/x86_64-linux-gnu/9/crtbeginS.o -L/usr/lib/gcc/x86_64-linux-gnu/9 -L/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/9/../../.. CMakeFiles/cmTC_e89ca.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib/gcc/x86_64-linux-gnu/9/crtendS.o /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crtn.o]
+          arg [/usr/lib/gcc/x86_64-linux-gnu/9/collect2] ==> ignore
+          arg [-plugin] ==> ignore
+          arg [/usr/lib/gcc/x86_64-linux-gnu/9/liblto_plugin.so] ==> ignore
+          arg [-plugin-opt=/usr/lib/gcc/x86_64-linux-gnu/9/lto-wrapper] ==> ignore
+          arg [-plugin-opt=-fresolution=/tmp/ccYaKIUH.res] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+          arg [-plugin-opt=-pass-through=-lc] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+          arg [--build-id] ==> ignore
+          arg [--eh-frame-hdr] ==> ignore
+          arg [-m] ==> ignore
+          arg [elf_x86_64] ==> ignore
+          arg [--hash-style=gnu] ==> ignore
+          arg [--as-needed] ==> ignore
+          arg [-dynamic-linker] ==> ignore
+          arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
+          arg [-pie] ==> ignore
+          arg [-znow] ==> ignore
+          arg [-zrelro] ==> ignore
+          arg [-o] ==> ignore
+          arg [cmTC_e89ca] ==> ignore
+          arg [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/Scrt1.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/Scrt1.o]
+          arg [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crti.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crti.o]
+          arg [/usr/lib/gcc/x86_64-linux-gnu/9/crtbeginS.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/9/crtbeginS.o]
+          arg [-L/usr/lib/gcc/x86_64-linux-gnu/9] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/9]
+          arg [-L/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu]
+          arg [-L/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib]
+          arg [-L/lib/x86_64-linux-gnu] ==> dir [/lib/x86_64-linux-gnu]
+          arg [-L/lib/../lib] ==> dir [/lib/../lib]
+          arg [-L/usr/lib/x86_64-linux-gnu] ==> dir [/usr/lib/x86_64-linux-gnu]
+          arg [-L/usr/lib/../lib] ==> dir [/usr/lib/../lib]
+          arg [-L/usr/lib/gcc/x86_64-linux-gnu/9/../../..] ==> dir [/usr/lib/gcc/x86_64-linux-gnu/9/../../..]
+          arg [CMakeFiles/cmTC_e89ca.dir/CMakeCCompilerABI.c.o] ==> ignore
+          arg [-lgcc] ==> lib [gcc]
+          arg [--push-state] ==> ignore
+          arg [--as-needed] ==> ignore
+          arg [-lgcc_s] ==> lib [gcc_s]
+          arg [--pop-state] ==> ignore
+          arg [-lc] ==> lib [c]
+          arg [-lgcc] ==> lib [gcc]
+          arg [--push-state] ==> ignore
+          arg [--as-needed] ==> ignore
+          arg [-lgcc_s] ==> lib [gcc_s]
+          arg [--pop-state] ==> ignore
+          arg [/usr/lib/gcc/x86_64-linux-gnu/9/crtendS.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/9/crtendS.o]
+          arg [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crtn.o] ==> obj [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crtn.o]
+        collapse obj [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/Scrt1.o] ==> [/usr/lib/x86_64-linux-gnu/Scrt1.o]
+        collapse obj [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crti.o] ==> [/usr/lib/x86_64-linux-gnu/crti.o]
+        collapse obj [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crtn.o] ==> [/usr/lib/x86_64-linux-gnu/crtn.o]
+        collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/9] ==> [/usr/lib/gcc/x86_64-linux-gnu/9]
+        collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu] ==> [/usr/lib/x86_64-linux-gnu]
+        collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib] ==> [/usr/lib]
+        collapse library dir [/lib/x86_64-linux-gnu] ==> [/lib/x86_64-linux-gnu]
+        collapse library dir [/lib/../lib] ==> [/lib]
+        collapse library dir [/usr/lib/x86_64-linux-gnu] ==> [/usr/lib/x86_64-linux-gnu]
+        collapse library dir [/usr/lib/../lib] ==> [/usr/lib]
+        collapse library dir [/usr/lib/gcc/x86_64-linux-gnu/9/../../..] ==> [/usr/lib]
+        implicit libs: [gcc;gcc_s;c;gcc;gcc_s]
+        implicit objs: [/usr/lib/x86_64-linux-gnu/Scrt1.o;/usr/lib/x86_64-linux-gnu/crti.o;/usr/lib/gcc/x86_64-linux-gnu/9/crtbeginS.o;/usr/lib/gcc/x86_64-linux-gnu/9/crtendS.o;/usr/lib/x86_64-linux-gnu/crtn.o]
+        implicit dirs: [/usr/lib/gcc/x86_64-linux-gnu/9;/usr/lib/x86_64-linux-gnu;/usr/lib;/lib/x86_64-linux-gnu;/lib]
+        implicit fwks: []
+      
+      
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CheckCCompilerFlag.cmake:51 (cmake_check_compiler_flag)"
+      - "external/ecbuild/cmake/ecbuild_add_lang_flags.cmake:86 (check_c_compiler_flag)"
+      - "external/ecbuild/cmake/ecbuild_add_c_flags.cmake:40 (ecbuild_add_lang_flags)"
+      - "external/ecbuild/cmake/ecbuild_check_compiler.cmake:68 (ecbuild_add_c_flags)"
+      - "external/ecbuild/cmake/ecbuild_system.cmake:248 (include)"
+      - "external/ecbuild/cmake/ecbuild_project.cmake:70 (include)"
+      - "CMakeLists.txt:12 (project)"
+    checks:
+      - "Performing Test DALES_C_FLAG_TEST_1"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-pPL0I7"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-pPL0I7"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-O0 -g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "DALES_C_FLAG_TEST_1"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-pPL0I7'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_b86df/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_b86df.dir/build.make CMakeFiles/cmTC_b86df.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-pPL0I7'
+        Building C object CMakeFiles/cmTC_b86df.dir/src.c.o
+        /usr/bin/cc -DDALES_C_FLAG_TEST_1  -pipe -o CMakeFiles/cmTC_b86df.dir/src.c.o -c /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-pPL0I7/src.c
+        Linking C executable cmTC_b86df
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_b86df.dir/link.txt --verbose=1
+        /usr/bin/cc CMakeFiles/cmTC_b86df.dir/src.c.o -o cmTC_b86df 
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-pPL0I7'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CheckIncludeFile.cmake:90 (try_compile)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CheckTypeSize.cmake:250 (check_include_file)"
+      - "external/ecbuild/cmake/ecbuild_check_os.cmake:13 (check_type_size)"
+      - "external/ecbuild/cmake/ecbuild_system.cmake:249 (include)"
+      - "external/ecbuild/cmake/ecbuild_project.cmake:70 (include)"
+      - "CMakeLists.txt:12 (project)"
+    checks:
+      - "Looking for sys/types.h"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-OnhpV9"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-OnhpV9"
+    cmakeVariables:
+      CMAKE_C_FLAGS: " -pipe"
+      CMAKE_C_FLAGS_DEBUG: "-O0 -g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "HAVE_SYS_TYPES_H"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-OnhpV9'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_1e0cb/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_1e0cb.dir/build.make CMakeFiles/cmTC_1e0cb.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-OnhpV9'
+        Building C object CMakeFiles/cmTC_1e0cb.dir/CheckIncludeFile.c.o
+        /usr/bin/cc   -pipe  -o CMakeFiles/cmTC_1e0cb.dir/CheckIncludeFile.c.o -c /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-OnhpV9/CheckIncludeFile.c
+        Linking C executable cmTC_1e0cb
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_1e0cb.dir/link.txt --verbose=1
+        /usr/bin/cc  -pipe  CMakeFiles/cmTC_1e0cb.dir/CheckIncludeFile.c.o -o cmTC_1e0cb 
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-OnhpV9'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CheckIncludeFile.cmake:90 (try_compile)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CheckTypeSize.cmake:251 (check_include_file)"
+      - "external/ecbuild/cmake/ecbuild_check_os.cmake:13 (check_type_size)"
+      - "external/ecbuild/cmake/ecbuild_system.cmake:249 (include)"
+      - "external/ecbuild/cmake/ecbuild_project.cmake:70 (include)"
+      - "CMakeLists.txt:12 (project)"
+    checks:
+      - "Looking for stdint.h"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-w4Qbj9"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-w4Qbj9"
+    cmakeVariables:
+      CMAKE_C_FLAGS: " -pipe"
+      CMAKE_C_FLAGS_DEBUG: "-O0 -g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "HAVE_STDINT_H"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-w4Qbj9'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_4885d/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_4885d.dir/build.make CMakeFiles/cmTC_4885d.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-w4Qbj9'
+        Building C object CMakeFiles/cmTC_4885d.dir/CheckIncludeFile.c.o
+        /usr/bin/cc   -pipe  -o CMakeFiles/cmTC_4885d.dir/CheckIncludeFile.c.o -c /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-w4Qbj9/CheckIncludeFile.c
+        Linking C executable cmTC_4885d
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_4885d.dir/link.txt --verbose=1
+        /usr/bin/cc  -pipe  CMakeFiles/cmTC_4885d.dir/CheckIncludeFile.c.o -o cmTC_4885d 
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-w4Qbj9'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CheckIncludeFile.cmake:90 (try_compile)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CheckTypeSize.cmake:252 (check_include_file)"
+      - "external/ecbuild/cmake/ecbuild_check_os.cmake:13 (check_type_size)"
+      - "external/ecbuild/cmake/ecbuild_system.cmake:249 (include)"
+      - "external/ecbuild/cmake/ecbuild_project.cmake:70 (include)"
+      - "CMakeLists.txt:12 (project)"
+    checks:
+      - "Looking for stddef.h"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-xTIqH9"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-xTIqH9"
+    cmakeVariables:
+      CMAKE_C_FLAGS: " -pipe"
+      CMAKE_C_FLAGS_DEBUG: "-O0 -g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "HAVE_STDDEF_H"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-xTIqH9'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_0f98e/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_0f98e.dir/build.make CMakeFiles/cmTC_0f98e.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-xTIqH9'
+        Building C object CMakeFiles/cmTC_0f98e.dir/CheckIncludeFile.c.o
+        /usr/bin/cc   -pipe  -o CMakeFiles/cmTC_0f98e.dir/CheckIncludeFile.c.o -c /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-xTIqH9/CheckIncludeFile.c
+        Linking C executable cmTC_0f98e
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_0f98e.dir/link.txt --verbose=1
+        /usr/bin/cc  -pipe  CMakeFiles/cmTC_0f98e.dir/CheckIncludeFile.c.o -o cmTC_0f98e 
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-xTIqH9'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CheckTypeSize.cmake:146 (try_compile)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CheckTypeSize.cmake:271 (__check_type_size_impl)"
+      - "external/ecbuild/cmake/ecbuild_check_os.cmake:13 (check_type_size)"
+      - "external/ecbuild/cmake/ecbuild_system.cmake:249 (include)"
+      - "external/ecbuild/cmake/ecbuild_project.cmake:70 (include)"
+      - "CMakeLists.txt:12 (project)"
+    checks:
+      - "Check size of void*"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-fTvSN6"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-fTvSN6"
+    cmakeVariables:
+      CMAKE_C_FLAGS: " -pipe"
+      CMAKE_C_FLAGS_DEBUG: "-O0 -g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "HAVE_CMAKE_SIZEOF_VOID_P"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-fTvSN6'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_07404/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_07404.dir/build.make CMakeFiles/cmTC_07404.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-fTvSN6'
+        Building C object CMakeFiles/cmTC_07404.dir/CMAKE_SIZEOF_VOID_P.c.o
+        /usr/bin/cc   -pipe  -o CMakeFiles/cmTC_07404.dir/CMAKE_SIZEOF_VOID_P.c.o -c /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-fTvSN6/CMAKE_SIZEOF_VOID_P.c
+        Linking C executable cmTC_07404
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_07404.dir/link.txt --verbose=1
+        /usr/bin/cc  -pipe  CMakeFiles/cmTC_07404.dir/CMAKE_SIZEOF_VOID_P.c.o -o cmTC_07404 
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-fTvSN6'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CheckTypeSize.cmake:146 (try_compile)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CheckTypeSize.cmake:271 (__check_type_size_impl)"
+      - "external/ecbuild/cmake/ecbuild_add_large_file_support.cmake:16 (check_type_size)"
+      - "external/ecbuild/cmake/ecbuild_check_os.cmake:55 (ecbuild_add_large_file_support)"
+      - "external/ecbuild/cmake/ecbuild_system.cmake:249 (include)"
+      - "external/ecbuild/cmake/ecbuild_project.cmake:70 (include)"
+      - "CMakeLists.txt:12 (project)"
+    checks:
+      - "Check size of off_t"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-27XQ67"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-27XQ67"
+    cmakeVariables:
+      CMAKE_C_FLAGS: " -pipe"
+      CMAKE_C_FLAGS_DEBUG: "-O0 -g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib"
+      CMAKE_POSITION_INDEPENDENT_CODE: "ON"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "HAVE_EC_SIZEOF_OFF_T"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-27XQ67'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_c59c0/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_c59c0.dir/build.make CMakeFiles/cmTC_c59c0.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-27XQ67'
+        Building C object CMakeFiles/cmTC_c59c0.dir/EC_SIZEOF_OFF_T.c.o
+        /usr/bin/cc   -pipe  -fPIE -o CMakeFiles/cmTC_c59c0.dir/EC_SIZEOF_OFF_T.c.o -c /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-27XQ67/EC_SIZEOF_OFF_T.c
+        Linking C executable cmTC_c59c0
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_c59c0.dir/link.txt --verbose=1
+        /usr/bin/cc  -pipe  CMakeFiles/cmTC_c59c0.dir/EC_SIZEOF_OFF_T.c.o -o cmTC_c59c0 
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-27XQ67'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "external/ecbuild/cmake/ecbuild_check_os.cmake:292 (try_compile)"
+      - "external/ecbuild/cmake/ecbuild_system.cmake:249 (include)"
+      - "external/ecbuild/cmake/ecbuild_project.cmake:70 (include)"
+      - "CMakeLists.txt:12 (project)"
+    directories:
+      source: "/home/annelot/dales-dev/external/ecbuild/cmake/../share/ecbuild/check_linker"
+      binary: "/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker"
+    buildResult:
+      variable: "_linker_understands_origin"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -S/home/annelot/dales-dev/external/ecbuild/cmake/../share/ecbuild/check_linker -B/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker --check-build-system CMakeFiles/Makefile.cmake 0
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_progress_start /home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker/CMakeFiles /home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker//CMakeFiles/progress.marks
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/Makefile2 all
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker'
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/dso1.dir/build.make CMakeFiles/dso1.dir/depend
+        gmake[2]: Entering directory '/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker'
+        cd /home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker && /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_depends "Unix Makefiles" /home/annelot/dales-dev/external/ecbuild/cmake/../share/ecbuild/check_linker /home/annelot/dales-dev/external/ecbuild/share/ecbuild/check_linker /home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker /home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker /home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker/CMakeFiles/dso1.dir/DependInfo.cmake
+        Dependee "/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker/CMakeFiles/dso1.dir/DependInfo.cmake" is newer than depender "/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker/CMakeFiles/dso1.dir/depend.internal".
+        Dependee "/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker/CMakeFiles/CMakeDirectoryInformation.cmake" is newer than depender "/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker/CMakeFiles/dso1.dir/depend.internal".
+        Scanning dependencies of target dso1
+        gmake[2]: Leaving directory '/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker'
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/dso1.dir/build.make CMakeFiles/dso1.dir/build
+        gmake[2]: Entering directory '/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker'
+        [ 16%] Building C object CMakeFiles/dso1.dir/dso1.c.o
+        /usr/bin/cc -Ddso1_EXPORTS  -fPIC -o CMakeFiles/dso1.dir/dso1.c.o -c /home/annelot/dales-dev/external/ecbuild/share/ecbuild/check_linker/dso1.c
+        [ 33%] Linking C shared library lib/libdso1.so
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/dso1.dir/link.txt --verbose=1
+        /usr/bin/cc -fPIC -shared -Wl,-soname,libdso1.so -o lib/libdso1.so CMakeFiles/dso1.dir/dso1.c.o 
+        gmake[2]: Leaving directory '/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker'
+        [ 33%] Built target dso1
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/dso2.dir/build.make CMakeFiles/dso2.dir/depend
+        gmake[2]: Entering directory '/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker'
+        cd /home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker && /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_depends "Unix Makefiles" /home/annelot/dales-dev/external/ecbuild/cmake/../share/ecbuild/check_linker /home/annelot/dales-dev/external/ecbuild/share/ecbuild/check_linker /home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker /home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker /home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker/CMakeFiles/dso2.dir/DependInfo.cmake
+        Dependee "/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker/CMakeFiles/dso2.dir/DependInfo.cmake" is newer than depender "/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker/CMakeFiles/dso2.dir/depend.internal".
+        Dependee "/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker/CMakeFiles/CMakeDirectoryInformation.cmake" is newer than depender "/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker/CMakeFiles/dso2.dir/depend.internal".
+        Scanning dependencies of target dso2
+        gmake[2]: Leaving directory '/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker'
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/dso2.dir/build.make CMakeFiles/dso2.dir/build
+        gmake[2]: Entering directory '/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker'
+        [ 50%] Building C object CMakeFiles/dso2.dir/dso2.c.o
+        /usr/bin/cc -Ddso2_EXPORTS  -fPIC -o CMakeFiles/dso2.dir/dso2.c.o -c /home/annelot/dales-dev/external/ecbuild/share/ecbuild/check_linker/dso2.c
+        [ 66%] Linking C shared library lib/libdso2.so
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/dso2.dir/link.txt --verbose=1
+        /usr/bin/cc -fPIC -shared -Wl,-soname,libdso2.so -o lib/libdso2.so CMakeFiles/dso2.dir/dso2.c.o  -Wl,-rpath,"\\$ORIGIN" lib/libdso1.so 
+        gmake[2]: Leaving directory '/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker'
+        [ 66%] Built target dso2
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/depend
+        gmake[2]: Entering directory '/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker'
+        cd /home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker && /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_depends "Unix Makefiles" /home/annelot/dales-dev/external/ecbuild/cmake/../share/ecbuild/check_linker /home/annelot/dales-dev/external/ecbuild/share/ecbuild/check_linker /home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker /home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker /home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker/CMakeFiles/main.dir/DependInfo.cmake
+        Dependee "/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker/CMakeFiles/main.dir/DependInfo.cmake" is newer than depender "/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker/CMakeFiles/main.dir/depend.internal".
+        Dependee "/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker/CMakeFiles/CMakeDirectoryInformation.cmake" is newer than depender "/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker/CMakeFiles/main.dir/depend.internal".
+        Scanning dependencies of target main
+        gmake[2]: Leaving directory '/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker'
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/build
+        gmake[2]: Entering directory '/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker'
+        [ 83%] Building C object CMakeFiles/main.dir/main.c.o
+        /usr/bin/cc    -o CMakeFiles/main.dir/main.c.o -c /home/annelot/dales-dev/external/ecbuild/share/ecbuild/check_linker/main.c
+        [100%] Linking C executable bin/main
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/main.dir/link.txt --verbose=1
+        /usr/bin/cc CMakeFiles/main.dir/main.c.o -o bin/main  -Wl,-rpath,"\\$ORIGIN/../lib" lib/libdso2.so -Wl,-rpath-link,/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker/lib 
+        gmake[2]: Leaving directory '/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker'
+        [100%] Built target main
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker'
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_progress_start /home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker/CMakeFiles 0
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/FindMPI.cmake:1278 (try_compile)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/FindMPI.cmake:1297 (_MPI_try_staged_settings)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/FindMPI.cmake:1645 (_MPI_check_lang_works)"
+      - "external/ecbuild/cmake/ecbuild_find_package.cmake:239 (find_package)"
+      - "CMakeLists.txt:56 (ecbuild_find_package)"
+    description: "The MPI test test_mpi for Fortran in mode F77_HEADER"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-xhxf26"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-xhxf26"
+    cmakeVariables:
+      CMAKE_EXE_LINKER_FLAGS: "    -Wl,--disable-new-dtags"
+      CMAKE_Fortran_FLAGS: ""
+      CMAKE_Fortran_FLAGS_DEBUG: "-O0 -g -fcheck=bounds -fbacktrace -finit-real=snan"
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib"
+      CMAKE_POSITION_INDEPENDENT_CODE: "ON"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "MPI_RESULT_Fortran_test_mpi_F77_HEADER"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-xhxf26'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_7f729/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_7f729.dir/build.make CMakeFiles/cmTC_7f729.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-xhxf26'
+        Building Fortran object CMakeFiles/cmTC_7f729.dir/test_mpi.f90.o
+        /usr/bin/f95  -I/usr/lib/x86_64-linux-gnu/openmpi/include -I/usr/lib/x86_64-linux-gnu/openmpi/lib -fPIE -pthread -c /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-xhxf26/test_mpi.f90 -o CMakeFiles/cmTC_7f729.dir/test_mpi.f90.o
+        Linking Fortran executable cmTC_7f729
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_7f729.dir/link.txt --verbose=1
+        /usr/bin/f95     -Wl,--disable-new-dtags  -pthread CMakeFiles/cmTC_7f729.dir/test_mpi.f90.o -o cmTC_7f729  -Wl,-rpath,/usr/lib/x86_64-linux-gnu/openmpi/lib /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_usempif08.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_usempi_ignore_tkr.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_mpifh.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi.so 
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-xhxf26'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/FindMPI.cmake:1278 (try_compile)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/FindMPI.cmake:1298 (_MPI_try_staged_settings)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/FindMPI.cmake:1645 (_MPI_check_lang_works)"
+      - "external/ecbuild/cmake/ecbuild_find_package.cmake:239 (find_package)"
+      - "CMakeLists.txt:56 (ecbuild_find_package)"
+    description: "The MPI test test_mpi for Fortran in mode F90_MODULE"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-nND396"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-nND396"
+    cmakeVariables:
+      CMAKE_EXE_LINKER_FLAGS: "    -Wl,--disable-new-dtags"
+      CMAKE_Fortran_FLAGS: ""
+      CMAKE_Fortran_FLAGS_DEBUG: "-O0 -g -fcheck=bounds -fbacktrace -finit-real=snan"
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib"
+      CMAKE_POSITION_INDEPENDENT_CODE: "ON"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "MPI_RESULT_Fortran_test_mpi_F90_MODULE"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-nND396'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_917c7/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_917c7.dir/build.make CMakeFiles/cmTC_917c7.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-nND396'
+        Building Fortran object CMakeFiles/cmTC_917c7.dir/test_mpi.f90.o
+        /usr/bin/f95  -I/usr/lib/x86_64-linux-gnu/openmpi/include -I/usr/lib/x86_64-linux-gnu/openmpi/lib -fPIE -pthread -c /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-nND396/test_mpi.f90 -o CMakeFiles/cmTC_917c7.dir/test_mpi.f90.o
+        Linking Fortran executable cmTC_917c7
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_917c7.dir/link.txt --verbose=1
+        /usr/bin/f95     -Wl,--disable-new-dtags  -pthread CMakeFiles/cmTC_917c7.dir/test_mpi.f90.o -o cmTC_917c7  -Wl,-rpath,/usr/lib/x86_64-linux-gnu/openmpi/lib /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_usempif08.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_usempi_ignore_tkr.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_mpifh.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi.so 
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-nND396'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/FindMPI.cmake:1278 (try_compile)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/FindMPI.cmake:1299 (_MPI_try_staged_settings)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/FindMPI.cmake:1645 (_MPI_check_lang_works)"
+      - "external/ecbuild/cmake/ecbuild_find_package.cmake:239 (find_package)"
+      - "CMakeLists.txt:56 (ecbuild_find_package)"
+    description: "The MPI test test_mpi for Fortran in mode F08_MODULE"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-fqXIx9"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-fqXIx9"
+    cmakeVariables:
+      CMAKE_EXE_LINKER_FLAGS: "    -Wl,--disable-new-dtags"
+      CMAKE_Fortran_FLAGS: ""
+      CMAKE_Fortran_FLAGS_DEBUG: "-O0 -g -fcheck=bounds -fbacktrace -finit-real=snan"
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib"
+      CMAKE_POSITION_INDEPENDENT_CODE: "ON"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "MPI_RESULT_Fortran_test_mpi_F08_MODULE"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-fqXIx9'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_b0ef0/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_b0ef0.dir/build.make CMakeFiles/cmTC_b0ef0.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-fqXIx9'
+        Building Fortran object CMakeFiles/cmTC_b0ef0.dir/test_mpi.f90.o
+        /usr/bin/f95  -I/usr/lib/x86_64-linux-gnu/openmpi/include -I/usr/lib/x86_64-linux-gnu/openmpi/lib -fPIE -pthread -c /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-fqXIx9/test_mpi.f90 -o CMakeFiles/cmTC_b0ef0.dir/test_mpi.f90.o
+        Linking Fortran executable cmTC_b0ef0
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_b0ef0.dir/link.txt --verbose=1
+        /usr/bin/f95     -Wl,--disable-new-dtags  -pthread CMakeFiles/cmTC_b0ef0.dir/test_mpi.f90.o -o cmTC_b0ef0  -Wl,-rpath,/usr/lib/x86_64-linux-gnu/openmpi/lib /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_usempif08.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_usempi_ignore_tkr.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_mpifh.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi.so 
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-fqXIx9'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/FindMPI.cmake:1278 (try_compile)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/FindMPI.cmake:1707 (_MPI_try_staged_settings)"
+      - "external/ecbuild/cmake/ecbuild_find_package.cmake:239 (find_package)"
+      - "CMakeLists.txt:56 (ecbuild_find_package)"
+    description: "The MPI test mpiver for Fortran in mode F08_MODULE"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-JQhKl9"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-JQhKl9"
+    cmakeVariables:
+      CMAKE_EXE_LINKER_FLAGS: "    -Wl,--disable-new-dtags"
+      CMAKE_Fortran_FLAGS: ""
+      CMAKE_Fortran_FLAGS_DEBUG: "-O0 -g -fcheck=bounds -fbacktrace -finit-real=snan"
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib"
+      CMAKE_POSITION_INDEPENDENT_CODE: "ON"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "MPI_RESULT_Fortran_mpiver_F08_MODULE"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-JQhKl9'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_5edcc/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_5edcc.dir/build.make CMakeFiles/cmTC_5edcc.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-JQhKl9'
+        Building Fortran object CMakeFiles/cmTC_5edcc.dir/mpiver.f90.o
+        /usr/bin/f95  -I/usr/lib/x86_64-linux-gnu/openmpi/include -I/usr/lib/x86_64-linux-gnu/openmpi/lib -fPIE -pthread -c /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-JQhKl9/mpiver.f90 -o CMakeFiles/cmTC_5edcc.dir/mpiver.f90.o
+        Linking Fortran executable cmTC_5edcc
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_5edcc.dir/link.txt --verbose=1
+        /usr/bin/f95     -Wl,--disable-new-dtags  -pthread CMakeFiles/cmTC_5edcc.dir/mpiver.f90.o -o cmTC_5edcc  -Wl,-rpath,/usr/lib/x86_64-linux-gnu/openmpi/lib /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_usempif08.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_usempi_ignore_tkr.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_mpifh.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi.so 
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-JQhKl9'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CheckFortranCompilerFlag.cmake:53 (cmake_check_compiler_flag)"
+      - "external/ecbuild/cmake/ecbuild_add_lang_flags.cmake:94 (check_fortran_compiler_flag)"
+      - "external/ecbuild/cmake/ecbuild_add_fortran_flags.cmake:44 (ecbuild_add_lang_flags)"
+      - "cmake/dales_compile_options.cmake:3 (ecbuild_add_fortran_flags)"
+      - "CMakeLists.txt:136 (include)"
+    checks:
+      - "Performing Test DALES_Fortran_FLAG_TEST_1"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-us0tea"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-us0tea"
+    cmakeVariables:
+      CMAKE_EXE_LINKER_FLAGS: "    -Wl,--disable-new-dtags"
+      CMAKE_Fortran_FLAGS: ""
+      CMAKE_Fortran_FLAGS_DEBUG: "-O0 -g -fcheck=bounds -fbacktrace -finit-real=snan"
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib"
+      CMAKE_POSITION_INDEPENDENT_CODE: "ON"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "DALES_Fortran_FLAG_TEST_1"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-us0tea'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_e03b9/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_e03b9.dir/build.make CMakeFiles/cmTC_e03b9.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-us0tea'
+        Building Fortran object CMakeFiles/cmTC_e03b9.dir/src.F90.o
+        /usr/bin/f95 -DDALES_Fortran_FLAG_TEST_1  -fPIE   -cpp -W -Wall -Wno-tabs -Wno-compare-reals -fdefault-real-8 -fdefault-double-8 -march=native -ffree-line-length-none -std=gnu -Werror=implicit-interface -c /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-us0tea/src.F90 -o CMakeFiles/cmTC_e03b9.dir/src.F90.o
+        Linking Fortran executable cmTC_e03b9
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_e03b9.dir/link.txt --verbose=1
+        /usr/bin/f95     -Wl,--disable-new-dtags  CMakeFiles/cmTC_e03b9.dir/src.F90.o -o cmTC_e03b9 
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-us0tea'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CheckFortranCompilerFlag.cmake:53 (cmake_check_compiler_flag)"
+      - "external/ecbuild/cmake/ecbuild_add_lang_flags.cmake:94 (check_fortran_compiler_flag)"
+      - "external/ecbuild/cmake/ecbuild_add_fortran_flags.cmake:44 (ecbuild_add_lang_flags)"
+      - "cmake/dales_compile_options.cmake:4 (ecbuild_add_fortran_flags)"
+      - "CMakeLists.txt:136 (include)"
+    checks:
+      - "Performing Test DALES_Fortran_FLAG_TEST_2"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-vuoYZ7"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-vuoYZ7"
+    cmakeVariables:
+      CMAKE_EXE_LINKER_FLAGS: "    -Wl,--disable-new-dtags"
+      CMAKE_Fortran_FLAGS: " -cpp -W -Wall -Wno-tabs -Wno-compare-reals -fdefault-real-8 -fdefault-double-8 -march=native -ffree-line-length-none -std=gnu -Werror=implicit-interface"
+      CMAKE_Fortran_FLAGS_DEBUG: "-O0 -g -fcheck=bounds -fbacktrace -finit-real=snan"
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib"
+      CMAKE_POSITION_INDEPENDENT_CODE: "ON"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "DALES_Fortran_FLAG_TEST_2"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-vuoYZ7'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_be0c7/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_be0c7.dir/build.make CMakeFiles/cmTC_be0c7.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-vuoYZ7'
+        Building Fortran object CMakeFiles/cmTC_be0c7.dir/src.F90.o
+        /usr/bin/f95 -DDALES_Fortran_FLAG_TEST_2  -cpp -W -Wall -Wno-tabs -Wno-compare-reals -fdefault-real-8 -fdefault-double-8 -march=native -ffree-line-length-none -std=gnu -Werror=implicit-interface  -fPIE   -funroll-all-loops -fno-f2c -Ofast -g -fbacktrace -c /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-vuoYZ7/src.F90 -o CMakeFiles/cmTC_be0c7.dir/src.F90.o
+        Linking Fortran executable cmTC_be0c7
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_be0c7.dir/link.txt --verbose=1
+        /usr/bin/f95     -Wl,--disable-new-dtags   -cpp -W -Wall -Wno-tabs -Wno-compare-reals -fdefault-real-8 -fdefault-double-8 -march=native -ffree-line-length-none -std=gnu -Werror=implicit-interface  CMakeFiles/cmTC_be0c7.dir/src.F90.o -o cmTC_be0c7 
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-vuoYZ7'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/Internal/CheckSourceCompiles.cmake:101 (try_compile)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CheckFortranCompilerFlag.cmake:53 (cmake_check_compiler_flag)"
+      - "external/ecbuild/cmake/ecbuild_add_lang_flags.cmake:94 (check_fortran_compiler_flag)"
+      - "external/ecbuild/cmake/ecbuild_add_fortran_flags.cmake:44 (ecbuild_add_lang_flags)"
+      - "cmake/dales_compile_options.cmake:5 (ecbuild_add_fortran_flags)"
+      - "CMakeLists.txt:136 (include)"
+    checks:
+      - "Performing Test DALES_Fortran_FLAG_TEST_3"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-J7xCh9"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-J7xCh9"
+    cmakeVariables:
+      CMAKE_EXE_LINKER_FLAGS: "    -Wl,--disable-new-dtags"
+      CMAKE_Fortran_FLAGS: " -cpp -W -Wall -Wno-tabs -Wno-compare-reals -fdefault-real-8 -fdefault-double-8 -march=native -ffree-line-length-none -std=gnu -Werror=implicit-interface"
+      CMAKE_Fortran_FLAGS_DEBUG: "-O0 -g -fcheck=bounds -fbacktrace -finit-real=snan"
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib"
+      CMAKE_POSITION_INDEPENDENT_CODE: "ON"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "DALES_Fortran_FLAG_TEST_3"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-J7xCh9'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_edd9d/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_edd9d.dir/build.make CMakeFiles/cmTC_edd9d.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-J7xCh9'
+        Building Fortran object CMakeFiles/cmTC_edd9d.dir/src.F90.o
+        /usr/bin/f95 -DDALES_Fortran_FLAG_TEST_3  -cpp -W -Wall -Wno-tabs -Wno-compare-reals -fdefault-real-8 -fdefault-double-8 -march=native -ffree-line-length-none -std=gnu -Werror=implicit-interface  -fPIE   -finit-real=snan -fcheck=all -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow -c /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-J7xCh9/src.F90 -o CMakeFiles/cmTC_edd9d.dir/src.F90.o
+        Linking Fortran executable cmTC_edd9d
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_edd9d.dir/link.txt --verbose=1
+        /usr/bin/f95     -Wl,--disable-new-dtags   -cpp -W -Wall -Wno-tabs -Wno-compare-reals -fdefault-real-8 -fdefault-double-8 -march=native -ffree-line-length-none -std=gnu -Werror=implicit-interface  CMakeFiles/cmTC_edd9d.dir/src.F90.o -o cmTC_edd9d 
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-J7xCh9'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CheckIncludeFiles.cmake:132 (try_compile)"
+      - "build_gmd/_deps/fortran-support-src/src/CMakeLists.txt:13 (check_include_files)"
+    checks:
+      - "Looking for include file execinfo.h"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-yu8cD7"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-yu8cD7"
+    cmakeVariables:
+      CMAKE_C_FLAGS: " -pipe"
+      CMAKE_C_FLAGS_DEBUG: "-O0 -g"
+      CMAKE_EXE_LINKER_FLAGS: "    -Wl,--disable-new-dtags"
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib"
+      CMAKE_POSITION_INDEPENDENT_CODE: "ON"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "HAVE_EXECINFO_H"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-yu8cD7'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_1fb7a/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_1fb7a.dir/build.make CMakeFiles/cmTC_1fb7a.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-yu8cD7'
+        Building C object CMakeFiles/cmTC_1fb7a.dir/HAVE_EXECINFO_H.c.o
+        /usr/bin/cc   -pipe  -fPIE -o CMakeFiles/cmTC_1fb7a.dir/HAVE_EXECINFO_H.c.o -c /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-yu8cD7/HAVE_EXECINFO_H.c
+        Linking C executable cmTC_1fb7a
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_1fb7a.dir/link.txt --verbose=1
+        /usr/bin/cc  -pipe      -Wl,--disable-new-dtags  CMakeFiles/cmTC_1fb7a.dir/HAVE_EXECINFO_H.c.o -o cmTC_1fb7a 
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-yu8cD7'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CheckIncludeFiles.cmake:132 (try_compile)"
+      - "build_gmd/_deps/fortran-support-src/src/CMakeLists.txt:14 (check_include_files)"
+    checks:
+      - "Looking for include file link.h"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-hLbvz6"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-hLbvz6"
+    cmakeVariables:
+      CMAKE_C_FLAGS: " -pipe"
+      CMAKE_C_FLAGS_DEBUG: "-O0 -g"
+      CMAKE_EXE_LINKER_FLAGS: "    -Wl,--disable-new-dtags"
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib"
+      CMAKE_POSITION_INDEPENDENT_CODE: "ON"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "HAVE_LINK_H"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-hLbvz6'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_39a2d/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_39a2d.dir/build.make CMakeFiles/cmTC_39a2d.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-hLbvz6'
+        Building C object CMakeFiles/cmTC_39a2d.dir/HAVE_LINK_H.c.o
+        /usr/bin/cc   -pipe  -fPIE -o CMakeFiles/cmTC_39a2d.dir/HAVE_LINK_H.c.o -c /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-hLbvz6/HAVE_LINK_H.c
+        Linking C executable cmTC_39a2d
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_39a2d.dir/link.txt --verbose=1
+        /usr/bin/cc  -pipe      -Wl,--disable-new-dtags  CMakeFiles/cmTC_39a2d.dir/HAVE_LINK_H.c.o -o cmTC_39a2d 
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-hLbvz6'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CheckIncludeFiles.cmake:132 (try_compile)"
+      - "build_gmd/_deps/fortran-support-src/src/CMakeLists.txt:15 (check_include_files)"
+    checks:
+      - "Looking for include file unwind.h"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-9LCP46"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-9LCP46"
+    cmakeVariables:
+      CMAKE_C_FLAGS: " -pipe"
+      CMAKE_C_FLAGS_DEBUG: "-O0 -g"
+      CMAKE_EXE_LINKER_FLAGS: "    -Wl,--disable-new-dtags"
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib"
+      CMAKE_POSITION_INDEPENDENT_CODE: "ON"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "HAVE_UNWIND_H"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-9LCP46'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_7f0df/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_7f0df.dir/build.make CMakeFiles/cmTC_7f0df.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-9LCP46'
+        Building C object CMakeFiles/cmTC_7f0df.dir/HAVE_UNWIND_H.c.o
+        /usr/bin/cc   -pipe  -fPIE -o CMakeFiles/cmTC_7f0df.dir/HAVE_UNWIND_H.c.o -c /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-9LCP46/HAVE_UNWIND_H.c
+        Linking C executable cmTC_7f0df
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_7f0df.dir/link.txt --verbose=1
+        /usr/bin/cc  -pipe      -Wl,--disable-new-dtags  CMakeFiles/cmTC_7f0df.dir/HAVE_UNWIND_H.c.o -o cmTC_7f0df 
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-9LCP46'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CheckIncludeFiles.cmake:132 (try_compile)"
+      - "build_gmd/_deps/fortran-support-src/src/CMakeLists.txt:16 (check_include_files)"
+    checks:
+      - "Looking for include file sys/resource.h"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-0u3Mfa"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-0u3Mfa"
+    cmakeVariables:
+      CMAKE_C_FLAGS: " -pipe"
+      CMAKE_C_FLAGS_DEBUG: "-O0 -g"
+      CMAKE_EXE_LINKER_FLAGS: "    -Wl,--disable-new-dtags"
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib"
+      CMAKE_POSITION_INDEPENDENT_CODE: "ON"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "HAVE_GETRUSAGE"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-0u3Mfa'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_1665b/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_1665b.dir/build.make CMakeFiles/cmTC_1665b.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-0u3Mfa'
+        Building C object CMakeFiles/cmTC_1665b.dir/HAVE_GETRUSAGE.c.o
+        /usr/bin/cc   -pipe  -fPIE -o CMakeFiles/cmTC_1665b.dir/HAVE_GETRUSAGE.c.o -c /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-0u3Mfa/HAVE_GETRUSAGE.c
+        Linking C executable cmTC_1665b
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E cmake_link_script CMakeFiles/cmTC_1665b.dir/link.txt --verbose=1
+        /usr/bin/cc  -pipe      -Wl,--disable-new-dtags  CMakeFiles/cmTC_1665b.dir/HAVE_GETRUSAGE.c.o -o cmTC_1665b 
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeScratch/TryCompile-0u3Mfa'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "build_gmd/_deps/fortran-support-src/cmake/check_macro.cmake:64 (try_compile)"
+      - "build_gmd/_deps/fortran-support-src/src/CMakeLists.txt:97 (check_macro_defined)"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeTmp"
+      binary: "/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeTmp"
+    cmakeVariables:
+      CMAKE_EXE_LINKER_FLAGS: "    -Wl,--disable-new-dtags"
+      CMAKE_Fortran_FLAGS: " -cpp -W -Wall -Wno-tabs -Wno-compare-reals -fdefault-real-8 -fdefault-double-8 -march=native -ffree-line-length-none -std=gnu -Werror=implicit-interface"
+      CMAKE_Fortran_FLAGS_DEBUG: "-O0 -g -fcheck=bounds -fbacktrace -finit-real=snan -finit-real=snan -fcheck=all -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow"
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib"
+      CMAKE_POSITION_INDEPENDENT_CODE: "ON"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "result"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeTmp'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_bc601/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_bc601.dir/build.make CMakeFiles/cmTC_bc601.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeTmp'
+        Building Fortran object CMakeFiles/cmTC_bc601.dir/src.F90.o
+        /usr/bin/f95   -cpp -W -Wall -Wno-tabs -Wno-compare-reals -fdefault-real-8 -fdefault-double-8 -march=native -ffree-line-length-none -std=gnu -Werror=implicit-interface  -fPIE -c /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeTmp/src.F90 -o CMakeFiles/cmTC_bc601.dir/src.F90.o
+        /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeTmp/src.F90:12:9:
+        
+           12 |         a = 4
+              |         1
+        Error: Symbol ‘a’ at (1) has no IMPLICIT type
+        /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeTmp/src.F90:13:9:
+        
+           13 |         b = 2
+              |         1
+        Error: Symbol ‘b’ at (1) has no IMPLICIT type
+        gmake[1]: *** [CMakeFiles/cmTC_bc601.dir/build.make:78: CMakeFiles/cmTC_bc601.dir/src.F90.o] Error 1
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeTmp'
+        gmake: *** [Makefile:127: cmTC_bc601/fast] Error 2
+        
+      exitCode: 2
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "build_gmd/_deps/rrtmgp-src/cmake/CheckCompilerIsNEC.cmake:50 (try_compile)"
+      - "build_gmd/_deps/rrtmgp-src/CMakeLists.txt:39 (check_compiler_is_nec)"
+    directories:
+      source: "/home/annelot/dales-dev/build_gmd/_deps/rrtmgp-build/CMakeFiles/CMakeTmp"
+      binary: "/home/annelot/dales-dev/build_gmd/_deps/rrtmgp-build/CMakeFiles/CMakeTmp"
+    cmakeVariables:
+      CMAKE_EXE_LINKER_FLAGS: "    -Wl,--disable-new-dtags"
+      CMAKE_Fortran_FLAGS: " -cpp -W -Wall -Wno-tabs -Wno-compare-reals -fdefault-real-8 -fdefault-double-8 -march=native -ffree-line-length-none -std=gnu -Werror=implicit-interface"
+      CMAKE_Fortran_FLAGS_DEBUG: "-O0 -g -fcheck=bounds -fbacktrace -finit-real=snan -finit-real=snan -fcheck=all -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow"
+      CMAKE_MODULE_PATH: "/home/annelot/dales-dev/cmake;/home/annelot/dales-dev/external/ecbuild/cmake;/home/annelot/dales-dev/external/ecbuild/cmake/contrib;/home/annelot/dales-dev/build_gmd/_deps/rrtmgp-src/cmake"
+      CMAKE_POSITION_INDEPENDENT_CODE: "ON"
+      CMAKE_WARN_DEPRECATED: "ON"
+    buildResult:
+      variable: "RTE_RRTMGP_Fortran_is_NEC"
+      cached: true
+      stdout: |
+        Change Dir: '/home/annelot/dales-dev/build_gmd/_deps/rrtmgp-build/CMakeFiles/CMakeTmp'
+        
+        Run Build Command(s): /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake -E env VERBOSE=1 /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake -f Makefile cmTC_82e61/fast
+        /net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/gmake-4.4.1-5jshsm3cucr7wzwwnawejgswcnelejkn/bin/gmake  -f CMakeFiles/cmTC_82e61.dir/build.make CMakeFiles/cmTC_82e61.dir/build
+        gmake[1]: Entering directory '/home/annelot/dales-dev/build_gmd/_deps/rrtmgp-build/CMakeFiles/CMakeTmp'
+        Building Fortran object CMakeFiles/cmTC_82e61.dir/src.F90.o
+        /usr/bin/f95   -cpp -W -Wall -Wno-tabs -Wno-compare-reals -fdefault-real-8 -fdefault-double-8 -march=native -ffree-line-length-none -std=gnu -Werror=implicit-interface  -fPIE -c /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeTmp/src.F90 -o CMakeFiles/cmTC_82e61.dir/src.F90.o
+        /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeTmp/src.F90:6:6:
+        
+            6 |       choke me
+              |      1
+        Error: Unclassifiable statement at (1)
+        /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeTmp/src.F90:13:7:
+        
+           13 |       a = 4
+              |       1
+        Error: Symbol ‘a’ at (1) has no IMPLICIT type
+        /home/annelot/dales-dev/build_gmd/CMakeFiles/CMakeTmp/src.F90:14:7:
+        
+           14 |       b = 2
+              |       1
+        Error: Symbol ‘b’ at (1) has no IMPLICIT type
+        gmake[1]: *** [CMakeFiles/cmTC_82e61.dir/build.make:78: CMakeFiles/cmTC_82e61.dir/src.F90.o] Error 1
+        gmake[1]: Leaving directory '/home/annelot/dales-dev/build_gmd/_deps/rrtmgp-build/CMakeFiles/CMakeTmp'
+        gmake: *** [Makefile:127: cmTC_82e61/fast] Error 2
+        
+      exitCode: 2
+...

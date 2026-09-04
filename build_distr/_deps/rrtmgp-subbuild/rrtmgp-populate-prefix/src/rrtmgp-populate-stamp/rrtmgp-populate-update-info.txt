@@ -1,0 +1,7 @@
+# This is a generated file and its contents are an internal implementation detail.
+# The patch step will be re-executed if anything in this file changes.
+# No other meaning or use of this file is supported.
+
+command (connected)=/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake;-Dcan_fetch=YES;-P;/home/annelot/dales-dev/build_distr/_deps/rrtmgp-subbuild/rrtmgp-populate-prefix/tmp/rrtmgp-populate-gitupdate.cmake
+command (disconnected)=/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/bin/cmake;-Dcan_fetch=NO;-P;/home/annelot/dales-dev/build_distr/_deps/rrtmgp-subbuild/rrtmgp-populate-prefix/tmp/rrtmgp-populate-gitupdate.cmake
+work_dir=/home/annelot/dales-dev/build_distr/_deps/rrtmgp-src

@@ -1,0 +1,1 @@
+/usr/bin/cc CMakeFiles/main.dir/main.c.o -o bin/main  -Wl,-rpath,"\$ORIGIN/../lib" lib/libdso2.so -Wl,-rpath-link,/home/annelot/dales-dev/build_gmd/ecbuild_tmp/check_linker/lib 

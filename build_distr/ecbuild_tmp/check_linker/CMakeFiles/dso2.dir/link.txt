@@ -1,0 +1,1 @@
+/usr/bin/cc -fPIC -shared -Wl,-soname,libdso2.so -o lib/libdso2.so CMakeFiles/dso2.dir/dso2.c.o  -Wl,-rpath,"\$ORIGIN" lib/libdso1.so 

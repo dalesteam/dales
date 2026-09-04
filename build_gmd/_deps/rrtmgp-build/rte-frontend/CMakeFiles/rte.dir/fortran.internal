@@ -1,0 +1,9 @@
+# The fortran modules provided by this target.
+provides
+ mo_fluxes.mod
+ mo_optical_props.mod
+ mo_rte_config.mod
+ mo_rte_lw.mod
+ mo_rte_sw.mod
+ mo_rte_util_array_validation.mod
+ mo_source_functions.mod

@@ -1,0 +1,11 @@
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/net/modules/arch/dales.rc4/software/linux-ubuntu20.04-cascadelake/gcc-12.2.0/cmake-3.27.9-uvyfpssqs5dgbjudv2orrcnoqqhjjov3/share/cmake-3.27/Modules/CMakeDetermineSystem.cmake:211 (message)"
+      - "CMakeLists.txt:16 (project)"
+    message: |
+      The system is: Linux - 5.4.0-153-generic - x86_64
+...

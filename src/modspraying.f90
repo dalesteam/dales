@@ -1,7 +1,6 @@
 !> MCB sprayers with evaporative cooling.
 !!
-!! @author Stephan de Roode
-!! @author Annelot Broerze
+
 module modspraying
   use fortran_support, only: nnml_output
   use modfields,       only: qtp, qt0, thlp, exnf, ql0, svp, sv0, rhobf
@@ -14,8 +13,8 @@ module modspraying
                              i_spray, j_spray, k_spray, &
                              water_spray_rate, salt_spray_rate, &
                              lwater_spraying, lsalt_spraying, salinity, &
-                             isv_salt,tracer, lsalt_sponge, lcoupled, &
-                             my_process_sprays, target_mode, isv_salt_n
+                             spray_Dg, spray_sigma_g, particle_emission_rate, ldistribution, isv_salt,tracer, lsalt_sponge, lcoupled, &
+                             my_process_sprays, target_mode, isv_salt_n, isv_ss_acs, isv_ss_acs_n, isv_ss_cos, isv_ss_cos_n
   use modtracers,      only: add_tracer, get_tracer_index
   use modlogging,      only: message, warning, finish
   implicit none
@@ -42,7 +41,7 @@ contains
     namelist /namspraying/ lwater_spraying, lsalt_spraying, &
                            i_glob_spray, j_glob_spray, k_glob_spray, &
                            water_spray_rate, salt_spray_rate, salinity, &
-                           tracer, lsalt_sponge, lcoupled, target_mode
+                           spray_dg, spray_sigma_g, ldistribution,particle_emission_rate, tracer, lsalt_sponge, lcoupled, target_mode
 
     if(myid==0) then
       open(ifnamopt, file=fname_options, status='old', iostat=ierr)
@@ -59,6 +58,10 @@ contains
     call D_MPI_BCAST(k_glob_spray    ,    1,  0, comm3d, mpierr)
     call D_MPI_BCAST(water_spray_rate,    1,  0, comm3d, mpierr)
     call D_MPI_BCAST(salt_spray_rate,     1,  0, comm3d, mpierr)
+    call D_MPI_BCAST(spray_dg,           1,  0, comm3d, mpierr)
+    call D_MPI_BCAST(spray_sigma_g,           1,  0, comm3d, mpierr)
+    call D_MPI_BCAST(ldistribution,           1,  0, comm3d, mpierr)
+    call D_MPI_BCAST(particle_emission_rate,           1,  0, comm3d, mpierr)
     call D_MPI_BCAST(tracer,             20,  0, comm3d, mpierr)
     call D_MPI_BCAST(lsalt_sponge,        1,  0, comm3d, mpierr)
     call D_MPI_BCAST(lcoupled,            1,  0, comm3d, mpierr)
@@ -68,21 +71,32 @@ contains
 
   !> Initialize spraying parameters and determine local spraying location.
   subroutine initspraying
-
+    
     character(len=*), parameter :: routine = modname//'/initspraying'
 
     if (lwater_spraying) then
       lsalt_spraying  = .true.
-      salt_spray_rate = water_spray_rate * salinity ! directy coupled to water spray rate
+      if (.not. ldistribution) then 
+        salt_spray_rate = water_spray_rate * salinity ! directy coupled to water spray rate
+      else 
+        salt_spray_rate = 0
+      endif
     else
       water_spray_rate = 0
     endif
 
     if (lsalt_spraying) then
       if (lcoupled) then
-        isv_salt = get_tracer_index('ss_'//target_mode)
-        isv_salt_n = get_tracer_index(target_mode//'_n')
-      else
+        if (.not. ldistribution) then
+                isv_salt = get_tracer_index('ss_'//target_mode)
+                isv_salt_n = get_tracer_index(target_mode//'_n')
+        else
+                isv_ss_acs   = get_tracer_index('ss_acs')
+                isv_ss_acs_n = get_tracer_index('ss_acs_n')
+                isv_ss_cos   = get_tracer_index('ss_cos')
+                isv_ss_cos_n = get_tracer_index('ss_cos_n')
+        endif
+       else
         call add_tracer(trim(tracer), long_name=trim(tracer)//" mixing ratio", &
                         unit="kg/kg", isv=isv_salt)
       end if
@@ -111,12 +125,38 @@ contains
 
   end subroutine initspraying
 
+  real function lognormal_cdf(d, dg, sigma_g)
+
+    real, intent(in) :: d, dg, sigma_g
+    real :: z
+
+    z = (log(d) - log(dg)) / (sqrt(2.0)*log(sigma_g))
+
+    lognormal_cdf = 0.5 * (1.0 + erf(z))
+
+  end function lognormal_cdf
+
+  real function lognormal_cdf_mass(d, dg, sigma_g)
+
+    real, intent(in) :: d, dg, sigma_g
+    real :: z
+
+    z = ( log(d) - log(dg) - 3.0*log(sigma_g)**2 ) / &
+        ( sqrt(2.0)*log(sigma_g) )
+
+    lognormal_cdf_mass = 0.5 * (1.0 + erf(z))
+
+  end function lognormal_cdf_mass
+
   !> Apply spraying tendencies to the model fields.
   subroutine spraying()
 
     real(field_r) :: dqldt_spraying, dsvdt_spraying
     real(field_r) :: dm, dn
     real(field_r) :: cell_volume !< Air density times grid cell volume [kg]
+    real(field_r) :: dn_total, fracn_acs, fracn_cos, fracm_acs, fracm_cos, ndot_acs, ndot_cos, dn_acs, dn_cos, dm_acs, dm_cos, mdot_total,&
+           ndot_total, mdot_acs, mdot_cos, mean_particle_mass
+    real(field_r) :: dacs_max = 500e-9
 
     if (my_process_sprays) then
 
@@ -138,19 +178,78 @@ contains
 
       if (lsalt_spraying) then
         if (lcoupled) then
-          dm = salt_spray_rate / (rhobf(k_spray) * cell_volume)
+                if (.not. ldistribution) then       
+                        dm = salt_spray_rate / (rhobf(k_spray) * cell_volume)
 
-          ! Increase in number concentration, assuming monodisperse aerosol
-          dn = salt_spray_rate / (2165.0 * pi / 6 * (75e-9)**3)
-          dn = dn / cell_volume ! Number concentrations are in #/m3
+                        ! Increase in number concentration, assuming monodisperse aerosol
+                        dn = salt_spray_rate / (2165.0 * pi / 6 * (spray_dg)**3)
+                        dn = dn / cell_volume ! Number concentrations are in #/m3
 
-          !$acc serial default(present) async
-          svp(i_spray,j_spray,k_spray,isv_salt) = &
-            svp(i_spray,j_spray,k_spray,isv_salt) + dm
+                        !$acc serial default(present) async
+                        svp(i_spray,j_spray,k_spray,isv_salt) = &
+                        svp(i_spray,j_spray,k_spray,isv_salt) + dm
         
-          svp(i_spray,j_spray,k_spray,isv_salt_n) = &
-            svp(i_spray,j_spray,k_spray,isv_salt_n) + dn
-          !$acc end serial
+                        svp(i_spray,j_spray,k_spray,isv_salt_n) = &
+                        svp(i_spray,j_spray,k_spray,isv_salt_n) + dn
+                        !$acc end serial
+                else
+                        !Calculate total number concentration in cell
+                        dn_total = particle_emission_rate / cell_volume
+
+                        !Calculate fraction of number concentration for acs and cos between respective boundaries
+                        !fracN_acs = lognormal_cdf(dacs_max,spray_Dg,spray_sigma_g) - lognormal_cdf(dacs_min, spray_Dg,
+                        !spray_sigma_g)
+                        !fracN_cos = lognormal_cdf(dcos_max, spray_Dg, spray_sigma_g) - lognormal_cdf(dcos_min, spray_Dg, spray_sigma_g
+
+                        fracn_acs = lognormal_cdf(dacs_max,spray_dg,spray_sigma_g)
+                        fracn_cos = 1.0 - fracn_acs
+
+                        !Calculate number for acs and cos
+                        ndot_acs = particle_emission_rate * fracn_acs
+                        ndot_cos = particle_emission_rate * fracn_cos
+
+                        !Do the same for mass
+                        !fracM_acs = lognormal_cdf_mass(dacs_max,spray_Dg,spray_sigma_g) - lognormal_cdf_mass(dacs_min, spray_Dg,
+                        !spray_sigma_g)
+                        !fracM_cos = lognormal_cdf_mass(dcos_max, spray_Dg, spray_sigma_g) - lognormal_cdf_mass(dcos_min, spray_Dg,
+                        !spray_sigma_g)
+                        fracm_acs = lognormal_cdf_mass(dacs_max,spray_dg,spray_sigma_g)
+                        fracm_cos = 1.0 - fracm_acs
+
+                        print *, fracn_acs, fracn_cos, fracn_acs + fracn_cos
+
+                        !Calculate mean particle mass
+                        mean_particle_mass = 2165.0 * pi / 6.0 * spray_dg**3 * &
+                        exp(4.5 * log(spray_sigma_g)**2)
+
+                        !Calculate total emitted mass rate, and for acs, cos
+                        mdot_total = particle_emission_rate * mean_particle_mass
+
+                        mdot_acs = fracM_acs * mdot_total
+                        mdot_cos = fracM_cos * mdot_total
+                        
+                        print *, "Number fractions:", fracn_acs, fracn_cos
+                        print *, "Mass fractions:  ", fracm_acs, fracm_cos
+
+                        !Add to M7 tracers
+                        dn_acs = ndot_acs / cell_volume
+                        dn_cos = ndot_cos / cell_volume
+
+                        dm_acs = mdot_acs / (rhobf(k_spray)*cell_volume)
+                        dm_cos = mdot_cos / (rhobf(k_spray)*cell_volume)
+
+                        svp(i_spray,j_spray,k_spray,isv_ss_acs) = &
+                        svp(i_spray,j_spray,k_spray,isv_ss_acs) + dm_acs
+
+                        svp(i_spray,j_spray,k_spray,isv_ss_cos) = &
+                        svp(i_spray,j_spray,k_spray,isv_ss_cos) + dm_cos
+
+                        svp(i_spray,j_spray,k_spray,isv_ss_acs_n) = &
+                        svp(i_spray,j_spray,k_spray,isv_ss_acs_n) + dn_acs
+
+                        svp(i_spray,j_spray,k_spray,isv_ss_cos_n) = &
+                        svp(i_spray,j_spray,k_spray,isv_ss_cos_n) + dn_cos
+                endif
         else
           dsvdt_spraying = salt_spray_rate / (rhobf(k_spray) * cell_volume) &
             * (1 - sv0(i_spray,j_spray,k_spray,isv_salt) / salinity)

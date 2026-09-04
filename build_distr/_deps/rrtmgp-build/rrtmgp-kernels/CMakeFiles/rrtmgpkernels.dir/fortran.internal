@@ -1,0 +1,4 @@
+# The fortran modules provided by this target.
+provides
+ mo_cloud_optics_rrtmgp_kernels.mod
+ mo_gas_optics_rrtmgp_kernels.mod

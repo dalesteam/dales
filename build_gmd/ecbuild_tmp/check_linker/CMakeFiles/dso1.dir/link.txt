@@ -1,0 +1,1 @@
+/usr/bin/cc -fPIC -shared -Wl,-soname,libdso1.so -o lib/libdso1.so CMakeFiles/dso1.dir/dso1.c.o 
