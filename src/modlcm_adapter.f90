@@ -13,7 +13,7 @@ module modlcm_adapter
                                  lcm_initialize, lcm_advance
   use modfields, only : u0, v0, w0, tmp0, dse0, qv0, presf, rhof
   use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1, &
-                        ih, jh, kh, dx, dy, dzf, zf, zh, rdt, cp
+                        ih, jh, kh, dx, dy, dzf, zf, zh, rdt, rk3step, cp
   use modlcm_namelist, only : lcm_apply_namelist_config
   use modmpi, only : comm3d, myidx, myidy
 #ifdef LCM_VALIDATION_CHECKS
@@ -81,6 +81,10 @@ contains
   end subroutine init_lcm
 
   subroutine lcm_microphysics()
+    ! DALES evaluates microphysics during all three Runge-Kutta stages.
+    ! LCM is operator-split and advances once per complete DALES timestep.
+    if (rk3step /= 3) return
+
     call update_lcm_static_energy_temperature_units()
     call lcm_advance(real(rdt, kind=real64))
   end subroutine lcm_microphysics
