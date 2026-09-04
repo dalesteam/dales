@@ -69,7 +69,7 @@ contains
 
     use modglobal,         only : version,initglobal,iexpnr, ltotruntime, runtime, dtmax, dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
-                                  nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,&
+                                  nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,xyrot,&
                                   lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,cu,cv,&
                                   ifnamopt,fname_options,llsadv, &
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,&
@@ -133,7 +133,7 @@ contains
     namelist/DOMAIN/ &
         itot,jtot,kmax,kmax_soil,&
         xsize,ysize,&
-        xlat,xlon,xyear,xday,xtime,ksp
+        xlat,xlon,xyear,xday,xtime,ksp,xyrot
     namelist/PHYSICS/ &
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
         lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,ltimedep,ltimedepuv,ltimedepsv,ntimedep,&
@@ -236,6 +236,7 @@ contains
     call D_MPI_BCAST(xyear      ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(xday       ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(xtime      ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(xyrot       ,1,0,commwrld,mpierr)
 
     !call D_MPI_BCAST(lneutraldrag ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lcoriol     ,1,0,commwrld,mpierr)
