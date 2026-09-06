@@ -325,8 +325,9 @@ end subroutine tstep_integrate
 
 subroutine reset_tendencies()
 
-  use modfields, only: up, vp, wp, thlp, qtp, e12p, svp
+  use modfields, only: up, vp, wp, thlp, tliqp, qtp, e12p, svp
   use modglobal, only: i1, i2, j1, j2, k1, nsv
+  use modthermodynamics, only: ltliq
 
   character(len=*), parameter :: routine = 'tstep/reset_tendencies'
 
@@ -348,6 +349,17 @@ subroutine reset_tendencies()
       enddo
     enddo
   enddo
+
+  if (ltliq) then
+     !$acc parallel loop collapse(3) default(present) async(1)
+     do k = 1, k1
+        do j = 2, j1
+           do i = 2, i1
+              tliqp(i,j,k)=0
+           enddo
+        enddo
+     enddo
+  end if
 
   ! Scalars
   if (nsv > 0) then
