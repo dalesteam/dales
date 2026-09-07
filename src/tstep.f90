@@ -241,8 +241,9 @@ subroutine tstep_integrate
 
   use modglobal, only : rdt,rk3step,e12min,i1,j1,i2,j2,kmax,k1,nsv
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,&
-                        thl0,thlm,thlp,qt0,qtm,qtp,&
+                        thl0,thlm,thlp,tliq0,tliqm,tliqp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp
+  use modthermodynamics, only : ltliq
   implicit none
 
   integer :: i,j,k,n
@@ -261,12 +262,31 @@ subroutine tstep_integrate
           u0(i,j,k)   = um(i,j,k)   + rk3coef * up(i,j,k)
           v0(i,j,k)   = vm(i,j,k)   + rk3coef * vp(i,j,k)
           w0(i,j,k)   = wm(i,j,k)   + rk3coef * wp(i,j,k)
-          thl0(i,j,k) = thlm(i,j,k) + rk3coef * thlp(i,j,k)
           qt0(i,j,k)  = qtm(i,j,k)  + rk3coef * qtp(i,j,k)
           e120(i,j,k) = max(e12min, e12m(i,j,k) + rk3coef * e12p(i,j,k))
         end do
       end do
     end do
+
+   if (ltliq) then
+     !$acc parallel loop collapse(3) default(present) async(1)
+     do k = 1, kmax
+       do j = 2, j1
+         do i = 2, i1
+           tliq0(i,j,k) = tliqm(i,j,k) + rk3coef * tliqp(i,j,k)
+         end do
+       end do
+     end do
+   else
+     !$acc parallel loop collapse(3) default(present) async(1)
+     do k = 1, kmax
+       do j = 2, j1
+         do i = 2, i1
+           thl0(i,j,k) = thlm(i,j,k) + rk3coef * thlp(i,j,k)
+         end do
+       end do
+     end do
+   end if
 
     ! Scalars
     if (nsv > 0) then
@@ -294,8 +314,6 @@ subroutine tstep_integrate
           v0(i,j,k)   = vm(i,j,k)
           wm(i,j,k)   = wm(i,j,k)   + rk3coef * wp(i,j,k)
           w0(i,j,k)   = wm(i,j,k)
-          thlm(i,j,k) = thlm(i,j,k) + rk3coef * thlp(i,j,k)
-          thl0(i,j,k) = thlm(i,j,k)
           qtm(i,j,k)  = qtm(i,j,k)  + rk3coef * qtp(i,j,k)
           qt0(i,j,k)  = qtm(i,j,k)
           e12m(i,j,k) = max(e12min, e12m(i,j,k) + rk3coef * e12p(i,j,k))
@@ -303,6 +321,29 @@ subroutine tstep_integrate
         end do
       end do
     end do
+
+    if (ltliq) then
+      !$acc parallel loop collapse(3) default(present) async(1)
+      do k = 1, kmax
+        do j = 2, j1
+          do i = 2, i1
+            tliqm(i,j,k) = tliqm(i,j,k) + rk3coef * tliqp(i,j,k)
+            tliq0(i,j,k) = tliqm(i,j,k)
+          end do
+        end do
+      end do
+    else
+      !$acc parallel loop collapse(3) default(present) async(1)
+      do k = 1, kmax
+        do j = 2, j1
+          do i = 2, i1
+            thlm(i,j,k) = thlm(i,j,k) + rk3coef * thlp(i,j,k)
+            thl0(i,j,k) = thlm(i,j,k)
+          end do
+        end do
+      end do
+    end if
+
 
     ! Scalars
     if (nsv > 0) then
@@ -325,8 +366,9 @@ end subroutine tstep_integrate
 
 subroutine reset_tendencies()
 
-  use modfields, only: up, vp, wp, thlp, qtp, e12p, svp
+  use modfields, only: up, vp, wp, thlp, tliqp, qtp, e12p, svp
   use modglobal, only: i1, i2, j1, j2, k1, nsv
+  use modthermodynamics, only: ltliq
 
   character(len=*), parameter :: routine = 'tstep/reset_tendencies'
 
@@ -348,6 +390,17 @@ subroutine reset_tendencies()
       enddo
     enddo
   enddo
+
+  if (ltliq) then
+     !$acc parallel loop collapse(3) default(present) async(1)
+     do k = 1, k1
+        do j = 2, j1
+           do i = 2, i1
+              tliqp(i,j,k)=0
+           enddo
+        enddo
+     enddo
+  end if
 
   ! Scalars
   if (nsv > 0) then

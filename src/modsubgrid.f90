@@ -162,8 +162,8 @@ contains
    ! Thijs Heus, Chiel van Heerwaarden, 15 June 2007
 
     use modglobal,    only : nsv, lopenbc, lboundary, lperiodic
-    use modthermodynamics, only: lmoist
-    use modfields,    only : up,vp,wp,e12p,thl0,thlp,qt0,qtp,sv0,svp
+    use modthermodynamics, only: lmoist, ltliq
+    use modfields,    only : up,vp,wp,e12p,thl0,thlp,tliq0,tliqp,qt0,qtp,sv0,svp
     use modsurfdata,  only : thlflux,qtflux,svflux
 
     implicit none
@@ -186,7 +186,12 @@ contains
 
     if (.not. lsmagorinsky) call diffe(e12p)
 
-    call diffc(thl0, thlp, thlflux)
+    if (ltliq) then
+       call diffc(tliq0, tliqp, thlflux) ! TODO adapt thlflux
+    else
+       call diffc(thl0, thlp, thlflux)
+    end if
+
     if (lmoist) call diffc( qt0, qtp, qtflux)
     if (nsv > 0 ) then
       call diffcsv(sv0, svp, svflux)
