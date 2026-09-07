@@ -1,5 +1,5 @@
 !> MCB sprayers with evaporative cooling.
-!!
+!!Stephan de Roode and Annelot Broerze
 
 module modspraying
   use fortran_support, only: nnml_output
