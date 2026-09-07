@@ -84,6 +84,7 @@ contains
     else
       water_spray_rate = 0
     endif
+    print * , "Salt spray rate:", salt_spray_rate
 
     if (lsalt_spraying) then
       if (lcoupled) then
@@ -154,7 +155,7 @@ contains
     real(field_r) :: dqldt_spraying, dsvdt_spraying
     real(field_r) :: dm, dn
     real(field_r) :: cell_volume !< Air density times grid cell volume [kg]
-    real(field_r) :: dn_total, fracn_acs, fracn_cos, fracm_acs, fracm_cos, ndot_acs, ndot_cos, dn_acs, dn_cos, dm_acs, dm_cos, mdot_total,&
+    real(field_r) :: fracn_acs, fracn_cos, fracm_acs, fracm_cos, ndot_acs, ndot_cos, dn_acs, dn_cos, dm_acs, dm_cos, mdot_total,&
            ndot_total, mdot_acs, mdot_cos, mean_particle_mass
     real(field_r) :: dacs_max = 500e-9
 
@@ -193,8 +194,6 @@ contains
                         svp(i_spray,j_spray,k_spray,isv_salt_n) + dn
                         !$acc end serial
                 else
-                        !Calculate total number concentration in cell
-                        dn_total = particle_emission_rate / cell_volume
 
                         !Calculate fraction of number concentration for acs and cos between respective boundaries
                         !fracN_acs = lognormal_cdf(dacs_max,spray_Dg,spray_sigma_g) - lognormal_cdf(dacs_min, spray_Dg,
@@ -228,6 +227,10 @@ contains
                         mdot_acs = fracM_acs * mdot_total
                         mdot_cos = fracM_cos * mdot_total
                         
+                        print *, "particle_emission_rate =", particle_emission_rate
+                        print *, "mean_particle_mass =", mean_particle_mass
+                        print *, "mdot_total =", mdot_total
+
                         print *, "Number fractions:", fracn_acs, fracn_cos
                         print *, "Mass fractions:  ", fracm_acs, fracm_cos
 
@@ -237,6 +240,9 @@ contains
 
                         dm_acs = mdot_acs / (rhobf(k_spray)*cell_volume)
                         dm_cos = mdot_cos / (rhobf(k_spray)*cell_volume)
+
+                        print *, "Number emissions:", dn_acs, dn_cos
+                        print *, "Mass emissions:  ", dm_acs, dm_cos
 
                         svp(i_spray,j_spray,k_spray,isv_ss_acs) = &
                         svp(i_spray,j_spray,k_spray,isv_ss_acs) + dm_acs
