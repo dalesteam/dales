@@ -92,9 +92,9 @@ contains
                 isv_salt_n = get_tracer_index(target_mode//'_n')
         else
                 isv_ss_acs   = get_tracer_index('ss_acs')
-                isv_ss_acs_n = get_tracer_index('ss_acs_n')
+                isv_ss_acs_n = get_tracer_index('acs_n')
                 isv_ss_cos   = get_tracer_index('ss_cos')
-                isv_ss_cos_n = get_tracer_index('ss_cos_n')
+                isv_ss_cos_n = get_tracer_index('cos_n')
         endif
        else
         call add_tracer(trim(tracer), long_name=trim(tracer)//" mixing ratio", &
