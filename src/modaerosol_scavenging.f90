@@ -162,13 +162,13 @@ contains
       do j = 2, j1
         do i = 2, i1
           sed_qr = calc_sed_qr_sb(qr(i,j,k), nr(i,j,k), rho(k)) * 3600
-          if (qr(i,j,k) > qrmin .and. sed_qr > 0.01 .and. f_mode%nspecies > 0) then
+          if (qr(i,j,k) > qrmin .and. sed_qr > 0.01 .and. f_mode%nspecies > 0 .and. nr(i,j,k) > 1E3) then
             sed_qr = log(sed_qr)
             sed_qr = min(max(sed_qr, -4.60517_field_r), 4.60517_field_r)
 
             rm = calc_median_diameter(f_mode%n(i,j,k), f_mode%q(:,i,j,k), &
                                       f_mode%rho, f_mode%sig_g) * 0.5 * 1E6
-            rm = log(rm)
+            rm = log(rm + 1E-16)
             rm = min(max(rm, -6.907755_field_r), 6.907755_field_r)
 
             gamma_n = interpolate_lut(gamma_blc_n, log_rr, log_rp_blc, &
@@ -236,7 +236,7 @@ contains
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
-          if (qc(i,j,k) > qcmin .and. f_mode%nspecies > 0) then
+          if (qc(i,j,k) > qcmin .and. f_mode%nspecies > 0 .and. nc(i,j,k) > 1E3) then
             rc = 1E6 * (3 * qc(i,j,k) * rho(k) &
                   / (4 * pi * nc(i,j,k) * rhow + 1E-16))**(1.0_field_r / 3)
             rc = log(rc)
@@ -244,7 +244,7 @@ contains
 
             rm = calc_median_diameter(f_mode%n(i,j,k), f_mode%q(:,i,j,k), &
                                       f_mode%rho, f_mode%sig_g) * 0.5 * 100
-            rm = log(rm)
+            rm = log(rm + 1E-16)
             rm = min(max(rm, -18.42068_field_r), -4.788786_field_r)
 
             gamma_n = interpolate_lut(gamma_inc_n, log_rc, log_rp_inc, &
