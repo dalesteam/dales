@@ -481,18 +481,21 @@ contains
     real(field_r) :: &
       f_evp,             & ! Fraction of evaporated rain water.
       eps,               & ! Correction factor.
-      evapm(maxspecies), & ! Mass of evaporated aerosol.
       evapn,             & ! Number of evaporated aerosol.
       dn,                & ! Number median diameter of evaporated aerosol.
       dm,                & ! Mass median diameter of evaporated aerosol.
       fn,                & ! Number fraction of aerosol resuspended in ACS mode.
       fm                   ! Mass fraction of aerosol resuspended in COS mode.
 
+    real(field_r), allocatable :: evapm(:) !< Mass of evaporated aerosol [kg/kg].
+
     call timer_tic(routine, 2)
 
     m_acs => modes_f(iACS)
     m_cos => modes_f(iCOS)
     m_inr => modes_h(iINR)
+
+    allocate(evapm(m_inr%nspecies))
 
     !$acc parallel loop collapse(3) default(present) &
     !$acc private(f_evp, eps, evapm, evapn, dn, dm, fn, fm)
@@ -538,6 +541,8 @@ contains
       end do
     end do
 
+    deallocate(evapm)
+
     call timer_toc(routine)
 
   end subroutine aerosol_resuspend_rain
@@ -582,18 +587,21 @@ contains
     real(field_r) :: &
       f_evp,             & ! Fraction of evaporated rain water.
       eps,               & ! Correction factor.
-      evapm(maxspecies), & ! Mass of evaporated aerosol.
       evapn,             & ! Number of evaporated aerosol.
       dn,                & ! Number median diameter of evaporated aerosol.
       dm,                & ! Mass median diameter of evaporated aerosol.
       fn,                & ! Number fraction of aerosol resuspended in ACS mode.
       fm                   ! Mass fraction of aerosol resuspended in COS mode.
 
+    real(field_r), allocatable :: evapm(:) !< Mass of evaporated aerosol [kg/kg].
+
     call timer_tic(routine, 2)
 
     m_acs => modes_f(iACS)
     m_cos => modes_f(iCOS)
     m_inc => modes_h(iINC)
+
+    allocate(evapm(m_inc%nspecies))
 
     !$acc parallel loop collapse(3) default(present) &
     !$acc private(f_evp, eps, evapm, evapn, dn, dm, fn, fm)
@@ -637,6 +645,8 @@ contains
         end do
       end do
     end do
+
+    deallocate(evapm)
 
     call timer_toc(routine)
 
