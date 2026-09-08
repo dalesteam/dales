@@ -69,6 +69,8 @@ subroutine hadvecc_kappa(a_in,a_out)
   k_low = k1 + 1
 
   !$acc parallel loop collapse(3) default(present) reduction(min:k_low)
+!!$omp target teams loop reduction(min:k_low) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
   do k = 1, k1
     do j = 2, j1
       do i = 2, i1
@@ -86,6 +88,8 @@ subroutine hadvecc_kappa(a_in,a_out)
 
   k_high = 0
   !$acc parallel loop collapse(3) default(present) reduction(max:k_high)
+!!$omp target teams loop reduction(max:k_high) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
   do k = k_low, k1
     do j = 2, j1
       do i = 2, i1
@@ -122,6 +126,8 @@ subroutine hadvecc_kappa(a_in,a_out)
   kend = min(k_high+2, kmax)
 
   !$acc parallel loop collapse(3) default(present) async(2)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
   do k = kbeg, kend
     do j = 2, j1
       do i = 2, i2
@@ -147,14 +153,18 @@ subroutine hadvecc_kappa(a_in,a_out)
 
         work = work * u0(i,j,k) * dxi
         !$acc atomic update
+!!$omp atomic update
         a_out(i-1,j,k) = a_out(i-1,j,k) - work
         !$acc atomic update
+!!$omp atomic update
         a_out(i,j,k)   = a_out(i,j,k)   + work
       end do
     end do
   end do
 
   !$acc parallel loop collapse(3) default(present) async(3)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
   do k = kbeg, kend
     do j = 2, j2
       do i = 2, i1
@@ -180,8 +190,10 @@ subroutine hadvecc_kappa(a_in,a_out)
 
         work = work * v0(i,j,k) * dyi
         !$acc atomic update
+!!$omp atomic update
         a_out(i,j-1,k) = a_out(i,j-1,k) - work
         !$acc atomic update
+!!$omp atomic update
         a_out(i,j,k)   = a_out(i,j,k)   + work
       end do
     end do
@@ -210,6 +222,8 @@ subroutine vadvecc_kappa(a_in,a_out)
   k_low = k1 + 1
 
   !$acc parallel loop collapse(3) default(present) reduction(min:k_low)
+!!$omp target teams loop reduction(min:k_low) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
   do k = 1, k1
     do j = 2, j1
       do i = 2, i1
@@ -227,6 +241,8 @@ subroutine vadvecc_kappa(a_in,a_out)
 
   k_high = 0
   !$acc parallel loop collapse(3) default(present) reduction(max:k_high)
+!!$omp target teams loop reduction(max:k_high) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
   do k = k_low, k1
     do j = 2, j1
       do i = 2, i1
@@ -261,6 +277,8 @@ subroutine vadvecc_kappa(a_in,a_out)
   ! vertical advection from layer 1 to 2, special case. k=2
   if (k_low <= 3) then
     !$acc parallel loop collapse(2) default(present) async(1)
+!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do j = 2, j1
       do i = 2, i1
         d1m = 0
@@ -285,8 +303,10 @@ subroutine vadvecc_kappa(a_in,a_out)
 
         work = work * w0(i,j,2)
         !$acc atomic update
+!!$omp atomic update
         a_out(i,j,1) = a_out(i,j,1) - (1/(rhobf(1)*dzf(1)))*work
         !$acc atomic update
+!!$omp atomic update
         a_out(i,j,2) = a_out(i,j,2) + (1/(rhobf(2)*dzf(2)))*work
       end do
     end do
@@ -295,6 +315,8 @@ subroutine vadvecc_kappa(a_in,a_out)
   kend = min(k_high+2, kmax)
 
   !$acc parallel loop collapse(3) default(present) async(4)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
   do k = 3, kend
     do j = 2, j1
       do i = 2, i1
@@ -320,8 +342,10 @@ subroutine vadvecc_kappa(a_in,a_out)
 
         work = work * w0(i,j,k)
         !$acc atomic update
+!!$omp atomic update
         a_out(i,j,k-1) = a_out(i,j,k-1) - (1/(rhobf(k-1)*dzf(k-1)))*work
         !$acc atomic update
+!!$omp atomic update
         a_out(i,j,k)   = a_out(i,j,k)   + (1/(rhobf(k)  *dzf(k)  ))*work
       end do
     end do
@@ -341,6 +365,8 @@ subroutine  halflev_kappa(a_in,a_out)
     integer   i,j,k
 
     !$acc parallel loop collapse(3) private(d1,d2,cf) default(present) async(1)
+!!$omp target teams loop private(d1,d2,cf) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 3, k1
       do j = 2, j1
         do i = 2, i1
@@ -359,6 +385,8 @@ subroutine  halflev_kappa(a_in,a_out)
     end do
 
     !$acc parallel loop collapse(2) private(d1,d2,cf) default(present) async(2)
+!!$omp target teams loop private(d1,d2,cf) collapse(2)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do j = 2, j1
       do i = 2, i1
         if (w0(i,j,2)>=0) then

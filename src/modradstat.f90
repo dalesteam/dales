@@ -221,6 +221,12 @@ contains
    !$acc&                  thllwtendav, thltendav,thlswtendav, thllwtendcaav, thlswtendcaav, &
    !$acc&                  lwumn, lwdmn, swdmn, swdirmn, swdifmn, swumn, lwucamn, lwdcamn, swdcamn, swucamn, &
    !$acc&                  thllwtendmn, thltendmn, thlswtendmn, thlradlsmn, thllwtendcamn, thlswtendcamn)
+   !$omp target enter data map(to:lwuav,lwdav,swdav,swdirav,swdifav,swuav,&
+   !$omp lwucaav,lwdcaav,swdcaav,swucaav,thllwtendav,thltendav,&
+   !$omp thlswtendav,thllwtendcaav,thlswtendcaav,lwumn,lwdmn,swdmn,&
+   !$omp swdirmn,swdifmn,swumn,lwucamn,lwdcamn,swdcamn,swucamn,&
+   !$omp thllwtendmn,thltendmn,thlswtendmn,thlradlsmn,thllwtendcamn,&
+   !$omp thlswtendcamn)
 
   end subroutine initradstat
 !> General routine, does the timekeeping
@@ -256,21 +262,25 @@ contains
     implicit none
     integer :: k
 
-    !$acc kernels default(present)
-    lwdav  = 0.
-    lwuav  = 0.
-    swdav  = 0.
-    swdirav = 0.
-    swdifav = 0.
-    swuav  = 0.
-    thltendav = 0.
-    thllwtendav = 0.
-    thlswtendav = 0.
-    thltendav = 0.
-    thllwtendcaav = 0.
-    thlswtendcaav = 0.
-    !$acc end kernels
+    !$acc parallel loop default(present)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
+    do k=1,k1
+       lwdav(k)  = 0.
+       lwuav(k)  = 0.
+       swdav(k)  = 0.
+       swdirav(k) = 0.
+       swdifav(k) = 0.
+       swuav(k)  = 0.
+       thltendav(k) = 0.
+       thllwtendav(k) = 0.
+       thlswtendav(k) = 0.
+       thltendav(k) = 0.
+       thllwtendcaav(k) = 0.
+       thlswtendcaav(k) = 0.
+    end do
 
+    ! BUG: cpu buffers used here
     call slabsum(lwdav ,1,k1,lwd ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(lwuav ,1,k1,lwu ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(swdav ,1,k1,swd ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -280,6 +290,8 @@ contains
     call slabsum(thltendav ,1,k1,thlprad ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
 
     !$acc parallel loop default(present)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k=1,kmax
        thllwtendav(k) = (abs(lwdav(k+1)) - abs(lwuav(k+1)) - abs(lwdav(k)) + abs(lwuav(k)) )/(rhof(k)*exnf(k)*cp*dzf(k))
        thlswtendav(k) = (abs(swdav(k+1)) - abs(swuav(k+1)) - abs(swdav(k)) + abs(swuav(k)) )/(rhof(k)*exnf(k)*cp*dzf(k))
@@ -287,31 +299,40 @@ contains
     end do
 
  !    ADD SLAB AVERAGES TO TIME MEAN
-    !$acc kernels default(present)
-    lwumn       = lwumn       + lwuav       / ijtot
-    lwdmn       = lwdmn       + lwdav       / ijtot
-    swdmn       = swdmn       + swdav       / ijtot
-    swdirmn     = swdirmn     + swdirav     / ijtot
-    swdifmn     = swdifmn     + swdifav     / ijtot
-    swumn       = swumn       + swuav       / ijtot
-    thltendmn   = thltendmn   + thltendav   / ijtot
-    thllwtendmn = thllwtendmn + thllwtendav / ijtot
-    thlswtendmn = thlswtendmn + thlswtendav / ijtot
-    thlradlsmn  = thlradlsmn  + thlpcar
-    !$acc end kernels
+    !$acc parallel loop default(present)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
+    do k=1,k1
+       lwumn(k)       = lwumn(k)       + lwuav(k)       / ijtot
+       lwdmn(k)       = lwdmn(k)       + lwdav(k)       / ijtot
+       swdmn(k)       = swdmn(k)       + swdav(k)       / ijtot
+       swdirmn(k)     = swdirmn(k)     + swdirav(k)     / ijtot
+       swdifmn(k)     = swdifmn(k)     + swdifav(k)     / ijtot
+       swumn(k)       = swumn(k)       + swuav(k)       / ijtot
+       thltendmn(k)   = thltendmn(k)   + thltendav(k)   / ijtot
+       thllwtendmn(k) = thllwtendmn(k) + thllwtendav(k) / ijtot
+       thlswtendmn(k) = thlswtendmn(k) + thlswtendav(k) / ijtot
+       thlradlsmn(k)  = thlradlsmn(k)  + thlpcar(k)
+    end do
+
 
     if (lradclearair) then
         call radclearair
         !$acc parallel loop default(present)
+        !$omp target teams loop defaultmap(present:aggregate)&
+        !$omp defaultmap(present:allocatable)
         do k=1,kmax
           thllwtendcaav(k) = (-lwdcaav(k+1) - lwucaav(k+1) + lwdcaav(k) + lwucaav(k))/(rhof(k)*exnf(k)*cp*dzf(k))
           thlswtendcaav(k) = (-swdcaav(k+1) - swucaav(k+1) + swdcaav(k) + swucaav(k))/(rhof(k)*exnf(k)*cp*dzf(k))
         enddo
 
-        !$acc kernels default(present)
-        thllwtendcamn = thllwtendcamn + thllwtendcaav / ijtot
-        thlswtendcamn = thlswtendcamn + thlswtendcaav / ijtot
-        !$acc end kernels
+        !$acc parallel loop default(present)
+        !$omp target teams loop defaultmap(present:aggregate)&
+        !$omp defaultmap(present:allocatable)
+        do k=1,k1
+           thllwtendcamn(k) = thllwtendcamn(k) + thllwtendcaav(k) / ijtot
+           thlswtendcamn(k) = thlswtendcamn(k) + thlswtendcaav(k) / ijtot
+        end do
     endif
 
 
@@ -331,12 +352,15 @@ contains
     integer :: i,j,k
 
     real :: exnersurf
-    !$acc kernels default(present)
-    lwdcaav  = 0.
-    lwucaav  = 0.
-    swdcaav  = 0.
-    swucaav  = 0.
-    !$acc end kernels
+    !$acc parallel loop default(present)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
+    do k=1,k1
+       lwdcaav(k)  = 0.
+       lwucaav(k)  = 0.
+       swdcaav(k)  = 0.
+       swucaav(k)  = 0.
+    end do
 
     !irad_full case is not ported to GPU, see modradiation.f90
     if (iradiation.eq.irad_full) then   !rrtmg has calculated lwdca already
@@ -380,12 +404,15 @@ contains
 
  !    ADD SLAB AVERAGES TO TIME MEAN
 
-    !$acc kernels default(present)
-    lwucamn = lwucamn + lwucaav/ijtot
-    lwdcamn = lwdcamn + lwdcaav/ijtot
-    swdcamn = swdcamn + swdcaav/ijtot
-    swucamn = swucamn + swucaav/ijtot
-    !$acc end kernels
+    !$acc parallel loop default(present)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
+    do k=1,k1
+       lwucamn(k) = lwucamn(k) + lwucaav(k)/ijtot
+       lwdcamn(k) = lwdcamn(k) + lwdcaav(k)/ijtot
+       swdcamn(k) = swdcamn(k) + swdcaav(k)/ijtot
+       swucamn(k) = swucamn(k) + swucaav(k)/ijtot
+    end do
   end subroutine radclearair
 
 !> Write the statistics to file
@@ -405,28 +432,34 @@ contains
       nminut  = int(nsecs/60)-nhrs*60
       nsecs   = mod(nsecs,60)
 
-      !$acc kernels default(present)
-      lwumn   = lwumn    /nsamples
-      lwdmn   = lwdmn    /nsamples
-      swdmn   = swdmn    /nsamples
-      swdirmn   = swdirmn    /nsamples
-      swdifmn   = swdifmn    /nsamples
-      swumn   = swumn    /nsamples
-      lwucamn   = lwucamn    /nsamples
-      lwdcamn   = lwdcamn    /nsamples
-      swdcamn   = swdcamn    /nsamples
-      swucamn   = swucamn    /nsamples
-      thllwtendmn = thllwtendmn /nsamples
-      thlswtendmn = thlswtendmn /nsamples
-      thllwtendcamn = thllwtendcamn /nsamples
-      thlswtendcamn = thlswtendcamn /nsamples
-      thlradlsmn  = thlradlsmn  /nsamples
-      thltendmn   = thltendmn   /nsamples
-      !$acc end kernels
+      !$acc parallel loop default(present)
+      !$omp target teams loop defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
+      do k=1,k1
+         lwumn(k)   = lwumn(k)    /nsamples
+         lwdmn(k)   = lwdmn(k)    /nsamples
+         swdmn(k)   = swdmn(k)    /nsamples
+         swdirmn(k)   = swdirmn(k)    /nsamples
+         swdifmn(k)   = swdifmn(k)    /nsamples
+         swumn(k)   = swumn(k)    /nsamples
+         lwucamn(k)   = lwucamn(k)    /nsamples
+         lwdcamn(k)   = lwdcamn(k)    /nsamples
+         swdcamn(k)   = swdcamn(k)    /nsamples
+         swucamn(k)   = swucamn(k)    /nsamples
+         thllwtendmn(k) = thllwtendmn(k) /nsamples
+         thlswtendmn(k) = thlswtendmn(k) /nsamples
+         thllwtendcamn(k) = thllwtendcamn(k) /nsamples
+         thlswtendcamn(k) = thlswtendcamn(k) /nsamples
+         thlradlsmn(k)  = thlradlsmn(k)  /nsamples
+         thltendmn(k)   = thltendmn(k)   /nsamples
+      end do
 
       !$acc update self(lwumn, lwdmn, swdmn, swumn, thllwtendmn, thlswtendmn, &
       !$acc&            lwucamn, lwdcamn, swucamn, swdcamn, swdirmn, swdifmn, &
       !$acc&            thltendmn, thlradlsmn, thllwtendcamn, thlswtendcamn)
+      !$omp target update from(lwumn,lwdmn,swdmn,swumn,thllwtendmn,&
+      !$omp thlswtendmn,lwucamn,lwdcamn,swucamn,swdcamn,swdirmn,swdifmn,&
+      !$omp thltendmn,thlradlsmn,thllwtendcamn,thlswtendcamn)
 
   !     ----------------------
   !     2.0  write the fields
@@ -510,24 +543,27 @@ contains
       end if
     end if ! end if(myid==0)
 
-    !$acc kernels default(present)
-    lwumn = 0.0
-    lwdmn = 0.0
-    swdmn = 0.0
-    swdirmn = 0.0 ! not in netCDF yet
-    swdifmn = 0.0 ! not in netCDF yet
-    swumn = 0.0
-    lwucamn = 0.0
-    lwdcamn = 0.0
-    swdcamn = 0.0
-    swucamn = 0.0
-    thllwtendmn = 0.0
-    thlswtendmn = 0.0
-    thlradlsmn  = 0.0
-    thltendmn  = 0.0
-    thllwtendcamn = 0.0
-    thlswtendcamn = 0.0
-    !$acc end kernels
+    !$acc parallel loop default(present)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
+    do k=1,k1
+       lwumn(k) = 0.0
+       lwdmn(k) = 0.0
+       swdmn(k) = 0.0
+       swdirmn(k) = 0.0 ! not in netCDF yet
+       swdifmn(k) = 0.0 ! not in netCDF yet
+       swumn(k) = 0.0
+       lwucamn(k) = 0.0
+       lwdcamn(k) = 0.0
+       swdcamn(k) = 0.0
+       swucamn(k) = 0.0
+       thllwtendmn(k) = 0.0
+       thlswtendmn(k) = 0.0
+       thlradlsmn(k)  = 0.0
+       thltendmn(k)  = 0.0
+       thllwtendcamn(k) = 0.0
+       thlswtendcamn(k) = 0.0
+    end do
 
   end subroutine writeradstat
 
@@ -543,6 +579,12 @@ contains
     !$acc&                 thllwtendav, thltendav,thlswtendav, thllwtendcaav, thlswtendcaav, &
     !$acc&                 lwumn, lwdmn, swdmn, swdirmn, swdifmn, swumn, lwucamn, lwdcamn, swdcamn, swucamn, &
     !$acc&                 thllwtendmn, thltendmn, thlswtendmn, thlradlsmn, thllwtendcamn, thlswtendcamn)
+    !$omp target exit data map(delete:lwuav,lwdav,swdav,swdirav,swdifav,&
+    !$omp swuav,lwucaav,lwdcaav,swdcaav,swucaav,thllwtendav,thltendav,&
+    !$omp thlswtendav,thllwtendcaav,thlswtendcaav,lwumn,lwdmn,swdmn,&
+    !$omp swdirmn,swdifmn,swumn,lwucamn,lwdcamn,swdcamn,swucamn,&
+    !$omp thllwtendmn,thltendmn,thlswtendmn,thlradlsmn,thllwtendcamn,&
+    !$omp thlswtendcamn)
 
     deallocate(lwuav,lwdav,swdav,swdirav,swdifav,swuav)
     deallocate(lwucaav, lwdcaav, swucaav, swdcaav)

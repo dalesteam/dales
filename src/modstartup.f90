@@ -205,6 +205,7 @@ contains
     call initmpi
 
     !$acc update device (myidx,myidy)
+!$omp target update to(myidx,myidy)
 
     ! Ignore user-provided nsv, we take care of it ourselves
     nsv = 0
@@ -517,7 +518,7 @@ contains
     use modslabaverage,    only : slabavg
     use modlogging,        only : profile_output
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
     use modgpu, only: update_gpu, update_host, host_is_updated, update_gpu_surface
 #endif
 
@@ -873,13 +874,13 @@ contains
 
       call baseprofs! call baseprofs before thermodynamics
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
       call update_gpu
 #endif
       if ( lopenbc ) then
         call openboundary_ghost()
       else
-        call boundary
+        call boundary(on_gpu=.true.)
       end if
 
       call thermodynamics
@@ -888,12 +889,12 @@ contains
       if ( lopenbc ) then
         call openboundary_ghost()
       else
-        call boundary
+        call boundary(on_gpu=.true.)
       end if
 
       call thermodynamics
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
       call update_host
       host_is_updated = .false.
 #endif
@@ -916,14 +917,14 @@ contains
       svm(:,:,:,:)  = sv0(:,:,:,:)
       e12m(:,:,:) = e120(:,:,:)
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
       call update_gpu
 #endif
 
       call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
       call calc_halflev(qt0, dzf, dzhi, qts, iadv_qt == iadv_kappa, qt0h)
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
       call update_host
       host_is_updated = .false.
 #endif
@@ -1002,7 +1003,7 @@ contains
         call openboundary_readboundary(tracer_prop)
       endif
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
       call update_gpu
 #endif
 
@@ -1343,7 +1344,7 @@ contains
   !  if trestart = 0, no periodic restart files will be written.
   subroutine writerestartfiles
     use modglobal, only : trestart,itrestart,tnextrestart,dt_lim,timee,timeleft,rk3step
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
     use modgpu, only: update_host
 #endif
     implicit none
@@ -1358,7 +1359,7 @@ contains
     ! if trestart < 0, don't write any restart files
     if ((timee>=tnextrestart .and. trestart > 0) .or. (timeleft==0 .and. trestart >= 0)) then
       tnextrestart = tnextrestart+itrestart
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
       call update_host
 #endif
       call do_writerestartfiles

@@ -34,6 +34,7 @@ implicit none
 save
 private
 character(len=*), parameter :: modname = 'modboundary'
+logical :: gpu
 public :: initboundary, boundary, exitboundary, grwdamp, ksp, tsc, cyclich
   integer :: ksp = -1                 !<    lowest level of sponge layer
   real(field_r),allocatable :: tsc(:)          !<   damping coefficients to be used in grwdamp.
@@ -93,7 +94,9 @@ contains
    allocate(dsv(nsv))
 
    !$acc enter data copyin(tsc) async
+!$omp target enter data map(to:tsc)
    !$acc enter data create(dsv) async
+!$omp target enter data map(alloc:dsv)
 
    call timer_toc('modboundary/initboundary')
 
@@ -112,17 +115,28 @@ contains
 !! \derr{\fav{\varphi}}{z} =  \mr{cst}.
 !! \end{equation}
 !! \endlatexonly
-  subroutine boundary
+  subroutine boundary(on_gpu)
+  use modfields, only : u0,v0,w0,e120,thl0,qt0,sv0,svm
+  use modfields, only : um,vm,wm,e12m
   implicit none
+  logical, optional :: on_gpu
+    gpu=.false.
+    if(present(on_gpu)) gpu=on_gpu
     call timer_tic('modboundary/boundary', 0)
 
+    ! FIXME: mpi on gpu
+    !$omp target update from(u0,v0,w0,e120) if(gpu)
     call cyclicm
+    !$omp target update from(thl0,qt0,sv0) if(gpu)
     call cyclich
+    !$omp target update from(svm) if(gpu)
     call setboundaries          !was uncommented GT
   
+    !$omp target update to(u0,v0,w0,e120,thl0,qt0,sv0,svm) if(gpu)
     call topm
     call toph
 
+    gpu=.false.
     call timer_toc('modboundary/boundary')
   end subroutine boundary
 !> Cleans up after the run
@@ -130,6 +144,7 @@ contains
     implicit none
     
     !$acc exit data delete(tsc, dsv)
+!$omp target exit data map(delete:tsc,dsv)
     deallocate(tsc, dsv)
   end subroutine exitboundary
 
@@ -202,13 +217,14 @@ contains
 !! \endlatexonly
  subroutine grwdamp
   use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,nsv,rdt,unudge,dzf,lopenbc,uvdamprate
+  use modglobal, only : i1,ih,j1,jh,k1
   use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0,sv0,ug,vg &
                         ,thl0av,qt0av,sv0av,u0av,v0av
   implicit none
 
   character(len=*), parameter :: routine = modname//'/grwdamp'
 
-  integer k,n
+  integer i,j,k,n
 
   call timer_tic('modboundary/grwdamp', 0)
 
@@ -216,6 +232,8 @@ contains
   case(0) !do nothing
   case(1)
     !$acc kernels default(present) async(1)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     do k=ksp,kmax
       up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(u0av(k)-cu))*tsc(k)
       vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(v0av(k)-cv))*tsc(k)
@@ -224,26 +242,37 @@ contains
       qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
     end do
     !$acc end kernels
+!!$omp end target
     if(lcoriol) then
       !$acc kernels default(present) async(1)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
       do k=ksp,kmax
         up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(ug(k)-cu))*((1./(geodamptime*rnu0))*tsc(k))
         vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(vg(k)-cv))*((1./(geodamptime*rnu0))*tsc(k))
       end do
       !$acc end kernels
+!!$omp end target
     end if
   case(2)
-    !$acc kernels default(present) async(1)
-    do k=ksp,kmax
-      up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(ug(k)-cu))*tsc(k)
-      vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(vg(k)-cv))*tsc(k)
-      wp(:,:,k)  = wp(:,:,k)-w0(:,:,k)*tsc(k)
-      thlp(:,:,k)= thlp(:,:,k)-(thl0(:,:,k)-thl0av(k))*tsc(k)
-      qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
-    end do
-    !$acc end kernels
+      !$acc parallel loop collapse(3) default(present) async(1)
+      !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+      do k=ksp,kmax
+         do j=2-jh,j1+jh
+            do i=2-ih,i1+ih
+               up(i,j,k)  = up(i,j,k)-(u0(i,j,k)-(ug(k)-cu))*tsc(k)
+               vp(i,j,k)  = vp(i,j,k)-(v0(i,j,k)-(vg(k)-cv))*tsc(k)
+               wp(i,j,k)  = wp(i,j,k)-w0(i,j,k)*tsc(k)
+               thlp(i,j,k)= thlp(i,j,k)-(thl0(i,j,k)-thl0av(k))*tsc(k)
+               qtp(i,j,k) = qtp(i,j,k)-(qt0(i,j,k)-qt0av(k))*tsc(k)
+            end do
+         end do
+      end do
   case(3)
     !$acc kernels default(present) async(1)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     do k=ksp,kmax
       up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(u0av(k)-cu))*tsc(k)
       vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(v0av(k)-cv))*tsc(k)
@@ -252,11 +281,15 @@ contains
       qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
     end do
     !$acc end kernels
+!!$omp end target
   case(-1)
     !$acc kernels default(present) async(1)
+!!$omp target defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
     up(:,:,:) = up(:,:,:) - unudge * ( sum((u0av(1:kmax) - ug(1:kmax)) * dzf(1:kmax)) / sum(dzf(1:kmax)) ) / rdt
     vp(:,:,:) = vp(:,:,:) - unudge * ( sum((v0av(1:kmax) - vg(1:kmax)) * dzf(1:kmax)) / sum(dzf(1:kmax)) ) / rdt
     !$acc end kernels
+!!$omp end target
   case default
     call finish(routine, "no gravity wave damping option selected")
   end select
@@ -266,17 +299,27 @@ contains
   ! Originally done in subroutine tqaver, now using averages from modthermodynamics
 
   if ( .not. lopenbc ) then
-    !$acc kernels default(present) async(1)
-    thl0(2:i1,2:j1,kmax) = thl0av(kmax)
-    qt0 (2:i1,2:j1,kmax) = qt0av(kmax)
-    !$acc end kernels
+    !$acc parallel loop collapse(2) default(present) async(1)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+    do j=2,j1
+       do i=2,i1
+          thl0(i,j,kmax) = thl0av(kmax)
+          qt0 (i,j,kmax) = qt0av(kmax)
+       end do
+    end do
 
     if (nsv > 0) then
-      !$acc kernels default(present) async(1)
+      !$acc parallel loop collapse(3) default(present) async(1)
+      !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
       do n=1,nsv
-        sv0(2:i1,2:j1,kmax,n) = sv0av(kmax,n)
+         do j=2,j1
+            do i=2,i1
+               sv0(i,j,kmax,n) = sv0av(kmax,n)
+            end do
+         end do
       end do
-      !$acc end kernels
     end if
 
     !$acc wait
@@ -296,47 +339,64 @@ contains
 !> Sets top boundary conditions for scalars
   subroutine toph
 
-  use modglobal, only : kmax,k1,nsv,dzh
+  use modglobal, only : kmax,k1,nsv,dzh,i1,ih,j1,jh,k1
   use modfields, only : thl0,thlm,qt0,qtm,sv0,svm &
                        ,thl0av,qt0av,sv0av
   implicit none
   integer :: n
+  integer :: i,j,k
   integer,parameter :: kav=5
 
 ! **  Top conditions :
   ! Calculate new gradient over several of the top levels, to be used
   ! to extrapolate thl and qt to level k1 !JvdD
-  
-  !$acc serial default(present)
-  dtheta = sum((thl0av(kmax-kav+1:kmax)-thl0av(kmax-kav:kmax-1))/ &
-             dzh(kmax-kav+1:kmax))/kav
-  dqt    = sum((qt0av (kmax-kav+1:kmax)-qt0av (kmax-kav:kmax-1))/ &
-             dzh(kmax-kav+1:kmax))/kav
-  !$acc end serial
+
+  dtheta=0.0
+  dqt=0.0
+  !$acc parallel loop default(present) reduction(+:dtheta,dqt)
+  !$omp target teams loop reduction(+:dtheta,dqt) defaultmap(present:allocatable) if(gpu)
+  do k = kmax-kav+1, kmax
+    dtheta = dtheta + (thl0av(k) - thl0av(k-1)) / dzh(k)
+    dqt    = dqt    + (qt0av(k)  - qt0av(k-1))  / dzh(k)
+  end do
+  dtheta = dtheta / kav
+  dqt    = dqt    / kav
 
   if ( nsv > 0 ) then
     !$acc parallel loop default(present)
+    !$omp target teams loop defaultmap(present:aggregate) if(gpu)&
+    !$omp defaultmap(present:allocatable)
     do n=1,nsv
       dsv(n) = sum((sv0av(kmax-kav+1:kmax,n)-sv0av(kmax-kav:kmax-1,n))/ &
                  dzh(kmax-kav:kmax-1))/kav
     enddo
   endif
   
-  !$acc kernels default(present) 
-  thl0(:,:,k1) = thl0(:,:,kmax) + dtheta*dzh(k1)
-  qt0(:,:,k1)  = qt0 (:,:,kmax) + dqt*dzh(k1)
+  !$acc parallel loop collapse(2) default(present)
+  !$omp target teams loop collapse(2) defaultmap(present:aggregate) if(gpu)&
+  !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+  do j=2-jh,j1+jh
+     do i=2-ih,i1+ih
+        thl0(i,j,k1) = thl0(i,j,kmax) + dtheta*dzh(k1)
+        qt0(i,j,k1)  = qt0 (i,j,kmax) + dqt*dzh(k1)
 
-  thlm(:,:,k1) = thlm(:,:,kmax) + dtheta*dzh(k1)
-  qtm(:,:,k1)  = qtm (:,:,kmax) + dqt*dzh(k1)
-  !$acc end kernels
+        thlm(i,j,k1) = thlm(i,j,kmax) + dtheta*dzh(k1)
+        qtm(i,j,k1)  = qtm (i,j,kmax) + dqt*dzh(k1)
+     end do
+  end do
   
   if ( nsv > 0) then
-    !$acc kernels default(present)
-    do n=1,nsv
-      sv0(:,:,k1,n) = sv0(:,:,kmax,n) + dsv(n)*dzh(k1)
-      svm(:,:,k1,n) = svm(:,:,kmax,n) + dsv(n)*dzh(k1)
-    enddo
-    !$acc end kernels
+     !$acc parallel loop collapse(3) default(present)
+     !$omp target teams loop collapse(3) defaultmap(present:aggregate) if(gpu)&
+     !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+     do n=1,nsv
+        do j=2,j1
+           do i=2,i1
+              sv0(i,j,k1,n) = sv0(i,j,kmax,n) + dsv(n)*dzh(k1)
+              svm(i,j,k1,n) = svm(i,j,kmax,n) + dsv(n)*dzh(k1)
+           end do
+        end do
+     enddo
   endif
 
   return
@@ -344,33 +404,55 @@ contains
 !> Sets top boundary conditions for momentum
   subroutine topm
 
-    use modglobal, only : kmax,k1,e12min,lrigidlid
+    use modglobal, only : kmax,k1,e12min,lrigidlid,i1,ih,j1,jh,k1
     use modfields, only : u0,v0,w0,e120,um,vm,wm,e12m
     implicit none
-    !$acc kernels default(present)
-    u0(:,:,k1)   = u0(:,:,kmax)
-    v0(:,:,k1)   = v0(:,:,kmax)
-    w0(:,:,k1)   = 0.0
-    e120(:,:,k1) = e12min
-    !$acc end kernels
+    integer :: i,j,k
+
+    !$acc parallel loop collapse(2) default(present)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate) if(gpu)&
+    !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+    do j=2-jh,j1+jh
+       do i=2-ih,i1+ih
+          u0(i,j,k1)   = u0(i,j,kmax)
+          v0(i,j,k1)   = v0(i,j,kmax)
+          w0(i,j,k1)   = 0.0
+          e120(i,j,k1) = e12min
+       end do
+    end do
 
     if (lrigidlid) then
-        !$acc kernels default(present)
-        e120(:,:,k1) = e120(:,:,kmax)
-        !$acc end kernels
+       !$acc parallel loop collapse(2) default(present)
+       !$omp target teams loop collapse(2) defaultmap(present:aggregate) if(gpu)&
+       !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+       do j=2-jh,j1+jh
+          do i=2-ih,i1+ih
+             e120(i,j,k1) = e120(i,j,kmax)
+          end do
+       end do
     endif
-    
-    !$acc kernels default(present)
-    um(:,:,k1)   = um(:,:,kmax)
-    vm(:,:,k1)   = vm(:,:,kmax)
-    wm(:,:,k1)   = 0.0
-    e12m(:,:,k1) = e12min
-    !$acc end kernels
+
+    !$acc parallel loop collapse(2) default(present)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate) if(gpu)&
+    !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+    do j=2-jh,j1+jh
+       do i=2-ih,i1+ih
+          um(i,j,k1)   = um(i,j,kmax)
+          vm(i,j,k1)   = vm(i,j,kmax)
+          wm(i,j,k1)   = 0.0
+          e12m(i,j,k1) = e12min
+       end do
+    end do
 
     if (lrigidlid) then
-        !$acc kernels default(present)
-        e12m(:,:,k1) = e12m(:,:,kmax)
-        !$acc end kernels
+       !$acc parallel loop collapse(2) default(present)
+       !$omp target teams loop collapse(2) defaultmap(present:aggregate) if(gpu)&
+       !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+       do j=2-jh,j1+jh
+          do i=2-ih,i1+ih
+             e12m(i,j,k1) = e12m(i,j,kmax)
+          end do
+       end do
     endif
 
   return
