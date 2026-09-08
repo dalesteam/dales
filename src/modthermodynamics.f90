@@ -31,7 +31,8 @@ module modthermodynamics
   use modfields,       only: qt0, thl0, qt0h, thl0h, ql0, presf, exnf, thvh, &
                              thv0h, qt0av, ql0av, thvf, rhof, ql0h, presh, exnh, &
                              u0, v0, sv0, u0av, v0av, thl0av, ql0av, sv0av, &
-                             tmp0, dthvdz, thl0h, qt0h, esl, qvsl, qvsi
+                             tmp0, dthvdz, thl0h, qt0h, esl, qvsl, qvsi, &
+                             tliq0, tliqm, tliqp
   use modsurfdata,     only: qts, thls, ps, dthldz, dqtdz
   use modmpi,          only: myid, d_mpi_bcast, commwrld, slabsum
   use modmicrodata,    only: imicro, imicro_bulk3, imicro_none
@@ -55,8 +56,7 @@ module modthermodynamics
 
   logical :: lmoist = .true.       !< Switch to calculate moisture fields.
   logical :: lnoclouds = .false.   !< Switch to enable/disable thl calculations.
-  logical :: lconstexner = .false. !< Switch to use the initial pressure profile in the exner function.
-  logical :: lbaseexner = .false.  !< Switch to use the base pressure profile in the exner function.
+  logical :: ltliq = .false.       !< Switch to use liquid static energy instead of theta_l
 
   real, allocatable :: th0av(:)
   real(field_r), allocatable :: thv0(:,:,:)
@@ -96,8 +96,7 @@ contains
     integer :: ierr
     logical :: lqlnr = .true. !< deprecated and ignored, kept for compatibility
 
-    namelist /thermodynamics/ lmoist, chi_half, lconstexner, lbaseexner, &
-                              lnoclouds, lqlnr
+    namelist /thermodynamics/ lmoist, chi_half, lnoclouds, lqlnr, ltliq
 
     if (myid == 0) then
       open(ifnamopt, file=nml_filename, status='old', action='read', &
@@ -110,8 +109,7 @@ contains
 
     call d_mpi_bcast(lmoist, 1, 0, commwrld, ierr)
     call d_mpi_bcast(chi_half, 1, 0, commwrld, ierr)
-    call d_mpi_bcast(lconstexner, 1, 0, commwrld, ierr)
-    call d_mpi_bcast(lbaseexner, 1, 0, commwrld, ierr)
+    call d_mpi_bcast(ltliq, 1, 0, commwrld, ierr)
 
   end subroutine thermodynamics_read_namelist
 
@@ -125,6 +123,12 @@ contains
     allocate(thetah(k1), qth(k1), qlh(k1))
 
     th0av(:) = 0.
+
+    if (ltliq) then
+       allocate(tliq0    (2-ih:i1+ih,2-jh:j1+jh,k1))
+       allocate(tliqm    (2-ih:i1+ih,2-jh:j1+jh,k1))
+       allocate(tliqp    (2-ih:i1+ih,2-jh:j1+jh,k1))
+    end if
 
     !$acc enter data copyin(th0av, thv0, thetah, qth, qlh)
     !$omp target enter data map(to:th0av,thv0,thetah,qth,qlh)
@@ -157,7 +161,7 @@ contains
 
   !> Main thermodynamics subroutine.
   !!
-  !! Calculates liquid water content, mean hydrostatic pressure and virtual 
+  !! Calculates liquid water content, mean hydrostatic pressure and virtual
   !! potential temperature.
   subroutine thermodynamics
     character(len=*), parameter :: routine = modname//'/thermodynamics'
@@ -302,6 +306,10 @@ contains
     !$acc exit data delete(th0av, thv0, thetah, qth, qlh)
     !$omp target exit data map(delete:th0av,thv0,thetah,qth,qlh)
     deallocate(th0av, thv0, thetah, qth, qlh)
+    if (ltliq) then
+       !$acc exit data delete(tliq0, tliqm, tliqp)
+       deallocate(tliq0, tliqm, tliqp)
+    end if
   end subroutine exitthermodynamics
 
   !> Calculate real temperature tmp0 from thl0, for the dry case i.e. ql=0
@@ -548,15 +556,6 @@ contains
       end do
     end if
 
-    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
-      !$acc parallel loop gang(static:1) default(present)
-      !$omp target teams distribute parallel do defaultmap(present:allocatable)
-      do k = 1, k1
-        exnf(k) = 1 - grav * zf(k) / (cp * thls)
-        exnh(k) = 1 - grav * zh(k) / (cp * thls)
-      end do
-    endif
-
     !$acc parallel loop gang(static:1) default(present) async(1)
     !$omp target teams distribute parallel do defaultmap(present:allocatable)
     do k = 1, k1
@@ -565,44 +564,9 @@ contains
 
     ! 2. Calculate the pressure profiles assuming hydrostatic equilibrium.
 
-    ! 2.1 Use first guess of theta, then recalculate theta
-
     call fromztop
 
-    !$acc parallel loop gang(static:1) default(present) async(1)
-    !$omp target teams distribute parallel do defaultmap(present:allocatable)
-    do k = 1, k1
-      th0av(k) = thl0av(k) + (rlv / cp) * ql0av(k) / exnf(k)
-    end do
-
-    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
-      !$acc parallel loop gang(static:1) default(present) async(1)
-      !$omp target teams distribute parallel do defaultmap(present:allocatable)
-      do k = 1, k1
-        exnf(k) = (presf(k) / pref0)**(rd / cp)
-      end do
-    end if
-
-    ! 2.2 Use new updated value of theta for determination of pressure
-    call fromztop
-
-    ! 3. Construct density profiles and exner function
-
-    if ((timee < 0.01 .or. .not. lconstexner) .and. .not. lbaseexner) then
-      !$acc serial default(present) async(1)
-      !$omp target defaultmap(present:allocatable)
-      exnh(1) = (ps/pref0)**(rd/cp)
-      exnf(1) = (presf(1)/pref0)**(rd/cp)
-      !$acc end serial
-      !$omp end target
-
-      !$acc parallel loop default(present) async(1)
-      !$omp target teams distribute parallel do defaultmap(present:allocatable)
-      do k=2,k1
-        exnf(k) = (presf(k)/pref0)**(rd/cp)
-        exnh(k) = (presh(k)/pref0)**(rd/cp)
-      end do
-    endif
+    ! 3. Construct density profiles
 
     !$acc parallel loop default(present) async(1)
     !$omp target teams distribute parallel do defaultmap(present:allocatable)

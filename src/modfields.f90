@@ -35,12 +35,14 @@ save
   real(field_r), allocatable :: vm(:,:,:)        !<   y-component of velocity at time step t-1
   real(field_r), allocatable :: wm(:,:,:)        !<   z-component of velocity at time step t-1
   real(field_r), allocatable :: thlm(:,:,:)      !<   liq. water pot. temperature at time step t-1
+  real(field_r), allocatable :: tliqm(:,:,:)     !<   liquid static energy at time step t-1 (optionally allocated)
   real(field_r), allocatable :: e12m(:,:,:)      !<   square root of turb. kin. energy at time step t-1
   real(field_r), allocatable :: qtm(:,:,:)       !<   total specific humidity at time step t
   real(field_r), allocatable :: u0(:,:,:)        !<   x-component of velocity at time step t
   real(field_r), allocatable :: v0(:,:,:)        !<   y-component of velocity at time step t
   real(field_r), allocatable :: w0(:,:,:)        !<   z-component of velocity at time step t
   real(field_r), allocatable :: thl0(:,:,:)      !<   liq. water pot. temperature at time step t
+  real(field_r), allocatable :: tliq0(:,:,:)     !<   liquid static energy at time step t (optionally allocated)
   real(field_r), allocatable :: thl0h(:,:,:)     !<  3d-field of theta_l at half levels for kappa scheme
   real(field_r), allocatable :: qt0h(:,:,:)      !<  3d-field of q_tot   at half levels for kappa scheme
   real(field_r), allocatable :: e120(:,:,:)      !<   square root of turb. kin. energy at time step t
@@ -50,6 +52,7 @@ save
   real(field_r), allocatable :: vp(:,:,:)        !<   tendency of vm
   real(field_r), allocatable :: wp(:,:,:)        !<   tendency of wm
   real(field_r), allocatable :: thlp(:,:,:)      !<   tendency of thlm
+  real(field_r), allocatable :: tliqp(:,:,:)     !<   tendency of tliqm (optionally allocated)
   real(field_r), allocatable :: e12p(:,:,:)      !<   tendency of e12m
   real(field_r), allocatable :: qtp(:,:,:)       !<   tendency of qtm
 
@@ -120,8 +123,11 @@ save
   real(field_r), allocatable :: uprof(:)                      !<   initial u-profile
   real(field_r), allocatable :: vprof(:)                      !<   initial v-profile
   real(field_r), allocatable :: e12prof(:)                    !<   initial subgrid sqrt(TKE) profile
-  real(field_r), allocatable :: sv0av(:,:)                  !<   slab average of sv(n)
-  real(field_r), allocatable :: svprof(:,:)                 !<   initial sv(n)-profile
+  real(field_r), allocatable :: sv0av(:,:)                    !<   slab average of sv(n)
+  real(field_r), allocatable :: svprof(:,:)                   !<   initial sv(n)-profile
+  
+  real(field_r), allocatable :: baseprof_T(:)               !<   initial temperature profile at full levels
+  real(field_r), allocatable :: baseprof_P(:)               !<   initial pressure profile at full levels
 
   real(field_r), allocatable :: thlpcar(:)                    !< prescribed radiatively forced thl tendency
   real(field_r), allocatable :: qvsl(:,:,:)
@@ -223,6 +229,10 @@ subroutine initfields
     allocate(uprof  (k1))
     allocate(vprof  (k1))
     allocate(e12prof(k1))
+    allocate(baseprof_T(k1))
+    allocate(baseprof_P(k1))
+    baseprof_P = -9999.0_field_r
+    baseprof_T = -9999.0_field_r
     !allocate(sv0av  (k1,nsv))
     !allocate(svprof (k1,nsv))
     allocate(thlpcar(k1))
@@ -307,7 +317,7 @@ subroutine initfields
     deallocate(ug,vg,dpdxl,dpdyl,wfls)
     deallocate(dthldxls,dthldyls,dthldtls,dqtdxls,dqtdyls,dqtdtls)
     deallocate(dudxls,dudyls,dudtls,dvdxls,dvdyls,dvdtls)
-    deallocate(thlprof,qtprof,uprof,vprof,e12prof)
+    deallocate(thlprof,qtprof,uprof,vprof,e12prof,baseprof_T,baseprof_P)
     deallocate(thlpcar)
     deallocate(qvsl,qvsi,esl)
     deallocate(qsat)

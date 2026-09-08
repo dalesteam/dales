@@ -59,6 +59,10 @@ ecbuild_find_package( NetCDF REQUIRED COMPONENTS Fortran C )
 
 ecbuild_find_package( MPI REQUIRED COMPONENTS Fortran )
 
+# Check if the NetCDF library supports parallel operations
+include( dales_query_parallel_netcdf )
+dales_query_parallel_netcdf()
+
 # Set precision
 
 if( ENABLE_FP32_FIELDS )

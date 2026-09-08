@@ -187,7 +187,7 @@ contains
   subroutine do_stressbudget
     use modglobal,  only : i1,i2,j1,j2,k1,ih,jh,imax,jmax,kmax,dzf,dzh, &
                           ijtot,cu,cv,iadv_thl,grav, &
-                          dxi,dyi,dx2i,dy2i,om22,om23,iadv_cd2,iadv_5th,iadv_cd6,iadv_mom
+                          dxi,dyi,dx2i,dy2i,om22,om23,iadv_cd2,iadv_5th,iadv_cd6,iadv_mom,corot,sirot
     use modsurfdata, only : thvs, ustar
     use modsubgrid, only : ekm, diffu, diffv, diffw
     use modpois,    only : p
@@ -775,15 +775,18 @@ contains
 
     u_term(2:i1,2:j1,1:kmax) =   &
             +(v0_dev(2:i1,2:j1,1:kmax)+v0_dev(2:i1,3:j2,1:kmax)+v0_dev(1:imax,2:j1,1:kmax)+v0_dev(1:imax,3:j2,1:kmax))*om23*0.25 &
-            -(w0_dev(2:i1,2:j1,1:kmax)+w0_dev(2:i1,2:j1,2:k1)+w0_dev(1:imax,2:j1,2:k1)+w0_dev(1:imax,2:j1,1:kmax))*om22*0.25
+            -(w0_dev(2:i1,2:j1,1:kmax)+w0_dev(2:i1,2:j1,2:k1)+w0_dev(1:imax,2:j1,2:k1)+w0_dev(1:imax,2:j1,1:kmax))*om22*0.25*corot
 
-    v_term(2:i1,2:j1,:) =  &
+    v_term(2:i1,2:j1,1:kmax) =  &
+            +(w0_dev(2:i1,2:j1,1:kmax)+w0_dev(2:i1,2:j1,2:k1)+w0_dev(2:i1,1:jmax,2:k1)+w0_dev(2:i1,1:jmax,1:kmax))*om22*0.25*sirot
             -(u0_dev(2:i1,2:j1,:)+u0_dev(2:i1,1:j1-1,:)+u0_dev(3:i2,1:j1-1,:)+u0_dev(3:i2,2:j1,:))*om23*0.25
 
     do k=2,k1
        w_term(2:i1,2:j1,k) =   &
-                    om22 * 0.25*( (dzf(k-1) * (u0_dev(2:i1,2:j1,k-1)  + u0_dev(3:i2,2:j1,k-1) )     &
-                                 + dzf(k)  *  (u0_dev(2:i1,2:j1,k) + u0_dev(3:i2,2:j1,k))  ) / dzh(k) )
+               + om22 * 0.25 * corot * ( (dzf(k-1) * (u0_dev(2:i1,2:j1,k-1)  + u0_dev(3:i2,2:j1,k-1) )     &
+                        + dzf(k)  *  (u0_dev(2:i1,2:j1,k) + u0_dev(3:i2,2:j1,k))  ) / dzh(k) )
+               - om22 * 0.25 * sirot * ( (dzf(k-1) * (v0_dev(2:i1,2:j1,k-1)  + v0_dev(2:i1,3:j2,k-1) )     &
+                        + dzf(k)  *  (v0_dev(2:i1,2:j1,k) + v0_dev(2:i1,3:j2,k))  ) / dzh(k) )
     enddo
 
     w_term(:,:,1) = 0.

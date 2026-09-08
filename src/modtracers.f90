@@ -34,7 +34,7 @@ module modtracers
   use modstat_nc
   use utils
   use modtracer_type, only: T_tracer  ! Use the type from modtracer_type
-  use modlogging,     only: warning, finish
+  use modlogging,     only: message, warning, finish
 
   implicit none
 
@@ -140,7 +140,7 @@ contains
     character(len=*), parameter :: routine = modname//'/add_tracer'
 
     integer                     :: s
-    character(len=1024)         :: message = ''
+    character(len=1024)         :: buffer = ''
     type(T_tracer), allocatable :: tmp(:)
 
 
@@ -156,8 +156,8 @@ contains
       do s = 1, nsv
         if (trim(to_lower(name)) == &
             trim(to_lower(tracer_prop(s) % tracname))) then
-          write(message, '(a,a,a)') 'tracer ', trim(name), ' already defined'
-          call warning(routine, message)
+          write(buffer, '(a,a,a)') 'tracer ', trim(name), ' already defined'
+          call warning(routine, buffer)
           if(present(isv)) isv = s
           return
         end if
@@ -202,14 +202,15 @@ contains
   !> Allocates all tracer fields
   subroutine allocate_tracers
     use modlogging, only: profile_output
-    integer        :: isv
-    type(T_tracer) :: tracer
-
+    character(len=*), parameter :: routine = modname//'/allocate_tracers'
+    integer             :: isv
+    type(T_tracer)      :: tracer
+    character(len=1024) :: buffer = ''
     ! At this point, all tracers should be defined.
 
     ! Print tracer properties
     if (myid == 0) then
-      write(profile_output, '(a17,a17,a7,a9,a10,a11,a11)') &
+      write(buffer, '(a17,a17,a7,a9,a10,a11,a11)') &
         'Tracer           ', &
         'Unit             ', &
         'Index  ', &
@@ -217,10 +218,12 @@ contains
         'Reactive  ', &
         'Deposited  ', &
         'Surf. Flux '
-      write(profile_output, '(a)') repeat('-', 81)
+      call message(routine, buffer)
+      write(buffer, '(a)') repeat('-', 81)
+      call message(routine, buffer)
       do isv = 1, nsv
         tracer = tracer_prop(isv)
-        write(profile_output, '(a,x,a,x,i3,4x,l3,6x,l3,7x,l3,8x,e10.4,x)') & ! Ugh
+        write(buffer, '(a,x,a,x,i3,4x,l3,6x,l3,7x,l3,8x,e10.4,x)') & ! Ugh
           tracer%tracname, &
           tracer%unit, &
           tracer%trac_idx, &
@@ -228,6 +231,7 @@ contains
           tracer%lreact, &
           tracer%ldep, &
           tracer%wsvsurf
+        call message(routine, buffer)
       end do
     end if
 

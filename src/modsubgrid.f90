@@ -32,7 +32,7 @@ module modsubgrid
 use modsubgriddata
 use modprecision, only: field_r
 use modtimer
-use modlogging, only: finish
+use modlogging, only: message, finish
 implicit none
 save
   character(len=*), parameter :: modname = 'modsubgrid'
@@ -94,18 +94,17 @@ contains
       anis_fac = 1.   !horizontal = vertical diffusion
     endif
 
-    if (myid==0) then
-      write (profile_output,*) 'cf    = ',cf
-      write (profile_output,*) 'cm    = ',cm
-      write (profile_output,*) 'ch    = ',ch
-      write (profile_output,*) 'ch1   = ',ch1
-      write (profile_output,*) 'ch2   = ',ch2
-      write (profile_output,*) 'ceps  = ',ceps
-      write (profile_output,*) 'ceps1 = ',ce1
-      write (profile_output,*) 'ceps2 = ',ce2
-      write (profile_output,*) 'cs    = ',cs
-      write (profile_output,*) 'Rigc  = ',Rigc
-    endif
+    call message(routine, 'cf    = ', cf)
+    call message(routine, 'cm    = ', cm)
+    call message(routine, 'ch    = ', ch)
+    call message(routine, 'ch1   = ', ch1)
+    call message(routine, 'ch2   = ', ch2)
+    call message(routine, 'ceps  = ', ceps)
+    call message(routine, 'ceps1 = ', ce1)
+    call message(routine, 'ceps2 = ', ce2)
+    call message(routine, 'cs    = ', cs)
+    call message(routine, 'Rigc  = ', Rigc)
+
 
     !$acc enter data copyin(ekm, ekh, zlt, csz, anis_fac, &
     !$acc&                  sbdiss, sbshr, sbbuo)
@@ -165,8 +164,8 @@ contains
    ! Thijs Heus, Chiel van Heerwaarden, 15 June 2007
 
     use modglobal,    only : nsv, lopenbc, lboundary, lperiodic
-    use modthermodynamics, only: lmoist
-    use modfields,    only : up,vp,wp,e12p,thl0,thlp,qt0,qtp,sv0,svp
+    use modthermodynamics, only: lmoist, ltliq
+    use modfields,    only : up,vp,wp,e12p,thl0,thlp,tliq0,tliqp,qt0,qtp,sv0,svp
     use modsurfdata,  only : thlflux,qtflux,svflux
 
     implicit none
@@ -189,7 +188,12 @@ contains
 
     if (.not. lsmagorinsky) call diffe(e12p)
 
-    call diffc(thl0, thlp, thlflux)
+    if (ltliq) then
+       call diffc(tliq0, tliqp, thlflux) ! TODO adapt thlflux
+    else
+       call diffc(thl0, thlp, thlflux)
+    end if
+
     if (lmoist) call diffc( qt0, qtp, qtflux)
     if (nsv > 0 ) then
       call diffcsv(sv0, svp, svflux)

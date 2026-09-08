@@ -151,6 +151,32 @@ SAVE
   real, allocatable :: PARField     (:,:)
   real, allocatable :: PARdirField  (:,:)
   real, allocatable :: PARdifField  (:,:)
+  
+  ! ============================================================
+  ! Vegetation physiological parameters (AGS photosynthesis scheme)
+  ! ============================================================
+
+  ! Stomatal conductance at 25oC
+  real, allocatable :: gm25(:,:) !m s-1
+
+  ! Maximum carboxylation / photosynthetic capacity at 25oC
+  real, allocatable :: Ammax25(:,:) !µg CO2 m-2 s-1
+ 
+  ! Initial / reference quantum efficiency factor (light response scaling)
+  real, allocatable :: f0field(:,:) !dimensionless (-)
+      
+  ! Initial slope of light response curve (quantum yield parameter)
+  real, allocatable :: alpha0field(:,:) !mol CO2 mol-1 photons
+      
+  ! CO₂ compensation point at 298 K (25oC)
+  real, allocatable :: co2_comp298(:,:) !µmol mol-1 (ppm)
+      
+  ! Temperature sensitivity parameter for stomatal conductance
+  real, allocatable :: T1gmfield(:,:) ! K
+
+  ! Temperature sensitivity parameter for photosynthesis capacity (Ammax)
+  real, allocatable :: T1Amfield(:,:) !K
+  
   !<Non namelist options
   logical           :: linags     = .false.!<  Switch to make additional initialization for AGS
   logical           :: lCHon      = .false.!<  Equal to lchem, but due to compilation has to be outside modchem.f90

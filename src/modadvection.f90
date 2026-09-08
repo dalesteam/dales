@@ -38,7 +38,7 @@ subroutine advection
                              iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,&
                              iadv_upw,iadv_hybrid,iadv_hybrid_f,iadv_null,leq,&
                              lopenbc,lboundary,lperiodic,i1,j1
-  use modfields,      only : u0,up,v0,vp,w0,wp,e120,e12p,thl0,thlp,qt0,qtp,sv0,svp
+  use modfields,      only : u0,up,v0,vp,w0,wp,e120,e12p,thl0,thlp,tliq0,tliqp,qt0,qtp,sv0,svp
   use modsubgrid,     only : lsmagorinsky
   use modsamptend,    only : samptend, tend_hadv,tend_vadv
   use advec_2nd,      only : hadvecu_2nd, vadvecu_2nd, hadvecv_2nd, vadvecv_2nd, &
@@ -52,7 +52,7 @@ subroutine advection
   use advec_kappa,    only : hadvecc_kappa, vadvecc_kappa
   use advec_upw,      only : hadvecc_upw, vadvecc_upw
   use modopenboundary,only : advecc_2nd_boundary_buffer,advecu_2nd_boundary_buffer,advecv_2nd_boundary_buffer,advecw_2nd_boundary_buffer
-  use modthermodynamics, only: lmoist
+  use modthermodynamics, only: lmoist,ltliq
   implicit none
   integer :: n,istart,iend,jstart,jend,ibuffer,jbuffer
   character(len=*), parameter :: routine = modname//'/advection'
@@ -139,44 +139,84 @@ subroutine advection
       call finish(routine, "Unknown advection scheme ")
   end select
 
-istart = 2; iend = i1; jstart = 2; jend = j1
-  select case(iadv_thl)
-    case(iadv_cd2)
-      call hadvecc_2nd(thl0,thlp,istart,iend,jstart,jend)
-    case(iadv_5th)
-      ibuffer = 2; jbuffer = 2
-      if(lopenbc) call advecc_2nd_boundary_buffer(thl0,thlp,istart,iend,jstart,jend,ibuffer,jbuffer)
-      call hadvecc_5th(thl0,thlp,istart,iend,jstart,jend)
-    case(iadv_52)
-      ibuffer = 2; jbuffer = 2
-      if(lopenbc) call advecc_2nd_boundary_buffer(thl0,thlp,istart,iend,jstart,jend,ibuffer,jbuffer)
-      call hadvecc_5th(thl0,thlp,istart,iend,jstart,jend)
-    case(iadv_cd6)
-      !if (.not. leq) stop "advec_6th does not support a non-uniform vertical grid."
-      ibuffer = 2; jbuffer = 2
-      if(lopenbc) call advecc_2nd_boundary_buffer(thl0,thlp,istart,iend,jstart,jend,ibuffer,jbuffer)
-      call hadvecc_6th(thl0,thlp,istart,iend,jstart,jend)
-    case(iadv_62)
-      ibuffer = 2; jbuffer = 2
-      if(lopenbc) call advecc_2nd_boundary_buffer(thl0,thlp,istart,iend,jstart,jend,ibuffer,jbuffer)
-      call hadvecc_6th(thl0,thlp,istart,iend,jstart,jend)
-    case(iadv_kappa)
-      call hadvecc_kappa(thl0,thlp)
-    case(iadv_upw)
-      if (.not. leq) call finish(routine, "advec_upw does not support a non-uniform vertical grid.") 
-      call hadvecc_upw(thl0,thlp)
-    case(iadv_hybrid)
-       !if (.not. leq) stop "advec_hybrid does not support a non-uniform vertical grid."
-      call hadvecc_hybrid(thl0,thlp)
-    case(iadv_hybrid_f)
-      !if (.not. leq) stop "advec_hybrid_f does not support a non-uniform vertical grid."
-      call hadvecc_hybrid_f(thl0,thlp,1.0)
-    case(iadv_null)
-      ! null advection scheme
-      call finish(routine, "Null advection scheme selected for iadv_thl - probably a bad idea.")
-    case default
-      call finish(routine, "Unknown advection scheme ")
-  end select
+  istart = 2; iend = i1; jstart = 2; jend = j1
+  if (ltliq) then ! tliq used as temperature variable
+     select case(iadv_thl)
+     case(iadv_cd2)
+        call hadvecc_2nd(tliq0,tliqp,istart,iend,jstart,jend)
+     case(iadv_5th)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(tliq0,tliqp,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_5th(tliq0,tliqp,istart,iend,jstart,jend)
+     case(iadv_52)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(tliq0,tliqp,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_5th(tliq0,tliqp,istart,iend,jstart,jend)
+     case(iadv_cd6)
+        !if (.not. leq) stop "advec_6th does not support a non-uniform vertical grid."
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(tliq0,tliqp,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_6th(tliq0,tliqp,istart,iend,jstart,jend)
+     case(iadv_62)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(tliq0,tliqp,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_6th(tliq0,tliqp,istart,iend,jstart,jend)
+     case(iadv_kappa)
+        call hadvecc_kappa(tliq0,tliqp)
+     case(iadv_upw)
+        if (.not. leq) call finish(routine, "advec_upw does not support a non-uniform vertical grid.")
+        call hadvecc_upw(tliq0,tliqp)
+     case(iadv_hybrid)
+        !if (.not. leq) stop "advec_hybrid does not support a non-uniform vertical grid."
+        call hadvecc_hybrid(tliq0,tliqp)
+     case(iadv_hybrid_f)
+        !if (.not. leq) stop "advec_hybrid_f does not support a non-uniform vertical grid."
+        call hadvecc_hybrid_f(tliq0,tliqp,1.0)
+     case(iadv_null)
+        ! null advection scheme
+        call finish(routine, "Null advection scheme selected for iadv_thl - probably a bad idea.")
+     case default
+        call finish(routine, "Unknown advection scheme ")
+     end select
+  else ! thl used as temperature variable
+     select case(iadv_thl)
+     case(iadv_cd2)
+        call hadvecc_2nd(thl0,thlp,istart,iend,jstart,jend)
+     case(iadv_5th)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(thl0,thlp,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_5th(thl0,thlp,istart,iend,jstart,jend)
+     case(iadv_52)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(thl0,thlp,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_5th(thl0,thlp,istart,iend,jstart,jend)
+     case(iadv_cd6)
+        !if (.not. leq) stop "advec_6th does not support a non-uniform vertical grid."
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(thl0,thlp,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_6th(thl0,thlp,istart,iend,jstart,jend)
+     case(iadv_62)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(thl0,thlp,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_6th(thl0,thlp,istart,iend,jstart,jend)
+     case(iadv_kappa)
+        call hadvecc_kappa(thl0,thlp)
+     case(iadv_upw)
+        if (.not. leq) call finish(routine, "advec_upw does not support a non-uniform vertical grid.")
+        call hadvecc_upw(thl0,thlp)
+     case(iadv_hybrid)
+        !if (.not. leq) stop "advec_hybrid does not support a non-uniform vertical grid."
+        call hadvecc_hybrid(thl0,thlp)
+     case(iadv_hybrid_f)
+        !if (.not. leq) stop "advec_hybrid_f does not support a non-uniform vertical grid."
+        call hadvecc_hybrid_f(thl0,thlp,1.0)
+     case(iadv_null)
+        ! null advection scheme
+        call finish(routine, "Null advection scheme selected for iadv_thl - probably a bad idea.")
+     case default
+        call finish(routine, "Unknown advection scheme ")
+     end select
+  end if
 
   if (lmoist) then
     istart = 2; iend = i1; jstart = 2; jend = j1
@@ -203,7 +243,7 @@ istart = 2; iend = i1; jstart = 2; jend = j1
       case(iadv_kappa)
         call hadvecc_kappa(qt0,qtp)
       case(iadv_upw)
-        if (.not. leq) call finish(routine, "advec_upw does not support a non-uniform vertical grid.") 
+        if (.not. leq) call finish(routine, "advec_upw does not support a non-uniform vertical grid.")
         call hadvecc_upw(qt0,qtp)
       case(iadv_hybrid)
         !if (.not. leq) stop "advec_hybrid does not support a non-uniform vertical grid."
@@ -213,9 +253,9 @@ istart = 2; iend = i1; jstart = 2; jend = j1
         call hadvecc_hybrid_f(qt0,qtp,1e-3)
       case(iadv_null)
         ! null advection scheme
-        call finish(routine, "Null advection scheme selected for iadv_qt - probably a bad idea.")  
+        call finish(routine, "Null advection scheme selected for iadv_qt - probably a bad idea.")
       case default
-        call finish(routine, "Unknown advection scheme ")  
+        call finish(routine, "Unknown advection scheme ")
     end select
   end if
 
@@ -244,7 +284,7 @@ istart = 2; iend = i1; jstart = 2; jend = j1
     case(iadv_kappa)
       call hadvecc_kappa(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_upw)
-      if (.not. leq) call finish(routine, "advec_upw does not support a non-uniform vertical grid.") 
+      if (.not. leq) call finish(routine, "advec_upw does not support a non-uniform vertical grid.")
       call hadvecc_upw(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_hybrid)
       !if (.not. leq) stop "advec_hybrid does not support a non-uniform vertical grid."
@@ -255,7 +295,7 @@ istart = 2; iend = i1; jstart = 2; jend = j1
     case(iadv_null)
        ! null advection scheme - do nothing
     case default
-      call finish(routine,"Unknown advection scheme ") 
+      call finish(routine,"Unknown advection scheme ")
     end select
   end do
   !$acc wait
@@ -301,30 +341,57 @@ istart = 2; iend = i1; jstart = 2; jend = j1
   !$acc wait
 
   istart = 2; iend = i1; jstart = 2; jend = j1
-  select case(iadv_thl)
-    case(iadv_cd2)
-      call vadvecc_2nd(thl0,thlp,istart,iend,jstart,jend)
-    case(iadv_5th)
-!       !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
-      call vadvecc_5th(thl0,thlp,istart,iend,jstart,jend)
-    case(iadv_52)
-      call vadvecc_2nd(thl0,thlp,istart,iend,jstart,jend)
-    case(iadv_cd6)
-!       !if (.not. leq) stop "advec_6th does not support a non-uniform vertical grid."
-      call vadvecc_6th(thl0,thlp,istart,iend,jstart,jend)
-    case(iadv_62)
-      call vadvecc_2nd(thl0,thlp,istart,iend,jstart,jend)
-    case(iadv_kappa)
-      call vadvecc_kappa(thl0,thlp)
-    case(iadv_upw)
-      call vadvecc_upw(thl0,thlp)
-    case(iadv_hybrid)
-       !if (.not. leq) stop "advec_hybrid does not support a non-uniform vertical grid."
-      call vadvecc_hybrid(thl0,thlp)
-    case(iadv_hybrid_f)
-      !if (.not. leq) stop "advec_hybrid_f does not support a non-uniform vertical grid."
-      call vadvecc_hybrid_f(thl0,thlp,1.0)
-  end select
+  if (ltliq) then ! tliq used as temperature variable
+     select case(iadv_thl)
+     case(iadv_cd2)
+        call vadvecc_2nd(tliq0,tliqp,istart,iend,jstart,jend)
+     case(iadv_5th)
+        !  if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
+        call vadvecc_5th(tliq0,tliqp,istart,iend,jstart,jend)
+     case(iadv_52)
+        call vadvecc_2nd(tliq0,tliqp,istart,iend,jstart,jend)
+     case(iadv_cd6)
+        !       !if (.not. leq) stop "advec_6th does not support a non-uniform vertical grid."
+        call vadvecc_6th(tliq0,tliqp,istart,iend,jstart,jend)
+     case(iadv_62)
+        call vadvecc_2nd(tliq0,tliqp,istart,iend,jstart,jend)
+     case(iadv_kappa)
+        call vadvecc_kappa(tliq0,tliqp)
+     case(iadv_upw)
+        call vadvecc_upw(tliq0,tliqp)
+     case(iadv_hybrid)
+        !if (.not. leq) stop "advec_hybrid does not support a non-uniform vertical grid."
+        call vadvecc_hybrid(tliq0,tliqp)
+     case(iadv_hybrid_f)
+        !if (.not. leq) stop "advec_hybrid_f does not support a non-uniform vertical grid."
+        call vadvecc_hybrid_f(tliq0,tliqp,1.0)
+     end select
+  else ! thl used as temperature variable
+     select case(iadv_thl)
+     case(iadv_cd2)
+        call vadvecc_2nd(thl0,thlp,istart,iend,jstart,jend)
+     case(iadv_5th)
+        !       !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
+        call vadvecc_5th(thl0,thlp,istart,iend,jstart,jend)
+     case(iadv_52)
+        call vadvecc_2nd(thl0,thlp,istart,iend,jstart,jend)
+     case(iadv_cd6)
+        !       !if (.not. leq) stop "advec_6th does not support a non-uniform vertical grid."
+        call vadvecc_6th(thl0,thlp,istart,iend,jstart,jend)
+     case(iadv_62)
+        call vadvecc_2nd(thl0,thlp,istart,iend,jstart,jend)
+     case(iadv_kappa)
+        call vadvecc_kappa(thl0,thlp)
+     case(iadv_upw)
+        call vadvecc_upw(thl0,thlp)
+     case(iadv_hybrid)
+        !if (.not. leq) stop "advec_hybrid does not support a non-uniform vertical grid."
+        call vadvecc_hybrid(thl0,thlp)
+     case(iadv_hybrid_f)
+        !if (.not. leq) stop "advec_hybrid_f does not support a non-uniform vertical grid."
+        call vadvecc_hybrid_f(thl0,thlp,1.0)
+     end select
+  end if
   if (lmoist) then
     istart = 2; iend = i1; jstart = 2; jend = j1
     select case(iadv_qt)
@@ -427,9 +494,9 @@ istart = 2; iend = i1; jstart = 2; jend = j1
         call vadvecc_hybrid_f(e120,e12p)
       case(iadv_null)
         ! null advection scheme
-        call finish(routine, "Null advection scheme selected for iadv_tke - probably a bad idea.") 
+        call finish(routine, "Null advection scheme selected for iadv_tke - probably a bad idea.")
       case default
-        call finish(routine, "Unknown advection scheme ")  
+        call finish(routine, "Unknown advection scheme ")
     end select
   end if
   call samptend(tend_vadv)
