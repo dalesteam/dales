@@ -50,7 +50,7 @@ program DALES
   use modtimedep,        only : timedep
   use modboundary,       only : boundary, grwdamp! JvdD ,tqaver
   use modthermodynamics, only : thermodynamics
-  use modmicrophysics,   only : microphysics, lcm_after_dynamics
+  use modmicrophysics,   only : microphysics, lcm_microphysics
   use modsurface,        only : surface
   use modlsm,            only : lsm
   use moddrydeposition,  only : drydep
@@ -304,7 +304,7 @@ program DALES
         call thermodynamics
         ! Operator-split particle transport needs the completed atmospheric
         ! state, but must precede diagnostics and restart output.
-        call lcm_after_dynamics
+        call lcm_microphysics
         call leibniztend
         call writesamptend
     !-----------------------------------------------------

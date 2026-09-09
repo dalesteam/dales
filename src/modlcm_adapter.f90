@@ -26,7 +26,7 @@ module modlcm_adapter
 
   public :: configure_lcm_runtime
   public :: init_lcm
-  public :: lcm_microphysics
+  public :: advance_lcm_step
 
   type(lcm_grid_t), save :: lcm_grid
   type(lcm_parallel_t), save :: lcm_parallel
@@ -80,12 +80,12 @@ contains
 #endif
   end subroutine init_lcm
 
-  subroutine lcm_microphysics()
+  subroutine advance_lcm_step()
     ! Called once after the final RK integration, boundaries and thermodynamics
-    ! by lcm_after_dynamics; rdt is the full atmospheric timestep.
+    ! by lcm_microphysics; rdt is the full atmospheric timestep.
     call update_lcm_static_energy_temperature_units()
     call lcm_advance(real(rdt, kind=real64))
-  end subroutine lcm_microphysics
+  end subroutine advance_lcm_step
 
   subroutine update_lcm_static_energy_temperature_units()
     if (.not. allocated(lcm_static_energy)) then
