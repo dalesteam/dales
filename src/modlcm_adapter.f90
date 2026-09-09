@@ -82,7 +82,7 @@ contains
 
   subroutine lcm_microphysics()
     ! Called once after the final RK integration, boundaries and thermodynamics
-    ! by microphysics_after_dynamics; rdt is the full atmospheric timestep.
+    ! by lcm_after_dynamics; rdt is the full atmospheric timestep.
     call update_lcm_static_energy_temperature_units()
     call lcm_advance(real(rdt, kind=real64))
   end subroutine lcm_microphysics

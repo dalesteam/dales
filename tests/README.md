@@ -30,20 +30,3 @@ pytest -rf --assert=plain --case=bomex
 ```
 
 Any of the cases in the `cases/` directory can be tested by changing the `--case` argument. Keep in mind that some cases require a custom `moduser.f90`.
-
-## LCM call scheduling
-
-Run `pytest -q tests/test_lcm_coupling.py` for the isolated call-order and
-Fortran dispatch tests. The dispatch tests require `gfortran`, but do not
-require a DALES executable or LCM library. They compile the production
-post-dynamics hook with stubbed dependencies, with and without `USE_LCM`.
-
-LCM particle transport is dispatched only at stage 3, after `tstep_integrate`,
-boundary updates and `thermodynamics`, and before diagnostics/restarts.
-The adapter receives the full `rdt`. Other microphysics schemes retain their
-within-RK calls. These tests check scheduling, not trajectory accuracy.
-
-This placement currently covers particle transport. Saturation adjustment is
-unchanged. Future two-way condensation coupling must define conservative
-prognostic-field updates and refresh thermodynamic diagnostics/halos after
-LCM feedback, without repeating saturation adjustment.

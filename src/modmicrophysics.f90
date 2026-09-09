@@ -62,7 +62,7 @@ module modmicrophysics
   public :: initmicrophysics
   public :: initmicrophysics_state
   public :: microphysics
-  public :: microphysics_after_dynamics
+  public :: lcm_after_dynamics
   public :: exitmicrophysics
 
   character(len=*), parameter :: modname = 'modmicrophysics'
@@ -239,7 +239,7 @@ contains
       case(imicro_lcm)
 #ifdef USE_LCM
         ! LCM advances after integration, boundaries and thermodynamics.
-        ! See microphysics_after_dynamics.
+        ! See lcm_after_dynamics.
 #else
         call finish(routine, &
           'LCM microphysics selected, but DALES was built without USE_LCM.')
@@ -254,10 +254,10 @@ contains
   !! The caller must refresh boundaries and thermodynamics before this hook,
   !! and invoke it before diagnostics and restart output. Other schemes keep
   !! their existing within-RK tendency calls.
-  subroutine microphysics_after_dynamics
+  subroutine lcm_after_dynamics
     use modglobal, only: rk3step
 
-    character(len=*), parameter :: routine = modname//'/microphysics_after_dynamics'
+    character(len=*), parameter :: routine = modname//'/lcm_after_dynamics'
 
     if (imicro /= imicro_lcm .or. rk3step /= 3) return
 
@@ -269,7 +269,7 @@ contains
     call finish(routine, &
       'LCM microphysics selected, but DALES was built without USE_LCM.')
 #endif
-  end subroutine microphysics_after_dynamics
+  end subroutine lcm_after_dynamics
 
   !> Calls the clean-up routine for the selected microphysical scheme.
   subroutine exitmicrophysics

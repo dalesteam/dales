@@ -25,11 +25,11 @@ def routine(name, filename):
 def test_call_order():
     text = (SRC / "program.f90").read_text().lower()
     sequence = ["call tstep_integrate", "call boundary", "call thermodynamics",
-                "call microphysics_after_dynamics", "call leibniztend",
+                "call lcm_after_dynamics", "call leibniztend",
                 "call writerestartfiles"]
     positions = [text.index(s) for s in sequence]
     assert positions == sorted(positions)
-    assert text.count("call microphysics_after_dynamics") == 1
+    assert text.count("call lcm_after_dynamics") == 1
     assert "call lcm_microphysics" not in routine("microphysics", "modmicrophysics.f90")
     adapter = routine("lcm_microphysics", "modlcm_adapter.f90")
     assert "rk3step" not in adapter
@@ -41,7 +41,7 @@ def test_post_dynamics_dispatch(tmp_path, enabled):
     compiler = shutil.which("gfortran")
     if compiler is None:
         pytest.skip("gfortran is required for the isolated Fortran dispatch test")
-    hook = routine("microphysics_after_dynamics", "modmicrophysics.f90")
+    hook = routine("lcm_after_dynamics", "modmicrophysics.f90")
     source = """
 module modglobal
   integer :: rk3step
@@ -77,14 +77,14 @@ program test
   ! All non-LCM selections must be no-ops at all stages.
   do imicro=0,11
     do rk3step=1,3
-      call microphysics_after_dynamics
+      call lcm_after_dynamics
     end do
   end do
   if (advances /= 0 .or. failures /= 0) stop 1
   imicro=imicro_lcm
   do step=1,2
     do rk3step=1,3
-      call microphysics_after_dynamics
+      call lcm_after_dynamics
       if (rk3step < 3) then
 #ifdef USE_LCM
         if (advances /= step-1) stop 2
