@@ -45,6 +45,7 @@ save
   real(field_r), allocatable :: tliq0(:,:,:)     !<   liquid static energy at time step t (optionally allocated)
   real(field_r), allocatable :: thl0h(:,:,:)     !<  3d-field of theta_l at half levels for kappa scheme
   real(field_r), allocatable :: qt0h(:,:,:)      !<  3d-field of q_tot   at half levels for kappa scheme
+  real(field_r), allocatable :: tliq0h(:,:,:)    !<  3d-field of liquid static energy at half levels for kappa scheme
   real(field_r), allocatable :: e120(:,:,:)      !<   square root of turb. kin. energy at time step t
   real(field_r), allocatable :: qt0(:,:,:)       !<   total specific humidity at time step t
 

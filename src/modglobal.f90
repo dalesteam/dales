@@ -87,7 +87,8 @@ save
       !< real,parameter :: cv       = cp-rd            !<    716.96
       real,parameter :: rcp      = rd/cp            !<    0.286
       real,parameter :: cpr      = cp/rd            !<    3.50
-      real,parameter :: rlvocp   = rlv/cp           !<    2.49
+      real,parameter :: rlvocp   = rlv/cp           !<    2.49e3 
+      real,parameter :: gravocp  = grav/cp          !<    dry adiabatic lapse rate
       real,parameter :: mair     = 28.967           !< Molar mass of air
       real,parameter :: rhow     = 0.998e3          !<    * Density of water
       real,parameter :: pref0    = 1.e5             !<    *standard pressure used in exner function.

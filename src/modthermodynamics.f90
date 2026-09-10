@@ -27,12 +27,13 @@ module modthermodynamics
   use modglobal,       only: checknamelisterror, ifnamopt, i1, j1, k1, ih, jh, &
                              rv, rlv, cp, rd, dzf, dzhi, iadv_kappa, iadv_qt, &
                              iadv_thl, tdn, tup, timee, ijtot, kmax, zf, dzh, &
-                             eps1, cu, cv, grav, pref0, nsv, zh
+                             eps1, cu, cv, grav, pref0, nsv, zh,&
+                             ep,ep2,gravocp, rlvocp
   use modfields,       only: qt0, thl0, qt0h, thl0h, ql0, presf, exnf, thvh, &
                              thv0h, qt0av, ql0av, thvf, rhof, ql0h, presh, exnh, &
                              u0, v0, sv0, u0av, v0av, thl0av, ql0av, sv0av, &
-                             tmp0, dthvdz, thl0h, qt0h, esl, qvsl, qvsi, &
-                             tliq0, tliqm, tliqp
+                             tmp0, dthvdz, esl, qvsl, qvsi, &
+                             tliq0, tliqm, tliq0h  !cstep 
   use modsurfdata,     only: qts, thls, ps, dthldz, dqtdz
   use modmpi,          only: myid, d_mpi_bcast, commwrld, slabsum
   use modmicrodata,    only: imicro, imicro_bulk3, imicro_none
@@ -86,6 +87,24 @@ contains
 
   end function calc_virt_pot_temp
 
+  elemental function calc_virt_pot_temp_from_tliq(tliq, qt, ql, exn, zf) result(thv)
+
+    real(field_r), intent(in) :: tliq !< Liquid static energy divided by cp [K]
+    real(field_r), intent(in) :: qt   !< Total water specific humidity [kg/kg]
+    real(field_r), intent(in) :: ql   !< Liquid water specific humidity [kg/kg]
+    real(field_r), intent(in) :: exn  !< Exner function [-]
+    real(field_r), intent(in) :: zf   !< full level height [m]
+
+    real(field_r) :: th !< potential temperature [K]
+    real(field_r) :: thv !< Virtual potential temperature [K]
+
+    !thv = (thl + rlv * ql / (cp * exn)) * (1 + (rv / rd - 1) * qt - rv / rd * ql)
+    th = (tliq - gravocp*zf  + rlvocp * ql )/exn
+    thv = th * (1 + ep2 * qt -  ql/ep)
+
+  end function calc_virt_pot_temp_from_tliq
+
+
   !> Read thermodynamics namelist.
   subroutine thermodynamics_read_namelist(nml_filename)
 
@@ -126,6 +145,7 @@ contains
        allocate(tliq0    (2-ih:i1+ih,2-jh:j1+jh,k1))
        allocate(tliqm    (2-ih:i1+ih,2-jh:j1+jh,k1))
        allocate(tliqp    (2-ih:i1+ih,2-jh:j1+jh,k1))
+       allocate(tliq0h   (2-ih:i1+ih,2-jh:j1+jh,k1))
     end if
 
     !$acc enter data copyin(th0av, thv0, thetah, qth, qlh)
@@ -186,7 +206,7 @@ contains
       do k = 1, k1
         do j = 2, j1
           do i = 2, i1
-            T = thl0(i,j,k) * exnf(k)
+            T = thl0(i,j,k) * exnf(k)    !cstep include tliq version
             if (T < 150) then
               !$acc atomic write
               too_cold = .true.
@@ -207,27 +227,27 @@ contains
 
       ! Do the saturation adjustment on the full levels
 #if defined(DALES_GPU)
-      call saturation_adjustment_gpu(qt0, thl0, presf, exnf, ql0, opt_stream=1)
+      call saturation_adjustment_gpu(qt0, thl0, presf, exnf, ql0, opt_stream=1)  !cstep include tliq version
 #else
-      call saturation_adjustment(qt0, thl0, presf, exnf, ql0, opt_stream=1)
+      call saturation_adjustment(qt0, thl0, presf, exnf, ql0, opt_stream=1)      !cstep include tliq version
 #endif
 
       call diagfld
 
       ! Interpolate thl and qt to the half levels
-      call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
+      call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)  !cstep include tliq version
       call calc_halflev(qt0, dzf, dzhi, qts, iadv_qt == iadv_kappa, qt0h)
 
       ! Do saturation adjustment again on the half levels
 #if defined(DALES_GPU)
-      call saturation_adjustment_gpu(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1)
+      call saturation_adjustment_gpu(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1) !cstep include tliq version
 #else
-      call saturation_adjustment(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1)
+      call saturation_adjustment(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1) !cstep include tliq version
 #endif
 
       if (imicro /= imicro_none) then
         call calc_saturation_humidities(qt0, ql0, thl0, presf, exnf, esl, &
-                                        qvsl, qvsi)
+                                        qvsl, qvsi)   !cstep include tliq version
       end if
     else
       call calc_dry_tmp ! tmp0 is used in statistics
@@ -235,13 +255,17 @@ contains
       call diagfld
 
       ! Interpolate thl and qt to the half levels
-      call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
+      call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)   !cstep include tliq version
       call calc_halflev(qt0, dzf, dzhi, qts, iadv_qt == iadv_kappa, qt0h)
 
     end if
 
     ! recalculate thv and rho on the basis of results
-    call calthv
+    if (ltliq) then
+       call calthv_from_tliq
+    else
+       call calthv
+    end if
 
     !$acc parallel loop collapse(3) default(present) async(1)
     do k = 1, k1
@@ -294,7 +318,7 @@ contains
     deallocate(th0av, thv0, thetah, qth, qlh)
     if (ltliq) then
        !$acc exit data delete(tliq0, tliqm, tliqp)
-       deallocate(tliq0, tliqm, tliqp)
+       deallocate(tliq0, tliqm, tliqp)  
     end if
   end subroutine exitthermodynamics
 
@@ -315,7 +339,8 @@ contains
 
   !> Calculate thetav and dthvdz
   !> also calculates and stores tmp0 for statistics
-  subroutine calthv
+  subroutine calthv    !cstep can be written more compactly with variables defined in modglobal
+                       !cstep see cal_thv_from_tliq below
 
     character(len=*), parameter :: routine = modname//'/calthv'
 
@@ -452,6 +477,162 @@ contains
     call timer_toc(routine)
 
   end subroutine calthv
+
+  subroutine calthv_from_Tliq
+
+    character(len=*), parameter :: routine = modname//'/calthv_from_Tliq'
+
+    integer i, j, k
+    real(field_r)    qs
+    real(field_r)    a_surf,b_surf,dq,dth,dthv,temp
+    real(field_r)    a_dry, b_dry, a_moist, b_moist, c_liquid, chi_sat, chi
+    real(field_r)    del_thv_sat, del_thv_dry
+
+    call timer_tic(routine, 1)
+
+    if (lmoist) then
+      !$acc parallel loop collapse(3) default(present) async(1)
+      do k = 2, k1
+        do j = 2, j1
+          do i = 2, i1
+            !cstep thv0h(i,j,k) = calc_virt_pot_temp(thl0h(i,j,k), qt0h(i,j,k), &
+            !cstep                                  ql0h(i,j,k), exnh(k))
+
+             thv0h(i,j,k) = calc_virt_pot_temp_from_tliq (tliq0h(i,j,k), qt0h(i,j,k), &   !cstep: thetav needed for w-equation
+                                              ql0h(i,j,k), exnh(k) , zf(k))               !maybe replace by new variable like svirtual
+
+
+          end do
+        end do
+      end do
+
+      !TODO: fix the branching in this loop
+      !$acc parallel loop collapse(3) default(present) &
+      !$acc private(a_dry, b_dry, a_moist, b_moist, c_liquid, &
+      !$acc         chi_sat, chi, dthv, del_thv_dry, del_thv_sat, temp, qs, dq, dth) &
+      !$acc async(1)
+      do k = 2, kmax
+        do j = 2 , j1
+          do i = 2, i1
+!
+!         default thv jump computed unsaturated
+!
+!
+!cstep replace all thl0 by tliq0, see Entrainment in stratocumulus-topped mixed layers, Stevens, 2002, QJRMS 
+!
+            
+            !cstep ep2   =>    eps_I = 1/ep - 1  !cstep approx 0.608
+
+
+!cstep            dth = thl0(i,j,k+1)-thl0(i,j,k-1)
+            dth = tliq0(i,j,k+1)-tliq0(i,j,k-1)
+            dq  = qt0(i,j,k+1)-qt0(i,j,k-1)
+
+
+
+            
+
+            a_dry = 1 + ep2 * qt0(i,j,k)
+!cstep            b_dry = ep2 * thl0(i,j,k)
+            b_dry = ep2 * tliq0(i,j,k)
+
+
+            del_thv_dry = a_dry   * dth + b_dry * dq
+            dthv = del_thv_dry
+
+!cstep               temp = thl0(i,j,k)*exnf(k)+(rlv/cp)*ql0(i,j,k)
+            temp = tliq0(i,j,k) - gravocp * zf(k) - rlvocp * ql0(i,j,k)
+            tmp0(i,j,k) = temp !stored for statistics
+
+            if  (ql0(i,j,k)> 0) then  !include moist thermodynamics
+            
+               qs   = qt0(i,j,k) - ql0(i,j,k)
+
+               a_moist = (1-qt0(i,j,k)+qs/ep*(1+rlv/(rv*temp))) &
+                        /(1+rlv**2*qs/(cp*rv*temp**2))
+               b_moist = a_moist*rlv/cp-temp
+!cstep               c_liquid = a_dry * rlv / cp - thl0(i,j,k) / ep  !cstep Eq. (23) in Roode, Thermodynamics of cumulus clouds, 2007
+               c_liquid = a_dry * rlv / cp - tliq0(i,j,k) / ep
+
+               del_thv_sat = a_moist * dth + b_moist * dq
+
+               chi     = 2*chi_half*(zf(k) - zf(k-1))/(dzh(k)+dzh(k+1))
+               chi_sat = c_liquid * ql0(i,j,k) / (del_thv_dry - del_thv_sat)
+
+               if (chi < chi_sat) then  !mixed parcel is saturated
+                 dthv = del_thv_sat    !if chi.ge.chi_sat dthv = del_thv_dry as set above
+               end if
+!cstep            else
+!cstep                tmp0(i,j,k) = thl0(i,j,k)*exnf(k) !stored for statistics
+!cstep            end if
+            end if
+            dthvdz(i,j,k) = dthv/(dzh(k+1)+dzh(k))
+          end do
+        end do
+      end do
+
+      !$acc parallel loop collapse(2) default(present) private(temp, qs, a_surf, b_surf) async(1)   !cstep needs to be changed to include tliq0
+      do j=2,j1
+        do i=2,i1
+          if(ql0(i,j,1)>0) then
+            temp = thl0(i,j,1)*exnf(1)+(rlv/cp)*ql0(i,j,1)
+            tmp0(i,j,1) = temp !stored for statistics
+            qs   = qt0(i,j,1) - ql0(i,j,1)
+            a_surf   = (1-qt0(i,j,1)+rv/rd*qs*(1+rlv/(rv*temp))) &
+                      /(1+rlv**2*qs/(cp*rv*temp**2))
+            b_surf   = a_surf*rlv/(temp*cp)-1
+
+          else
+            tmp0(i,j,1) = thl0(i,j,1)*exnf(1) !stored for statistics
+            a_surf = 1+(rv/rd-1)*qt0(i,j,1)
+            b_surf = rv/rd-1
+
+          end if
+          dthvdz(i,j,1) = a_surf*dthldz(i,j) + b_surf*thl0(i,j,1)*dqtdz(i,j)
+        end do
+      end do
+
+    else
+      !$acc parallel loop collapse(3) default(present) async(1)
+      do k = 2, k1
+        do j = 2, j1
+          do i = 2, i1
+            thv0h(i,j,k)  = thl0h(i,j,k)
+          end do
+        end do
+      end do
+
+      !$acc parallel loop collapse(3) default(present) async(1)
+      do k = 2, kmax
+        do j = 2, j1
+          do i = 2, i1
+            dthvdz(i,j,k) = (thl0(i,j,k+1)-thl0(i,j,k-1))/(dzh(k+1)+dzh(k))
+          end do
+        end do
+      end do
+
+      !$acc parallel loop collapse(2) default(present) async(1)
+      do j = 2, j1
+        do i = 2, i1
+          dthvdz(i,j,1) = dthldz(i,j)
+        end do
+      end do
+    end if
+
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 1, kmax
+      do j = 2, j1
+        do i = 2, i1
+          if(abs(dthvdz(i,j,k)) < eps1) then
+            dthvdz(i,j,k) = sign(eps1, dthvdz(i,j,k))
+          end if
+        end do
+      end do
+    end do
+
+    call timer_toc(routine)
+
+  end subroutine calthv_from_Tliq
 
   !> Diagnones slab averaged fields assuming hydrostatic equilibrium.
   subroutine diagfld
