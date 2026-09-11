@@ -128,8 +128,8 @@ contains
 
   real function lognormal_cdf(d, dg, sigma_g)
 
-    real, intent(in) :: d, dg, sigma_g
-    real :: z
+    real(field_r) :: d, dg, sigma_g
+    real(field_r) :: z
 
     z = (log(d) - log(dg)) / (sqrt(2.0)*log(sigma_g))
 
@@ -139,8 +139,8 @@ contains
 
   real function lognormal_cdf_mass(d, dg, sigma_g)
 
-    real, intent(in) :: d, dg, sigma_g
-    real :: z
+    real(field_r) :: d, dg, sigma_g
+    real(field_r) :: z
 
     z = ( log(d) - log(dg) - 3.0*log(sigma_g)**2 ) / &
         ( sqrt(2.0)*log(sigma_g) )
