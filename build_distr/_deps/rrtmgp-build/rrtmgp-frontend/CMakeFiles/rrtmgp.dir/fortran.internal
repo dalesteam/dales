@@ -1,9 +1,0 @@
-# The fortran modules provided by this target.
-provides
- mo_aerosol_optics_rrtmgp_merra.mod
- mo_cloud_optics_rrtmgp.mod
- mo_gas_concentrations.mod
- mo_gas_optics.mod
- mo_gas_optics_constants.mod
- mo_gas_optics_rrtmgp.mod
- mo_gas_optics_util_string.mod
