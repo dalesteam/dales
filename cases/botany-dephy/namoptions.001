@@ -159,6 +159,8 @@ solver_id = 100 ! FFTW
 ! nudge to profiles given in nudge.inp.NNN
 lnudge     = .true.
 tnudgefac  = 1.
+lvnudge = .false. ! these are not provided in the netcdf input for botany-dephy
+lwnudge = .false. ! these are not provided in the netcdf input for botany-dephy
 /
 
 &VVUQ_extra
