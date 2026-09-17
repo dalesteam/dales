@@ -176,8 +176,6 @@
 
 &timer
     ltimer = .true.
-    ltimer_print = .true.
-    ltimer_write = .true.
 /
 
 ! this is run_0 from deep-botany (v4)
