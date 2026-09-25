@@ -24,13 +24,23 @@ module modsprayingdata
   integer :: k_spray = -999 !< Local k index of spraying point
 
   real(field_r) :: water_spray_rate = 1.    !< Water spray rate [kg/s]
-  real(field_r) :: salt_spray_rate  = 0.030 !< Salt spray rate [kg/s]
-  real(field_r) :: salinity = 0.03          !< Salinity of sprayed water [kg of salt per kg of seawater]
+  real(field_r) :: salt_spray_rate  = 0.035 !< Salt spray rate [kg/s]
+  real(field_r) :: salinity = 0.035          !< Salinity of sprayed water [kg of salt per kg of seawater]
+
+  real(field_r)::  spray_dg = 75e-9         !< Geometric Mean Diameter of dry sea salt aerosols sprayed [m]
+  real(field_r)::  spray_sigma_g = 1.59     !< Geometric Standard Deviation of dry sea salt aerosols sprayed 
+  logical ::       ldistribution  = .false.  !< Enable automatic distributing aerosols over modes based on spray_Dg and spray_sigma_g
+  real(field_r)::  particle_emission_rate   !< Define particle emission rate (dry sea salt aerosols) [number / sec]
 
   character(len=20) :: tracer = "salt"     !< Name of the sprayed scalar (only used if lcoupled is false)
   integer           :: isv_salt = -1       !< Tracer index for salt mass concentration
   integer           :: isv_salt_n = -1     !< Tracer index for salt number concentration (only used if lcoupled is true)
   character(len=3)  :: target_mode = 'acs' !< Aerosol mode to spray in (acs or cos), only used if lcoupled is true
+ 
+  integer :: isv_ss_acs    = -1
+  integer :: isv_ss_acs_n  = -1
+  integer :: isv_ss_cos    = -1
+  integer :: isv_ss_cos_n  = -1
 
   logical :: my_process_sprays = .false. !< Whether this process should apply spraying (i.e. whether the spraying point is located on this process)
 
