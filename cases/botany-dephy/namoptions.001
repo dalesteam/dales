@@ -11,6 +11,7 @@ randqt     =  2.5e-5
 courant    = .5
 peclet     = .1
 loutdirs = .true.
+iinput     = 2
 /
 
 &DOMAIN
@@ -158,6 +159,8 @@ solver_id = 100 ! FFTW
 ! nudge to profiles given in nudge.inp.NNN
 lnudge     = .true.
 tnudgefac  = 1.
+lvnudge = .false. ! these are not provided in the netcdf input for botany-dephy
+lwnudge = .false. ! these are not provided in the netcdf input for botany-dephy
 /
 
 &VVUQ_extra
