@@ -82,9 +82,12 @@ contains
     end if
 
     !$acc parallel loop gang default(present)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k = ks, ke
       fld_sum = 0
       !$acc loop vector collapse(2) reduction(+: fld_sum)
+      !$omp loop reduction(+:fld_sum) collapse(2)
       do j = js, je
         do i = is, ie
           fld_sum = fld_sum + field(i,j,k)
@@ -92,6 +95,9 @@ contains
       end do
       avg(k) = fld_sum * norm_fac
     end do
+
+    ! FIXME: do mpi on GPU
+    !$omp target update from(avg)
 
     ! TODO: experiment with non-blocking allreduce
     if (do_global) then
@@ -112,9 +118,10 @@ contains
   !! \param local Only compute average on local MPI domain.
   subroutine slabavg_r8(field, nh, avg, local)
 
-    real(real64), intent(in)  :: field(:,:,:)
+    ! BUG: contiguous attribute added for amdflang
+    real(real64), contiguous, intent(in)  :: field(:,:,:)
     integer,      intent(in)  :: nh
-    real(real64), intent(out) :: avg(:)
+    real(real64), contiguous, intent(out) :: avg(:)
 
     logical, optional, intent(in) :: local
 
@@ -143,9 +150,12 @@ contains
     end if
 
     !$acc parallel loop gang default(present)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k = ks, ke
       fld_sum = 0
       !$acc loop vector collapse(2) reduction(+: fld_sum)
+      !$omp loop reduction(+:fld_sum) collapse(2)
       do j = js, je
         do i = is, ie
           fld_sum = fld_sum + field(i,j,k)
@@ -153,6 +163,9 @@ contains
       end do
       avg(k) = fld_sum * norm_fac
     end do
+
+    ! FIXME: do mpi on GPU
+    !$omp target update from(avg)
 
     if (do_global) then
       !$acc host_data use_device(avg)
@@ -209,12 +222,16 @@ contains
       integer :: n_cells_tot(ks:ke)
 
       !$acc data create(n_cells_tot)
+!!$omp target data map(alloc:n_cells_tot)
 
       !$acc parallel loop gang default(present)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = ks, ke
         fld_sum = 0
         n_cells = 0
         !$acc loop vector collapse(2) reduction(+: fld_sum, n_cells)
+!!$omp loop reduction(+:fld_sum,n_cells) collapse(2)
         do j = js, je
           do i = is, ie
             test = merge(1, 0, mask(i,j,k))
@@ -228,19 +245,24 @@ contains
 
       if (do_global) then
         !$acc host_data use_device(avg, n_cells_tot)
+!!$omp target update from(avg,n_cells_tot)
         call mpi_allreduce(mpi_in_place, avg, ke, mpi_real4, mpi_sum, comm3d, &
                            mpierr)
         call mpi_allreduce(mpi_in_place, n_cells_tot, ke, mpi_integer, &
                            mpi_sum, comm3d, mpierr)
         !$acc end host_data
+!$omp target update to(avg,n_cells_tot)
       end if
 
       !$acc parallel loop gang default(present)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = ks, ke
         avg(k) = merge(avg(k) / n_cells_tot(k), fillvalue_, n_cells_tot(k) > 0)
       end do
 
       !$acc end data
+!!$omp end target data
 
     end block
 
@@ -292,12 +314,16 @@ contains
       integer :: n_cells_tot(ks:ke)
 
       !$acc data create(n_cells_tot)
+!!$omp target data map(alloc:n_cells_tot)
 
       !$acc parallel loop gang default(present)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = ks, ke
         fld_sum = 0
         n_cells = 0
         !$acc loop vector collapse(2) reduction(+: fld_sum, n_cells)
+!!$omp loop reduction(+:fld_sum,n_cells) collapse(2)
         do j = js, je
           do i = is, ie
             test = merge(1, 0, mask(i,j,k))
@@ -311,19 +337,24 @@ contains
 
       if (do_global) then
         !$acc host_data use_device(avg, n_cells_tot)
+!!$omp target update from(avg,n_cells_tot)
         call mpi_allreduce(mpi_in_place, avg, ke, mpi_real8, mpi_sum, comm3d, &
                            mpierr)
         call mpi_allreduce(mpi_in_place, n_cells_tot, ke, mpi_integer, &
                            mpi_sum, comm3d, mpierr)
         !$acc end host_data
+!$omp target update to(avg,n_cells_tot)
       end if
 
       !$acc parallel loop gang default(present)
+!!$omp target teams loop defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = ks, ke
         avg(k) = merge(avg(k) / n_cells_tot(k), fillvalue_, n_cells_tot(k) > 0)
       end do
 
       !$acc end data
+!!$omp end target data
 
     end block
 

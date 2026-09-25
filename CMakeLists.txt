@@ -45,6 +45,10 @@ ecbuild_add_option( FEATURE ACC
                     DESCRIPTION "Build with GPU support through OpenACC"
                     DEFAULT OFF )
 
+ecbuild_add_option( FEATURE OMP_GPU
+                    DESCRIPTION "Build with GPU support through OpenMP"
+                    DEFAULT OFF )
+
 ecbuild_add_option( FEATURE RRTMG
                     DESCRIPTION "Build with legacy RRTMG libraries"
                     ADVANCED DEFAULT ON )
@@ -110,25 +114,44 @@ if( ENABLE_ACC )
     set( OpenACC ON )
     ecbuild_info( "Found OpenACC" )
   endif()
+endif()
+if( ENABLE_OMP_GPU )
+  find_package( OpenMP COMPONENTS Fortran QUIET )
+  if( OpenMP_Fortran_FOUND )
+    set( OpenMP ON )
+    ecbuild_info( "Found OpenMP" )
+  endif()
+endif()
 
+if( ENABLE_ACC OR ENABLE_OMP_GPU )
   # Try to find CUDA, if it's not available try HIP instead
-  if( ENABLE_ACC )
-    dales_find_cuda()
-    if( NOT HAVE_CUDA )
-      dales_find_hip()
-    endif()
+  dales_find_cuda()
+  if( NOT HAVE_CUDA )
+    dales_find_hip()
   endif()
 
   # For debug builds, enable accelerator info
   if( ${CMAKE_Fortran_COMPILER_ID} MATCHES PGI|NVHPC )
-    ecbuild_add_fortran_flags( "-Minfo=accel" BUILD DEBUG ) 
+    ecbuild_add_fortran_flags( "-Minfo=accel" BUILD DEBUG )
   endif()
 
   add_compile_definitions( DALES_GPU )
 
+  if( ${CMAKE_Fortran_COMPILER_ID} MATCHES LLVMFlang )
+    add_compile_definitions( DALES_AMDGPU )
+    if( ENABLE_OMP_GPU )
+      # Arch can be found from `amdgpu-arch` command
+      ecbuild_add_fortran_flags( "-fopenmp --offload-arch=native" )
+    endif()
+  endif()
   # Disable automatic asynchronious kernel execution on Cray
   if( ${CMAKE_Fortran_COMPILER_ID} MATCHES Cray )
+    add_compile_definitions( DALES_AMDGPU )
     ecbuild_add_fortran_flags( "-h acc_model=auto_async_none" )
+    if( ENABLE_OMP_GPU )
+      ecbuild_add_fortran_flags( "-h noacc" )
+      ecbuild_add_fortran_flags( "-h omp" )
+    endif()
   endif()
 endif()
 

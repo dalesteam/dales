@@ -132,6 +132,8 @@ contains
     k_au = k_c / (20 * x_s)
 
     !$acc parallel loop collapse(3) default(present)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = qcbase, qcroof
       do j = 2, j1
         do i = 2, i1
@@ -219,6 +221,8 @@ contains
     end if
 
     !$acc parallel loop collapse(3) default(present)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = max(qrbase,qcbase), min(qrroof, qcroof)
       do j = 2, j1
         do i = 2, i1
@@ -247,6 +251,8 @@ contains
     end if
 
     !$acc parallel loop collapse(3) default(present)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = qrbase, qrroof
       do j = 2, j1
         do i = 2, i1
@@ -339,6 +345,8 @@ contains
     end if
 
     !$acc parallel loop collapse(3) default(present)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = qrbase, qrroof
       do j = 2, j1
         do i = 2, i1
@@ -394,6 +402,7 @@ contains
   !!
   !! @returns sedimentation rate of qr.
   elemental function calc_sed_qr_sb(qr, nr, rho) result(sed_qr)
+!$omp declare target
 
     real(field_r), intent(in) :: qr, nr, rho
     
@@ -420,6 +429,7 @@ contains
   !!
   !! @returns sedimentation rate of nr.
   elemental function calc_sed_nr_sb(qr, nr, rho) result(sed_nr)
+!$omp declare target
 
     real(field_r), intent(in) :: qr, nr, rho
     
@@ -639,6 +649,8 @@ contains
     real(field_r), save :: dt_spl
 
     !$acc parallel loop collapse(3) default(present)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
@@ -660,6 +672,7 @@ contains
     allocate(Nr_tmp(2:i1,2:j1,1:k1))
 
     !$acc enter data create(qr_spl, Nr_spl, qr_tmp, Nr_tmp)
+!$omp target enter data map(alloc:qr_spl,nr_spl,qr_tmp,nr_tmp)
 
     n_spl = ceiling(wfallmax * delt / minval(dzf))
     dt_spl = delt / real(n_spl, kind=field_r)
@@ -667,6 +680,8 @@ contains
     do jn = 1, n_spl ! time splitting loop
       if (jn == 1) then
         !$acc parallel loop collapse(3) default(present)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
         do k = 1, k1
           do j = 2, j1
             do i = 2, i1
@@ -680,6 +695,8 @@ contains
       else
         !Copy from tmp into spl
         !$acc parallel loop collapse(3) default(present)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
         do k = 1, k1
           do j = 2, j1
             do i = 2, i1
@@ -699,6 +716,8 @@ contains
       if (jn == 1) then
         if (l_lognormal) then
           !$acc parallel loop collapse(3) default(present) private(Dgr)
+!!$omp target teams loop private(dgr) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
           do k = qrbase, qrroof
             do j = 2, j1
               do i = 2, i1
@@ -719,6 +738,8 @@ contains
           end do
         else ! l_lognormal
           !$acc parallel loop collapse(3) default(present)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
           do k = qrbase, qrroof
             do j = 2, j1
               do i = 2, i1
@@ -749,6 +770,8 @@ contains
         k = 1
           if (l_lognormal) then
             !$acc parallel loop collapse(2) default(present) private(Dgr)
+!!$omp target teams loop private(dgr) collapse(2)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
             do j = 2, j1
               do i = 2, i1
                 if (qr_spl(i,j,k) > qrmin) then
@@ -776,6 +799,8 @@ contains
             end do
           else ! l_lognormal
             !$acc parallel loop collapse(2) default(present)
+!!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
             do j = 2, j1
               do i = 2, i1
                 if (qr_spl(i,j,k) > qrmin) then
@@ -800,6 +825,8 @@ contains
 
       if (l_lognormal) then
         !$acc parallel loop collapse(3) default(present) private(Dgr)
+!!$omp target teams loop private(dgr) collapse(3)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
         do k = sedimbase, qrroof
           do j = 2, j1
             do i = 2, i1
@@ -822,13 +849,17 @@ contains
                 end if
 
                 !$acc atomic update
+!!$omp atomic update
                 qr_tmp(i,j,k) = qr_tmp(i,j,k) - sed_qr * dt_spl / (dzf(k) * rhof(k))
                 !$acc atomic update
+!!$omp atomic update
                 Nr_tmp(i,j,k) = Nr_tmp(i,j,k) - sed_Nr * dt_spl / dzf(k)
 
                 !$acc atomic update
+!!$omp atomic update
                 qr_tmp(i,j,k-1) = qr_tmp(i,j,k-1) + sed_qr*dt_spl / (dzf(k-1) * rhof(k-1))
                 !$acc atomic update
+!!$omp atomic update
                 Nr_tmp(i,j,k-1) = Nr_tmp(i,j,k-1) + sed_Nr*dt_spl / dzf(k-1)
               end if
             end do
@@ -836,6 +867,8 @@ contains
         end do
       else
         !$acc parallel loop collapse(3) default(present)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
         do k = sedimbase, qrroof
           do j = 2, j1
             do i = 2, i1
@@ -852,13 +885,17 @@ contains
                 sed_Nr  = wfall_Nr * Nr_spl(i,j,k)
 
                 !$acc atomic update
+!!$omp atomic update
                 qr_tmp(i,j,k) = qr_tmp(i,j,k) - sed_qr * dt_spl / (dzf(k) * rhof(k))
                 !$acc atomic update
+!!$omp atomic update
                 Nr_tmp(i,j,k) = Nr_tmp(i,j,k) - sed_Nr * dt_spl / dzf(k)
 
                 !$acc atomic update
+!!$omp atomic update
                 qr_tmp(i,j,k-1) = qr_tmp(i,j,k-1) + sed_qr * dt_spl / (dzf(k-1) * rhof(k-1))
                 !$acc atomic update
+!!$omp atomic update
                 Nr_tmp(i,j,k-1) = Nr_tmp(i,j,k-1) + sed_Nr * dt_spl / dzf(k-1)
               end if
             end do
@@ -875,6 +912,8 @@ contains
     delt_inv = 1.0 / delt
 
     !$acc parallel loop collapse(3) default(present)
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
     do k = qrbase, qrroof
       do j = 2, j1
         do i = 2, i1
@@ -885,6 +924,7 @@ contains
     end do
 
     !$acc exit data delete(qr_spl, Nr_spl, qr_tmp, Nr_tmp)
+!$omp target exit data map(delete:qr_spl,nr_spl,qr_tmp,nr_tmp)
 
     deallocate(qr_spl, Nr_spl, qr_tmp, Nr_tmp)
 

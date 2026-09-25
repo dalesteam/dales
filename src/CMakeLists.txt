@@ -227,6 +227,7 @@ ecbuild_add_executable( TARGET dales
                           $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3f>
                           $<$<BOOL:${ENABLE_HYPRE}>:${HYPRE_LIB}>
                           $<$<BOOL:${HAVE_HIP}>:${HIPFORT_LIB}>
+                          $<$<BOOL:${HAVE_HIP}>:${HIPFFT_LIB}>
 )
 # Temporary
 #if( ENABLE_ACC )

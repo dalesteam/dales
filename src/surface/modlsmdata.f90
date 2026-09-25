@@ -54,6 +54,7 @@ module modlsmdata
   integer, parameter :: lu_default = 0
   integer, parameter :: lu_bs = 1
   integer, parameter :: lu_brn = 2
+  integer, parameter :: lu_slb = 3
 
   ! Data structure for sub-grid tiles
   type T_lsm_tile
