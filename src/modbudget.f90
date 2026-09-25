@@ -479,7 +479,8 @@ contains
     enddo
     tau2ml(k) = tau2ml(k)/ijtot
   enddo
-
+  ! tau3ml(k1) is not initialized, it is not used but it goes in the MPI allreduce. initialize to prevent fpe
+  tau3ml(k1) = 0.0
   do k=2,kmax
     kp = k+1
     km = k-1
