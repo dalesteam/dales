@@ -267,6 +267,7 @@ contains
   !
   subroutine define_nc(ncID, nVar, sx)
     implicit none
+    character(len=*), parameter :: routine = modname//'/define_nc'
     integer, intent (in) :: nVar, ncID
     character (*), intent (in) :: sx(nVar,4)
 
