@@ -737,7 +737,7 @@ subroutine checknamelisterror (ierr, ifnamopt, namelist)
      backspace(ifnamopt)
      read(ifnamopt,fmt='(A)') line
      print *, 'Invalid line: '//trim(line)
-     stop 'ERROR: Problem in namelist.'
+     call finish(namelist, 'ERROR: Problem in namelist.')
   endif
 end subroutine checknamelisterror
 

@@ -48,6 +48,8 @@ subroutine lsm
   use modslurb, only : slurb_radiation_model, slurb_canyon_model, slurb_energy_balance_model, slurb_set_previous_timestep, calc_canyon_resistances, calc_urban_resistances, slurb_urban_aggregation_model, slurb_update_external_vars, enable_slurb
   implicit none
 
+  character(len=*), parameter :: routine = modname//'/lsm'
+
     if (.not. llsm) return
     call timer_tic('lsm', 0)
 
@@ -58,7 +60,7 @@ subroutine lsm
     if (ldrydep) then
        call timer_tic('lsm_calc_tile_fractions', 0)
 #ifdef _OPENACC
-       stop "acc: unsupported calc_tile_fractions"
+       call finish(routine, "acc: unsupported calc_tile_fractions")
 #endif
        call calc_tile_fractions
        call timer_toc('lsm_calc_tile_fractions')
@@ -78,7 +80,7 @@ subroutine lsm
     if (lags) then
         call timer_tic('lsm_calc_canopy_resistance_ags', 0)
 #ifdef _OPENACC
-        stop "acc: unsupported lsm calc_canopy_resistance_ags"
+        call finish(routine, "acc: unsupported lsm calc_canopy_resistance_ags")
 #endif
         call calc_canopy_resistance_ags
         call timer_toc('lsm_calc_canopy_resistance_ags')
@@ -1134,6 +1136,7 @@ subroutine calc_bulk_bcs
     use modslurb, only : fraction_slurb, slurb_tile, enable_slurb
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/calc_bulk_bcs'
     integer :: i, j
     real :: ucu, vcv, bflux
 #ifndef _OPENACC
@@ -1310,7 +1313,7 @@ subroutine calc_bulk_bcs
     ustar_3D(1:i2,1:j2,1:1) => ustar
     if(lopenbc) then ! Only use periodicity for non-domain boundaries when openboundaries are used
 #ifdef _OPENACC
-       stop "acc: unsupported lsm openboundary_excjs"
+       call finish(routine, "acc: unsupported lsm openboundary_excjs")
 #endif
        call openboundary_excjs(ustar_3D, 2,i1,2,j1,1,1,1,1, &
             & (.not.lboundary(1:4)).or.lperiodic(1:4))

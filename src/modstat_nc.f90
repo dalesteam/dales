@@ -368,7 +368,7 @@ contains
           iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_qt ,VarID)
         case default
         print *, 'ABORTING: Bad dimensional information ',sx(n,:)
-        stop
+        call finish(routine, "ABORTING: Bad dimensional information ")
         ! call appl_abort(0)
 
       end select

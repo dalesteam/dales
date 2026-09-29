@@ -58,7 +58,7 @@ contains
       if (ierr > 0) then
         print *, 'Problem in namoptions NAMMSEBUDG'
         print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMMSEBUDG'
+        call finish(routine,  'ERROR: Problem in namoptions NAMMSEBUDG')
       endif
       write(nnml_output ,NAMMSEBUDG)
       close(ifnamopt)
