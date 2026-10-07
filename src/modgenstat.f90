@@ -87,6 +87,9 @@ module modgenstat
   integer(kind=longint) :: idtav,itimeav,tnext,tnextwrite
   logical :: lstat= .false. ! switch for conditional sampling cloud (on/off)
   integer :: nsamples
+  real    :: tstat(200) = -1 !< list of profile output times (optional)
+  integer(kind=longint) :: itstat(200) !< list of profile output times as integers (ms)
+  integer :: istat
 !     ----  total fields  ---
 
   real, allocatable  :: umn   (:)       ,vmn   (:),  wmn  (:)
@@ -190,7 +193,7 @@ contains
   subroutine initgenstat
     use modmpi, only : myid,mpierr, comm3d, D_MPI_BCAST
     use modglobal, only : i1, ih, j1, jh, kmax, k1, nsv, ifnamopt, fname_options, ifoutput, &
-                          cexpnr, dtav_glob, timeav_glob, dt_lim, btime, tres, &
+                          cexpnr, dtav_glob, timeav_glob, dt_lim, btime, timee, tres, &
                           lwarmstart, checknamelisterror
     use modstat_nc, only : lnetcdf, open_nc, ncinfo, define_nc, nctiminfo, writestat_dims_nc
     use modsurfdata, only : isurf, ksoilmax
@@ -206,7 +209,7 @@ contains
     character(40) :: name
 
     namelist/NAMGENSTAT/ &
-    dtav,timeav,lstat
+    dtav,timeav,lstat,tstat
 
     dtav=dtav_glob;timeav=timeav_glob
 
@@ -221,21 +224,39 @@ contains
     call D_MPI_BCAST(timeav     ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(dtav       ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lstat      ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(tstat    ,200,0,comm3d,mpierr)
+
     idtav = int(dtav/tres,kind=longint)
     itimeav = int(timeav/tres,kind=longint)
+    itstat = int(tstat / tres, kind=kind(itstat(1)))
 
-    tnext      = idtav   +btime
-    tnextwrite = itimeav +btime
-    nsamples = int(itimeav/idtav)
+    if (itstat(1) >= 0) then
+       ! handle tstat list of output times
+       tnext = -1
+       tnextwrite = -1
+       nsamples = 1
+       do istat = 1,200
+          if (itstat(istat) > timee) then
+             tnext = itstat(istat)
+             tnextwrite = tnext ! no averaging with this option
+             exit
+          end if
+       end do
+    else
+       tnext      = idtav   +btime
+       tnextwrite = itimeav +btime
+       nsamples = int(itimeav/idtav)
+
+       if (abs(timeav/dtav-nsamples)>1e-4) then
+          call finish(routine, 'timeav must be a integer multiple of dtav')
+       end if
+    end if
+
     if(.not.(lstat)) return
 
     call timer_tic('modgenstat/initgenstat', 0)
 
-    dt_lim = min(dt_lim,tnext)
-
-    if (abs(timeav/dtav-nsamples)>1e-4) then
-      call finish(routine, 'timeav must be a integer multiple of dtav')
-    end if
+    if (tnext > timee) dt_lim = min(dt_lim,tnext)
 
     allocate(umn(k1),vmn(k1),wmn(k1))
     allocate(thlmn (k1)       ,thvmn (k1))
@@ -510,6 +531,8 @@ contains
     if (.not. lstat) return
     if (rk3step/=3) return
 
+    if (tnext < 0) return
+
     if(timee<tnext .and. timee<tnextwrite) then
       dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
       return
@@ -517,15 +540,30 @@ contains
 
     call timer_tic('modgenstat/genstat', 0)
 
-    if (timee>=tnext) then
-      tnext = tnext+idtav
-      call do_genstat
+    if (itstat(1) >= 0) then        ! handle tstat list of times
+       call do_genstat
+       call writestat
+       if (istat < 200) then
+          istat = istat + 1
+          tnext = itstat(istat)
+       else
+          tnext = -1
+       end if
+       tnextwrite = tnext
+    else
+       if (timee>=tnext) then
+          tnext = tnext+idtav
+          call do_genstat
+       end if
+       if (timee>=tnextwrite) then
+          tnextwrite = tnextwrite+itimeav
+          call writestat
+       end if
     end if
-    if (timee>=tnextwrite) then
-      tnextwrite = tnextwrite+itimeav
-      call writestat
+
+    if (tnext > 0 .and. tnextwrite > 0) then
+       dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
     end if
-    dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
 
     call timer_toc('modgenstat/genstat')
 
@@ -535,7 +573,7 @@ contains
 
     use modfields, only : u0,v0,w0,thl0,qt0,qt0h, &
                           ql0,ql0h,thl0h,thv0h,sv0,exnf,exnh,tmp0,presf, &
-                          um, vm, wm, svm, qtm, thlm, e12m  
+                          um, vm, wm, svm, qtm, thlm, e12m
     use modsurfdata,only: thls,qts,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp,dzhi, &

@@ -69,18 +69,21 @@ save
   logical :: lekh = .false.       !< switch for saving the ekh field
   logical :: lekm = .false.       !< switch for saving the ekm field
   logical :: lsv(100) = .true.   !< switches for saving the sv fields
+  real    :: tfielddump(200) = -1 !< list of fielddump output times (optional)
+  integer(kind=longint) :: itfielddump(200) !< list of fielddump output times as integers (ms)
 
   ! indices for the variables in the netCDF vars array
   integer :: ind, ind_u=-1, ind_v=-1, ind_w=-1, ind_qt=-1, ind_ql=-1, ind_thl=-1, ind_buoy=-1, ind_sv(100)=-1
   integer :: ind_cli=-1, ind_clw=-1, ind_ta=-1, ind_plw=-1, ind_pli=-1, ind_hus=-1, ind_hur=-1, ind_tntr=-1
   integer :: ind_tntrs=-1, ind_tntrl=-1, ind_e12=-1, ind_ekh=-1, ind_ekm=-1
 
+  integer idump
 contains
 !> Initializing fielddump. Read out the namelist, initializing the variables
   subroutine initfielddump
     use modmpi,   only :myid,comm3d,myidx,myidy,D_MPI_BCAST
     use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres,&
-         checknamelisterror, output_prefix
+         checknamelisterror, output_prefix, timee
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modtracers, only : tracer_prop, get_tracer_index
     use modmicrodata, only : imicro, imicro_sice, imicro_sice2
@@ -94,7 +97,8 @@ contains
 
     namelist/NAMFIELDDUMP/ &
          dtav,lfielddump,ldiracc,lbinary,klow,khigh,ncoarse, tmin, tmax,&
-         lu, lv, lw, lqt, lql, lthl, lbuoy, lcli, lclw, lta, lplw, lpli, lhus, lhur, ltntr, ltntrs, ltntrl, le12, lekh, lekm,  lsv
+         lu, lv, lw, lqt, lql, lthl, lbuoy, lcli, lclw, lta, lplw, lpli,&
+         lhus, lhur, ltntr, ltntrs, ltntrl, le12, lekh, lekm, lsv, tfielddump
 
     dtav=dtav_glob
     klow=1
@@ -152,14 +156,30 @@ contains
     call D_MPI_BCAST(lekh        ,1,0,comm3d,ierr)
     call D_MPI_BCAST(lekm        ,1,0,comm3d,ierr)
     call D_MPI_BCAST(lsv       ,100,0,comm3d,ierr)
+    call D_MPI_BCAST(tfielddump,200,0,comm3d,ierr)
 
     idtav = int(dtav / tres, kind=kind(idtav))
     itmin = int(tmin / tres, kind=kind(itmin))
     itmax = int(tmax / tres, kind=kind(itmax))
 
-    tnext      = idtav   +btime
+    itfielddump = int(tfielddump / tres, kind=kind(itfielddump(1)))
+
+    if (itfielddump(1) >= 0) then
+       ! handle tfielddump list of fielddump times
+       ! todo:  handle ladaptive = .false.
+       tnext = -1
+       do idump = 1,200
+          if (itfielddump(idump) > timee) then
+             tnext = itfielddump(idump)
+             exit
+          end if
+       end do
+    else
+       tnext      = idtav   +btime
+    end if
+
     if(.not.(lfielddump)) return
-    dt_lim = min(dt_lim,tnext)
+    if (tnext > timee) dt_lim = min(dt_lim,tnext)
 
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
       call finish(routine, 'dtav should be a integer multiple of dtmax')
@@ -280,10 +300,10 @@ contains
            ind_sv(n) = ind
            ind = ind + 1
            write (csvname(1:3),'(i3.3)') n
-           call ncinfo(ncname(ind_sv(n),:), tracer_prop(n)%tracname, tracer_prop(n)%traclong, tracer_prop(n)%unit, 'tttt')    
+           call ncinfo(ncname(ind_sv(n),:), tracer_prop(n)%tracname, tracer_prop(n)%traclong, tracer_prop(n)%unit, 'tttt')
         end if
      end do
-     
+
       nvar = ind - 1 ! total number of fields actually in use
 
       call open_nc(trim(output_prefix)//fname,  ncid,nrec,n1=ceiling(1.0*imax/ncoarse),n2=ceiling(1.0*jmax/ncoarse),n3=khigh-klow+1)
@@ -325,17 +345,26 @@ contains
     integer :: writecounter = 1
     integer :: reclength
 
-
     if (.not. lfielddump) return
     if (rk3step/=3) return
-
-    if(timee<tnext) then
+    if (tnext<0) return
+    if (timee<tnext) then
       dt_lim = min(dt_lim,tnext-timee)
       return
     end if
 
-    tnext = tnext+idtav
-    dt_lim = minval((/dt_lim,tnext-timee/))
+    if (itfielddump(1) >= 0) then
+       ! handle tfielddump list of fielddump times
+       if (idump < 200) then
+          idump = idump + 1
+          tnext = itfielddump(idump)
+       else
+          tnext = -1
+       end if
+    else
+       tnext = tnext+idtav
+    end if
+    if (tnext > timee) dt_lim = minval((/dt_lim,tnext-timee/))
 
     ! Only write fields if time is in the range (tmin, tmax)
     if (timee < itmin .or. timee > itmax) return
@@ -354,7 +383,7 @@ contains
     !$acc update self(e120) if(le12) async
     !$acc update self(ekm) if(lekm) async
     !$acc update self(ekh) if(lekh) async
-    !$acc wait    
+    !$acc wait
 
     if (lbinary) allocate(field(2-ih:i1+ih,2-jh:j1+jh,k1))
     if (lnetcdf) allocate(vars(ceiling(1.0*imax/ncoarse),ceiling(1.0*jmax/ncoarse),khigh-klow+1,nvar))
