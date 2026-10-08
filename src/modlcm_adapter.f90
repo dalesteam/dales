@@ -13,7 +13,7 @@ module modlcm_adapter
                                  lcm_initialize, lcm_advance
   use modfields, only : u0, v0, w0, tmp0, dse0, qv0, presf, rhof
   use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1, &
-                        ih, jh, kh, dx, dy, dzf, zf, zh, rdt, rk3step, cp
+                        ih, jh, kh, dx, dy, dzf, zf, zh, rdt, cp
   use modlcm_namelist, only : lcm_apply_namelist_config
   use modmpi, only : comm3d, myidx, myidy
 #ifdef LCM_VALIDATION_CHECKS
@@ -26,7 +26,7 @@ module modlcm_adapter
 
   public :: configure_lcm_runtime
   public :: init_lcm
-  public :: lcm_microphysics
+  public :: advance_lcm_step
 
   type(lcm_grid_t), save :: lcm_grid
   type(lcm_parallel_t), save :: lcm_parallel
@@ -80,14 +80,12 @@ contains
 #endif
   end subroutine init_lcm
 
-  subroutine lcm_microphysics()
-    ! DALES evaluates microphysics during all three Runge-Kutta stages.
-    ! LCM is operator-split and advances once per complete DALES timestep.
-    if (rk3step /= 3) return
-
+  subroutine advance_lcm_step()
+    ! Called once after the final RK integration, boundaries and thermodynamics
+    ! by lcm_microphysics; rdt is the full atmospheric timestep.
     call update_lcm_static_energy_temperature_units()
     call lcm_advance(real(rdt, kind=real64))
-  end subroutine lcm_microphysics
+  end subroutine advance_lcm_step
 
   subroutine update_lcm_static_energy_temperature_units()
     if (.not. allocated(lcm_static_energy)) then
