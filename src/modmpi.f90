@@ -201,10 +201,10 @@ contains
        call mpi_error_string(mpierr, str, len, err)
        if (err /= MPI_SUCCESS) then
           print *, 'Another error occurred when looking up the error code', err
-          STOP
+          ERROR STOP ! MPI is somehow messed up, so let's not depend on complicated error routines
        endif
        print *, trim(str)
-       STOP
+       ERROR STOP ! MPI is somehow messed up, so let's not depend on complicated error routines
     endif
   end subroutine checkmpierror
 
