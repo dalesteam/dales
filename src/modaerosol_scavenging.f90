@@ -2,9 +2,10 @@
 module modaerosol_scavenging
 
   use bulkmicro_kk,      only: calc_sed_qr_kk
+  use bulkmicro_sb,      only: calc_sed_qr_sb
   use modaerosol_common, only: calc_median_diameter, maxspecies
   use modaerosol_mode_t, only: aerosol_mode_t, hydrometeor_mode_t
-  use modbulkmicro_data, only: qrmin, qcmin
+  use modbulkmicro_data, only: qrmin, qcmin, l_sb
   use modglobal,         only: i1, j1, kmax, ih, jh, rhow, pi
   use modmpi,            only: myid, d_mpi_bcast
   use modprecision,      only: field_r
@@ -161,7 +162,11 @@ contains
     do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
-          sed_qr = calc_sed_qr_kk(qr(i,j,k), nr(i,j,k), rho(k)) * 3600
+          if (l_sb) then
+            sed_qr = calc_sed_qr_sb(qr(i,j,k), nr(i,j,k), rho(k)) * 3600
+          else
+            sed_qr = calc_sed_qr_kk(qr(i,j,k), nr(i,j,k), rho(k)) * 3600
+          end if
           if (qr(i,j,k) > qrmin .and. sed_qr > 0.01 .and. f_mode%nspecies > 0 .and. nr(i,j,k) > 1E3) then
             sed_qr = log(sed_qr)
             sed_qr = min(max(sed_qr, -4.60517_field_r), 4.60517_field_r)
