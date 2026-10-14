@@ -47,7 +47,7 @@ module modstat_nc
     logical :: lnetcdf = .true.
     logical :: lsync   = .false.     ! Sync NetCDF file after each writestat_*_nc
     logical :: lclassic = .false.    ! Create netCDF in CLASSIC format (less RAM usage, compression not supported)
-    logical :: lparallel = .true.    !< Enable parallel I/O when supported by the library and when running with MPI.
+    logical :: lparallel = .false.   !< Enable parallel I/O when supported by the library and when running with MPI.
     integer :: deflate = 2           ! Deflate level for netCDF files (only for NETCDF4 format)
 
     integer, save :: timeID=0, ztID=0, zmID=0, xtID=0, xmID=0, ytID=0, ymID=0,ztsID=0, zqID=0
