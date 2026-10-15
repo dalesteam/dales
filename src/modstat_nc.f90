@@ -146,6 +146,7 @@ contains
         call warning(routine, 'Parallel I/O requested but not supported by the&
           & NetCDF library. Falling back to serial I/O.')
       end if
+      call warning(routine, 'Warm starts do not work with parallel I/O yet.')
     else
       NC_HAVE_PARALLEL = .false.
     end if
