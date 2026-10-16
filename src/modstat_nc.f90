@@ -522,8 +522,8 @@ contains
         end do
         if (length == imax .or. lproc) then
           ! Add offset for this rank
-          dim_vals_t(:) = dim_vals_t(:) + myidx * imax
-          dim_vals_m(:) = dim_vals_m(:) + myidx * imax
+          dim_vals_t(:) = dim_vals_t(:) + myidx * imax * dx
+          dim_vals_m(:) = dim_vals_m(:) + myidx * imax * dx
         end if
       end if
       ! Now write the coordinate info
@@ -550,8 +550,8 @@ contains
         end do
         if (length == jmax .or. lproc) then
           ! Add offset for this rank
-          dim_vals_t(:) = dim_vals_t(:) + myidy * jmax
-          dim_vals_m(:) = dim_vals_m(:) + myidy * jmax
+          dim_vals_t(:) = dim_vals_t(:) + myidy * jmax * dy
+          dim_vals_m(:) = dim_vals_m(:) + myidy * jmax * dy
         end if
       end if
       ! Now write the coordinate info
