@@ -338,6 +338,9 @@ contains
     !$acc enter data copyin(timenudge, unudge, vnudge, wnudge, thlnudge, &
     !$acc&                  qtnudge, tunudge, tvnudge, twnudge, tthlnudge, &
     !$acc&                  tqtnudge, svnudge, tsvnudge)
+!$omp target enter data map(to:timenudge,unudge,vnudge,wnudge,thlnudge,&
+!$omp qtnudge,tunudge,tvnudge,twnudge,tthlnudge,tqtnudge,svnudge,&
+!$omp tsvnudge)
 
     call timer_toc(routine)
   end subroutine initnudge
@@ -373,6 +376,8 @@ contains
 
     if (lunudge) then
       !$acc parallel loop collapse(3) private(currtnudge) default(present) async
+      !$omp target teams loop private(currtnudge) collapse(3)&
+      !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do k = 1, kmax
         do j = 2, j1
           do i = 2, i1
@@ -387,6 +392,8 @@ contains
 
     if (lvnudge) then
       !$acc parallel loop collapse(3) default(present) private(currtnudge) async
+      !$omp target teams loop private(currtnudge) collapse(3)&
+      !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do k = 1, kmax
         do j = 2, j1
           do i = 2, i1
@@ -401,6 +408,8 @@ contains
 
     if (lwnudge) then
       !$acc parallel loop collapse(3) default(present) private(currtnudge) async
+      !$omp target teams loop private(currtnudge) collapse(3)&
+      !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do k = 1, kmax
         do j = 2, j1
           do i = 2, i1
@@ -415,6 +424,8 @@ contains
 
     if (lthlnudge) then
       !$acc parallel loop collapse(3) default(present) private(currtnudge) async
+      !$omp target teams loop private(currtnudge) collapse(3)&
+      !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do k = 1, kmax
         do j = 2, j1
           do i = 2, i1
@@ -429,6 +440,8 @@ contains
 
     if (lqtnudge) then
       !$acc parallel loop collapse(3) default(present) private(currtnudge) async
+      !$omp target teams loop private(currtnudge) collapse(3)&
+      !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do k = 1, kmax
         do j = 2, j1
           do i = 2, i1
@@ -446,6 +459,8 @@ contains
         if (tracer_prop(n) % lnudge) then
           !$acc parallel loop collapse(3) default(present) private(currtnudge) &
           !$acc& async
+          !$omp target teams loop private(currtnudge) collapse(3)&
+          !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
           do k = 1, kmax
             do j = 2, j1
               do i = 2, i1

@@ -124,8 +124,8 @@ program DALES
 !     0.3     USE STATEMENTS FOR GPU UTILITIES
 !----------------------------------------------------------------
 
-#if defined(_OPENACC)
-  use modgpu, only: update_gpu, host_is_updated
+#if defined(DALES_GPU)
+  use modgpu, only: update_gpu, update_host, host_is_updated
 #endif
 
   implicit none
@@ -181,7 +181,7 @@ program DALES
   call init_profiles
   call init_precursor
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
   call update_gpu
 #endif
 
@@ -288,13 +288,14 @@ program DALES
 
         call tstep_integrate                        ! Apply tendencies to all variables
 
+        ! XXX: acc bug here
         call msebudg1
         ! NOTE: the tendencies are not zeroed yet, but kept for analysis and statistcis
         !       Do not change them below this point.
         if(lopenbc) then
           call openboundary_ghost
         else
-          call boundary
+           call boundary(on_gpu=.true.)
         endif
 
 
@@ -344,7 +345,7 @@ program DALES
 
         call reset_tendencies
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
         host_is_updated = .false.
 #endif
         call timer_toc('program/timestep')

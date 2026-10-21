@@ -497,6 +497,18 @@ contains
     !$acc&                  w2av, w2subav, qt2av, thl2av, thv2av, th2av, svmav, svpav, svptav, sv2av, w3av, &
     !$acc&                  ql2av, thvmav, thmav, thv0, sv0h, hurav, clwav, cliav, plwav, pliav, taav, &
     !$acc&                  hurmn, clwmn, climn, plwmn, plimn, tamn)
+    !$omp target enter data map(to:umn,vmn,wmn,thlmn,thvmn,qtmn,qlmn,qlhmn,&
+    !$omp cfracmn,wthlsmn,wthlrmn,wthltmn,wthvsmn,wthvrmn,wthvtmn,wqtsmn,&
+    !$omp wqtrmn,wqttmn,wqlsmn,wqlrmn,wqltmn,uwtmn,vwtmn,uwrmn,vwrmn,uwsmn,&
+    !$omp vwsmn,u2mn,v2mn,w2mn,w2submn,skewmn,qt2mn,thl2mn,thv2mn,th2mn,&
+    !$omp ql2mn,svmmn,svpmn,svpav,svptmn,svptav,sv2mn,wsvsmn,wsvrmn,wsvtmn,&
+    !$omp cszav,cszmn,qlmnlast,wthvtmnlast,qlhav,wqlsub,wqlres,wthlsub,&
+    !$omp wthlres,wqtsub,wqtres,wthvsub,wthvres,wqttot,wqltot,wthltot,&
+    !$omp wthvtot,wsvsub,wsvres,wsvtot,uwres,vwres,uwsub,vwsub,uwtot,vwtot,&
+    !$omp umav,vmav,wmav,thvmav,thlmav,qtmav,qlmav,cfracav,u2av,v2av,w2av,&
+    !$omp w2subav,qt2av,thl2av,thv2av,th2av,svmav,svpav,svptav,sv2av,w3av,&
+    !$omp ql2av,thvmav,thmav,thv0,sv0h,hurav,clwav,cliav,plwav,pliav,taav,&
+    !$omp hurmn,clwmn,climn,plwmn,plimn,tamn)
 
     call timer_toc('modgenstat/initgenstat')
 
@@ -564,6 +576,7 @@ contains
     real :: hurav_s, clwav_s, cliav_s, plwav_s, pliav_s
     real :: wsvsub_s, wsvres_s
     real :: a_dry, b_dry, a_moist, b_moist
+    real :: sqlhav,swthlsub,swqtsub,swthvsub,suwsub,svwsub,shurav,sclwav,scliav
 
     call timer_tic('modgenstat/do_genstat', 1)
 
@@ -572,59 +585,70 @@ contains
     !---    ------------------------------
     !--------------------------------------------------------
 
-    !$acc kernels default(present)
-    qlhav = 0.0
-    u2av = 0.0
-    v2av = 0.0
-    w2av = 0.0
-    w3av = 0.0
-    w2subav = 0.0
-    qt2av = 0.0
-    thl2av = 0.0
-    thv2av = 0.0
-    th2av = 0.0
-    ql2av = 0.0
-    thvmav = 0.0
-    wqtsub = 0.0
-    wqtres = 0.0
-    wqlsub = 0.0
-    wqlres = 0.0
-    umav = 0.0
-    vmav = 0.0
-    wmav = 0.0
-    thlmav = 0.0
-    thmav = 0.0
-    qtmav = 0.0
-    qlmav = 0.0
-    wthlsub = 0.0
-    wthlres = 0.0
-    wthvsub = 0.0
-    wthvres = 0.0
-    sv2av = 0.0
-    uwres = 0.0
-    vwres = 0.0
-    uwsub = 0.0
-    vwsub = 0.0
-    svmav = 0.0
-    wqltot = 0.0
-    wqttot = 0.0
-    wthvtot = 0.0
-    wthltot = 0.0
-    uwtot = 0.0
-    vwtot = 0.0
-    wsvsub = 0.0
-    wsvres = 0.0
-    sv2av = 0.0
-    cfracav= 0.0
-    cszav = 0.0
-    taav = 0.0
-    hurav = 0.0
-    clwav = 0.0
-    cliav = 0.0
-    plwav = 0.0
-    pliav = 0.0
+     !$acc parallel loop default(present)
+     !$omp target teams loop defaultmap(present:aggregate)&
+     !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+     do k=1,k1
+        qlhav(k) = 0.0
+        u2av(k) = 0.0
+        v2av(k) = 0.0
+        w2av(k) = 0.0
+        w3av(k) = 0.0
+        w2subav(k) = 0.0
+        qt2av(k) = 0.0
+        thl2av(k) = 0.0
+        thv2av(k) = 0.0
+        th2av(k) = 0.0
+        ql2av(k) = 0.0
+        thvmav(k) = 0.0
+        wqtsub(k) = 0.0
+        wqtres(k) = 0.0
+        wqlsub(k) = 0.0
+        wqlres(k) = 0.0
+        umav(k) = 0.0
+        vmav(k) = 0.0
+        wmav(k) = 0.0
+        thlmav(k) = 0.0
+        thmav(k) = 0.0
+        qtmav(k) = 0.0
+        qlmav(k) = 0.0
+        wthlsub(k) = 0.0
+        wthlres(k) = 0.0
+        wthvsub(k) = 0.0
+        wthvres(k) = 0.0
+        uwres(k) = 0.0
+        vwres(k) = 0.0
+        uwsub(k) = 0.0
+        vwsub(k) = 0.0
+        wqltot(k) = 0.0
+        wqttot(k) = 0.0
+        wthvtot(k) = 0.0
+        wthltot(k) = 0.0
+        uwtot(k) = 0.0
+        vwtot(k) = 0.0
+        cfracav(k) = 0.0
+        cszav(k) = 0.0
+        taav(k) = 0.0
+        hurav(k) = 0.0
+        clwav(k) = 0.0
+        cliav(k) = 0.0
+        plwav(k) = 0.0
+        pliav(k) = 0.0
+     end do
 
-    !$acc end kernels
+     if (nsv > 0) then
+        !$acc parallel loop collapse(2) default(present)
+        !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+        !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+        do n=1,nsv
+           do k=1,k1
+              sv2av(k,n) = 0.0
+              svmav(k,n) = 0.0
+              wsvsub(k,n) = 0.0
+              wsvres(k,n) = 0.0
+           end do
+        end do
+     end if
 
     !-------------------------------------------------------------
     ! 2     CALCULATE SLAB AVERAGED OF FLUXES AND SEVERAL MOMENTS
@@ -634,6 +658,8 @@ contains
     !------------------------------------------
 
     !$acc parallel loop collapse(3) default(present) async(1)
+    !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k = 1, k1
       do j = 2, j1
         do i = 2, i1
@@ -644,6 +670,8 @@ contains
     enddo
 
     !$acc parallel loop default(present) async(1)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k = 1, k1
       cfracav(k) = cfracav(k)+count(ql0(2:i1,2:j1,k)>0)
     end do
@@ -664,19 +692,32 @@ contains
       enddo
     end if
 
-    !$acc kernels default(present) async(1)
-    umav    = umav    / ijtot + cu
-    vmav    = vmav    / ijtot + cv
-    wmav    = wmav    / ijtot
-    thlmav  = thlmav  / ijtot
-    qtmav   = qtmav   / ijtot
-    qlmav   = qlmav   / ijtot
-    taav    = taav    / ijtot
-    thvmav  = thvmav  / ijtot
-    svmav   = svmav   / ijtot
-    thmav   = thlmav + (rlv/cp)*qlmav/exnf
-    cszav   = csz
-    !$acc end kernels
+    !$acc parallel loop default(present) async(1)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+    do k=1,k1
+       umav(k)    = umav(k)    / ijtot + cu
+       vmav(k)    = vmav(k)    / ijtot + cv
+       wmav(k)    = wmav(k)    / ijtot
+       thlmav(k)  = thlmav(k)  / ijtot
+       qtmav(k)   = qtmav(k)   / ijtot
+       qlmav(k)   = qlmav(k)   / ijtot
+       taav(k)    = taav(k)    / ijtot
+       thvmav(k)  = thvmav(k)  / ijtot
+       thmav(k)   = thlmav(k) + (rlv/cp)*qlmav(k)/exnf(k)
+       cszav(k)   = csz(k)
+    end do
+
+    if (nsv > 0) then
+       !$acc parallel loop collapse(2) default(present) async(1)
+       !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+       !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+       do n=1,nsv
+          do k=1,k1
+             svmav(k,n) = svmav(k,n) / ijtot
+          end do
+       end do
+    end if
 
     !-------------------------------------------
     ! 2.2 SLAB AVERAGES OF DIAGNOSTICS VARIABLES
@@ -685,6 +726,7 @@ contains
     !-------------------------------------------
 
     !$acc update self(exnh(1))
+    !$omp target update from(exnh(1))
 
     qls   = 0.0 ! hj: no liquid water at the surface
     tsurf = thls*exnh(1)+(rlv/cp)*qls
@@ -707,6 +749,7 @@ contains
     cthl = (exnh(1)*cp/rlv)*((1-den)/den)
     cqt = 1./den
 
+#ifndef DALES_AMDGPU
     !$acc parallel loop collapse(2) default(present) private(upcu, vpcv, ilratio) &
     !$acc& reduction(+: qlhav(1), wthlsub(1), wqtsub(1), wthvsub(1), uwsub(1), vwsub(1), hurav(1), clwav(1), cliav(1)) async(1)
     do j = 2, j1
@@ -737,6 +780,53 @@ contains
         cliav(1) = cliav(1) + ql0(i,j,1) * (1-ilratio)
       end do
     end do
+#else
+    ! NOTE: reduction on array seems unsupported
+    !$omp target teams loop private(upcu,vpcv,ilratio)&
+    !$omp reduction(+:sqlhav,swthlsub,swqtsub,swthvsub,suwsub,&
+    !$omp svwsub,shurav,sclwav,scliav) collapse(2)&
+    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
+    do j = 2, j1
+      do i = 2, i1
+        sqlhav = sqlhav + ql0h(i,j,1)
+        swthlsub = swthlsub + thlflux(i,j)
+        swqtsub = swqtsub + qtflux (i,j)
+        swthvsub = swthvsub + ( c1*thlflux(i,j)+c2*thls*qtflux(i,j) ) !hj: thv0 replaced by thls
+        wqlsub(1) = 0.0
+
+        !Momentum flux
+        upcu = um(i, j, 1) + cu
+        upcu = sign(1._field_r, upcu) * max(abs(upcu), eps1)
+
+        suwsub = suwsub - (0.5 * (ustar(i,j) + ustar(i-1,j)))**2 &
+                    * upcu / sqrt(upcu**2 + ((vm(i,j,1) + vm(i-1,j,1) + vm(i,j+1,1) + vm(i-1,j+1,1)) / 4. + cv)**2)
+
+        vpcv = vm(i, j, 1) + cv
+        vpcv = sign(1._field_r, vpcv) * max(abs(vpcv), eps1)
+
+        svwsub = svwsub - (0.5 * (ustar(i,j) + ustar(i,j-1)))**2 &
+                    * vpcv / sqrt(vpcv**2 + ((um(i,j,1) + um(i+1,j,1) + um(i,j-1,1) + um(i+1,j-1,1)) / 4. + cu)**2)
+
+        shurav = shurav + 100 * (qt0(i,j,1) - ql0(i,j,1)) / qsat_tab(tmp0(i,j,1), presf(1))
+
+        ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,1)-tdn) / (tup-tdn)))
+        sclwav = sclwav + ql0(i,j,1) * ilratio
+        scliav = scliav + ql0(i,j,1) * (1-ilratio)
+      end do
+    end do
+
+    !$omp target defaultmap(present:allocatable)
+    qlhav(1)=sqlhav
+    wthlsub(1)=swthlsub
+    wqtsub(1)=swqtsub
+    wthvsub(1)=swthvsub
+    uwsub(1)=suwsub
+    vwsub(1)=svwsub
+    hurav(1)=shurav
+    clwav(1)=sclwav
+    cliav(1)=scliav
+    !$omp end target
+#endif
 
     !-------------------------------------------
     !     HIGHER LAYERS
@@ -746,6 +836,10 @@ contains
     !$acc& private(qlhav_s, wqlsub_s, wqlres_s, wthlsub_s, wthlres_s, wthvsub_s, wthvres_s, &
     !$acc&         wqtsub_s, wqtres_s, uwres_s, vwres_s, uwsub_s, vwsub_s, &
     !$acc&         hurav_s, clwav_s, cliav_s, plwav_s, pliav_s) async(1)
+    !$omp target teams loop private(qlhav_s,wqlsub_s,wqlres_s,wthlsub_s,&
+    !$omp wthlres_s,wthvsub_s,wthvres_s,wqtsub_s,wqtres_s,uwres_s,vwres_s,&
+    !$omp uwsub_s,vwsub_s,hurav_s,clwav_s,cliav_s,plwav_s,pliav_s)&
+    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do k = 2, kmax
       qlhav_s = 0.0
       wthlsub_s = 0.0
@@ -772,6 +866,12 @@ contains
       !$acc& reduction(+:qlhav_s, wqlsub_s, wqlres_s, wthlsub_s, wthlres_s, wthvsub_s, wthvres_s, &
       !$acc&             wqtsub_s, wqtres_s, uwres_s, vwres_s, uwsub_s, vwsub_s, &
       !$acc&             hurav_s, clwav_s, cliav_s)
+      !$omp loop private(qs0h,t0h,den,cthl,cqt,a_dry,b_dry,a_moist,b_moist,&
+      !$omp ekhalf,euhalf,evhalf,wthls,wthlr,wqts,wqtr,wqls,wqlr,wthvs,wthvr,&
+      !$omp uwr,vwr,uws,vws,ilratio) reduction(+:qlhav_s,wqlsub_s,wqlres_s,&
+      !$omp wthlsub_s,wthlres_s,wthvsub_s,wthvres_s,wqtsub_s,wqtres_s,&
+      !$omp uwres_s,vwres_s,uwsub_s,vwsub_s,hurav_s,clwav_s,cliav_s)&
+      !$omp collapse(2)
       do j = 2, j1
         do i = 2, i1
           !------------------------------------------------------
@@ -882,12 +982,15 @@ contains
 
     if (iqr > 0) then
        !$acc parallel loop gang default(present) private(plwav_s, pliav_s, ilratio) async(1)
+       !$omp target teams loop private(plwav_s,pliav_s,ilratio)&
+       !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
        do k = 1, kmax
           plwav_s = 0
           pliav_s = 0
           if (imicro == imicro_sice .or. imicro == imicro_sice2) then
              !$acc loop collapse(2) &
              !$acc& reduction(+:plwav_s, pliav_s)
+             !$omp loop reduction(+:plwav_s,pliav_s) collapse(2)
              do j = 2, j1
                 do i = 2, i1
                    ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))
@@ -898,6 +1001,7 @@ contains
           else
              !$acc loop collapse(2) &
              !$acc& reduction(+:plwav_s)
+             !$omp loop reduction(+:plwav_s) collapse(2)
              do j = 2, j1
                 do i = 2, i1
                    plwav_s = plwav_s + sv0(i,j,k,iqr)
@@ -931,6 +1035,8 @@ contains
            call halflev_kappa(sv0(:,:,:,n),sv0h)
         else
           !$acc parallel loop collapse(3) default(present) async(1)
+           !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+           !$omp defaultmap(present:allocatable)
           do k = 2, k1
             do j = 2, j1
               do i = 2, i1    ! note: sv0h only defined and only used for k=2...
@@ -943,9 +1049,12 @@ contains
         !$acc wait(1)
 
         !$acc parallel loop default(present) private(wsvres_s)
+        !$omp target teams loop private(wsvres_s)&
+        !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
         do k = 2, kmax
           wsvres_s = 0.0
           !$acc loop collapse(2) reduction(+: wsvres_s)
+          !$omp loop reduction(+:wsvres_s) collapse(2)
           do j = 2, j1
             do i = 2, i1
               wsvres_s = wsvres_s + (w0(i,j,k)-wmav(k))*sv0h(i,j,k)
@@ -956,10 +1065,12 @@ contains
 
 
         !$acc parallel loop gang private(wsvsub_s) async(1)
+        !$omp target teams loop private(wsvsub_s)
         do k = 1, kmax
           wsvsub_s = 0.0
           if (k == 1) then
             !$acc loop collapse(2) reduction(+:wsvsub_s)
+            !$omp loop reduction(+:wsvsub_s) collapse(2)
             do j = 2, j1
               do i = 2, i1
                 wsvsub_s = wsvsub_s + svflux(i,j,n)
@@ -967,6 +1078,7 @@ contains
             end do
           else
             !$acc loop collapse(2) private(ekhalf) reduction(+: wsvsub_s)
+            !$omp loop private(ekhalf) reduction(+:wsvsub_s) collapse(2)
             do j = 2, j1
               do i= 2, i1
                 ekhalf = (ekh(i,j,k)*dzf(k-1)+ekh(i,j,k-1)*dzf(k))/(2*dzh(k))
@@ -1026,105 +1138,133 @@ contains
     !------------
     ! 4 NORMALIZE
     !------------
-    !$acc kernels default(present) async(1)
-    cfracav = cfracav / ijtot
-    qlhav   = qlhav  /ijtot
 
-    wqlsub  = wqlsub /ijtot
-    wqlres  = wqlres /ijtot
+    !$omp target update from(thvmav, umav, vmav, wmav, thlmav, thmav, qtmav, qlmav, svmav, wqltot, wqttot, wthvtot, wthltot, uwtot, vwtot, cszav, taav, thv0)
+    ! FIXME: GPU divergence
 
-    wthlsub  = wthlsub /ijtot
-    wthlres  = wthlres /ijtot
+    !$acc parallel loop default(present) async(1)
+    !!$omp target teams loop defaultmap(present:allocatable)
+    do k=1,k1
+       cfracav(k) = cfracav(k) / ijtot
+       qlhav(k)   = qlhav(k)  /ijtot
 
-    wqtsub  = wqtsub /ijtot
-    wqtres  = wqtres /ijtot
+       wqlsub(k)  = wqlsub(k) /ijtot
+       wqlres(k)  = wqlres(k) /ijtot
 
-    wthvsub  = wthvsub /ijtot
-    wthvres  = wthvres /ijtot
+       wthlsub(k)  = wthlsub(k) /ijtot
+       wthlres(k)  = wthlres(k) /ijtot
 
-    wqttot  = wqtres + wqtsub
-    wqltot  = wqlres + wqlsub
-    wthltot  = wthlres + wthlsub
-    wthvtot  = wthvres + wthvsub
+       wqtsub(k)  = wqtsub(k) /ijtot
+       wqtres(k)  = wqtres(k) /ijtot
+
+       wthvsub(k)  = wthvsub(k) /ijtot
+       wthvres(k)  = wthvres(k) /ijtot
+
+       wqttot(k)  = wqtres(k) + wqtsub(k)
+       wqltot(k)  = wqlres(k) + wqlsub(k)
+       wthltot(k)  = wthlres(k) + wthlsub(k)
+       wthvtot(k)  = wthvres(k) + wthvsub(k)
+
+       uwres(k)    = uwres(k) / ijtot
+       vwres(k)    = vwres(k) / ijtot
+       uwsub(k)    = uwsub(k) / ijtot
+       vwsub(k)    = vwsub(k) / ijtot
+       uwtot(k)    = uwres(k) + uwsub(k)
+       vwtot(k)    = vwres(k) + vwsub(k)
+
+       hurav(k) = hurav(k) / ijtot
+       clwav(k) = clwav(k) / ijtot
+       cliav(k) = cliav(k) / ijtot
+       plwav(k) = plwav(k) / ijtot
+       pliav(k) = pliav(k) / ijtot
+    end do
 
     if (nsv > 0) then
-      wsvsub = wsvsub / ijtot
-      wsvres = wsvres / ijtot
-      wsvtot = wsvsub + wsvres
+      !$acc parallel loop collapse(2) default(present) async(1)
+      !!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+      !!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+      do n=1,nsv
+         do k=1,k1
+            wsvsub(k,n) = wsvsub(k,n) / ijtot
+            wsvres(k,n) = wsvres(k,n) / ijtot
+            wsvtot(k,n) = wsvsub(k,n) + wsvres(k,n)
+         end do
+      end do
     end if
 
-    uwres    = uwres / ijtot
-    vwres    = vwres / ijtot
-    uwsub    = uwsub / ijtot
-    vwsub    = vwsub / ijtot
-    uwtot    = uwres + uwsub
-    vwtot    = vwres + vwsub
-
-    hurav = hurav / ijtot
-    clwav = clwav / ijtot
-    cliav = cliav / ijtot
-    plwav = plwav / ijtot
-    pliav = pliav / ijtot
-    !$acc end kernels
+    !!$omp target update to(cfracav, qlhav, wqlsub, wqlres, wthlsub, wthlres, wqtsub, wqtres, wthvsub, wthvres, wqttot, wqltot, wthltot, wthvtot, uwres, vwres, uwsub, vwsub, uwtot, vwtot, hurav, clwav, cliav, plwav, pliav, wsvsub, wsvres, wsvtot)
 
     !---------------------------------
     ! 5 ADD SLAB AVERAGES TO TIME MEAN
     !---------------------------------
-    !$acc kernels default(present) async(1)
-    umn     = umn     + umav
-    vmn     = vmn     + vmav
-    wmn     = wmn     + wmav
-    thvmn   = thvmn   + thvmav
-    thlmn   = thlmn   + thlmav
-    qtmn    = qtmn    + qtmav
-    qlmn    = qlmn    + qlmav
-    cfracmn = cfracmn + cfracav
-    hurmn   = hurmn   + hurav
-    clwmn   = clwmn   + clwav
-    climn   = climn   + cliav
-    plwmn   = plwmn   + plwav
-    plimn   = plimn   + pliav
-    tamn    = tamn    + taav
-    qlhmn   = qlhmn   + qlhav
-    wthlsmn = wthlsmn + wthlsub
-    wthlrmn = wthlrmn + wthlres
-    wthltmn = wthltmn + wthltot
-    wthvsmn = wthvsmn + wthvsub
-    wthvrmn = wthvrmn + wthvres
-    wthvtmn = wthvtmn + wthvtot
-    wqtsmn  = wqtsmn  + wqtsub
-    wqtrmn  = wqtrmn  + wqtres
-    wqttmn  = wqttmn  + wqttot
-    wqlsmn  = wqlsmn  + wqlsub
-    wqlrmn  = wqlrmn  + wqlres
-    wqltmn  = wqltmn  + wqltot
-    uwtmn   = uwtmn   + uwtot
-    vwtmn   = vwtmn   + vwtot
-    uwrmn   = uwrmn   + uwres
-    vwrmn   = vwrmn   + vwres
-    uwsmn   = uwsmn   + uwsub
-    vwsmn   = vwsmn   + vwsub
-    u2mn    = u2mn    + u2av
-    v2mn    = v2mn    + v2av
-    w2mn    = w2mn    + w2av
-    w2submn = w2submn + w2subav
-    qt2mn   = qt2mn   + qt2av
-    thl2mn  = thl2mn  + thl2av
-    thv2mn  = thv2mn  + thv2av
-    th2mn   = th2mn   + th2av
-    ql2mn   = ql2mn   + ql2av
-    skewmn  = skewmn  + w3av/max(w2av**1.5,epsilon(w2av(1))) !
-    cszmn   = cszmn   + cszav
+    !$acc parallel loop default(present) async(1)
+    !!$omp target teams loop defaultmap(present:aggregate)&
+    !!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+    do k=1,k1
+       umn(k)     = umn(k)     + umav(k)
+       vmn(k)     = vmn(k)     + vmav(k)
+       wmn(k)     = wmn(k)     + wmav(k)
+       thvmn(k)   = thvmn(k)   + thvmav(k)
+       thlmn(k)   = thlmn(k)   + thlmav(k)
+       qtmn(k)    = qtmn(k)    + qtmav(k)
+       qlmn(k)    = qlmn(k)    + qlmav(k)
+       cfracmn(k) = cfracmn(k) + cfracav(k)
+       hurmn(k)   = hurmn(k)   + hurav(k)
+       clwmn(k)   = clwmn(k)   + clwav(k)
+       climn(k)   = climn(k)   + cliav(k)
+       plwmn(k)   = plwmn(k)   + plwav(k)
+       plimn(k)   = plimn(k)   + pliav(k)
+       tamn(k)    = tamn(k)    + taav(k)
+       qlhmn(k)   = qlhmn(k)   + qlhav(k)
+       wthlsmn(k) = wthlsmn(k) + wthlsub(k)
+       wthlrmn(k) = wthlrmn(k) + wthlres(k)
+       wthltmn(k) = wthltmn(k) + wthltot(k)
+       wthvsmn(k) = wthvsmn(k) + wthvsub(k)
+       wthvrmn(k) = wthvrmn(k) + wthvres(k)
+       wthvtmn(k) = wthvtmn(k) + wthvtot(k)
+       wqtsmn(k)  = wqtsmn(k)  + wqtsub(k)
+       wqtrmn(k)  = wqtrmn(k)  + wqtres(k)
+       wqttmn(k)  = wqttmn(k)  + wqttot(k)
+       wqlsmn(k)  = wqlsmn(k)  + wqlsub(k)
+       wqlrmn(k)  = wqlrmn(k)  + wqlres(k)
+       wqltmn(k)  = wqltmn(k)  + wqltot(k)
+       uwtmn(k)   = uwtmn(k)   + uwtot(k)
+       vwtmn(k)   = vwtmn(k)   + vwtot(k)
+       uwrmn(k)   = uwrmn(k)   + uwres(k)
+       vwrmn(k)   = vwrmn(k)   + vwres(k)
+       uwsmn(k)   = uwsmn(k)   + uwsub(k)
+       vwsmn(k)   = vwsmn(k)   + vwsub(k)
+       u2mn(k)    = u2mn(k)    + u2av(k)
+       v2mn(k)    = v2mn(k)    + v2av(k)
+       w2mn(k)    = w2mn(k)    + w2av(k)
+       w2submn(k) = w2submn(k) + w2subav(k)
+       qt2mn(k)   = qt2mn(k)   + qt2av(k)
+       thl2mn(k)  = thl2mn(k)  + thl2av(k)
+       thv2mn(k)  = thv2mn(k)  + thv2av(k)
+       th2mn(k)   = th2mn(k)   + th2av(k)
+       ql2mn(k)   = ql2mn(k)   + ql2av(k)
+       skewmn(k)  = skewmn(k)  + w3av(k)/max(w2av(k)**1.5,epsilon(w2av(1))) !
+       cszmn(k)   = cszmn(k)   + cszav(k)
+    end do
+
     if (nsv > 0) then
-      svmmn  = svmmn  + svmav
-      svpmn  = svpmn  + svpav
-      svptmn = svptmn + svptav
-      sv2mn  = sv2mn  + sv2av
-      wsvsmn = wsvsmn + wsvsub
-      wsvrmn = wsvrmn + wsvres
-      wsvtmn = wsvtmn + wsvtot
+       !$acc parallel loop collapse(2) default(present) async(1)
+       !!$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+       !!$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+       do n=1,nsv
+          do k=1,k1
+             svmmn(k,n)  = svmmn(k,n)  + svmav(k,n)
+             svpmn(k,n)  = svpmn(k,n)  + svpav(k,n)
+             svptmn(k,n) = svptmn(k,n) + svptav(k,n)
+             sv2mn(k,n)  = sv2mn(k,n)  + sv2av(k,n)
+             wsvsmn(k,n) = wsvsmn(k,n) + wsvsub(k,n)
+             wsvrmn(k,n) = wsvrmn(k,n) + wsvres(k,n)
+             wsvtmn(k,n) = wsvtmn(k,n) + wsvtot(k,n)
+          end do
+       end do
     end if
-    !$acc end kernels
+
+    !$omp target update to(cfracav, cfracmn, cliav, climn, clwav, clwmn, cszmn, pliav, plimn, plwav, plwmn, ql2mn, qlhav, qlhmn, qlmn, qt2mn, qtmn, skewmn, sv2mn, svmmn, svpmn, svptmn, tamn, th2mn, thl2mn, thlmn, thv2mn, thvmn, v2mn, vmn, vwres, vwrmn, vwsmn, vwtmn, vwtot, w2mn, wmn, wqlres, wqlrmn, wqlsmn, wqltmn, wqltot, wqtres, wqtrmn, wqtsmn, wqttmn, wqttot, wsvres, wsvrmn, wsvsmn, wsvtmn, wsvtot, wthlres, wthlrmn, wthlsmn, wthltmn, wthltot, wthvres, wthvrmn, wthvsmn, wthvtmn, wthvtot, u2mn, vwsub, wqlsub, wqtsub, wsvsub, wthlsub, wthvsub, w2submn, umn, hurav, hurmn, uwres, uwrmn, uwsmn, uwsub, uwtmn, uwtot)
 
     call timer_toc('modgenstat/do_genstat')
   end subroutine do_genstat
@@ -1150,9 +1290,12 @@ contains
     end if
 
     !$acc parallel loop default(present) private(prof_s) async
+    !$omp target teams loop private(prof_s) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k = 1, k1
       prof_s = 0.0
       !$acc loop collapse(2) reduction(+: prof_s)
+      !$omp loop reduction(+:prof_s) collapse(2)
       do j = 2, j1
         do i = 2, i1
           prof_s = prof_s + (var(i, j, k) + c - mean(k))**n
@@ -1189,80 +1332,93 @@ contains
       convq   = 86400*1000.
       allocate(tmn   (k1), thmn  (k1))
 
-      !$acc kernels default(present)
-      umn    = umn    /nsamples
-      vmn    = vmn    /nsamples
-      wmn    = wmn    /nsamples
-      thvmn  = thvmn  /nsamples
-      thlmn  = thlmn  /nsamples
-      qtmn   = qtmn   /nsamples
-      qlmn   = qlmn   /nsamples
-      cfracmn= cfracmn/nsamples
-      hurmn  = hurmn /nsamples
-      clwmn  = clwmn /nsamples
-      climn  = climn /nsamples
-      plwmn  = plwmn /nsamples
-      plimn  = plimn /nsamples
-      tamn  =  tamn   /nsamples
-      qlhmn  = qlhmn  /nsamples
+      !$acc parallel loop default(present)
+      !$omp target teams loop defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+      do k=1,k1
+         umn(k)    = umn(k)    /nsamples
+         vmn(k)    = vmn(k)    /nsamples
+         wmn(k)    = wmn(k)    /nsamples
+         thvmn(k)  = thvmn(k)  /nsamples
+         thlmn(k)  = thlmn(k)  /nsamples
+         qtmn(k)   = qtmn(k)   /nsamples
+         qlmn(k)   = qlmn(k)   /nsamples
+         cfracmn(k)= cfracmn(k)/nsamples
+         hurmn(k)  = hurmn(k) /nsamples
+         clwmn(k)  = clwmn(k) /nsamples
+         climn(k)  = climn(k) /nsamples
+         plwmn(k)  = plwmn(k) /nsamples
+         plimn(k)  = plimn(k) /nsamples
+         tamn(k)   =  tamn(k) /nsamples
+         qlhmn(k)  = qlhmn(k) /nsamples
 
 
-      wthlsmn = wthlsmn/nsamples
-      wthlrmn = wthlrmn/nsamples
-      wthltmn = wthltmn/nsamples
+         wthlsmn(k) = wthlsmn(k)/nsamples
+         wthlrmn(k) = wthlrmn(k)/nsamples
+         wthltmn(k) = wthltmn(k)/nsamples
 
-      wqtsmn = wqtsmn/nsamples
-      wqtrmn = wqtrmn/nsamples
-      wqttmn = wqttmn/nsamples
+         wqtsmn(k) = wqtsmn(k)/nsamples
+         wqtrmn(k) = wqtrmn(k)/nsamples
+         wqttmn(k) = wqttmn(k)/nsamples
 
-      wqlsmn = wqlsmn/nsamples
-      wqlrmn = wqlrmn/nsamples
-      wqltmn = wqltmn/nsamples
+         wqlsmn(k) = wqlsmn(k)/nsamples
+         wqlrmn(k) = wqlrmn(k)/nsamples
+         wqltmn(k) = wqltmn(k)/nsamples
 
-      wthvsmn = wthvsmn/nsamples
-      wthvrmn = wthvrmn/nsamples
-      wthvtmn = wthvtmn/nsamples
+         wthvsmn(k) = wthvsmn(k)/nsamples
+         wthvrmn(k) = wthvrmn(k)/nsamples
+         wthvtmn(k) = wthvtmn(k)/nsamples
 
-      uwtmn  = uwtmn /nsamples
-      vwtmn  = vwtmn /nsamples
-      uwrmn  = uwrmn /nsamples
-      vwrmn  = vwrmn /nsamples
-      uwsmn  = uwsmn /nsamples
-      vwsmn  = vwsmn /nsamples
+         uwtmn(k)  = uwtmn(k) /nsamples
+         vwtmn(k)  = vwtmn(k) /nsamples
+         uwrmn(k)  = uwrmn(k) /nsamples
+         vwrmn(k)  = vwrmn(k) /nsamples
+         uwsmn(k)  = uwsmn(k) /nsamples
+         vwsmn(k)  = vwsmn(k) /nsamples
 
-      w2mn     = w2mn   /nsamples
-      skewmn   = skewmn /nsamples
-      w2submn  = w2submn/nsamples
-      qt2mn    = qt2mn  /nsamples
-      v2mn     = v2mn   /nsamples
-      u2mn     = u2mn   /nsamples
-      thl2mn   = thl2mn /nsamples
-      thv2mn   = thv2mn /nsamples
-      th2mn    = th2mn  /nsamples
-      ql2mn    = ql2mn  /nsamples
+         w2mn(k)     = w2mn(k)   /nsamples
+         skewmn(k)   = skewmn(k) /nsamples
+         w2submn(k)  = w2submn(k)/nsamples
+         qt2mn(k)    = qt2mn(k)  /nsamples
+         v2mn(k)     = v2mn(k)   /nsamples
+         u2mn(k)     = u2mn(k)   /nsamples
+         thl2mn(k)   = thl2mn(k) /nsamples
+         thv2mn(k)   = thv2mn(k) /nsamples
+         th2mn(k)    = th2mn(k)  /nsamples
+         ql2mn(k)    = ql2mn(k)  /nsamples
+
+         cszmn(k) = cszmn(k) / nsamples
+      end do
 
       if (nsv > 0) then
-        svmmn  = svmmn  / nsamples
-        svpmn  = svpmn  / nsamples
-        svptmn = svptmn / nsamples
-        sv2mn  = sv2mn  / nsamples
-        wsvsmn = wsvsmn / nsamples
-        wsvrmn = wsvrmn / nsamples
-        wsvtmn = wsvtmn / nsamples
+         !$acc parallel loop collapse(2) default(present)
+         !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+         !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+         do n=1,nsv
+            do k=1,k1
+               svmmn(k,n)  = svmmn(k,n)  / nsamples
+               svpmn(k,n)  = svpmn(k,n)  / nsamples
+               svptmn(k,n) = svptmn(k,n) / nsamples
+               sv2mn(k,n)  = sv2mn(k,n)  / nsamples
+               wsvsmn(k,n) = wsvsmn(k,n) / nsamples
+               wsvrmn(k,n) = wsvrmn(k,n) / nsamples
+               wsvtmn(k,n) = wsvtmn(k,n) / nsamples
+            end do
+         end do
       end if
-
-      cszmn = cszmn / nsamples
-      !$acc end kernels
 
 
   !     ------------------------------------------
   !     2.0  Construct other time averaged fields
   !     ------------------------------------------
 
-      !$acc kernels default(present) copy(thmn, tmn)
-      thmn = thlmn + (rlv/cp)*qlmn/exnf
-      tmn  = thmn*exnf
-      !$acc end kernels
+      !$acc parallel loop default(present) copy(thmn, tmn)
+      !$omp target teams loop map(tofrom:thmn,tmn) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
+      do k=1,k1
+         thmn(k) = thlmn(k) + (rlv/cp)*qlmn(k)/exnf(k)
+         tmn(k)  = thmn(k)*exnf(k)
+      end do
 
       !$acc update self(umn, vmn, wmn, thvmn, thlmn, qtmn, qlmn, cfracmn, qlhmn, &
       !$acc&            wthlsmn, wthlrmn, wthltmn, wqtsmn, wqtrmn, wqttmn, &
@@ -1270,8 +1426,15 @@ contains
       !$acc&            uwtmn, vwtmn, uwrmn, vwrmn, uwsmn, vwsmn, w2mn, skewmn, &
       !$acc&            w2submn, qt2mn, v2mn, u2mn, thl2mn, thv2mn, th2mn, ql2mn, &
       !$acc&            cszmn, cfracmn, hurmn, clwmn, climn, plwmn, plimn, tamn)
+      !$omp target update from(umn,vmn,wmn,thvmn,thlmn,qtmn,qlmn,cfracmn,&
+      !$omp qlhmn,wthlsmn,wthlrmn,wthltmn,wqtsmn,wqtrmn,wqttmn,wqlsmn,wqlrmn,&
+      !$omp wqltmn,wthvsmn,wthvrmn,wthvtmn,uwtmn,vwtmn,uwrmn,vwrmn,uwsmn,&
+      !$omp vwsmn,w2mn,skewmn,w2submn,qt2mn,v2mn,u2mn,thl2mn,thv2mn,th2mn,&
+      !$omp ql2mn,cszmn,cfracmn,hurmn,clwmn,climn,plwmn,plimn,tamn)
 
       !$acc update self(svmmn, svpmn, svptmn, sv2mn, wsvsmn, wsvrmn, wsvtmn) if(nsv > 0)
+      !$omp target update from(svmmn,svpmn,svptmn,sv2mn,wsvsmn,wsvrmn,&
+      !$omp wsvtmn) if(nsv>0)
 
   !     ----------------------
   !     2.0  write the fields
@@ -1570,77 +1733,89 @@ contains
 
     end if ! end if(myid==0)
 
-      !$acc kernels default(present)
-      qlmnlast=qlmn
-      wthvtmnlast=wthvtmn
+    !$acc parallel loop default(present)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+    do k=1,k1
+       qlmnlast(k)=qlmn(k)
+       wthvtmnlast(k)=wthvtmn(k)
 
-      umn      = 0.
-      vmn      = 0.
-      wmn      = 0.
-      thlmn    = 0.
-      thvmn    = 0.
-      qtmn     = 0.
-      qlmn     = 0.
-      qlhmn    = 0.
-      cfracmn  = 0.
-      hurmn    = 0.
-      clwmn    = 0.
-      climn    = 0.
-      plwmn    = 0.
-      plimn    = 0.
-      tamn     = 0.
+       umn(k)      = 0.
+       vmn(k)      = 0.
+       wmn(k)      = 0.
+       thlmn(k)    = 0.
+       thvmn(k)    = 0.
+       qtmn(k)     = 0.
+       qlmn(k)     = 0.
+       qlhmn(k)    = 0.
+       cfracmn(k)  = 0.
+       hurmn(k)    = 0.
+       clwmn(k)    = 0.
+       climn(k)    = 0.
+       plwmn(k)    = 0.
+       plimn(k)    = 0.
+       tamn(k)     = 0.
 
-      wthlsmn =  0.
-      wthlrmn =  0.
-      wthltmn =  0.
+       wthlsmn(k) =  0.
+       wthlrmn(k) =  0.
+       wthltmn(k) =  0.
 
-      wthvsmn =  0.
-      wthvrmn =  0.
-      wthvtmn =  0.
+       wthvsmn(k) =  0.
+       wthvrmn(k) =  0.
+       wthvtmn(k) =  0.
 
-      wqtsmn =  0.
-      wqtrmn =  0.
-      wqttmn =  0.
+       wqtsmn(k) =  0.
+       wqtrmn(k) =  0.
+       wqttmn(k) =  0.
 
-      wqlsmn =  0.
-      wqlrmn =  0.
-      wqltmn =  0.
+       wqlsmn(k) =  0.
+       wqlrmn(k) =  0.
+       wqltmn(k) =  0.
 
-      uwtmn  =  0.
-      vwtmn  =  0.
-      uwrmn  =  0.
-      vwrmn  =  0.
-      uwsmn  =  0.
-      vwsmn  =  0.
+       uwtmn(k)  =  0.
+       vwtmn(k)  =  0.
+       uwrmn(k)  =  0.
+       vwrmn(k)  =  0.
+       uwsmn(k)  =  0.
+       vwsmn(k)  =  0.
 
 
-      u2mn     = 0.
-      v2mn     = 0.
-      w2mn     = 0.
-      w2submn  = 0.
-      skewmn   = 0.
-      qt2mn    = 0.
-      thl2mn   = 0.
-      thv2mn   = 0.
-      th2mn    = 0.
-      ql2mn    = 0.
+       u2mn(k)     = 0.
+       v2mn(k)     = 0.
+       w2mn(k)     = 0.
+       w2submn(k)  = 0.
+       skewmn(k)   = 0.
+       qt2mn(k)    = 0.
+       thl2mn(k)   = 0.
+       thv2mn(k)   = 0.
+       th2mn(k)    = 0.
+       ql2mn(k)    = 0.
 
-      svmmn   = 0.
-      svpmn   = 0.
-      svptmn  = 0.
+       cszmn(k)  = 0.
+    end do
 
-      sv2mn = 0.
+    if (nsv > 0) then
+       !$acc parallel loop collapse(2) default(present)
+       !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+       !$omp defaultmap(present:allocatable) defaultmap(tofrom:scalar)
+       do n=1,nsv
+          do k=1,k1
+             svmmn(k,n)   = 0.
+             svpmn(k,n)   = 0.
+             svptmn(k,n)  = 0.
 
-      wsvsmn = 0.
-      wsvrmn = 0.
-      wsvtmn = 0.
+             sv2mn(k,n) = 0.
 
-      cszmn  = 0.
-      !$acc end kernels
+             wsvsmn(k,n) = 0.
+             wsvrmn(k,n) = 0.
+             wsvtmn(k,n) = 0.
+          end do
+       end do
+    end if
 
-      deallocate(tmn, thmn)
+    deallocate(tmn, thmn)
 
-      call timer_toc('modgenstat/writestat')
+    call timer_toc('modgenstat/writestat')
   end subroutine writestat
 
   subroutine exitgenstat

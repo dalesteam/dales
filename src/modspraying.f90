@@ -126,6 +126,7 @@ contains
         dqldt_spraying = water_spray_rate / (rhobf(k_spray) * cell_volume)
 
         !$acc serial default(present) async
+        !$omp target defaultmap(present:allocatable)
         qtp(i_spray,j_spray,k_spray) = qtp(i_spray,j_spray,k_spray) &
           + (1-qt0(i_spray,j_spray,k_spray)) * dqldt_spraying
 
@@ -134,6 +135,7 @@ contains
           - (rlv / (cp * exnf(k_spray))) &
           * (1 - ql0(i_spray,j_spray,k_spray)) * dqldt_spraying
         !$acc end serial
+        !$omp end target
       end if
 
       if (lsalt_spraying) then
@@ -145,20 +147,24 @@ contains
           dn = dn / cell_volume ! Number concentrations are in #/m3
 
           !$acc serial default(present) async
+          !$omp target defaultmap(present:allocatable)
           svp(i_spray,j_spray,k_spray,isv_salt) = &
             svp(i_spray,j_spray,k_spray,isv_salt) + dm
         
           svp(i_spray,j_spray,k_spray,isv_salt_n) = &
             svp(i_spray,j_spray,k_spray,isv_salt_n) + dn
           !$acc end serial
+          !$omp end target
         else
           dsvdt_spraying = salt_spray_rate / (rhobf(k_spray) * cell_volume) &
             * (1 - sv0(i_spray,j_spray,k_spray,isv_salt) / salinity)
 
           !$acc serial default(present) async
+          !$omp target defaultmap(present:allocatable)
           svp(i_spray,j_spray,k_spray,isv_salt) = &
             svp(i_spray,j_spray,k_spray,isv_salt) + dsvdt_spraying
           !$acc end serial
+          !$omp end target
         end if
       endif
     end if
