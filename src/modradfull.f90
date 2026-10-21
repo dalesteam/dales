@@ -1798,7 +1798,7 @@ contains
                gas(n)%ng, gas(n)%np, gas(n)%nt
        else
           print *, gas(n)%hk, sum(gas(n)%hk(:))
-          stop 'TERMINATING: gas did not occur with probability one in band'
+          call finish(routine, 'TERMINATING: gas did not occur with probability one in band')
        end if
     end do
 

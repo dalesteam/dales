@@ -41,6 +41,8 @@ subroutine lsm
   use modslurb, only : slurb_radiation_model, slurb_canyon_model, slurb_energy_balance_model, slurb_set_previous_timestep, calc_canyon_resistances, calc_urban_resistances, slurb_urban_aggregation_model, slurb_update_external_vars, enable_slurb
   implicit none
 
+  character(len=*), parameter :: routine = modname//'/lsm'
+
     if (.not. llsm) return
     call timer_tic('lsm', 0)
 
@@ -50,8 +52,8 @@ subroutine lsm
     ! warning: the wet surface tile has no z0h, z0m - will break in Obukhov length calculation
     if (ldrydep) then
        call timer_tic('lsm_calc_tile_fractions', 0)
-#ifdef DALES_GPU
-       stop "acc: unsupported calc_tile_fractions"
+#ifdef _OPENACC
+       call finish(routine, "acc: unsupported calc_tile_fractions")
 #endif
        call calc_tile_fractions
        call timer_toc('lsm_calc_tile_fractions')
@@ -70,8 +72,8 @@ subroutine lsm
     ! Calculate canopy/soil resistances.
     if (lags) then
         call timer_tic('lsm_calc_canopy_resistance_ags', 0)
-#ifdef DALES_GPU
-        stop "acc: unsupported lsm calc_canopy_resistance_ags"
+#ifdef _OPENACC
+        call finish(routine, "acc: unsupported lsm calc_canopy_resistance_ags")
 #endif
         call calc_canopy_resistance_ags
         call timer_toc('lsm_calc_canopy_resistance_ags')
@@ -1161,6 +1163,7 @@ subroutine calc_bulk_bcs
     use modslurb, only : fraction_slurb, slurb_tile, enable_slurb
     implicit none
 
+    character(len=*), parameter :: routine = modname//'/calc_bulk_bcs'
     integer :: i, j
     real :: ucu, vcv, bflux
     real, pointer :: ustar_3D(:,:,:)
@@ -1363,8 +1366,8 @@ subroutine calc_bulk_bcs
     ! Cyclic BCs where needed.
     ustar_3D(1:i2,1:j2,1:1) => ustar
     if(lopenbc) then ! Only use periodicity for non-domain boundaries when openboundaries are used
-#ifdef DALES_GPU
-       stop "acc: unsupported lsm openboundary_excjs"
+#ifdef _OPENACC
+       call finish(routine, "acc: unsupported lsm openboundary_excjs")
 #endif
        call openboundary_excjs(ustar_3D, 2,i1,2,j1,1,1,1,1, &
             & (.not.lboundary(1:4)).or.lperiodic(1:4))
@@ -2566,7 +2569,7 @@ end subroutine init_lsm_tiles
 subroutine init_homogeneous
     use modglobal,   only : ifnamopt, fname_options, checknamelisterror, lwarmstart, eps1
     use modmpi,      only : myid, comm3d, mpierr, D_MPI_BCAST
-    use modsurfdata, only : tsoil, tsoilm, phiw, phiwm, wl, wlm, wmax, albedoav
+    use modsurfdata, only : tsoil, tsoilm, phiw, phiwm, wl, wlm, wmax, albedoav, thls
     use fortran_support, only: nnml_output
     implicit none
 
@@ -2744,7 +2747,12 @@ subroutine init_homogeneous
 
     tile(ilu_hv) % gD(:,:) = gD_high
 
+    tile(ilu_lv) % tskin(:,:) = thls
+    tile(ilu_hv) % tskin(:,:) = thls
+    tile(ilu_bs) % tskin(:,:) = thls
+    tile(ilu_ap) % tskin(:,:) = thls
     tile(ilu_aq) % tskin(:,:) = tskin_water
+    tile(ilu_ws) % tskin(:,:) = thls
 
     tile(ilu_lv) % albedo(:,:) = albedoav
     tile(ilu_hv) % albedo(:,:) = albedoav
@@ -2796,6 +2804,10 @@ subroutine init_homogeneous
             tile(ilu_ap)%base_frac(:,:) + &
             tile(ilu_bs)%base_frac(:,:)) / land_frac(:,:)
     where (wl_max == 0) wl_max = eps1
+
+    do ilu=1,nlu
+        tile(ilu)%frac(:,:) = tile(ilu)%base_frac(:,:)
+    end do
 
     ! Cleanup!
     deallocate(t_soil_p, theta_soil_p, soil_index_p)

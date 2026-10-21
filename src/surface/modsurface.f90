@@ -73,7 +73,7 @@ module modsurface
   use fortran_support, only: nnml_output
   implicit none
 
-  character(len=*), parameter :: modname = 'moduser'
+  character(len=*), parameter :: modname = 'modsurface'
 
   !public  :: initsurface, surface, exitsurface
   public :: surface_read_namelist
@@ -434,6 +434,7 @@ contains
 
     dqtdz = 0 ! need to initialize, otherwise undefined in the first call to thermodynamics, before call surface (cold start)
     ustar = 0 ! need to initialize, otherwise undefined values in the corners in the first exchange
+    svflux = 0 ! need to initialize, otherwise undefined values causing problems everywhere (valgrind complained, and adding this removes crashes)
     obl = 1e5 ! initialize since used as starting point for iteration
 
     !$acc enter data copyin(z0m, z0h, obl, tskin, qskin, Cm, Cs, &
@@ -1442,6 +1443,8 @@ contains
     use modmpi, only :comm3d,mpi_sum,mpierr,myid, D_MPI_ALLREDUCE
     use modmicrodata, only : imicro,imicro_bulk
 
+    character(len=*), parameter :: routine = modname//'/do_lsm'
+
     real     :: f1, f2, f3, f4 ! Correction functions for Jarvis-Stewart
     integer  :: i, j, k, itg
     real     :: rk3coef,thlsl
@@ -1585,7 +1588,7 @@ contains
               if (myid == 0) then
                 print *, 'Problem in namoptions NAMSURFACE'
                 print *, 'You enabled AGS (with switch lrsAgs), but there are no scalars (and thus no CO2 as needed for AGS) '
-                stop 'ERROR: Problem in namoptions NAMSURFACE - AGS'
+                call finish(routine, 'ERROR: Problem in namoptions NAMSURFACE - AGS')
               endif
             endif
             if(lCHon) then !Chemistry is on
@@ -1593,7 +1596,7 @@ contains
                 if (myid == 0) then
                   print *, 'WARNING ::: There is no CO2 defined in the chemistry scheme'
                   print *, 'WARNING ::: Scalar 1 might be considered to be CO2 '
-                  stop 'ERROR: Problem in namoptions NAMSURFACE - AGS'
+                  call finish(routine, 'ERROR: Problem in namoptions NAMSURFACE - AGS')
                 endif
                 indCO2 = 1
               else  !CO2 present in chemistry

@@ -185,7 +185,7 @@ module modbulkmicro
     use modstat_profiles, only: sample_field
     implicit none
     integer :: i, j, k
-    real :: qrtest,nr_cor,qr_cor
+    real :: qrtest,nr_cor,qr_cor,nc_cor
     real :: qrsum_neg, qrsum, Nrsum_neg, Nrsum
     real(field_r), allocatable :: qrp_tmp(:,:,:), nrp_tmp(:,:,:), ncp_tmp(:,:,:), qlp_tmp(:,:,:)
 
@@ -518,12 +518,14 @@ module modbulkmicro
     if (laerosol) then
       call aerosol_finish
 
-      !$acc parallel loop collapse(3) default(present)
+      !$acc parallel loop collapse(3) default(present) private(nc_cor)
 !!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
 !!$omp defaultmap(present:allocatable)
       do k = 1, k1
         do j = 2, j1
           do i = 2, i1
+            nc_cor = min(svp(i,j,k,iNc) + Ncp(i,j,k) + (svm(i,j,k,iNc) / delt), 0.0_field_r)
+            ncp(i,j,k) = ncp(i,j,k) - nc_cor
             svp(i,j,k,inc) = svp(i,j,k,inc) + Ncp(i,j,k)
           end do
         end do

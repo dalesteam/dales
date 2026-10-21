@@ -46,7 +46,7 @@ implicit none
   public :: print_info_stderr
 
 save
-  type(MPI_COMM) :: commwrld, comm3d, commrow, commcol
+  type(MPI_COMM), target :: commwrld, comm3d, commrow, commcol
   logical  :: libmode !Library mode: skip finalize, assumed to be called externally
   integer  :: nbrnorth
   integer  :: nbrsouth
@@ -203,10 +203,10 @@ contains
        call mpi_error_string(mpierr, str, len, err)
        if (err /= MPI_SUCCESS) then
           print *, 'Another error occurred when looking up the error code', err
-          STOP
+          ERROR STOP ! MPI is somehow messed up, so let's not depend on complicated error routines
        endif
        print *, trim(str)
-       STOP
+       ERROR STOP ! MPI is somehow messed up, so let's not depend on complicated error routines
     endif
   end subroutine checkmpierror
 

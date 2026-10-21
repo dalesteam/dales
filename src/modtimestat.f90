@@ -317,7 +317,7 @@ contains
     use modstat_nc,  only : lnetcdf, writestat_nc,nc_fillvalue
     use modlsm,     only : tile, f1, f2b, nlu, lags, an_co2, resp_co2
     use modraddata, only :  lwd,lwu,swd,swu,lwdca,lwuca,swdca,swuca, &
-                            iradiation, doclearsky
+                            iradiation, doclearsky, irad_par, SW_up_TOA, SW_dn_TOA, LW_up_TOA
     use modtracers, only : get_tracer_index
     implicit none
 
@@ -759,7 +759,7 @@ contains
      end if
 
     ! calculate radiation fluxes at surface, TOM, TOA
-    if (iradiation /= 0) then
+    if (iradiation /= 0 .and. iradiation /= irad_par) then
 
       s_lwd_surf = 0
       s_lwu_surf = 0
@@ -806,9 +806,9 @@ contains
       !$omp defaultmap(present:allocatable)
       do j = 2, j1
         do i = 2, i1
-          s_swd_toa = s_swd_toa + swd(i,j,k1)
-          s_swu_toa = s_swu_toa + swu(i,j,k1)
-          s_lwu_toa = s_lwu_toa + lwu(i,j,k1)
+          s_swd_toa = s_swd_toa + SW_dn_TOA(i,j)
+          s_swu_toa = s_swu_toa + SW_up_TOA(i,j)
+          s_lwu_toa = s_lwu_toa + LW_up_TOA(i,j)
         end do
       end do
 
