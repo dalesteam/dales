@@ -2705,7 +2705,7 @@ subroutine init_homogeneous
     tile(ilu_lv)%lslurb = .False.
     tile(ilu_hv)%lslurb = .False.
     tile(ilu_bs)%lslurb = .False.
-    tile(ilu_aq)%lslurb = .True.
+    tile(ilu_aq)%lslurb = .False.
     tile(ilu_ap)%lslurb = .False.
     tile(ilu_ws)%lslurb = .False.
 
