@@ -1212,7 +1212,6 @@ subroutine calc_bulk_bcs
     do j=2,j1
         do i=2,i1
             do ilu=1,nlu
-                if (tile(ilu)%lslurb) then
                     ! we treat the urban canyon and roof separately. SHF and LE have been aggregated in the urban tile already.
                     ! we calculate thlskin/qtskin in slurb as the weighted average of roof and canyon skin temperature/humidity, which
                     ! are each calculated like an individual LSM tile is calculated, with their own resistances.
@@ -1862,7 +1861,7 @@ subroutine initlsm
           tile(ilu)%lunum = lu_bs
        else if (trim(tile(ilu)%lushort) == 'brn') then
           tile(ilu)%lunum = lu_brn
-       else if (trim(tile(ilu)%lushort) == 'slb') then
+       else if (tile(ilu)%lslurb) then
           tile(ilu)%lunum = lu_slb
        else
           tile(ilu)%lunum = lu_default
