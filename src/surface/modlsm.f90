@@ -2958,13 +2958,13 @@ subroutine init_heterogeneous_nc
     tile(nlu)%ustar = 0
     tile(nlu)%albedo = 0
     if (lags) then
-        tile(ilu)%gm25 = 0
-        tile(ilu)%Ammax25 = 0
-        tile(ilu)%f0field = 0
-        tile(ilu)%alpha0field = 0
-        tile(ilu)%co2_comp298 = 0
-        tile(ilu)%T1gmfield = 0
-        tile(ilu)%T1Amfield = 0
+        tile(nlu)%gm25 = 0
+        tile(nlu)%Ammax25 = 0
+        tile(nlu)%f0field = 0
+        tile(nlu)%alpha0field = 0
+        tile(nlu)%co2_comp298 = 0
+        tile(nlu)%T1gmfield = 0
+        tile(nlu)%T1Amfield = 0
     endif 
 
     ! 2D surface fields
