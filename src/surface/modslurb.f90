@@ -195,10 +195,10 @@ subroutine initslurb
     
 
     do ilu=1,nlu
-        if (tile(ilu)%lushort == "slb") then
+        if (tile(ilu)%lslurb) then
             ! make sure only one tile is slb, enable_slurb is false by default, set to true if any tile found.
             if (enable_slurb) then
-                call finish(routine, "Only one SLUrb tile at a time supported. Make sure there's only one tile with lushort=slb.")
+                call finish(routine, "Only one SLUrb tile at a time supported. Make sure there's only one tile with lslurb=.true.")
             endif
             enable_slurb = .true.
             slurb_ilu = ilu
@@ -224,11 +224,6 @@ subroutine initslurb
     stop_if_invalid=.true.)
 
     call slurb_bulk_allocations
-    do j=2,j1
-        do i=2,i1
-            fraction_slurb(i,j) = tile(slurb_ilu)%frac(i,j) ! (.)
-        enddo
-    enddo
 
 end subroutine initslurb
 
@@ -371,7 +366,7 @@ end subroutine slurb_update_external_vars
     call read_nc_field(ncid, 'f_bld', slurb_tile%f_bld(2:i1,2:j1), fillvalue=0.5_field_r, requirefill=.true., &
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-    call check_array(slurb_tile%f_bld(2:i1,2:j1), "f_bld", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real(  1.0_field_r ,rkind)], stop_if_invalid=.true.)
+    call check_array(slurb_tile%f_bld(2:i1,2:j1), "f_bld", routine, threshold=[0.0_field_r,real(  1.0_field_r ,rkind)], stop_if_invalid=.true.)
     do j=2,j1
       do i=2,i1
         if ( fraction_slurb(i,j) /= 0) then
@@ -380,6 +375,9 @@ end subroutine slurb_update_external_vars
                 call finish(routine, errstr)
             endif
             slurb_tile%f_bld(i, j) = slurb_tile%f_bld(i, j) / fraction_slurb(i, j)
+        else
+            slurb_tile%f_bld(i, j) = 0.5_field_r ! we don't want numerical weird errors here. so we set a default value
+            slurb_tile%f_bld_frn(i, j) = 0.5_field_r ! we don't want numerical weird errors here. so we set a default value
         endif
         enddo
     enddo
