@@ -73,8 +73,6 @@ subroutine slurb_bulk_allocations
     use modglobal, only: i2, j2
     use, intrinsic :: IEEE_ARITHMETIC
 
-    allocate(fraction_slurb(i2,j2))
-
     allocate(ln_z_z0_roof(i2,j2))
     allocate(ln_z_z0h_roof(i2,j2))
     allocate(ln_z_z0_urb(i2,j2))
@@ -315,7 +313,6 @@ subroutine slurb_bulk_allocations
 
 
 #ifndef __FUJITSU ! Fujitsu compiler doesn't like these initializations (March 2026)
-    fraction_slurb(:,:) = ieee_value(fraction_slurb,ieee_signaling_nan)
 
     ln_z_z0_roof(:,:) = ieee_value(ln_z_z0_roof,ieee_signaling_nan)
     ln_z_z0h_roof(:,:) = ieee_value(ln_z_z0h_roof,ieee_signaling_nan)
@@ -569,7 +566,7 @@ subroutine slurb_bulk_allocations
 end subroutine slurb_bulk_allocations
 
 subroutine slurb_bulk_deallocations
-    deallocate(fraction_slurb)
+   deallocate(fraction_slurb)
 
     deallocate(ln_z_z0_roof)
     deallocate(ln_z_z0h_roof)

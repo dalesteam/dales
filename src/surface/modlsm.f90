@@ -1204,32 +1204,6 @@ subroutine calc_bulk_bcs
         enddo
     enddo
 
-    if (tile(ilu)%lunum == lu_slb) then
-
-    !$acc parallel loop collapse(2) default(present) async(1)
-    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-    !$omp defaultmap(present:allocatable)
-    do j=2,j1
-        do i=2,i1
-            do ilu=1,nlu
-                    ! we treat the urban canyon and roof separately. SHF and LE have been aggregated in the urban tile already.
-                    ! we calculate thlskin/qtskin in slurb as the weighted average of roof and canyon skin temperature/humidity, which
-                    ! are each calculated like an individual LSM tile is calculated, with their own resistances.
-                    ! note that we will later subtract the urban contribution to the skin temperature, to later add the 
-                    ! urban radiative temperature instead.
-                    H(i,j)      = H(i,j)     + fraction_slurb(i,j) * slurb_tile%shf_urb(i,j)
-                    LE(i,j)     = LE(i,j)    + fraction_slurb(i,j) * slurb_tile%qsws_urb(i,j)
-                    ! G0(i,j)     = G0(i,j)    + tile(ilu)%frac(i,j) * tile(ilu)%G(i,j)
-                    ustar(i,j)  = ustar(i,j) + fraction_slurb(i,j) * slurb_tile%us_urb(i,j)
-                    tskin(i,j)  = tskin(i,j) + fraction_slurb(i,j) * slurb_tile%thlskin(i,j)
-                    qskin(i,j)  = qskin(i,j) + fraction_slurb(i,j) * slurb_tile%qtskin(i,j)
-                    albedo(i,j) = albedo(i,j) + fraction_slurb(i,j) * slurb_tile%albedo_urb(i,j)
-            enddo
-        enddo
-    enddo
-
-    else
-
     !$acc parallel loop collapse(2) default(present) async(1)
     !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
     !$omp defaultmap(present:allocatable)
@@ -1247,7 +1221,6 @@ subroutine calc_bulk_bcs
             enddo
         enddo
     enddo
-    endif
 
     if (enable_slurb) then
     !$acc parallel loop collapse(2) default(present) async(1)
@@ -3282,11 +3255,8 @@ subroutine init_heterogeneous_nc
                 call finish(routine, "Only one SLUrb tile at a time supported. Make sure there's only one tile with lslurb=.true.")
             endif
             enable_slurb = .true.
-            do j=2,j1
-                do i=2,i1
-                    fraction_slurb(i,j) = tile(ilu)%frac(i,j) ! (.)
-                enddo
-            enddo
+            allocate(fraction_slurb(i2,j2))
+            fraction_slurb(:,:) = tile(ilu)%frac(:,:)
         endif
     end do
     ! initialize tskin
