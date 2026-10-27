@@ -50,7 +50,7 @@ module modibm
   integer, allocatable :: ixw_p(:,:), ixw_m(:,:), iyw_p(:,:), iyw_m(:,:), izw_p(:,:)!, izw_m(:,:) !< Indices of walls oriented in positve/negative x,y,z directions
   integer, allocatable :: iobst(:,:)                                                              !< Indices of obstacles
   
-  real(field_r) :: dx_half, dy_half, Cm_xwall, Cm_ywall, Cd_xwall, Cd_ywall, Cm_zwall, Cd_zwall, z_MO !< Additional variables/parameters
+  real(field_r) :: dx_half, dy_half, Cm_xwall, Cm_ywall, Cd_xwall, Cd_ywall                       !< Additional variables/parameters
 
   public :: ibm_read_namelist, initibm, exitibm, applyibm, zerowallvelocity
 
@@ -68,7 +68,7 @@ contains
 
     ! Read in NAMOPTIONS parameters related to IBM
     namelist/IBM/ &
-      lapply_ibm, lwallheat, thlwall, thlibm, thlroof, qtibm, lpoislast, z0m_wall, z0h_wall
+      lapply_ibm, lwallheat, thlwall, thlibm, thlroof, qtwall, qtibm, qtroof, lpoislast, z0m_wall, z0h_wall
 
     if (myid == 0) then
 
@@ -256,7 +256,8 @@ contains
 
     ! Preset (temporary) arrays for internal buildings and wall indices [Nobst+2*ih*k1+2*jh*k1+4*ih*jh] provides upper bound)
     allocate(tiobst(Nobst+2*ih*j1*k1+2*i1*jh*k1+4*ih*jh,3))                                                                     ! for internal building points
-    allocate(tixw_p(Nobst+i2*k1,3), tixw_m(Nobst+i2*k1,3), tiyw_p(Nobst+j2*k1,3), tiyw_m(Nobst+j2*k1,3), tizw_p(Nobst+j2*k1,3)) ! for x- and y-walls in positive and negative directions
+    allocate(tixw_p(Nobst+2*(i2+j2)*k1,3), tixw_m(Nobst+2*(i2+j2)*k1,3), tiyw_p(Nobst+2*(i2+j2)*k1,3),                          ! for x- and y-walls in positive and negative directions
+             tiyw_m(Nobst+2*(i2+j2)*k1,3), tizw_p(Nobst+2*(i2+j2)*k1,3)) 
 
     Nxwalls_plus = 0; Nxwalls_min = 0; Nywalls_plus = 0; Nywalls_min = 0; Nzwalls_plus = 0
 
@@ -441,7 +442,7 @@ contains
     real(field_r)     :: u_at_v_min, u_at_v_plus, v_at_u_min, v_at_u_plus
     real(field_r)     :: w_at_v_min, w_at_v_plus, w_at_u_min, w_at_u_plus
     real(field_r)     :: u_at_w_min, u_at_w_plus, v_at_w_min, v_at_w_plus
-    real(field_r)     :: uspeed, ucc, vcc, z_MO
+    real(field_r)     :: uspeed, ucc, vcc, z_MO, Cm_zwall, Cd_zwall
     real(field_r)     :: tau_vu_plus, tau_vu_min, tau_wu_min, tau_wu_plus, tau_uv_min, tau_uv_plus, tau_wv_min, tau_wv_plus
     real              :: Lob
     
@@ -494,27 +495,39 @@ contains
 
       ! Remove "wrong" diffusive tendencies
       ! for u(i,j,k):
-      emom = ( dzf(k-1) * ( ekm(i,j,k  ) + ekm(i+1,j,k  ) )  + &
-            dzf(k  ) * ( ekm(i,j,k-1) + ekm(i+1,j,k-1) ) ) * &
-            ( 0.25_field_r * dzhi(k) )
-      up(i,j,k) = up(i,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * emom * ( (u0(i,j,k) - u0(i,j,k-1)) *dzhi(k)) *dzfi(k)
-
-      ! for u(i+1,j,k):
       emom = ( dzf(k-1) * ( ekm(i,j,k  ) + ekm(i-1,j,k  ) )  + &
             dzf(k  ) * ( ekm(i,j,k-1) + ekm(i-1,j,k-1) ) ) * &
             ( 0.25_field_r * dzhi(k) )
+
+      !$acc atomic update
+      !$omp atomic update
+      up(i,j,k) = up(i,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * emom * ( (u0(i,j,k) - u0(i,j,k-1)) *dzhi(k)) *dzfi(k)
+
+      ! for u(i+1,j,k):
+      emom = ( dzf(k-1) * ( ekm(i,j,k  ) + ekm(i+1,j,k  ) )  + &
+            dzf(k  ) * ( ekm(i,j,k-1) + ekm(i+1,j,k-1) ) ) * &
+            ( 0.25_field_r * dzhi(k) )
+      
+      !$acc atomic update
+      !$omp atomic update
       up(i+1,j,k) = up(i+1,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * emom * ( (u0(i+1,j,k) - u0(i+1,j,k-1)) *dzhi(k)) *dzfi(k)
 
       ! for v(i,j,k):
       eomm = ( dzf(k-1) * ( ekm(i,j,k  ) + ekm(i,j-1,k ) ) + &
             dzf(k  ) * ( ekm(i,j,k-1) + ekm(i,j-1,k-1) ) ) * &
             ( .25_field_r * dzhi(k) )
+            
+      !$acc atomic update
+      !$omp atomic update
       vp(i,j,k) = vp(i,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * eomm * ( (v0(i,j,k) - v0(i,j,k-1)) * dzhi(k)) * dzfi(k)
 
       ! for v(i,j+1,k):
       eomm = ( dzf(k-1) * ( ekm(i,j,k  ) + ekm(i,j+1,k ) ) + &
             dzf(k  ) * ( ekm(i,j,k-1) + ekm(i,j+1,k-1) ) ) * &
             ( .25_field_r * dzhi(k) )
+            
+      !$acc atomic update
+      !$omp atomic update
       vp(i,j+1,k) = vp(i,j+1,k) + 0.5_field_r * rhobh(k)/rhobf(k) * eomm * ( (v0(i,j+1,k)-v0(i,j+1,k-1)) * dzhi(k)) * dzfi(k)
 
       ! Include correct Monin-Obukhov wall drag (with stability correction)
@@ -535,15 +548,26 @@ contains
         Cm_zwall = fkar**2 / (log(z_MO / z0m_wall) - psim(z_MO / Lob) + psim(z0m_wall / Lob))** 2
         Cd_zwall = fkar**2 / (log(z_MO / z0m_wall) - psim(z_MO / Lob) + psim(z0m_wall / Lob)) / (log(z_MO / z0h_wall) - psih(z_MO / Lob) + psih(z0h_wall / Lob))
       end if
-
+            
+      !$acc atomic update
+      !$omp atomic update
       up(i  ,j,k) = up(i  ,j,k) - 0.25_field_r * rhobh(k)/rhobf(k) * Cm_zwall * ( u0(i,j,k) + u0(i+1,j,k) ) * uspeed * dzfi(k)
+            
+      !$acc atomic update
+      !$omp atomic update
       up(i+1,j,k) = up(i+1,j,k) - 0.25_field_r * rhobh(k)/rhobf(k) * Cm_zwall * ( u0(i,j,k) + u0(i+1,j,k) ) * uspeed * dzfi(k)
+            
+      !$acc atomic update
+      !$omp atomic update
       vp(i,j  ,k) = vp(i,j  ,k) - 0.25_field_r * rhobh(k)/rhobf(k) * Cm_zwall * ( v0(i,j,k) + v0(i,j+1,k) ) * uspeed * dzfi(k)
+            
+      !$acc atomic update
+      !$omp atomic update
       vp(i,j+1,k) = vp(i,j+1,k) - 0.25_field_r * rhobh(k)/rhobf(k) * Cm_zwall * ( v0(i,j,k) + v0(i,j+1,k) ) * uspeed * dzfi(k)
 
-      ! tentative fix for vertical diffusion of temperature over z-walls. Also here, 0.5 comes from interpolation of ekm.
-      thlp(i,j,k) = thlp(i,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * ( ( ( dzf(k-1) * ekm(i,j,k) ) + ( dzf(k ) * ekm(i,j,k-1)) )* dzhi(k)  ) * ( thl0(i,j,k) - thl0(i,j,k-1) ) * dzhi(k) * dzfi(k)
-      qtp (i,j,k) = qtp (i,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * ( ( ( dzf(k-1) * ekm(i,j,k) ) + ( dzf(k ) * ekm(i,j,k-1)) )* dzhi(k)  ) * ( qt0 (i,j,k) - qt0 (i,j,k-1) ) * dzhi(k) * dzfi(k)
+      ! tentative fix for vertical diffusion of temperature over z-walls. Also here, 0.5 comes from interpolation of ekh.
+      thlp(i,j,k) = thlp(i,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * ( ( ( dzf(k-1) * ekh(i,j,k) ) + ( dzf(k ) * ekh(i,j,k-1)) )* dzhi(k)  ) * ( thl0(i,j,k) - thl0(i,j,k-1) ) * dzhi(k) * dzfi(k)
+      qtp (i,j,k) = qtp (i,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * ( ( ( dzf(k-1) * ekh(i,j,k) ) + ( dzf(k ) * ekh(i,j,k-1)) )* dzhi(k)  ) * ( qt0 (i,j,k) - qt0 (i,j,k-1) ) * dzhi(k) * dzfi(k)
 
       ! zero/constant flux of heat/moisture currently not implemented. Implies roof temperatures become diagnostic (requiring energy balance)
       ! doubting whether rhobh(k)/rhobf(k) are truly correct here, i.e., at right positions..
@@ -579,14 +603,18 @@ contains
       emmo = 0.25_field_r * ( ekm(i,j,k) + ekm(i,j-1,k) + ekm(i-1,j,k) + ekm(i-1,j-1,k) )
       w_at_v_plus = 0.25_field_r * ( w0(i,j,k) + w0(i,j,k+1) + w0(i,j-1,k) + w0(i,j-1,k+1) )  !at v(i,j,k)
       tau_vu_plus = log_wallaw(v0(i,j,k), w_at_v_plus, Cm_xwall)
-
+      
+      !$acc atomic update
+      !$omp atomic update
       vp(i,j  ,k) = vp(i,j  ,k) + 0.5_field_r * emmo * ( (v0(i,j,k) - v0(i-1,j,k) ) / dx) / dx - 0.5_field_r * tau_vu_plus / dx ! factor 0.5 originates to avoid double correction
 
       ! for v(i,j+1,k):
       empo = 0.25_field_r * ( ekm(i,j,k) + ekm(i,j+1,k) + ekm(i-1,j,k) + ekm(i-1,j+1,k) )
       w_at_v_plus = 0.25_field_r * (w0(i,j+1,k) + w0(i,j+1,k+1) + w0(i,j,k) + w0(i,j,k+1) )
       tau_vu_plus = log_wallaw(v0(i,j+1,k), w_at_v_plus, Cm_xwall)
-
+      
+      !$acc atomic update
+      !$omp atomic update
       vp(i,j+1,k) = vp(i,j+1,k) + 0.5_field_r * empo * ( (v0(i,j+1,k) - v0(i-1,j+1,k) ) / dx) / dx - 0.5_field_r * tau_vu_plus / dx
 
       ! for w(i,j,k):
@@ -596,7 +624,9 @@ contains
                 ( 4.0_field_r * dzh(k) )
         v_at_w_plus = 0.25_field_r * ( v0(i,j,k-1) + v0(i,j,k) + v0(i,j+1,k-1) + v0(i,j+1,k) )
         tau_wu_plus = log_wallaw(w0(i  ,j,k), v_at_w_plus, Cm_xwall)
-
+      
+        !$acc atomic update
+        !$omp atomic update
         wp(i,j,k  ) = wp(i,j,k  ) + 0.5_field_r * emom * ( (w0(i,j,k  ) - w0(i-1,j,  k)) / dx ) / dx - 0.5_field_r * tau_wu_plus / dx
       end if
 
@@ -606,7 +636,9 @@ contains
               ( 4.0_field_r * dzh(k+1) )
       v_at_w_plus = 0.25_field_r * ( v0(i,j,k) + v0(i,j,k+1) + v0(i,j+1,k) + v0(i,j+1,k+1) )
       tau_wu_plus = log_wallaw(w0(i  ,j,k+1), v_at_w_plus, Cm_xwall)
-
+      
+      !$acc atomic update
+      !$omp atomic update
       wp(i,j,k+1) = wp(i,j,k+1) + 0.5_field_r * emop * ( (w0(i,j,k+1) - w0(i-1,j,k+1) ) / dx ) / dx - 0.5_field_r * tau_wu_plus / dx
 
       ! Enforcing zero flux by correction of tendencies of temperature, moisture and other scalars (by negating diffusion term)
@@ -646,14 +678,18 @@ contains
       emmo = 0.25_field_r * ( ekm(i+1,j,k) + ekm(i+1,j-1,k) + ekm(i,j,k) + ekm(i,j-1,k) )
       w_at_v_min  = 0.25_field_r * ( w0(i,j,k) + w0(i,j,k+1) + w0(i,j-1,k) + w0(i,j-1,k+1) )  !at v(i,j,k)
       tau_vu_min = log_wallaw(v0(i,j,k), w_at_v_min , Cm_xwall) !if v0 > 0, tau > 0, minus sign in tendency enforces opposing friction
-
+      
+      !$acc atomic update
+      !$omp atomic update
       vp(i,j  ,k) = vp(i,j  ,k) - 0.5_field_r * emmo * ( (v0(i+1,j,k) - v0(i,j,k) ) / dx) / dx  - 0.5_field_r * tau_vu_min / dx ! factor 0.5 originates to avoid double correction
 
       ! for v(i,j+1,k):
       empo = 0.25_field_r * ( ekm(i+1,j,k) + ekm(i+1,j+1,k) + ekm(i,j,k) + ekm(i,j+1,k) )
       w_at_v_min  = 0.25_field_r * ( w0(i,j+1,k) + w0(i,j+1,k+1) + w0(i,j,k) + w0(i,j,k+1) )
       tau_vu_min = log_wallaw(v0(i,j+1,k), w_at_v_min , Cm_xwall)
-
+      
+      !$acc atomic update
+      !$omp atomic update
       vp(i,j+1,k) = vp(i,j+1,k) - 0.5_field_r * empo * ( (v0(i+1,j+1,k) - v0(i,j+1,k) ) / dx) / dx - 0.5_field_r * tau_vu_min / dx
 
       ! for w(i,j,k):
@@ -663,7 +699,9 @@ contains
                 ( 4.0_field_r * dzh(k) )
         v_at_w_min = 0.25_field_r * (v0(i,j,k-1)+v0(i,j,k)+v0(i,j+1,k-1)+v0(i,j+1,k) )
         tau_wu_min = log_wallaw(w0(i,j,k), v_at_w_min , Cm_xwall)
-
+              
+        !$acc atomic update
+        !$omp atomic update
         wp(i,j,k  ) = wp(i,j,k  ) - 0.5_field_r * emom * ( (w0(i+1,j,k  ) - w0(i,j,  k)) / dx ) / dx - 0.5_field_r * tau_wu_min / dx
       end if
 
@@ -673,7 +711,9 @@ contains
               ( 4.0_field_r * dzh(k+1) )
       v_at_w_min  = 0.25_field_r * (v0(i,j,k)+v0(i,j,k+1)+v0(i,j+1,k)+v0(i,j+1,k+1) )
       tau_wu_min = log_wallaw(w0(i,j,k+1), v_at_w_min , Cm_xwall)
-
+      
+      !$acc atomic update
+      !$omp atomic update
       wp(i,j,k+1) = wp(i,j,k+1) - 0.5_field_r * emop * ( (w0(i+1,j,k+1) - w0(i,j,k+1) ) / dx ) / dx - 0.5_field_r * tau_wu_min / dx
 
       ! Enforcing zero flux by correction of tendencies of temperature, moisture and other scalars (by negating diffusion term)
@@ -703,7 +743,7 @@ contains
       j = iyw_p(nn,2)
       k = iyw_p(nn,3)
 
-      ! First set the normal velocity at the wall (correct for any drift)
+      ! First set the normal velocity at the wall (correct for any drift)   
       vp(i,j,k)   = -v0(i,j,k)*rk3coefi
 
       ! Remove "wrong" diffusive tendencies and replace with wall drag
@@ -711,14 +751,18 @@ contains
       emmo = 0.25_field_r * ( ekm(i,j,k) + ekm(i,j-1,k) + ekm(i-1,j,k) + ekm(i-1,j-1,k) )
       w_at_u_plus = 0.25_field_r * ( w0(i,j,k) + w0(i,j,k+1) + w0(i-1,j,k) + w0(i-1,j,k+1) )  !at u(i,j,k)
       tau_uv_plus = log_wallaw(u0(i,j,k), w_at_u_plus, Cm_ywall)
-
+      
+      !$acc atomic update
+      !$omp atomic update
       up(i,j  ,k) = up(i,j  ,k) + 0.5_field_r * emmo * ( (u0(i,j,k) - u0(i,j-1,k) ) / dy) / dy - 0.5_field_r * tau_uv_plus / dy
 
       ! for u(i+1,j,k):
-      empo = 0.25_field_r * ( ekm(i,j,k) + ekm(i+1,j+1,k) + ekm(i,j,k) + ekm(i,j+1,k) )
+      empo = 0.25_field_r * ( ekm(i,j,k) + ekm(i,j-1,k) + ekm(i+1,j,k) + ekm(i-1,j-1,k) )
       w_at_u_plus = 0.25_field_r * (w0(i+1,j,k) + w0(i+1,j,k+1) + w0(i,j,k) + w0(i,j,k+1) )
       tau_uv_plus = log_wallaw(u0(i+1,j,k), w_at_u_plus, Cm_ywall)
-
+      
+      !$acc atomic update
+      !$omp atomic update
       up(i+1,j,k) = up(i+1,j,k) + 0.5_field_r * empo * ( (u0(i+1,j,k) - u0(i,j,k) ) / dy) / dy - 0.5_field_r * tau_uv_plus / dy
 
       ! for w(i,j,k):
@@ -728,7 +772,9 @@ contains
                 ( 4.0_field_r * dzh(k) )
         u_at_w_plus = 0.25_field_r * ( u0(i,j,k-1) + u0(i,j,k) + u0(i+1,j,k-1) + u0(i+1,j,k) )
         tau_wv_plus = log_wallaw(w0(i  ,j,k), u_at_w_plus, Cm_ywall)
-
+      
+        !$acc atomic update
+        !$omp atomic update
         wp(i,j,k  ) = wp(i,j,k  ) + 0.5_field_r * emom * ( (w0(i,j,k  ) - w0(i,j-1,  k)) / dy ) / dy - 0.5_field_r * tau_wv_plus / dy
       end if
 
@@ -738,7 +784,9 @@ contains
               ( 4.0_field_r * dzh(k+1) )
       u_at_w_plus = 0.25_field_r * ( u0(i,j,k) + u0(i,j,k+1) + u0(i+1,j,k) + u0(i+1,j,k+1) )
       tau_wv_plus = log_wallaw(w0(i  ,j,k+1), u_at_w_plus, Cm_ywall)
-
+      
+      !$acc atomic update
+      !$omp atomic update
       wp(i,j,k+1) = wp(i,j,k+1) + 0.5_field_r * emop * ( (w0(i,j,k+1) - w0(i,j-1,k+1) ) / dy ) / dy - 0.5_field_r * tau_wv_plus / dy
 
       ! Enforcing zero flux by correction of tendencies of temperature, moisture and other scalars (by negating diffusion term)
@@ -778,14 +826,18 @@ contains
       emmo = 0.25_field_r * ( ekm(i,j+1,k) + ekm(i,j,k) + ekm(i-1,j+1,k) + ekm(i-1,j,k) )
       w_at_u_min  = 0.25_field_r * ( w0(i,j,k) + w0(i,j,k+1) + w0(i-1,j,k) + w0(i-1,j,k+1) )  !at u(i,j,k)
       tau_uv_min = log_wallaw(u0(i,j,k), w_at_u_min , Cm_ywall) !if v0 > 0, tau > 0, minus sign in tendency enforces opposing friction
-
+      
+      !$acc atomic update
+      !$omp atomic update
       up(i,j,k) = up(i,j  ,k) - 0.5_field_r * emmo * ( (u0(i,j+1,k) - u0(i,j,k) ) / dy) / dy  - 0.5_field_r * tau_uv_min / dy ! factor 0.5 originates to avoid double correction
 
       ! for u(i+1,j,k):
       empo = 0.25_field_r * ( ekm(i,j+1,k) + ekm(i,j,k) + ekm(i+1,j+1,k) + ekm(i+1,j,k) )
       w_at_u_min = 0.25_field_r * ( w0(i+1,j,k) + w0(i+1,j,k+1) + w0(i,j,k) + w0(i,j,k+1) )
       tau_uv_min = log_wallaw(u0(i+1,j,k), w_at_u_min , Cm_ywall)
-
+      
+      !$acc atomic update
+      !$omp atomic update
       up(i+1,j,k) = up(i+1,j,k) - 0.5_field_r * empo * ( (u0(i+1,j+1,k) - u0(i+1,j,k) ) / dy) / dy - 0.5_field_r * tau_uv_min / dy
 
       ! for w(i,j,k):
@@ -795,7 +847,9 @@ contains
                 ( 4.0_field_r * dzh(k) )
         u_at_w_min = 0.25_field_r * ( u0(i,j,k-1) + u0(i,j,k) + u0(i+1,j,k-1) + u0(i+1,j,k) )
         tau_wv_min = log_wallaw(w0(i,j,k), u_at_w_min , Cm_ywall)
-
+      
+        !$acc atomic update
+        !$omp atomic update
         wp(i,j,k  ) = wp(i,j,k  ) - 0.5_field_r * emom * ( (w0(i,j+1,k  ) - w0(i,j,  k)) / dy ) / dy - 0.5_field_r * tau_wv_min / dy
       end if
 
@@ -805,7 +859,9 @@ contains
               ( 4.0_field_r * dzh(k+1) )
       u_at_w_min = 0.25_field_r * ( u0(i,j,k) + u0(i,j,k+1) + u0(i+1,j,k) + u0(i+1,j,k+1) )
       tau_wv_min = log_wallaw(w0(i,j,k+1), u_at_w_min , Cm_ywall)
-
+      
+      !$acc atomic update
+      !$omp atomic update
       wp(i,j,k+1) = wp(i,j,k+1) - 0.5_field_r * emop * ( (w0(i,j+1,k+1) - w0(i,j,k+1) ) / dy ) / dy - 0.5_field_r * tau_wv_min / dy
 
       ! Enforcing zero flux by correction of tendencies of temperature, moisture and other scalars (by negating diffusion term)
@@ -843,6 +899,9 @@ contains
     rk3coef = rdt / (4. - dble(rk3step))
     rk3coefi = 1. / rk3coef
 
+    !$acc parallel loop gang vector default(present)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     ! Set tendencies inside obstacled (i.e., correct for any drift from previous integration step)
     do nn = 1,Nobst_wide
       i = iobst(nn,1)
