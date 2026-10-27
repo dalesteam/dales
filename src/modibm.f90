@@ -256,7 +256,7 @@ contains
 
     ! Preset (temporary) arrays for internal buildings and wall indices [Nobst+2*ih*k1+2*jh*k1+4*ih*jh] provides upper bound)
     allocate(tiobst(Nobst+2*ih*j1*k1+2*i1*jh*k1+4*ih*jh,3))                                                                     ! for internal building points
-    allocate(tixw_p(Nobst+2*(i2+j2)*k1,3), tixw_m(Nobst+2*(i2+j2)*k1,3), tiyw_p(Nobst+2*(i2+j2)*k1,3),                          ! for x- and y-walls in positive and negative directions
+    allocate(tixw_p(Nobst+2*(i2+j2)*k1,3), tixw_m(Nobst+2*(i2+j2)*k1,3), tiyw_p(Nobst+2*(i2+j2)*k1,3), &                        ! for x- and y-walls in positive and negative directions
              tiyw_m(Nobst+2*(i2+j2)*k1,3), tizw_p(Nobst+2*(i2+j2)*k1,3)) 
 
     Nxwalls_plus = 0; Nxwalls_min = 0; Nywalls_plus = 0; Nywalls_min = 0; Nzwalls_plus = 0
