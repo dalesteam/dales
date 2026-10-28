@@ -743,7 +743,7 @@ contains
       j = iyw_p(nn,2)
       k = iyw_p(nn,3)
 
-      ! First set the normal velocity at the wall (correct for any drift)   
+      ! First set the normal velocity at the wall (correct for any drift)
       vp(i,j,k)   = -v0(i,j,k)*rk3coefi
 
       ! Remove "wrong" diffusive tendencies and replace with wall drag
