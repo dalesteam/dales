@@ -195,12 +195,8 @@ subroutine initslurb
     
 
     do ilu=1,nlu
-        if (tile(ilu)%lushort == "slb") then
+        if (tile(ilu)%lslurb) then
             ! make sure only one tile is slb, enable_slurb is false by default, set to true if any tile found.
-            if (enable_slurb) then
-                call finish(routine, "Only one SLUrb tile at a time supported. Make sure there's only one tile with lushort=slb.")
-            endif
-            enable_slurb = .true.
             slurb_ilu = ilu
         endif
     end do
@@ -224,11 +220,6 @@ subroutine initslurb
     stop_if_invalid=.true.)
 
     call slurb_bulk_allocations
-    do j=2,j1
-        do i=2,i1
-            fraction_slurb(i,j) = tile(slurb_ilu)%frac(i,j) ! (.)
-        enddo
-    enddo
 
 end subroutine initslurb
 
@@ -371,7 +362,7 @@ end subroutine slurb_update_external_vars
     call read_nc_field(ncid, 'f_bld', slurb_tile%f_bld(2:i1,2:j1), fillvalue=0.5_field_r, requirefill=.true., &
                                 start = (/1 + myidx * imax, 1 + myidy * jmax/), &
                                 count = (/imax, jmax/) )
-    call check_array(slurb_tile%f_bld(2:i1,2:j1), "f_bld", routine, threshold=[real( TINY( 1.0_field_r ),rkind),real(  1.0_field_r ,rkind)], stop_if_invalid=.true.)
+    call check_array(slurb_tile%f_bld(2:i1,2:j1), "f_bld", routine, threshold=[0.0_field_r,real(  1.0_field_r ,rkind)], stop_if_invalid=.true.)
     do j=2,j1
       do i=2,i1
         if ( fraction_slurb(i,j) /= 0) then
@@ -380,6 +371,9 @@ end subroutine slurb_update_external_vars
                 call finish(routine, errstr)
             endif
             slurb_tile%f_bld(i, j) = slurb_tile%f_bld(i, j) / fraction_slurb(i, j)
+        else
+            slurb_tile%f_bld(i, j) = 0.5_field_r ! we don't want numerical weird errors here. so we set a default value
+            slurb_tile%f_bld_frn(i, j) = 0.5_field_r ! we don't want numerical weird errors here. so we set a default value
         endif
         enddo
     enddo
@@ -1644,6 +1638,8 @@ subroutine slurb_canyon_model
  subroutine slurb_urban_aggregation_model
     use modglobal, only : i1, j1, rlv, cp
     use modfields, only : u0, v0, rhof, qt0, thl0
+     use modlsmdata, only : tile, nlu
+     integer :: ilu
     integer ::  i       !< running index
     integer ::  j       !< running index
     integer ::  k_topo  !< k index of topography
@@ -1705,6 +1701,23 @@ subroutine slurb_canyon_model
         slurb_tile%qtskin(i,j) = slurb_tile%f_bld(i,j) * (qt0(i,j,1) + (slurb_tile%qsws_roof(i,j) * rholv_i) * slurb_tile%rah_roof(i,j)) + (1.0_field_r - slurb_tile%f_bld(i,j)) * (qt0(i,j,1) + (slurb_tile%qsws_can(i,j) * rholv_i) * slurb_tile%rah_can(i,j))
       enddo
     enddo
+
+        do ilu=1,nlu
+            if (.not. tile(ilu)%lslurb) cycle
+            tile(ilu)%H(2:i1,2:j1) = slurb_tile%shf_urb(2:i1,2:j1)
+            tile(ilu)%LE(2:i1,2:j1) = slurb_tile%qsws_urb(2:i1,2:j1)
+            tile(ilu)%G(2:i1,2:j1) = 0.
+            tile(ilu)%ustar(2:i1,2:j1) = slurb_tile%us_urb(2:i1,2:j1)
+            tile(ilu)%thlskin(2:i1,2:j1) = slurb_tile%thlskin(2:i1,2:j1)
+            tile(ilu)%qtskin(2:i1,2:j1) = slurb_tile%qtskin(2:i1,2:j1)
+            tile(ilu)%albedo(2:i1,2:j1) = slurb_tile%albedo_urb(2:i1,2:j1)
+            tile(ilu)%Qnet(2:i1,2:j1) = -(slurb_tile%rad_sw_net_urb(2:i1,2:j1) &
+                                                             + slurb_tile%rad_lw_net_urb(2:i1,2:j1))
+            !$acc update device(tile(ilu)%H, tile(ilu)%LE, tile(ilu)%G, tile(ilu)%ustar) async(1)
+            !$acc update device(tile(ilu)%thlskin, tile(ilu)%qtskin, tile(ilu)%albedo, tile(ilu)%Qnet) async(1)
+            !$omp target update to(tile(ilu)%H, tile(ilu)%LE, tile(ilu)%G, tile(ilu)%ustar)
+            !$omp target update to(tile(ilu)%thlskin, tile(ilu)%qtskin, tile(ilu)%albedo, tile(ilu)%Qnet)
+        enddo
 
  contains
 

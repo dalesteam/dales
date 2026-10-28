@@ -62,7 +62,7 @@ subroutine lsm
     ! Calculate root fraction weighted mean soil water content.
     call timer_tic('lsm_calc_theta_mean', 0)
     do ilu=1,nlu
-      if (tile(ilu)%lushort == "slb") then; cycle; endif
+      if (tile(ilu)%lslurb) then; cycle; endif
       if (tile(ilu)%lveg) then
         call calc_theta_mean(tile(ilu))
       end if
@@ -162,7 +162,7 @@ subroutine calc_tile_fractions
 
     ! Water tile fraction is not variable
     do ilu=1,nlu
-        if (tile(ilu)%lushort == "slb") then; cycle; endif
+        if (tile(ilu)%lslurb) then; cycle; endif
       if (tile(ilu)%laqu) then
         tile(ilu)%frac(:,:) = tile(ilu)%base_frac(:,:)
       end if
@@ -173,7 +173,7 @@ subroutine calc_tile_fractions
         c_liq = min(1., wl(i,j)/wl_max(i,j))
         base_frac_sum = 0
         do ilu=1,nlu
-            if (tile(ilu)%lushort == "slb") then; cycle; endif
+            if (tile(ilu)%lslurb) then; cycle; endif
           if (tile(ilu)%laqu) then
             cycle
           else if (ilu == ilu_ws) then
@@ -191,7 +191,7 @@ subroutine calc_tile_fractions
         sum_basefrac=0
         sum_frac=0
         do ilu=1,nlu
-            if (tile(ilu)%lushort == "slb") then; cycle; endif
+            if (tile(ilu)%lslurb) then; cycle; endif
           sum_basefrac = sum_basefrac + tile(ilu)%base_frac(i,j)
           sum_frac = sum_frac + tile(ilu)%frac(i,j)
         end do
@@ -249,7 +249,7 @@ subroutine calc_liquid_reservoir
             wl_tend_max = (wl_max(i,j) - wlm(i,j)) / rk3coef
 
             do ilu=1,nlu
-              if ((.not. tile(ilu)%laqu).and.(.not. tile(ilu)%lushort == "slb")) then
+              if ((.not. tile(ilu)%laqu).and.(.not. tile(ilu)%lslurb)) then
                 ! Tendency due to evaporation from liquid water reservoir/tile.
                 !if (trim(tile(ilu)%lushort) == 'ws') then
                 if (ilu == ilu_ws) then
@@ -377,7 +377,7 @@ subroutine calc_canopy_resistance_js
 
             ! f2: reduction vegetation resistance as f(theta):
             do ilu=1,nlu
-                if (tile(ilu)%lushort == "slb") then; cycle; endif
+                if (tile(ilu)%lslurb) then; cycle; endif
               if (tile(ilu)%lveg) then
                 tile(ilu)%f2(i,j) = 1./min(1., max(1.e-9, tile(ilu)%phiw_mean(i,j)))
               endif
@@ -398,7 +398,7 @@ subroutine calc_canopy_resistance_js
             e    = qt0(i,j,1) * presf(1) / 0.622
 
             do ilu=1,nlu
-                if (tile(ilu)%lushort == "slb") then; cycle; endif
+                if (tile(ilu)%lslurb) then; cycle; endif
               if (tile(ilu)%lveg) then
                 tile(ilu)%f3(i,j) = 1./exp(-tile(ilu)%gD(i,j) * (esat-e))
               endif
@@ -429,7 +429,7 @@ subroutine calc_canopy_resistance_js
         do i=2,i1
             ! Calculate canopy and soil resistance
             do ilu=1,nlu
-                if (tile(ilu)%lushort == "slb") then; cycle; endif
+                if (tile(ilu)%lslurb) then; cycle; endif
               if (tile(ilu)%lveg) then
                 tile(ilu)%rs(i,j) = tile(ilu)%rs_min(i,j) / tile(ilu)%lai(i,j) * tile(ilu)%f2(i,j) * tile(ilu)%f3(i,j) * f1(i,j)
               else if (tile(ilu)%lunum == lu_bs .or. tile(ilu)%lunum == lu_brn) then !TODO; special function for bare soil
@@ -948,7 +948,7 @@ subroutine calc_stability
   end do
 
   do ilu=1, nlu
-    if (tile(ilu)%lushort == "slb") then; cycle; endif
+    if (tile(ilu)%lslurb) then; cycle; endif
     call calc_obuk_ustar_ra(tile(ilu))
   end do
 
@@ -1178,7 +1178,7 @@ subroutine calc_bulk_bcs
     ! Calculate surface temperature for each tile, and calculate
     ! surface fluxes (H, LE, G0, wthl, wqt) and values (thlskin, qtskin)
     do ilu=1,nlu
-        if (tile(ilu)%lushort == "slb") then; cycle; endif
+        if (tile(ilu)%lslurb) then; cycle; endif
       if (tile(ilu)%laqu) then
         call calc_water_bcs(tile(ilu))
       else
@@ -1204,32 +1204,6 @@ subroutine calc_bulk_bcs
         enddo
     enddo
 
-    if (tile(ilu)%lunum == lu_slb) then
-
-    !$acc parallel loop collapse(2) default(present) async(1)
-    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
-    !$omp defaultmap(present:allocatable)
-    do j=2,j1
-        do i=2,i1
-            do ilu=1,nlu
-                    ! we treat the urban canyon and roof separately. SHF and LE have been aggregated in the urban tile already.
-                    ! we calculate thlskin/qtskin in slurb as the weighted average of roof and canyon skin temperature/humidity, which
-                    ! are each calculated like an individual LSM tile is calculated, with their own resistances.
-                    ! note that we will later subtract the urban contribution to the skin temperature, to later add the 
-                    ! urban radiative temperature instead.
-                    H(i,j)      = H(i,j)     + fraction_slurb(i,j) * slurb_tile%shf_urb(i,j)
-                    LE(i,j)     = LE(i,j)    + fraction_slurb(i,j) * slurb_tile%qsws_urb(i,j)
-                    ! G0(i,j)     = G0(i,j)    + tile(ilu)%frac(i,j) * tile(ilu)%G(i,j)
-                    ustar(i,j)  = ustar(i,j) + fraction_slurb(i,j) * slurb_tile%us_urb(i,j)
-                    tskin(i,j)  = tskin(i,j) + fraction_slurb(i,j) * slurb_tile%thlskin(i,j)
-                    qskin(i,j)  = qskin(i,j) + fraction_slurb(i,j) * slurb_tile%qtskin(i,j)
-                    albedo(i,j) = albedo(i,j) + fraction_slurb(i,j) * slurb_tile%albedo_urb(i,j)
-            enddo
-        enddo
-    enddo
-
-    else
-
     !$acc parallel loop collapse(2) default(present) async(1)
     !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
     !$omp defaultmap(present:allocatable)
@@ -1247,7 +1221,6 @@ subroutine calc_bulk_bcs
             enddo
         enddo
     enddo
-    endif
 
     if (enable_slurb) then
     !$acc parallel loop collapse(2) default(present) async(1)
@@ -1315,7 +1288,7 @@ subroutine calc_bulk_bcs
 
             ! Just for diagnostics (modlsmcrosssection)
             do ilu=1,nlu
-                if (tile(ilu)%lushort == "slb") then; cycle; endif
+                if (tile(ilu)%lslurb) then; cycle; endif
               !if (trim(tile(ilu)%lushort) == 'ws') then
               if (ilu == ilu_ws) then
                 cliq(i,j) = tile(ilu)%frac(i,j) / land_frac(i,j)
@@ -1336,7 +1309,7 @@ subroutine calc_bulk_bcs
 
             if (cveg(i,j) > 0) then
                 do ilu=1,nlu
-                    if (tile(ilu)%lushort == "slb") then; cycle; endif
+                    if (tile(ilu)%lslurb) then; cycle; endif
                   if (tile(ilu)%lveg) then
                     rsveg(i,j) = rsveg(i,j) + tile(ilu)%frac(i,j) * tile(ilu)%rs(i,j)
                     ! if ( tile(ilu)%frac(i,j) <= 0.0 ) then
@@ -1350,7 +1323,7 @@ subroutine calc_bulk_bcs
                 rsveg(i,j) = 0.
             end if
             do ilu=1,nlu
-                if (tile(ilu)%lushort == "slb") then; cycle; endif
+                if (tile(ilu)%lslurb) then; cycle; endif
             ! TODO: flexible solution for LU types with soil resistance
               if ( .not. (tile(ilu)%lveg .or. tile(ilu)%laqu .or. (ilu == ilu_ws) ) ) then
                   rssoil(i,j) = rssoil(i,j) + tile(ilu)%rs(i,j) * tile(ilu)%frac(i,j)
@@ -1580,7 +1553,7 @@ subroutine calc_root_water_extraction
        end do
     end do
     do ilu=1,nlu
-      if ((.not. tile(ilu)%lveg).or.(tile(ilu)%lushort == "slb")) then
+      if ((.not. tile(ilu)%lveg).or.(tile(ilu)%lslurb)) then
           cycle
       else
         !$acc parallel loop collapse(2) default(present) async(1)
@@ -1861,7 +1834,7 @@ subroutine initlsm
           tile(ilu)%lunum = lu_bs
        else if (trim(tile(ilu)%lushort) == 'brn') then
           tile(ilu)%lunum = lu_brn
-       else if (trim(tile(ilu)%lushort) == 'slb') then
+       else if (tile(ilu)%lslurb) then
           tile(ilu)%lunum = lu_slb
        else
           tile(ilu)%lunum = lu_default
@@ -2702,6 +2675,13 @@ subroutine init_homogeneous
     tile(ilu_ap)%laqu = .False.
     tile(ilu_ws)%laqu = .False.
 
+    tile(ilu_lv)%lslurb = .False.
+    tile(ilu_hv)%lslurb = .False.
+    tile(ilu_bs)%lslurb = .False.
+    tile(ilu_aq)%lslurb = .False.
+    tile(ilu_ap)%lslurb = .False.
+    tile(ilu_ws)%lslurb = .False.
+
     ! Set values
     tile(ilu_lv) % base_frac(:,:) = c_low
     tile(ilu_hv) % base_frac(:,:) = c_high
@@ -2829,7 +2809,7 @@ subroutine init_heterogeneous_nc
         gm25, Ammax25, f0field, alpha0field, co2_comp298, T1gmfield, T1Amfield
     use modlogging, only : profile_output
     use modstat_nc, only: read_nc_field
-    use modslurb, only: enable_slurb
+    use modslurb, only: enable_slurb, fraction_slurb
     implicit none
     character(len=*), parameter :: routine = modname//'/init_heterogeneous_nc'
 
@@ -2840,7 +2820,8 @@ subroutine init_heterogeneous_nc
     integer       :: ncid , varid
     character     :: lvegs(nlu-1)
     character     :: laqus(nlu-1)
-    integer       :: nlu_file, len_x, len_y
+    character     :: lslurbs(nlu-1) !< whether each tile is the slurb (single layer urban tile, only one allowed)
+    integer       :: nlu_file, len_x, len_y, amount_slurb_tiles, i, j, iret
 
     write(input_file(9:11), '(i3.3)') iexpnr
 
@@ -2903,6 +2884,24 @@ subroutine init_heterogeneous_nc
       else
         call finish(routine, 'logical laqu not defined')
       end if
+      ! lslurb
+      iret = nf90_inq_varid(ncid, 'lslurb', varid)
+      if (iret == NF90_ENOTVAR) then
+        ! variable 'lslurb' does not exist, set default value to false.
+        tile(ilu)%lslurb = .false.
+      else
+        call check(iret)
+        call check( nf90_get_var(ncid, varid, lslurbs(ilu), &
+                                  start = (/ 1, ilu /), &
+                                  count = (/ 1, 1   /) ) )
+        if (trim(lslurbs(ilu)) .eq. "T") then
+          tile(ilu)%lslurb = .true.
+        else if (trim(lslurbs(ilu)) .eq. "F") then
+          tile(ilu)%lslurb = .false.
+        else
+          call finish(routine, 'logical lslurb not defined')
+        end if
+      end if
 
     end do
 
@@ -2912,6 +2911,7 @@ subroutine init_heterogeneous_nc
     tile(nlu)%lushort = 'ws '
     tile(nlu)%lveg    = .false.
     tile(nlu)%laqu    = .false.
+    tile(nlu)%lslurb  = .false.
 
     ! initialize to 0 to avoid un-initialized values in the halo or elsewhere
     tile(nlu)%base_frac = 0
@@ -2931,13 +2931,13 @@ subroutine init_heterogeneous_nc
     tile(nlu)%ustar = 0
     tile(nlu)%albedo = 0
     if (lags) then
-        tile(ilu)%gm25 = 0
-        tile(ilu)%Ammax25 = 0
-        tile(ilu)%f0field = 0
-        tile(ilu)%alpha0field = 0
-        tile(ilu)%co2_comp298 = 0
-        tile(ilu)%T1gmfield = 0
-        tile(ilu)%T1Amfield = 0
+        tile(nlu)%gm25 = 0
+        tile(nlu)%Ammax25 = 0
+        tile(nlu)%f0field = 0
+        tile(nlu)%alpha0field = 0
+        tile(nlu)%co2_comp298 = 0
+        tile(nlu)%T1gmfield = 0
+        tile(nlu)%T1Amfield = 0
     endif 
 
     ! 2D surface fields
@@ -3195,7 +3195,7 @@ subroutine init_heterogeneous_nc
     tile(ilu_ws)%albedo = 0
 
     do ilu=1,nlu
-        if (tile(ilu)%lushort == "slb") then; cycle; endif
+        if (tile(ilu)%lslurb) then; cycle; endif
       if (tile(ilu)%laqu) then
         cycle
       else
@@ -3210,7 +3210,7 @@ subroutine init_heterogeneous_nc
     ! Calculate vegetation fraction, and limit to prevent div/0's
     cveg = 0
     do ilu=1,nlu
-        if (tile(ilu)%lushort == "slb") then; cycle; endif
+        if (tile(ilu)%lslurb) then; cycle; endif
       if (tile(ilu)%lveg) then
         cveg(:,:) = cveg(:,:) + tile(ilu)%base_frac(:,:)
       end if
@@ -3229,7 +3229,7 @@ subroutine init_heterogeneous_nc
     ! Max liquid water per grid point, accounting for LAI
     wl_max = 0
     do ilu=1,nlu
-        if (tile(ilu)%lushort == "slb") then; cycle; endif
+        if (tile(ilu)%lslurb) then; cycle; endif
       if (tile(ilu)%laqu) then
         cycle
       endif
@@ -3243,22 +3243,32 @@ subroutine init_heterogeneous_nc
     wl_max(:,:) = wl_max(:,:) * wmax/land_frac(:,:)
     where (wl_max == 0) wl_max = eps1
 
-    ! initialize tskin
-    tskin(:,:) = 0
-    tskin_radiative(:,:) = 0
-    do ilu=1,nlu
-        if (tile(ilu)%lushort == "slb") then; cycle; endif
-       tskin(:,:) = tskin(:,:) + tile(ilu)%base_frac(:,:) * tile(ilu)%tskin(:,:)
-    end do
-    if (enable_slurb) then
-        tskin_radiative(:,:) = tskin(:,:)
-    end if 
-
     ! initialize frac to base_frac (for now the dynamic wet skin is not done unless ldrydep is true)
     do ilu=1,nlu
         tile(ilu)%frac(:,:) = tile(ilu)%base_frac(:,:)
     end do
 
+    do ilu=1,nlu
+        if (tile(ilu)%lslurb) then
+            ! make sure only one tile is slb, enable_slurb is false by default, set to true if any tile found.
+            if (enable_slurb) then
+                call finish(routine, "Only one SLUrb tile at a time supported. Make sure there's only one tile with lslurb=.true.")
+            endif
+            enable_slurb = .true.
+            allocate(fraction_slurb(i2,j2))
+            fraction_slurb(:,:) = tile(ilu)%frac(:,:)
+        endif
+    end do
+    ! initialize tskin
+    tskin(:,:) = 0
+    tskin_radiative(:,:) = 0
+    do ilu=1,nlu
+        if (tile(ilu)%lslurb) then; cycle; endif
+       tskin(:,:) = tskin(:,:) + tile(ilu)%base_frac(:,:) * tile(ilu)%tskin(:,:)
+    end do
+    if (enable_slurb) then
+        tskin_radiative(:,:) = tskin(:,:)
+    end if 
     ! !! debugging: some checks
     ! write(*,*) '...checking LU inputs: mean, min and max, accounting for ghost cells'
     ! do ilu=1,nlu
@@ -3441,7 +3451,7 @@ subroutine calc_root_fractions
         root_sum = 0
         do k=2, kmax_soil
           do ilu=1,nlu
-            if (tile(ilu)%lushort == "slb") then; cycle; endif
+            if (tile(ilu)%lslurb) then; cycle; endif
             if (tile(ilu)%lveg) then
               tile(ilu)%root_frac(i,j,k) = 0.5 * (&
                   exp(tile(ilu)%a_r(i,j) * zh_soil(k+1)) + &
@@ -3455,7 +3465,7 @@ subroutine calc_root_fractions
 
         ! Make sure that the fractions sum to one.
         do ilu=1,nlu
-            if (tile(ilu)%lushort == "slb") then; cycle; endif
+            if (tile(ilu)%lslurb) then; cycle; endif
           if (tile(ilu)%lveg) then
             tile(ilu)%root_frac(i,j,1) = 1. - root_sum(ilu)
           end if
