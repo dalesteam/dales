@@ -434,7 +434,7 @@ contains
                do i = 2, i1
                   zlt(i,j,k) = delta(k)
                   if (dthvdz(i,j,k) > 0) then
-                     zlt(i,j,k) = min(delta(k), 1/(1/(0.4_field_r*zh(k))+1/(cn*e120(i,j,k)/sqrt(grav/thvf(k)*dthvdz(i,j,k)))))
+                     zlt(i,j,k) = min(delta(k), 1/(1/(0.4_field_r*zf(k))+1/(cn*e120(i,j,k)/sqrt(grav/thvf(k)*dthvdz(i,j,k)))))
                   end if
                   
                   ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
