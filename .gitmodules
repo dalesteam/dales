@@ -11,3 +11,7 @@
 [submodule "external/rrtmgp-data"]
 	path = external/rrtmgp-data
 	url = https://github.com/earth-system-radiation/rrtmgp-data.git
+[submodule "external/lcm"]
+	path = external/lcm
+	url = https://github.com/lcm-team/lcm.git
+	branch = main
