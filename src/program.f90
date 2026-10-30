@@ -275,11 +275,11 @@ program DALES
         call samptend(tend_topbound)
 
         ! either apply ibm before or after poisson solver
-        if (lpoislast .eqv.  .true.) call applyibm
-        if (lpoislast .eqv. .false.) call zerowallvelocity ! put wall velocities to zero before Poisson
+        if (lpoislast)       call applyibm
+        if (.not. lpoislast) call zerowallvelocity ! put wall velocities to zero before Poisson
         call poisson
 
-        if (lpoislast .eqv. .false.) call applyibm ! then only apply IBM after Poisson
+        if (.not. lpoislast) call applyibm ! then only apply IBM after Poisson
 
         call samptend(tend_pois,lastterm=.true.)
         if(lopenbc) call openboundary_phasevelocity()

@@ -47,10 +47,15 @@ module modibm
   
   integer :: Nobst, Nobst_wide                                                                    !< Number of obstacles on pure domain and incl. halo cells 
   integer :: Nxwalls_plus, Nywalls_plus, Nzwalls_plus, Nxwalls_min, Nywalls_min, Nzwalls_min      !< Number of walls oriented in positve/negative x,y,z directions
-  integer, allocatable :: ixw_p(:,:), ixw_m(:,:), iyw_p(:,:), iyw_m(:,:), izw_p(:,:)!, izw_m(:,:) !< Indices of walls oriented in positve/negative x,y,z directions
-  integer, allocatable :: iobst(:,:)                                                              !< Indices of obstacles
-  
-  real(field_r) :: dx_half, dy_half, Cm_xwall, Cm_ywall, Cd_xwall, Cd_ywall, Cm_zwall, Cd_zwall, z_MO !< Additional variables/parameters
+  integer, allocatable :: ixw_p(:,:), ixw_m(:,:), iyw_p(:,:), iyw_m(:,:), izw_p(:,:)!, izw_m(:,:) !< Grid indices of walls oriented in positve/negative x,y,z directions
+  integer, allocatable :: iobst(:,:)                                                              !< Grid indices of obstacles
+  integer, allocatable :: col2uncol_zwalls_plus(:,:), col2uncol_xwalls_plus(:,:), &               !< Wall indices per color (for explicit GPU scheduling)
+                          col2uncol_xwalls_min(:,:) , col2uncol_ywalls_plus(:,:), &
+                          col2uncol_ywalls_min(:,:)
+  integer, allocatable :: Nzwalls_plus_color(:), Nxwalls_plus_color(:), Nxwalls_min_color(:), &   !< Number of walls per color
+                          Nywalls_plus_color(:), Nywalls_min_color(:)
+
+  real(field_r) :: dx_half, dy_half, Cm_xwall, Cm_ywall, Cd_xwall, Cd_ywall                       !< Additional variables/parameters
 
   public :: ibm_read_namelist, initibm, exitibm, applyibm, zerowallvelocity
 
@@ -68,7 +73,7 @@ contains
 
     ! Read in NAMOPTIONS parameters related to IBM
     namelist/IBM/ &
-      lapply_ibm, lwallheat, thlwall, thlibm, thlroof, qtibm, lpoislast, z0m_wall, z0h_wall
+      lapply_ibm, lwallheat, thlwall, thlibm, thlroof, qtwall, qtibm, qtroof, lpoislast, z0m_wall, z0h_wall
 
     if (myid == 0) then
 
@@ -108,6 +113,7 @@ contains
     implicit none
 
     integer         :: i, j, k, ierr, no = 0
+    integer         :: wall_index, crossindex
     integer         :: advarr(5)
     character(100)  :: readstring
 
@@ -256,7 +262,8 @@ contains
 
     ! Preset (temporary) arrays for internal buildings and wall indices [Nobst+2*ih*k1+2*jh*k1+4*ih*jh] provides upper bound)
     allocate(tiobst(Nobst+2*ih*j1*k1+2*i1*jh*k1+4*ih*jh,3))                                                                     ! for internal building points
-    allocate(tixw_p(Nobst+i2*k1,3), tixw_m(Nobst+i2*k1,3), tiyw_p(Nobst+j2*k1,3), tiyw_m(Nobst+j2*k1,3), tizw_p(Nobst+j2*k1,3)) ! for x- and y-walls in positive and negative directions
+    allocate(tixw_p(Nobst+2*(i2+j2)*k1,3), tixw_m(Nobst+2*(i2+j2)*k1,3), tiyw_p(Nobst+2*(i2+j2)*k1,3), &                        ! for x- and y-walls in positive and negative directions
+             tiyw_m(Nobst+2*(i2+j2)*k1,3), tizw_p(Nobst+2*(i2+j2)*k1,3)) 
 
     Nxwalls_plus = 0; Nxwalls_min = 0; Nywalls_plus = 0; Nywalls_min = 0; Nzwalls_plus = 0
 
@@ -340,12 +347,103 @@ contains
     iyw_m(1:Nywalls_min ,:) = tiyw_m(1:Nywalls_min ,:)
     izw_p(1:Nzwalls_plus,:) = tizw_p(1:Nzwalls_plus,:)
 
+    !> \brief Color the walls to avoid race condition on GPU
+    !! this effectively colors every wall direction as a checkerboard, 
+    !! ensuring two neighboring walls cannot be processed simultaneously 
+    allocate(col2uncol_zwalls_plus(2, Nzwalls_plus), col2uncol_xwalls_plus(2, Nxwalls_plus), col2uncol_xwalls_min(2, Nxwalls_min), &
+             col2uncol_ywalls_plus(2, Nywalls_plus), col2uncol_ywalls_min(2, Nywalls_min))
+    allocate(Nzwalls_plus_color(2), Nxwalls_plus_color(2), Nxwalls_min_color(2), &
+             Nywalls_plus_color(2), Nywalls_min_color(2))
+
+    ! Put all coloring counters to zero
+    Nzwalls_plus_color(:) = 0
+    Nxwalls_plus_color(:) = 0
+    Nxwalls_min_color (:) = 0
+    Nywalls_plus_color(:) = 0
+    Nywalls_min_color (:) = 0 
+
+    ! Process all wall directions, calculate 2D checkerboard pattern in respective dimensions
+    do wall_index = 1, Nzwalls_plus
+      i = izw_p(wall_index,1)
+      j = izw_p(wall_index,2)
+
+      if ( mod(i+j,2) == 0 ) then
+        Nzwalls_plus_color(1) = Nzwalls_plus_color(1) + 1
+        col2uncol_zwalls_plus(1, Nzwalls_plus_color(1)) = wall_index
+      else
+        Nzwalls_plus_color(2) = Nzwalls_plus_color(2) + 1
+        col2uncol_zwalls_plus(2, Nzwalls_plus_color(2)) = wall_index
+      end if
+
+    end do
+
+    do wall_index = 1, Nxwalls_plus
+      j = ixw_p(wall_index,2)
+      k = ixw_p(wall_index,3)
+
+      if ( mod(j+k,2) == 0 ) then
+        Nxwalls_plus_color(1) = Nxwalls_plus_color(1) + 1
+        col2uncol_xwalls_plus(1, Nxwalls_plus_color(1)) = wall_index 
+      else
+        Nxwalls_plus_color(2) = Nxwalls_plus_color(2) + 1
+        col2uncol_xwalls_plus(2, Nxwalls_plus_color(2)) = wall_index
+      end if
+
+    end do
+
+    do wall_index = 1, Nxwalls_min
+      j = ixw_m(wall_index,2)
+      k = ixw_m(wall_index,3)
+
+      if ( mod(j+k,2) == 0 ) then
+        Nxwalls_min_color(1) = Nxwalls_min_color(1) + 1
+        col2uncol_xwalls_min(1, Nxwalls_min_color(1)) = wall_index
+      else
+        Nxwalls_min_color(2) = Nxwalls_min_color(2) + 1
+        col2uncol_xwalls_min(2, Nxwalls_min_color(2)) = wall_index
+      end if
+      
+    end do
+
+    do wall_index = 1, Nywalls_plus
+      i = iyw_p(wall_index,1)
+      k = iyw_p(wall_index,3)
+
+      if ( mod(i+k,2) == 0 ) then
+        Nywalls_plus_color(1) = Nywalls_plus_color(1) + 1
+        col2uncol_ywalls_plus(1, Nywalls_plus_color(1)) = wall_index  
+      else
+        Nywalls_plus_color(2) = Nywalls_plus_color(2) + 1
+        col2uncol_ywalls_plus(2, Nywalls_plus_color(2)) = wall_index
+      end if
+
+    end do
+
+    do wall_index = 1, Nywalls_min
+      i = iyw_m(wall_index,1)
+      k = iyw_m(wall_index,3)
+      
+      if ( mod(i+k,2) == 0 ) then
+        Nywalls_min_color(1) = Nywalls_min_color(1) + 1
+        col2uncol_ywalls_min(1, Nywalls_min_color(1)) = wall_index
+      else
+        Nywalls_min_color(2) = Nywalls_min_color(2) + 1
+        col2uncol_ywalls_min(2, Nywalls_min_color(2)) = wall_index
+      end if
+
+    end do
+
     deallocate(bc_height)
     deallocate(tiobst, tixw_p, tixw_m, tiyw_p, tiyw_m, tizw_p)
 
-    !$acc enter data copyin(fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p)
-!$omp target enter data map(to:fluid_mask,iobst,ixw_p,ixw_m,iyw_p,&
-!$omp iyw_m,izw_p)
+    !$acc enter data copyin(fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p, &
+    !$acc                   col2uncol_zwalls_plus, col2uncol_xwalls_plus, col2uncol_xwalls_min, &
+    !$acc                   col2uncol_ywalls_plus, col2uncol_ywalls_min, Nzwalls_plus_color, & 
+    !$acc                   Nxwalls_plus_color, Nxwalls_min_color, Nywalls_plus_color, Nywalls_min_color) 
+    !$omp target enter data map(to:fluid_mask,iobst,ixw_p,ixw_m,iyw_p, &
+    !$omp iyw_m,izw_p, col2uncol_zwalls_plus, col2uncol_xwalls_plus, col2uncol_xwalls_min, &
+    !$omp col2uncol_ywalls_plus, col2uncol_ywalls_min, Nzwalls_plus_color, & 
+    !$omp Nxwalls_plus_color, Nxwalls_min_color, Nywalls_plus_color, Nywalls_min_color)
 
     call timer_toc('modibm/initibm')
 
@@ -357,9 +455,14 @@ contains
 
     if (.not. (lapply_ibm)) return
 
-    !$acc exit data delete(fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p)
-!$omp target exit data map(delete:fluid_mask,iobst,ixw_p,ixw_m,iyw_p,&
-!$omp iyw_m,izw_p)
+    !$acc exit data delete(fluid_mask, iobst, ixw_p, ixw_m, iyw_p, iyw_m, izw_p, &
+    !$acc                  col2uncol_zwalls_plus, col2uncol_xwalls_plus, col2uncol_xwalls_min, &
+    !$acc                  col2uncol_ywalls_plus, col2uncol_ywalls_min, Nzwalls_plus_color, & 
+    !$acc                  Nxwalls_plus_color, Nxwalls_min_color, Nywalls_plus_color, Nywalls_min_color) 
+    !$omp target exit data map(delete:fluid_mask,iobst,ixw_p,ixw_m,iyw_p, &
+    !$omp iyw_m,izw_p, col2uncol_zwalls_plus, col2uncol_xwalls_plus, col2uncol_xwalls_min, &
+    !$omp col2uncol_ywalls_plus, col2uncol_ywalls_min, Nzwalls_plus_color, & 
+    !$omp Nxwalls_plus_color, Nxwalls_min_color, Nywalls_plus_color, Nywalls_min_color)                         
 
     deallocate(iobst)
     deallocate(ixw_p)
@@ -367,6 +470,16 @@ contains
     deallocate(iyw_p)
     deallocate(iyw_m)
     deallocate(izw_p)
+    deallocate(col2uncol_zwalls_plus)
+    deallocate(col2uncol_xwalls_plus)
+    deallocate(col2uncol_xwalls_min )
+    deallocate(col2uncol_ywalls_plus)
+    deallocate(col2uncol_ywalls_min ) 
+    deallocate(Nzwalls_plus_color)
+    deallocate(Nxwalls_plus_color)
+    deallocate(Nxwalls_min_color) 
+    deallocate(Nywalls_plus_color)
+    deallocate(Nywalls_min_color) 
 
     deallocate(fluid_mask)
 
@@ -435,13 +548,13 @@ contains
 
     character(len=*), parameter :: routine = modname//'/applyibm'
 
-    integer           :: i, j, k, nn, nc, retval
+    integer           :: i, j, k, color_index, wall_index, wall_index_colored, obstacle_index, nc, retval
     real(field_r)     :: rk3coef, rk3coefi
     real(field_r)     :: emmo, empo, emom, emop, eomm
     real(field_r)     :: u_at_v_min, u_at_v_plus, v_at_u_min, v_at_u_plus
     real(field_r)     :: w_at_v_min, w_at_v_plus, w_at_u_min, w_at_u_plus
     real(field_r)     :: u_at_w_min, u_at_w_plus, v_at_w_min, v_at_w_plus
-    real(field_r)     :: uspeed, ucc, vcc, z_MO
+    real(field_r)     :: uspeed, ucc, vcc, z_MO, Cm_zwall, Cd_zwall
     real(field_r)     :: tau_vu_plus, tau_vu_min, tau_wu_min, tau_wu_plus, tau_uv_min, tau_uv_plus, tau_wv_min, tau_wv_plus
     real              :: Lob
     
@@ -456,10 +569,10 @@ contains
     !$acc parallel loop gang vector default(present)
     !$omp target teams loop defaultmap(present:aggregate)&
     !$omp defaultmap(present:allocatable)
-    do nn = 1,Nobst_wide  !1!< Svdldit werkt niet..
-      i = iobst(nn,1)
-      j = iobst(nn,2)
-      k = iobst(nn,3)
+    do obstacle_index = 1,Nobst_wide
+      i = iobst(obstacle_index,1)
+      j = iobst(obstacle_index,2)
+      k = iobst(obstacle_index,3)
 
       ! Correction of velocities also corrects walls w. normals in negative x,y-directions (due to staggered grid arrangement)
       up(i,j,k)   = -u0(i,j,k)*rk3coefi
@@ -481,348 +594,366 @@ contains
     !       2. apply IBM conditions explicitly to e12 as well
 
     ! Correct tendencies for walls in positive z-direction (only works when k>1, which should be the case for vertical walls [see initibm])
-    !$acc parallel loop gang vector default(present)
-    !$omp target teams loop defaultmap(present:aggregate)&
-    !$omp defaultmap(present:allocatable)
-    do nn = 1,Nzwalls_plus
-      i = izw_p(nn,1)
-      j = izw_p(nn,2)
-      k = izw_p(nn,3)
+    do color_index = 1,2
+      !$acc parallel loop gang vector default(present)
+      !$omp target teams loop defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
+      do wall_index_colored = 1,Nzwalls_plus_color(color_index)
+        wall_index = col2uncol_zwalls_plus(color_index, wall_index_colored)
+        i = izw_p(wall_index,1)
+        j = izw_p(wall_index,2)
+        k = izw_p(wall_index,3)
 
-      ! First set the normal velocity at the wall (correct for any drift)
-      wp(i,j,k)   = -w0(i,j,k)*rk3coefi
+        ! First set the normal velocity at the wall (correct for any drift)
+        wp(i,j,k)   = -w0(i,j,k)*rk3coefi
 
-      ! Remove "wrong" diffusive tendencies
-      ! for u(i,j,k):
-      emom = ( dzf(k-1) * ( ekm(i,j,k  ) + ekm(i+1,j,k  ) )  + &
-            dzf(k  ) * ( ekm(i,j,k-1) + ekm(i+1,j,k-1) ) ) * &
-            ( 0.25_field_r * dzhi(k) )
-      up(i,j,k) = up(i,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * emom * ( (u0(i,j,k) - u0(i,j,k-1)) *dzhi(k)) *dzfi(k)
+        ! Remove "wrong" diffusive tendencies
+        ! for u(i,j,k):
+        emom = ( dzf(k-1) * ( ekm(i,j,k  ) + ekm(i-1,j,k  ) )  + &
+              dzf(k  ) * ( ekm(i,j,k-1) + ekm(i-1,j,k-1) ) ) * &
+              ( 0.25_field_r * dzhi(k) )
 
-      ! for u(i+1,j,k):
-      emom = ( dzf(k-1) * ( ekm(i,j,k  ) + ekm(i-1,j,k  ) )  + &
-            dzf(k  ) * ( ekm(i,j,k-1) + ekm(i-1,j,k-1) ) ) * &
-            ( 0.25_field_r * dzhi(k) )
-      up(i+1,j,k) = up(i+1,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * emom * ( (u0(i+1,j,k) - u0(i+1,j,k-1)) *dzhi(k)) *dzfi(k)
+        up(i,j,k) = up(i,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * emom * ( (u0(i,j,k) - u0(i,j,k-1)) *dzhi(k)) *dzfi(k)
 
-      ! for v(i,j,k):
-      eomm = ( dzf(k-1) * ( ekm(i,j,k  ) + ekm(i,j-1,k ) ) + &
-            dzf(k  ) * ( ekm(i,j,k-1) + ekm(i,j-1,k-1) ) ) * &
-            ( .25_field_r * dzhi(k) )
-      vp(i,j,k) = vp(i,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * eomm * ( (v0(i,j,k) - v0(i,j,k-1)) * dzhi(k)) * dzfi(k)
+        ! for u(i+1,j,k):
+        emom = ( dzf(k-1) * ( ekm(i,j,k  ) + ekm(i+1,j,k  ) )  + &
+              dzf(k  ) * ( ekm(i,j,k-1) + ekm(i+1,j,k-1) ) ) * &
+              ( 0.25_field_r * dzhi(k) )
+        
+        up(i+1,j,k) = up(i+1,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * emom * ( (u0(i+1,j,k) - u0(i+1,j,k-1)) *dzhi(k)) *dzfi(k)
 
-      ! for v(i,j+1,k):
-      eomm = ( dzf(k-1) * ( ekm(i,j,k  ) + ekm(i,j+1,k ) ) + &
-            dzf(k  ) * ( ekm(i,j,k-1) + ekm(i,j+1,k-1) ) ) * &
-            ( .25_field_r * dzhi(k) )
-      vp(i,j+1,k) = vp(i,j+1,k) + 0.5_field_r * rhobh(k)/rhobf(k) * eomm * ( (v0(i,j+1,k)-v0(i,j+1,k-1)) * dzhi(k)) * dzfi(k)
+        ! for v(i,j,k):
+        eomm = ( dzf(k-1) * ( ekm(i,j,k  ) + ekm(i,j-1,k ) ) + &
+              dzf(k  ) * ( ekm(i,j,k-1) + ekm(i,j-1,k-1) ) ) * &
+              ( .25_field_r * dzhi(k) )
+              
+        vp(i,j,k) = vp(i,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * eomm * ( (v0(i,j,k) - v0(i,j,k-1)) * dzhi(k)) * dzfi(k)
 
-      ! Include correct Monin-Obukhov wall drag (with stability correction)
-      ucc    = 0.5_real64 * (u0(i,j,k) + u0(i+1,j,k))
-      vcc    = 0.5_real64 * (v0(i,j,k) + v0(i,j+1,k))
-      uspeed = 0.5_field_r * sqrt( ( u0(i,j,k) + u0(i+1,j,k) )**2 + ( v0(i,j,k) + v0(i,j+1,k) )**2 )
-      z_MO   = zf(k) - zh(k)
-      Lob    = -1.e10
+        ! for v(i,j+1,k):
+        eomm = ( dzf(k-1) * ( ekm(i,j,k  ) + ekm(i,j+1,k ) ) + &
+              dzf(k  ) * ( ekm(i,j,k-1) + ekm(i,j+1,k-1) ) ) * &
+              ( .25_field_r * dzhi(k) )
+              
+        vp(i,j+1,k) = vp(i,j+1,k) + 0.5_field_r * rhobh(k)/rhobf(k) * eomm * ( (v0(i,j+1,k)-v0(i,j+1,k-1)) * dzhi(k)) * dzfi(k)
 
-      if (lneutral) then
-        Cm_zwall = fkar**2 / (log(z_MO / z0m_wall))** 2
-        Cd_zwall = fkar**2 / (log(z_MO / z0m_wall)) / (log(z_MO / z0h_wall))
-      else
-        retval = calc_obl_iter(thl0(i,j,k), qt0(i,j,k), real(thlroof), &
-                               real(qtroof), z_MO, real(z0m_wall), real(z0h_wall), & 
-                               ucc, vcc, Lob)
+        ! Include correct Monin-Obukhov wall drag (with stability correction)
+        ucc    = 0.5_real64 * (u0(i,j,k) + u0(i+1,j,k))
+        vcc    = 0.5_real64 * (v0(i,j,k) + v0(i,j+1,k))
+        uspeed = 0.5_field_r * sqrt( ( u0(i,j,k) + u0(i+1,j,k) )**2 + ( v0(i,j,k) + v0(i,j+1,k) )**2 )
+        z_MO   = zf(k) - zh(k)
+        Lob    = -1.e10
 
-        Cm_zwall = fkar**2 / (log(z_MO / z0m_wall) - psim(z_MO / Lob) + psim(z0m_wall / Lob))** 2
-        Cd_zwall = fkar**2 / (log(z_MO / z0m_wall) - psim(z_MO / Lob) + psim(z0m_wall / Lob)) / (log(z_MO / z0h_wall) - psih(z_MO / Lob) + psih(z0h_wall / Lob))
-      end if
+        if (lneutral) then
+          Cm_zwall = fkar**2 / (log(z_MO / z0m_wall))** 2
+          Cd_zwall = fkar**2 / (log(z_MO / z0m_wall)) / (log(z_MO / z0h_wall))
+        else
+          retval = calc_obl_iter(thl0(i,j,k), qt0(i,j,k), real(thlroof), &
+                                real(qtroof), z_MO, real(z0m_wall), real(z0h_wall), & 
+                                ucc, vcc, Lob)
 
-      up(i  ,j,k) = up(i  ,j,k) - 0.25_field_r * rhobh(k)/rhobf(k) * Cm_zwall * ( u0(i,j,k) + u0(i+1,j,k) ) * uspeed * dzfi(k)
-      up(i+1,j,k) = up(i+1,j,k) - 0.25_field_r * rhobh(k)/rhobf(k) * Cm_zwall * ( u0(i,j,k) + u0(i+1,j,k) ) * uspeed * dzfi(k)
-      vp(i,j  ,k) = vp(i,j  ,k) - 0.25_field_r * rhobh(k)/rhobf(k) * Cm_zwall * ( v0(i,j,k) + v0(i,j+1,k) ) * uspeed * dzfi(k)
-      vp(i,j+1,k) = vp(i,j+1,k) - 0.25_field_r * rhobh(k)/rhobf(k) * Cm_zwall * ( v0(i,j,k) + v0(i,j+1,k) ) * uspeed * dzfi(k)
+          Cm_zwall = fkar**2 / (log(z_MO / z0m_wall) - psim(z_MO / Lob) + psim(z0m_wall / Lob))** 2
+          Cd_zwall = fkar**2 / (log(z_MO / z0m_wall) - psim(z_MO / Lob) + psim(z0m_wall / Lob)) / (log(z_MO / z0h_wall) - psih(z_MO / Lob) + psih(z0h_wall / Lob))
+        end if
+              
+        up(i  ,j,k) = up(i  ,j,k) - 0.25_field_r * rhobh(k)/rhobf(k) * Cm_zwall * ( u0(i,j,k) + u0(i+1,j,k) ) * uspeed * dzfi(k)
+        up(i+1,j,k) = up(i+1,j,k) - 0.25_field_r * rhobh(k)/rhobf(k) * Cm_zwall * ( u0(i,j,k) + u0(i+1,j,k) ) * uspeed * dzfi(k)
+        vp(i,j  ,k) = vp(i,j  ,k) - 0.25_field_r * rhobh(k)/rhobf(k) * Cm_zwall * ( v0(i,j,k) + v0(i,j+1,k) ) * uspeed * dzfi(k)
+        vp(i,j+1,k) = vp(i,j+1,k) - 0.25_field_r * rhobh(k)/rhobf(k) * Cm_zwall * ( v0(i,j,k) + v0(i,j+1,k) ) * uspeed * dzfi(k)
 
-      ! tentative fix for vertical diffusion of temperature over z-walls. Also here, 0.5 comes from interpolation of ekm.
-      thlp(i,j,k) = thlp(i,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * ( ( ( dzf(k-1) * ekm(i,j,k) ) + ( dzf(k ) * ekm(i,j,k-1)) )* dzhi(k)  ) * ( thl0(i,j,k) - thl0(i,j,k-1) ) * dzhi(k) * dzfi(k)
-      qtp (i,j,k) = qtp (i,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * ( ( ( dzf(k-1) * ekm(i,j,k) ) + ( dzf(k ) * ekm(i,j,k-1)) )* dzhi(k)  ) * ( qt0 (i,j,k) - qt0 (i,j,k-1) ) * dzhi(k) * dzfi(k)
+        ! tentative fix for vertical diffusion of temperature over z-walls. Also here, 0.5 comes from interpolation of ekh.
+        thlp(i,j,k) = thlp(i,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * ( ( ( dzf(k-1) * ekh(i,j,k) ) + ( dzf(k ) * ekh(i,j,k-1)) )* dzhi(k)  ) * ( thl0(i,j,k) - thl0(i,j,k-1) ) * dzhi(k) * dzfi(k)
+        qtp (i,j,k) = qtp (i,j,k) + 0.5_field_r * rhobh(k)/rhobf(k) * ( ( ( dzf(k-1) * ekh(i,j,k) ) + ( dzf(k ) * ekh(i,j,k-1)) )* dzhi(k)  ) * ( qt0 (i,j,k) - qt0 (i,j,k-1) ) * dzhi(k) * dzfi(k)
 
-      ! zero/constant flux of heat/moisture currently not implemented. Implies roof temperatures become diagnostic (requiring energy balance)
-      ! doubting whether rhobh(k)/rhobf(k) are truly correct here, i.e., at right positions..
-      thlp(i,j,k) = thlp(i,j,k) - rhobh(k)/rhobf(k) * Cd_zwall * ( thl0(i,j,k) - thlroof ) * uspeed * dzfi(k)
-      qtp (i,j,k) = qtp (i,j,k) - rhobh(k)/rhobf(k) * Cd_zwall * (  qt0(i,j,k) - qtroof  ) * uspeed * dzfi(k)
-      ! no flux of e12 from wall into flow
+        ! zero/constant flux of heat/moisture currently not implemented. Implies roof temperatures become diagnostic (requiring energy balance)
+        ! doubting whether rhobh(k)/rhobf(k) are truly correct here, i.e., at right positions..
+        thlp(i,j,k) = thlp(i,j,k) - rhobh(k)/rhobf(k) * Cd_zwall * ( thl0(i,j,k) - thlroof ) * uspeed * dzfi(k)
+        qtp (i,j,k) = qtp (i,j,k) - rhobh(k)/rhobf(k) * Cd_zwall * (  qt0(i,j,k) - qtroof  ) * uspeed * dzfi(k)
+        ! no flux of e12 from wall into flow
 
-      ! currently only for zero flux of scalars from walls (i.e., no emission at walls). To be extended later
-      do nc=1,nsv
-        svp(i,j,k,nc) = svp(i,j,k,nc) - 0 !rhobh(k)/rhobf(k) * Cd_zwall * ( sv0(i,j,k,nc) -svroof(nc) ) * uspeed * dzfi(k) !< currently set to zero
+        ! currently only for zero flux of scalars from walls (i.e., no emission at walls). To be extended later
+        do nc=1,nsv
+          svp(i,j,k,nc) = svp(i,j,k,nc) - 0 !rhobh(k)/rhobf(k) * Cd_zwall * ( sv0(i,j,k,nc) -svroof(nc) ) * uspeed * dzfi(k) !< currently set to zero
+        end do
+
       end do
-
     end do
 
-    ! Correct tendencies for walls in positive x-direction
-    !$acc parallel loop gang vector default(present)
-    !$omp target teams loop defaultmap(present:aggregate)&
-    !$omp defaultmap(present:allocatable)
-    do nn = 1,Nxwalls_plus
-      i = ixw_p(nn,1)
-      j = ixw_p(nn,2)
-      k = ixw_p(nn,3)
+    do color_index = 1,2
+      !$acc parallel loop gang vector default(present)
+      !$omp target teams loop defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
+      do wall_index_colored = 1,Nxwalls_plus_color(color_index)
+        wall_index = col2uncol_xwalls_plus(color_index, wall_index_colored)
+        i = ixw_p(wall_index,1)
+        j = ixw_p(wall_index,2)
+        k = ixw_p(wall_index,3)
 
-      ! First set the normal velocity at the wall (correct for any drift)
-      up(i,j,k)   = -u0(i,j,k)*rk3coefi
+        ! First set the normal velocity at the wall (correct for any drift)
+        up(i,j,k)   = -u0(i,j,k)*rk3coefi
 
-      ! Remove "wrong" diffusive tendencies and replace with wall drag:
-      ! essentially every wall facet is split up in two parts, where half the correction goes into v(i,j,k) and half into v(i,j+1,k)
-      ! if the x-plane next to the current one is not a wall, no partial correction to v(i,j+1,k) occurs (but a partial contribution of diffusion does)
-      ! if this x-plane is also a wall, the total correction on a momentum component will therefore be split over two entries in the wall list. 
+        ! Remove "wrong" diffusive tendencies and replace with wall drag:
+        ! essentially every wall facet is split up in two parts, where half the correction goes into v(i,j,k) and half into v(i,j+1,k)
+        ! if the x-plane next to the current one is not a wall, no partial correction to v(i,j+1,k) occurs (but a partial contribution of diffusion does)
+        ! if this x-plane is also a wall, the total correction on a momentum component will therefore be split over two entries in the wall list. 
 
-      ! for v(i,j,k):
-      emmo = 0.25_field_r * ( ekm(i,j,k) + ekm(i,j-1,k) + ekm(i-1,j,k) + ekm(i-1,j-1,k) )
-      w_at_v_plus = 0.25_field_r * ( w0(i,j,k) + w0(i,j,k+1) + w0(i,j-1,k) + w0(i,j-1,k+1) )  !at v(i,j,k)
-      tau_vu_plus = log_wallaw(v0(i,j,k), w_at_v_plus, Cm_xwall)
+        ! for v(i,j,k):
+        emmo = 0.25_field_r * ( ekm(i,j,k) + ekm(i,j-1,k) + ekm(i-1,j,k) + ekm(i-1,j-1,k) )
+        w_at_v_plus = 0.25_field_r * ( w0(i,j,k) + w0(i,j,k+1) + w0(i,j-1,k) + w0(i,j-1,k+1) )  !at v(i,j,k)
+        tau_vu_plus = log_wallaw(v0(i,j,k), w_at_v_plus, Cm_xwall)
 
-      vp(i,j  ,k) = vp(i,j  ,k) + 0.5_field_r * emmo * ( (v0(i,j,k) - v0(i-1,j,k) ) / dx) / dx - 0.5_field_r * tau_vu_plus / dx ! factor 0.5 originates to avoid double correction
+        vp(i,j  ,k) = vp(i,j  ,k) + 0.5_field_r * emmo * ( (v0(i,j,k) - v0(i-1,j,k) ) / dx) / dx - 0.5_field_r * tau_vu_plus / dx ! factor 0.5 originates to avoid double correction
 
-      ! for v(i,j+1,k):
-      empo = 0.25_field_r * ( ekm(i,j,k) + ekm(i,j+1,k) + ekm(i-1,j,k) + ekm(i-1,j+1,k) )
-      w_at_v_plus = 0.25_field_r * (w0(i,j+1,k) + w0(i,j+1,k+1) + w0(i,j,k) + w0(i,j,k+1) )
-      tau_vu_plus = log_wallaw(v0(i,j+1,k), w_at_v_plus, Cm_xwall)
+        ! for v(i,j+1,k):
+        empo = 0.25_field_r * ( ekm(i,j,k) + ekm(i,j+1,k) + ekm(i-1,j,k) + ekm(i-1,j+1,k) )
+        w_at_v_plus = 0.25_field_r * (w0(i,j+1,k) + w0(i,j+1,k+1) + w0(i,j,k) + w0(i,j,k+1) )
+        tau_vu_plus = log_wallaw(v0(i,j+1,k), w_at_v_plus, Cm_xwall)
 
-      vp(i,j+1,k) = vp(i,j+1,k) + 0.5_field_r * empo * ( (v0(i,j+1,k) - v0(i-1,j+1,k) ) / dx) / dx - 0.5_field_r * tau_vu_plus / dx
+        vp(i,j+1,k) = vp(i,j+1,k) + 0.5_field_r * empo * ( (v0(i,j+1,k) - v0(i-1,j+1,k) ) / dx) / dx - 0.5_field_r * tau_vu_plus / dx
 
-      ! for w(i,j,k):
-      if (k /= 1) then ! not correctable when at surface (k = 1)
-        emom = ( dzf(k-1) * ( ekm(i,j,k)  + ekm(i-1,j,k)  )  + &
-                dzf(k)  * ( ekm(i,j,k-1) + ekm(i-1,j,k-1) ) ) / &
-                ( 4.0_field_r * dzh(k) )
-        v_at_w_plus = 0.25_field_r * ( v0(i,j,k-1) + v0(i,j,k) + v0(i,j+1,k-1) + v0(i,j+1,k) )
-        tau_wu_plus = log_wallaw(w0(i  ,j,k), v_at_w_plus, Cm_xwall)
+        ! for w(i,j,k):
+        if (k /= 1) then ! not correctable when at surface (k = 1)
+          emom = ( dzf(k-1) * ( ekm(i,j,k)  + ekm(i-1,j,k)  )  + &
+                  dzf(k)  * ( ekm(i,j,k-1) + ekm(i-1,j,k-1) ) ) / &
+                  ( 4.0_field_r * dzh(k) )
+          v_at_w_plus = 0.25_field_r * ( v0(i,j,k-1) + v0(i,j,k) + v0(i,j+1,k-1) + v0(i,j+1,k) )
+          tau_wu_plus = log_wallaw(w0(i  ,j,k), v_at_w_plus, Cm_xwall)
+        
+          wp(i,j,k  ) = wp(i,j,k  ) + 0.5_field_r * emom * ( (w0(i,j,k  ) - w0(i-1,j,  k)) / dx ) / dx - 0.5_field_r * tau_wu_plus / dx
+        end if
 
-        wp(i,j,k  ) = wp(i,j,k  ) + 0.5_field_r * emom * ( (w0(i,j,k  ) - w0(i-1,j,  k)) / dx ) / dx - 0.5_field_r * tau_wu_plus / dx
-      end if
+        ! for w(i,j,k+1):
+        emop = ( dzf(k) * ( ekm(i,j,k+1)  + ekm(i-1,j,k+1)  )  + &
+                dzf(k+1)  * ( ekm(i,j,k) + ekm(i-1,j,k) ) ) / &
+                ( 4.0_field_r * dzh(k+1) )
+        v_at_w_plus = 0.25_field_r * ( v0(i,j,k) + v0(i,j,k+1) + v0(i,j+1,k) + v0(i,j+1,k+1) )
+        tau_wu_plus = log_wallaw(w0(i  ,j,k+1), v_at_w_plus, Cm_xwall)
 
-      ! for w(i,j,k+1):
-      emop = ( dzf(k) * ( ekm(i,j,k+1)  + ekm(i-1,j,k+1)  )  + &
-              dzf(k+1)  * ( ekm(i,j,k) + ekm(i-1,j,k) ) ) / &
-              ( 4.0_field_r * dzh(k+1) )
-      v_at_w_plus = 0.25_field_r * ( v0(i,j,k) + v0(i,j,k+1) + v0(i,j+1,k) + v0(i,j+1,k+1) )
-      tau_wu_plus = log_wallaw(w0(i  ,j,k+1), v_at_w_plus, Cm_xwall)
+        wp(i,j,k+1) = wp(i,j,k+1) + 0.5_field_r * emop * ( (w0(i,j,k+1) - w0(i-1,j,k+1) ) / dx ) / dx - 0.5_field_r * tau_wu_plus / dx
 
-      wp(i,j,k+1) = wp(i,j,k+1) + 0.5_field_r * emop * ( (w0(i,j,k+1) - w0(i-1,j,k+1) ) / dx ) / dx - 0.5_field_r * tau_wu_plus / dx
+        ! Enforcing zero flux by correction of tendencies of temperature, moisture and other scalars (by negating diffusion term)
 
-      ! Enforcing zero flux by correction of tendencies of temperature, moisture and other scalars (by negating diffusion term)
+        ! scalars at (i,j,k) are "to the right" of the x-walls, so correct on s(i,j,k)
+        ! "+" because we reflect it back, and 0.5_field_r comes from interpolation of ekh
+        thlp(i,j,k) = thlp(i,j,k) + 0.5_field_r * ( ekh(i,j,k) + ekh(i-1,j,k) ) * ( thl0(i,j,k) - thl0(i-1,j,k) ) * dx2i
+        qtp(i,j,k)  =  qtp(i,j,k) + 0.5_field_r * ( ekh(i,j,k) + ekh(i-1,j,k) ) * (  qt0(i,j,k) -  qt0(i-1,j,k) ) * dx2i
 
-      ! scalars at (i,j,k) are "to the right" of the x-walls, so correct on s(i,j,k)
-      ! "+" because we reflect it back, and 0.5_field_r comes from interpolation of ekh
-      thlp(i,j,k) = thlp(i,j,k) + 0.5_field_r * ( ekh(i,j,k) + ekh(i-1,j,k) ) * ( thl0(i,j,k) - thl0(i-1,j,k) ) * dx2i
-      qtp(i,j,k)  =  qtp(i,j,k) + 0.5_field_r * ( ekh(i,j,k) + ekh(i-1,j,k) ) * (  qt0(i,j,k) -  qt0(i-1,j,k) ) * dx2i
+        do nc=1,nsv
+          svp(i,j,k,nc) = svp(i,j,k,nc) + 0.5_field_r * ( ekh(i,j,k) + ekh(i-1,j,k) ) * ( sv0(i,j,k,nc) - sv0(i-1,j,k,nc) ) * dx2i
+        end do
+        !call xwalle12(i,j,k) ! correction is ignored assuming u,v,w,subgrid TKE are near zero inside buildings
 
-      do nc=1,nsv
-        svp(i,j,k,nc) = svp(i,j,k,nc) + 0.5_field_r * ( ekh(i,j,k) + ekh(i-1,j,k) ) * ( sv0(i,j,k,nc) - sv0(i-1,j,k,nc) ) * dx2i
+        ! Finally, set correct heat flux from wall to fluid
+        uspeed = 0.5_field_r * ( ( v0(i,j,k) + v0(i,j+1,k) )**2 + ( w0(i,j,k) + w0(i,j,k+1) )**2 )**0.5_field_r
+        thlp(i,j,k) = thlp(i,j,k) + Cd_xwall * uspeed * (thlwall - thl0(i,j,k)) / dx
+        qtp (i,j,k) = qtp (i,j,k) + Cd_xwall * uspeed * ( qtwall -  qt0(i,j,k)) / dx
+
       end do
-      !call xwalle12(i,j,k) ! correction is ignored assuming u,v,w,subgrid TKE are near zero inside buildings
-
-      ! Finally, set correct heat flux from wall to fluid
-      uspeed = 0.5_field_r * ( ( v0(i,j,k) + v0(i,j+1,k) )**2 + ( w0(i,j,k) + w0(i,j,k+1) )**2 )**0.5_field_r
-      thlp(i,j,k) = thlp(i,j,k) + Cd_xwall * uspeed * (thlwall - thl0(i,j,k)) / dx
-      qtp (i,j,k) = qtp (i,j,k) + Cd_xwall * uspeed * ( qtwall -  qt0(i,j,k)) / dx
-
     end do
 
-    ! Correct tendencies for walls in negative x-direction
-    !$acc parallel loop gang vector default(present)
-    !$omp target teams loop defaultmap(present:aggregate)&
-    !$omp defaultmap(present:allocatable)
-    do nn = 1,Nxwalls_min
-      i = ixw_m(nn,1)
-      j = ixw_m(nn,2)
-      k = ixw_m(nn,3)
+    do color_index = 1,2
+      ! Correct tendencies for walls in negative x-direction
+      !$acc parallel loop gang vector default(present)
+      !$omp target teams loop defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
+      do wall_index_colored = 1,Nxwalls_min_color(color_index)
+        wall_index = col2uncol_xwalls_min(color_index, wall_index_colored)
+        i = ixw_m(wall_index,1)
+        j = ixw_m(wall_index,2)
+        k = ixw_m(wall_index,3)
 
-      ! First set the normal velocity at the wall (correct for any drift)
-      ! note: these should actually already be corrected for in loop over iobst (due to staggered grid arrangement)
-      up(i+1,j,k)   = -u0(i+1,j,k)*rk3coefi
+        ! First set the normal velocity at the wall (correct for any drift)
+        ! note: these should actually already be corrected for in loop over iobst (due to staggered grid arrangement)
+        up(i+1,j,k)   = -u0(i+1,j,k)*rk3coefi
 
-      ! Remove "wrong" diffusive tendencies and replace with wall drag
-      ! for v(i,j,k):
-      emmo = 0.25_field_r * ( ekm(i+1,j,k) + ekm(i+1,j-1,k) + ekm(i,j,k) + ekm(i,j-1,k) )
-      w_at_v_min  = 0.25_field_r * ( w0(i,j,k) + w0(i,j,k+1) + w0(i,j-1,k) + w0(i,j-1,k+1) )  !at v(i,j,k)
-      tau_vu_min = log_wallaw(v0(i,j,k), w_at_v_min , Cm_xwall) !if v0 > 0, tau > 0, minus sign in tendency enforces opposing friction
+        ! Remove "wrong" diffusive tendencies and replace with wall drag
+        ! for v(i,j,k):
+        emmo = 0.25_field_r * ( ekm(i+1,j,k) + ekm(i+1,j-1,k) + ekm(i,j,k) + ekm(i,j-1,k) )
+        w_at_v_min  = 0.25_field_r * ( w0(i,j,k) + w0(i,j,k+1) + w0(i,j-1,k) + w0(i,j-1,k+1) )  !at v(i,j,k)
+        tau_vu_min = log_wallaw(v0(i,j,k), w_at_v_min , Cm_xwall) !if v0 > 0, tau > 0, minus sign in tendency enforces opposing friction
+        
+        vp(i,j  ,k) = vp(i,j  ,k) - 0.5_field_r * emmo * ( (v0(i+1,j,k) - v0(i,j,k) ) / dx) / dx  - 0.5_field_r * tau_vu_min / dx ! factor 0.5 originates to avoid double correction
 
-      vp(i,j  ,k) = vp(i,j  ,k) - 0.5_field_r * emmo * ( (v0(i+1,j,k) - v0(i,j,k) ) / dx) / dx  - 0.5_field_r * tau_vu_min / dx ! factor 0.5 originates to avoid double correction
+        ! for v(i,j+1,k):
+        empo = 0.25_field_r * ( ekm(i+1,j,k) + ekm(i+1,j+1,k) + ekm(i,j,k) + ekm(i,j+1,k) )
+        w_at_v_min  = 0.25_field_r * ( w0(i,j+1,k) + w0(i,j+1,k+1) + w0(i,j,k) + w0(i,j,k+1) )
+        tau_vu_min = log_wallaw(v0(i,j+1,k), w_at_v_min , Cm_xwall)
+        
+        vp(i,j+1,k) = vp(i,j+1,k) - 0.5_field_r * empo * ( (v0(i+1,j+1,k) - v0(i,j+1,k) ) / dx) / dx - 0.5_field_r * tau_vu_min / dx
 
-      ! for v(i,j+1,k):
-      empo = 0.25_field_r * ( ekm(i+1,j,k) + ekm(i+1,j+1,k) + ekm(i,j,k) + ekm(i,j+1,k) )
-      w_at_v_min  = 0.25_field_r * ( w0(i,j+1,k) + w0(i,j+1,k+1) + w0(i,j,k) + w0(i,j,k+1) )
-      tau_vu_min = log_wallaw(v0(i,j+1,k), w_at_v_min , Cm_xwall)
+        ! for w(i,j,k):
+        if (k /= 1) then ! not correctable when at surface (k = 1)
+          emom = ( dzf(k-1) * ( ekm(i+1,j,k)  + ekm(i,j,k)  )  + &
+                  dzf(k)  * ( ekm(i+1,j,k-1) + ekm(i,j,k-1) ) ) / &
+                  ( 4.0_field_r * dzh(k) )
+          v_at_w_min = 0.25_field_r * (v0(i,j,k-1)+v0(i,j,k)+v0(i,j+1,k-1)+v0(i,j+1,k) )
+          tau_wu_min = log_wallaw(w0(i,j,k), v_at_w_min , Cm_xwall)
+                
+          wp(i,j,k  ) = wp(i,j,k  ) - 0.5_field_r * emom * ( (w0(i+1,j,k  ) - w0(i,j,  k)) / dx ) / dx - 0.5_field_r * tau_wu_min / dx
+        end if
 
-      vp(i,j+1,k) = vp(i,j+1,k) - 0.5_field_r * empo * ( (v0(i+1,j+1,k) - v0(i,j+1,k) ) / dx) / dx - 0.5_field_r * tau_vu_min / dx
+        ! for w(i,j,k+1):
+        emop = ( dzf(k) * ( ekm(i+1,j,k+1)  + ekm(i,j,k+1)  )  + &
+                dzf(k+1)  * ( ekm(i+1,j,k) + ekm(i,j,k) ) ) / &
+                ( 4.0_field_r * dzh(k+1) )
+        v_at_w_min  = 0.25_field_r * (v0(i,j,k)+v0(i,j,k+1)+v0(i,j+1,k)+v0(i,j+1,k+1) )
+        tau_wu_min = log_wallaw(w0(i,j,k+1), v_at_w_min , Cm_xwall)
+        
+        wp(i,j,k+1) = wp(i,j,k+1) - 0.5_field_r * emop * ( (w0(i+1,j,k+1) - w0(i,j,k+1) ) / dx ) / dx - 0.5_field_r * tau_wu_min / dx
 
-      ! for w(i,j,k):
-      if (k /= 1) then ! not correctable when at surface (k = 1)
-        emom = ( dzf(k-1) * ( ekm(i+1,j,k)  + ekm(i,j,k)  )  + &
-                dzf(k)  * ( ekm(i+1,j,k-1) + ekm(i,j,k-1) ) ) / &
-                ( 4.0_field_r * dzh(k) )
-        v_at_w_min = 0.25_field_r * (v0(i,j,k-1)+v0(i,j,k)+v0(i,j+1,k-1)+v0(i,j+1,k) )
-        tau_wu_min = log_wallaw(w0(i,j,k), v_at_w_min , Cm_xwall)
+        ! Enforcing zero flux by correction of tendencies of temperature, moisture and other scalars (by negating diffusion term)
 
-        wp(i,j,k  ) = wp(i,j,k  ) - 0.5_field_r * emom * ( (w0(i+1,j,k  ) - w0(i,j,  k)) / dx ) / dx - 0.5_field_r * tau_wu_min / dx
-      end if
+        ! scalars at (i+1,j,k) are "to the right" of the x-walls, so correct on s(i,j,k) which is on the left for minus x-walls
+        ! "-" because we reflect it back, and 0.5_field_r comes from interpolation of ekh
+        thlp(i,j,k) = thlp(i,j,k) - 0.5_field_r * ( ekh(i+1,j,k) + ekh(i,j,k) ) * ( thl0(i+1,j,k) - thl0(i,j,k) ) * dx2i
+        qtp (i,j,k) = qtp (i,j,k) - 0.5_field_r * ( ekh(i+1,j,k) + ekh(i,j,k) ) * (  qt0(i+1,j,k) -  qt0(i,j,k) ) * dx2i
 
-      ! for w(i,j,k+1):
-      emop = ( dzf(k) * ( ekm(i+1,j,k+1)  + ekm(i,j,k+1)  )  + &
-              dzf(k+1)  * ( ekm(i+1,j,k) + ekm(i,j,k) ) ) / &
-              ( 4.0_field_r * dzh(k+1) )
-      v_at_w_min  = 0.25_field_r * (v0(i,j,k)+v0(i,j,k+1)+v0(i,j+1,k)+v0(i,j+1,k+1) )
-      tau_wu_min = log_wallaw(w0(i,j,k+1), v_at_w_min , Cm_xwall)
+        do nc=1,nsv
+          svp(i,j,k,nc) = svp(i,j,k,nc) - 0.5_field_r * ( ekh(i+1,j,k) + ekh(i,j,k) ) * ( sv0(i+1,j,k,nc) - sv0(i,j,k,nc) ) * dx2i
+        end do
 
-      wp(i,j,k+1) = wp(i,j,k+1) - 0.5_field_r * emop * ( (w0(i+1,j,k+1) - w0(i,j,k+1) ) / dx ) / dx - 0.5_field_r * tau_wu_min / dx
+        ! Finally, set correct heat flux from wall to fluid
+        uspeed = 0.5_field_r * ( ( v0(i,j,k) + v0(i,j+1,k) )**2 + ( w0(i,j,k) + w0(i,j,k+1) )**2 )**0.5_field_r
+        thlp(i,j,k) = thlp(i,j,k) + Cd_xwall * uspeed * (thlwall - thl0(i,j,k)) / dx
+        qtp (i,j,k) = qtp (i,j,k) + Cd_xwall * uspeed * ( qtwall -  qt0(i,j,k)) / dx ! check this one..
 
-      ! Enforcing zero flux by correction of tendencies of temperature, moisture and other scalars (by negating diffusion term)
-
-      ! scalars at (i+1,j,k) are "to the right" of the x-walls, so correct on s(i,j,k) which is on the left for minus x-walls
-      ! "-" because we reflect it back, and 0.5_field_r comes from interpolation of ekh
-      thlp(i,j,k) = thlp(i,j,k) - 0.5_field_r * ( ekh(i+1,j,k) + ekh(i,j,k) ) * ( thl0(i+1,j,k) - thl0(i,j,k) ) * dx2i
-      qtp (i,j,k) = qtp (i,j,k) - 0.5_field_r * ( ekh(i+1,j,k) + ekh(i,j,k) ) * (  qt0(i+1,j,k) -  qt0(i,j,k) ) * dx2i
-
-      do nc=1,nsv
-        svp(i,j,k,nc) = svp(i,j,k,nc) - 0.5_field_r * ( ekh(i+1,j,k) + ekh(i,j,k) ) * ( sv0(i+1,j,k,nc) - sv0(i,j,k,nc) ) * dx2i
       end do
-
-      ! Finally, set correct heat flux from wall to fluid
-      uspeed = 0.5_field_r * ( ( v0(i,j,k) + v0(i,j+1,k) )**2 + ( w0(i,j,k) + w0(i,j,k+1) )**2 )**0.5_field_r
-      thlp(i,j,k) = thlp(i,j,k) + Cd_xwall * uspeed * (thlwall - thl0(i,j,k)) / dx
-      qtp (i,j,k) = qtp (i,j,k) + Cd_xwall * uspeed * ( qtwall -  qt0(i,j,k)) / dx ! check this one..
-
     end do
 
-    ! Correct tendencies for walls in positive y-direction
-    !$acc parallel loop gang vector default(present)
-    !$omp target teams loop defaultmap(present:aggregate)&
-    !$omp defaultmap(present:allocatable)
-    do nn = 1,Nywalls_plus
-      i = iyw_p(nn,1)
-      j = iyw_p(nn,2)
-      k = iyw_p(nn,3)
+    do color_index = 1,2
+      ! Correct tendencies for walls in positive y-direction
+      !$acc parallel loop gang vector default(present)
+      !$omp target teams loop defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
+      do wall_index_colored = 1,Nywalls_plus_color(color_index)
+        wall_index = col2uncol_ywalls_plus(color_index, wall_index_colored)
+        i = iyw_p(wall_index,1)
+        j = iyw_p(wall_index,2)
+        k = iyw_p(wall_index,3)
 
-      ! First set the normal velocity at the wall (correct for any drift)
-      vp(i,j,k)   = -v0(i,j,k)*rk3coefi
+        ! First set the normal velocity at the wall (correct for any drift)
+        vp(i,j,k)   = -v0(i,j,k)*rk3coefi
 
-      ! Remove "wrong" diffusive tendencies and replace with wall drag
-      ! for u(i,j,k):
-      emmo = 0.25_field_r * ( ekm(i,j,k) + ekm(i,j-1,k) + ekm(i-1,j,k) + ekm(i-1,j-1,k) )
-      w_at_u_plus = 0.25_field_r * ( w0(i,j,k) + w0(i,j,k+1) + w0(i-1,j,k) + w0(i-1,j,k+1) )  !at u(i,j,k)
-      tau_uv_plus = log_wallaw(u0(i,j,k), w_at_u_plus, Cm_ywall)
+        ! Remove "wrong" diffusive tendencies and replace with wall drag
+        ! for u(i,j,k):
+        emmo = 0.25_field_r * ( ekm(i,j,k) + ekm(i,j-1,k) + ekm(i-1,j,k) + ekm(i-1,j-1,k) )
+        w_at_u_plus = 0.25_field_r * ( w0(i,j,k) + w0(i,j,k+1) + w0(i-1,j,k) + w0(i-1,j,k+1) )  !at u(i,j,k)
+        tau_uv_plus = log_wallaw(u0(i,j,k), w_at_u_plus, Cm_ywall)
+        
+        up(i,j  ,k) = up(i,j  ,k) + 0.5_field_r * emmo * ( (u0(i,j,k) - u0(i,j-1,k) ) / dy) / dy - 0.5_field_r * tau_uv_plus / dy
 
-      up(i,j  ,k) = up(i,j  ,k) + 0.5_field_r * emmo * ( (u0(i,j,k) - u0(i,j-1,k) ) / dy) / dy - 0.5_field_r * tau_uv_plus / dy
+        ! for u(i+1,j,k):
+        empo = 0.25_field_r * ( ekm(i,j,k) + ekm(i,j-1,k) + ekm(i+1,j,k) + ekm(i-1,j-1,k) )
+        w_at_u_plus = 0.25_field_r * (w0(i+1,j,k) + w0(i+1,j,k+1) + w0(i,j,k) + w0(i,j,k+1) )
+        tau_uv_plus = log_wallaw(u0(i+1,j,k), w_at_u_plus, Cm_ywall)
+        
+        up(i+1,j,k) = up(i+1,j,k) + 0.5_field_r * empo * ( (u0(i+1,j,k) - u0(i,j,k) ) / dy) / dy - 0.5_field_r * tau_uv_plus / dy
 
-      ! for u(i+1,j,k):
-      empo = 0.25_field_r * ( ekm(i,j,k) + ekm(i+1,j+1,k) + ekm(i,j,k) + ekm(i,j+1,k) )
-      w_at_u_plus = 0.25_field_r * (w0(i+1,j,k) + w0(i+1,j,k+1) + w0(i,j,k) + w0(i,j,k+1) )
-      tau_uv_plus = log_wallaw(u0(i+1,j,k), w_at_u_plus, Cm_ywall)
+        ! for w(i,j,k):
+        if (k /= 1) then ! not correctable when at surface (k = 1)
+          emom = ( dzf(k-1) * ( ekm(i,j,k)  + ekm(i,j-1,k)  )  + &
+                  dzf(k)  * ( ekm(i,j,k-1) + ekm(i,j-1,k-1) ) ) / &
+                  ( 4.0_field_r * dzh(k) )
+          u_at_w_plus = 0.25_field_r * ( u0(i,j,k-1) + u0(i,j,k) + u0(i+1,j,k-1) + u0(i+1,j,k) )
+          tau_wv_plus = log_wallaw(w0(i  ,j,k), u_at_w_plus, Cm_ywall)
+        
+          wp(i,j,k  ) = wp(i,j,k  ) + 0.5_field_r * emom * ( (w0(i,j,k  ) - w0(i,j-1,  k)) / dy ) / dy - 0.5_field_r * tau_wv_plus / dy
+        end if
 
-      up(i+1,j,k) = up(i+1,j,k) + 0.5_field_r * empo * ( (u0(i+1,j,k) - u0(i,j,k) ) / dy) / dy - 0.5_field_r * tau_uv_plus / dy
+        ! for w(i,j,k+1):
+        emop = ( dzf(k) * ( ekm(i,j,k+1)  + ekm(i,j-1,k+1)  )  + &
+                dzf(k+1)  * ( ekm(i,j,k) + ekm(i,j-1,k) ) ) / &
+                ( 4.0_field_r * dzh(k+1) )
+        u_at_w_plus = 0.25_field_r * ( u0(i,j,k) + u0(i,j,k+1) + u0(i+1,j,k) + u0(i+1,j,k+1) )
+        tau_wv_plus = log_wallaw(w0(i  ,j,k+1), u_at_w_plus, Cm_ywall)
+        
+        wp(i,j,k+1) = wp(i,j,k+1) + 0.5_field_r * emop * ( (w0(i,j,k+1) - w0(i,j-1,k+1) ) / dy ) / dy - 0.5_field_r * tau_wv_plus / dy
 
-      ! for w(i,j,k):
-      if (k /= 1) then ! not correctable when at surface (k = 1)
-        emom = ( dzf(k-1) * ( ekm(i,j,k)  + ekm(i,j-1,k)  )  + &
-                dzf(k)  * ( ekm(i,j,k-1) + ekm(i,j-1,k-1) ) ) / &
-                ( 4.0_field_r * dzh(k) )
-        u_at_w_plus = 0.25_field_r * ( u0(i,j,k-1) + u0(i,j,k) + u0(i+1,j,k-1) + u0(i+1,j,k) )
-        tau_wv_plus = log_wallaw(w0(i  ,j,k), u_at_w_plus, Cm_ywall)
+        ! Enforcing zero flux by correction of tendencies of temperature, moisture and other scalars (by negating diffusion term)
 
-        wp(i,j,k  ) = wp(i,j,k  ) + 0.5_field_r * emom * ( (w0(i,j,k  ) - w0(i,j-1,  k)) / dy ) / dy - 0.5_field_r * tau_wv_plus / dy
-      end if
+        ! scalars at (i,j,k) are "to the right" of the y-walls, so correct on s(i,j,k)
+        ! "+" because we reflect it back, and 0.5_field_r comes from interpolation of ekh
+        thlp(i,j,k) = thlp(i,j,k) + 0.5_field_r * ( ekh(i,j,k) + ekh(i,j-1,k) ) * ( thl0(i,j,k) - thl0(i,j-1,k) ) * dy2i
+        qtp(i,j,k)  =  qtp(i,j,k) + 0.5_field_r * ( ekh(i,j,k) + ekh(i,j-1,k) ) * (  qt0(i,j,k) -  qt0(i,j-1,k) ) * dy2i
 
-      ! for w(i,j,k+1):
-      emop = ( dzf(k) * ( ekm(i,j,k+1)  + ekm(i,j-1,k+1)  )  + &
-              dzf(k+1)  * ( ekm(i,j,k) + ekm(i,j-1,k) ) ) / &
-              ( 4.0_field_r * dzh(k+1) )
-      u_at_w_plus = 0.25_field_r * ( u0(i,j,k) + u0(i,j,k+1) + u0(i+1,j,k) + u0(i+1,j,k+1) )
-      tau_wv_plus = log_wallaw(w0(i  ,j,k+1), u_at_w_plus, Cm_ywall)
+        do nc=1,nsv
+          svp(i,j,k,nc) = svp(i,j,k,nc) + 0.5_field_r * ( ekh(i,j,k) + ekh(i,j-1,k) ) * ( sv0(i,j,k,nc) - sv0(i,j-1,k,nc) ) * dy2i
+        end do
+        !call xwalle12(i,j,k) ! correction is ignored assuming u,v,w,subgrid TKE are near zero inside buildings
 
-      wp(i,j,k+1) = wp(i,j,k+1) + 0.5_field_r * emop * ( (w0(i,j,k+1) - w0(i,j-1,k+1) ) / dy ) / dy - 0.5_field_r * tau_wv_plus / dy
+        ! Finally, set correct heat flux from wall to fluid
+        uspeed = 0.5_field_r * ( ( u0(i,j,k) + u0(i+1,j,k) )**2 + ( w0(i,j,k) + w0(i,j,k+1) )**2 )**0.5_field_r
+        thlp(i,j,k) = thlp(i,j,k) + Cd_ywall * uspeed * (thlwall - thl0(i,j,k)) / dy
+        qtp (i,j,k) = qtp (i,j,k) + Cd_ywall * uspeed * ( qtwall -  qt0(i,j,k)) / dy ! check this one..
 
-      ! Enforcing zero flux by correction of tendencies of temperature, moisture and other scalars (by negating diffusion term)
-
-      ! scalars at (i,j,k) are "to the right" of the y-walls, so correct on s(i,j,k)
-      ! "+" because we reflect it back, and 0.5_field_r comes from interpolation of ekh
-      thlp(i,j,k) = thlp(i,j,k) + 0.5_field_r * ( ekh(i,j,k) + ekh(i,j-1,k) ) * ( thl0(i,j,k) - thl0(i,j-1,k) ) * dy2i
-      qtp(i,j,k)  =  qtp(i,j,k) + 0.5_field_r * ( ekh(i,j,k) + ekh(i,j-1,k) ) * (  qt0(i,j,k) -  qt0(i,j-1,k) ) * dy2i
-
-      do nc=1,nsv
-        svp(i,j,k,nc) = svp(i,j,k,nc) + 0.5_field_r * ( ekh(i,j,k) + ekh(i,j-1,k) ) * ( sv0(i,j,k,nc) - sv0(i,j-1,k,nc) ) * dy2i
       end do
-      !call xwalle12(i,j,k) ! correction is ignored assuming u,v,w,subgrid TKE are near zero inside buildings
-
-      ! Finally, set correct heat flux from wall to fluid
-      uspeed = 0.5_field_r * ( ( u0(i,j,k) + u0(i+1,j,k) )**2 + ( w0(i,j,k) + w0(i,j,k+1) )**2 )**0.5_field_r
-      thlp(i,j,k) = thlp(i,j,k) + Cd_ywall * uspeed * (thlwall - thl0(i,j,k)) / dy
-      qtp (i,j,k) = qtp (i,j,k) + Cd_ywall * uspeed * ( qtwall -  qt0(i,j,k)) / dy ! check this one..
-
     end do
 
-    ! Correct tendencies for walls in negative y-direction
-    !$acc parallel loop gang vector default(present)
-    !$omp target teams loop defaultmap(present:aggregate)&
-    !$omp defaultmap(present:allocatable)
-    do nn = 1,Nywalls_min
-      i = iyw_m(nn,1)
-      j = iyw_m(nn,2)
-      k = iyw_m(nn,3)
+    do color_index = 1,2
+      ! Correct tendencies for walls in negative y-direction
+      !$acc parallel loop gang vector default(present)
+      !$omp target teams loop defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
+      do wall_index_colored = 1,Nywalls_min_color(color_index)
+        wall_index = col2uncol_ywalls_min(color_index, wall_index_colored)
+        i = iyw_m(wall_index,1)
+        j = iyw_m(wall_index,2)
+        k = iyw_m(wall_index,3)
 
-      ! First set the normal velocity at the wall (correct for any drift)
-      ! note: these should actually already be corrected for in loop over iobst (due to staggered grid arrangement)
-      vp(i,j+1,k)   = -v0(i,j+1,k)*rk3coefi
+        ! First set the normal velocity at the wall (correct for any drift)
+        ! note: these should actually already be corrected for in loop over iobst (due to staggered grid arrangement)
+        vp(i,j+1,k)   = -v0(i,j+1,k)*rk3coefi
 
-      ! Remove "wrong" diffusive tendencies and replace with wall drag
-      ! for u(i,j,k):
-      emmo = 0.25_field_r * ( ekm(i,j+1,k) + ekm(i,j,k) + ekm(i-1,j+1,k) + ekm(i-1,j,k) )
-      w_at_u_min  = 0.25_field_r * ( w0(i,j,k) + w0(i,j,k+1) + w0(i-1,j,k) + w0(i-1,j,k+1) )  !at u(i,j,k)
-      tau_uv_min = log_wallaw(u0(i,j,k), w_at_u_min , Cm_ywall) !if v0 > 0, tau > 0, minus sign in tendency enforces opposing friction
+        ! Remove "wrong" diffusive tendencies and replace with wall drag
+        ! for u(i,j,k):
+        emmo = 0.25_field_r * ( ekm(i,j+1,k) + ekm(i,j,k) + ekm(i-1,j+1,k) + ekm(i-1,j,k) )
+        w_at_u_min  = 0.25_field_r * ( w0(i,j,k) + w0(i,j,k+1) + w0(i-1,j,k) + w0(i-1,j,k+1) )  !at u(i,j,k)
+        tau_uv_min = log_wallaw(u0(i,j,k), w_at_u_min , Cm_ywall) !if v0 > 0, tau > 0, minus sign in tendency enforces opposing friction
 
-      up(i,j,k) = up(i,j  ,k) - 0.5_field_r * emmo * ( (u0(i,j+1,k) - u0(i,j,k) ) / dy) / dy  - 0.5_field_r * tau_uv_min / dy ! factor 0.5 originates to avoid double correction
+        up(i,j,k) = up(i,j  ,k) - 0.5_field_r * emmo * ( (u0(i,j+1,k) - u0(i,j,k) ) / dy) / dy  - 0.5_field_r * tau_uv_min / dy ! factor 0.5 originates to avoid double correction
 
-      ! for u(i+1,j,k):
-      empo = 0.25_field_r * ( ekm(i,j+1,k) + ekm(i,j,k) + ekm(i+1,j+1,k) + ekm(i+1,j,k) )
-      w_at_u_min = 0.25_field_r * ( w0(i+1,j,k) + w0(i+1,j,k+1) + w0(i,j,k) + w0(i,j,k+1) )
-      tau_uv_min = log_wallaw(u0(i+1,j,k), w_at_u_min , Cm_ywall)
+        ! for u(i+1,j,k):
+        empo = 0.25_field_r * ( ekm(i,j+1,k) + ekm(i,j,k) + ekm(i+1,j+1,k) + ekm(i+1,j,k) )
+        w_at_u_min = 0.25_field_r * ( w0(i+1,j,k) + w0(i+1,j,k+1) + w0(i,j,k) + w0(i,j,k+1) )
+        tau_uv_min = log_wallaw(u0(i+1,j,k), w_at_u_min , Cm_ywall)
+        
+        up(i+1,j,k) = up(i+1,j,k) - 0.5_field_r * empo * ( (u0(i+1,j+1,k) - u0(i+1,j,k) ) / dy) / dy - 0.5_field_r * tau_uv_min / dy
 
-      up(i+1,j,k) = up(i+1,j,k) - 0.5_field_r * empo * ( (u0(i+1,j+1,k) - u0(i+1,j,k) ) / dy) / dy - 0.5_field_r * tau_uv_min / dy
+        ! for w(i,j,k):
+        if (k /= 1) then ! not correctable when at surface (k = 1)
+          emom = ( dzf(k-1) * ( ekm(i,j+1,k)  + ekm(i,j,k)  )  + &
+                  dzf(k)  * ( ekm(i,j+1,k-1) + ekm(i,j,k-1) ) ) / &
+                  ( 4.0_field_r * dzh(k) )
+          u_at_w_min = 0.25_field_r * ( u0(i,j,k-1) + u0(i,j,k) + u0(i+1,j,k-1) + u0(i+1,j,k) )
+          tau_wv_min = log_wallaw(w0(i,j,k), u_at_w_min , Cm_ywall)
+        
+          wp(i,j,k  ) = wp(i,j,k  ) - 0.5_field_r * emom * ( (w0(i,j+1,k  ) - w0(i,j,  k)) / dy ) / dy - 0.5_field_r * tau_wv_min / dy
+        end if
 
-      ! for w(i,j,k):
-      if (k /= 1) then ! not correctable when at surface (k = 1)
-        emom = ( dzf(k-1) * ( ekm(i,j+1,k)  + ekm(i,j,k)  )  + &
-                dzf(k)  * ( ekm(i,j+1,k-1) + ekm(i,j,k-1) ) ) / &
-                ( 4.0_field_r * dzh(k) )
-        u_at_w_min = 0.25_field_r * ( u0(i,j,k-1) + u0(i,j,k) + u0(i+1,j,k-1) + u0(i+1,j,k) )
-        tau_wv_min = log_wallaw(w0(i,j,k), u_at_w_min , Cm_ywall)
+        ! for w(i,j,k+1):
+        emop = ( dzf(k) * ( ekm(i,j+1,k+1)  + ekm(i,j,k+1)  )  + &
+                dzf(k+1)  * ( ekm(i,j+1,k) + ekm(i,j,k) ) ) / &
+                ( 4.0_field_r * dzh(k+1) )
+        u_at_w_min = 0.25_field_r * ( u0(i,j,k) + u0(i,j,k+1) + u0(i+1,j,k) + u0(i+1,j,k+1) )
+        tau_wv_min = log_wallaw(w0(i,j,k+1), u_at_w_min , Cm_ywall)
+        
+        wp(i,j,k+1) = wp(i,j,k+1) - 0.5_field_r * emop * ( (w0(i,j+1,k+1) - w0(i,j,k+1) ) / dy ) / dy - 0.5_field_r * tau_wv_min / dy
 
-        wp(i,j,k  ) = wp(i,j,k  ) - 0.5_field_r * emom * ( (w0(i,j+1,k  ) - w0(i,j,  k)) / dy ) / dy - 0.5_field_r * tau_wv_min / dy
-      end if
+        ! Enforcing zero flux by correction of tendencies of temperature, moisture and other scalars (by negating diffusion term)
 
-      ! for w(i,j,k+1):
-      emop = ( dzf(k) * ( ekm(i,j+1,k+1)  + ekm(i,j,k+1)  )  + &
-              dzf(k+1)  * ( ekm(i,j+1,k) + ekm(i,j,k) ) ) / &
-              ( 4.0_field_r * dzh(k+1) )
-      u_at_w_min = 0.25_field_r * ( u0(i,j,k) + u0(i,j,k+1) + u0(i+1,j,k) + u0(i+1,j,k+1) )
-      tau_wv_min = log_wallaw(w0(i,j,k+1), u_at_w_min , Cm_ywall)
+        ! scalars at (i,j,k) are "to the right" of the y-walls, so correct on s(i,j-1,k) which is on the left for minus y-walls
+        ! "-" because we reflect it back, and 0.5_field_r comes from interpolation of ekh
+        thlp(i,j,k) = thlp(i,j,k) - 0.5_field_r * ( ekh(i,j+1,k) + ekh(i,j,k) ) * ( thl0(i,j+1,k) - thl0(i,j,k) ) * dy2i
+        qtp(i,j,k)  =  qtp(i,j,k) - 0.5_field_r * ( ekh(i,j+1,k) + ekh(i,j,k) ) * (  qt0(i,j+1,k) -  qt0(i,j,k) ) * dy2i
 
-      wp(i,j,k+1) = wp(i,j,k+1) - 0.5_field_r * emop * ( (w0(i,j+1,k+1) - w0(i,j,k+1) ) / dy ) / dy - 0.5_field_r * tau_wv_min / dy
+        do nc=1,nsv
+          svp(i,j,k,nc) = svp(i,j,k,nc) - 0.5_field_r * ( ekh(i,j+1,k) + ekh(i,j,k) ) * ( sv0(i,j+1,k,nc) - sv0(i,j,k,nc) ) * dy2i
+        end do
 
-      ! Enforcing zero flux by correction of tendencies of temperature, moisture and other scalars (by negating diffusion term)
-
-      ! scalars at (i,j,k) are "to the right" of the y-walls, so correct on s(i,j-1,k) which is on the left for minus y-walls
-      ! "-" because we reflect it back, and 0.5_field_r comes from interpolation of ekh
-      thlp(i,j,k) = thlp(i,j,k) - 0.5_field_r * ( ekh(i,j+1,k) + ekh(i,j,k) ) * ( thl0(i,j+1,k) - thl0(i,j,k) ) * dy2i
-      qtp(i,j,k)  =  qtp(i,j,k) - 0.5_field_r * ( ekh(i,j+1,k) + ekh(i,j,k) ) * (  qt0(i,j+1,k) -  qt0(i,j,k) ) * dy2i
-
-      do nc=1,nsv
-        svp(i,j,k,nc) = svp(i,j,k,nc) - 0.5_field_r * ( ekh(i,j+1,k) + ekh(i,j,k) ) * ( sv0(i,j+1,k,nc) - sv0(i,j,k,nc) ) * dy2i
+        !> Finally, set correct heat flux from wall to fluid
+        uspeed = 0.5_field_r * ( ( u0(i,j,k) + u0(i+1,j,k) )**2 + ( w0(i,j,k) + w0(i,j,k+1) )**2 )**0.5_field_r
+        thlp(i,j,k) = thlp(i,j,k) + Cd_ywall * uspeed * (thlwall - thl0(i,j,k)) / dy
+        qtp (i,j,k) = qtp (i,j,k) + Cd_ywall * uspeed * ( qtwall -  qt0(i,j,k)) / dy ! check this one..
       end do
-
-      !> Finally, set correct heat flux from wall to fluid
-      uspeed = 0.5_field_r * ( ( u0(i,j,k) + u0(i+1,j,k) )**2 + ( w0(i,j,k) + w0(i,j,k+1) )**2 )**0.5_field_r
-      thlp(i,j,k) = thlp(i,j,k) + Cd_ywall * uspeed * (thlwall - thl0(i,j,k)) / dy
-      qtp (i,j,k) = qtp (i,j,k) + Cd_ywall * uspeed * ( qtwall -  qt0(i,j,k)) / dy ! check this one..
     end do
 
     call timer_toc('modibm/applyibm')
@@ -843,6 +974,9 @@ contains
     rk3coef = rdt / (4. - dble(rk3step))
     rk3coefi = 1. / rk3coef
 
+    !$acc parallel loop gang vector default(present)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     ! Set tendencies inside obstacled (i.e., correct for any drift from previous integration step)
     do nn = 1,Nobst_wide
       i = iobst(nn,1)
