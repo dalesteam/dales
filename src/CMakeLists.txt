@@ -54,6 +54,7 @@ set( dales_srcs
 	modibm.f90
 	modibmdata.f90
 	modlatsponge.f90
+	modlocalfielddump.f90
 	modlogging.f90
 	modmicrodata.f90
 	modmicrodata3.f90
