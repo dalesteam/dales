@@ -61,11 +61,11 @@ save
   integer :: blh_nsamp = 4
   real    :: blh_thres=-1 ,blh_sign=1.0
   real(field_r) :: zbaseav, ztopav, ztopmax,zbasemin
-  real(field_r) :: qlintav, qlintmax, tke_tot
+  real(field_r) :: qlintav, qlintmax, tke_tot, qsatintav
   real(field_r) :: prav, pravl
   real(field_r) :: qtintav, qrintav
   real(field_r) :: cc, wmax, qlmax
-  real(field_r) :: qlint, qtint, qrint
+  real(field_r) :: qlint, qtint, qrint, qsatint
   logical:: store_zi = .false.
   real(field_r), allocatable, dimension(:) :: profile, gradient, dgrad
   real(field_r), allocatable, dimension(:,:,:) :: blh_fld
@@ -114,8 +114,8 @@ contains
 
     tnext = idtav+btime
 
-    nvar = 24
-    ivar_rad = 25
+    nvar = 28
+    ivar_rad = 29
     if(isurf == 1) then
        nvar = nvar + 11
        ivar_rad = ivar_rad + 11
@@ -238,31 +238,36 @@ contains
         call ncinfo(ncname(22,:),'twp_bar','Total water path','kg/m^2','time')
         call ncinfo(ncname(23,:),'rwp_bar','Rain water path','kg/m^2','time')
         call ncinfo(ncname(24,:),'pr','surface precipitation rate','kg/m^2/s','time')
+        call ncinfo(ncname(25,:),'hfls','surface upward latent heat flux','W/m2','time')
+        call ncinfo(ncname(26,:),'hfss','surface upward sensible heat flux','W/m2','time')
+        call ncinfo(ncname(27,:),'prw','water vapor path','kg/m2','time')
+        call ncinfo(ncname(28,:),'spwr','saturated water vapor path','kg/m2','time')
+
 
         if(isurf==1) then
-          call ncinfo(ncname(25,:),'Qnet','Net radiation','W/m^2','time')
-          call ncinfo(ncname(26,:),'H','Sensible heat flux','W/m^2','time')
-          call ncinfo(ncname(27,:),'LE','Latent heat flux','W/m^2','time')
-          call ncinfo(ncname(28,:),'G0','Ground heat flux','W/m^2','time')
-          call ncinfo(ncname(29,:),'tendskin','Skin tendency','W/m^2','time')
-          call ncinfo(ncname(30,:),'rs','Surface resistance','s/m','time')
-          call ncinfo(ncname(31,:),'ra','Aerodynamic resistance','s/m','time')
-          call ncinfo(ncname(32,:),'cliq','Fraction of vegetated surface covered with liquid water','-','time')
-          call ncinfo(ncname(33,:),'Wl','Liquid water reservoir','m','time')
-          call ncinfo(ncname(34,:),'rssoil','Soil evaporation resistance','s/m','time')
-          call ncinfo(ncname(35,:),'rsveg','Vegitation resistance','s/m','time')
+          call ncinfo(ncname(29,:),'Qnet','Net radiation','W/m^2','time')
+          call ncinfo(ncname(30,:),'H','Sensible heat flux','W/m^2','time')
+          call ncinfo(ncname(31,:),'LE','Latent heat flux','W/m^2','time')
+          call ncinfo(ncname(32,:),'G0','Ground heat flux','W/m^2','time')
+          call ncinfo(ncname(33,:),'tendskin','Skin tendency','W/m^2','time')
+          call ncinfo(ncname(34,:),'rs','Surface resistance','s/m','time')
+          call ncinfo(ncname(35,:),'ra','Aerodynamic resistance','s/m','time')
+          call ncinfo(ncname(36,:),'cliq','Fraction of vegetated surface covered with liquid water','-','time')
+          call ncinfo(ncname(37,:),'Wl','Liquid water reservoir','m','time')
+          call ncinfo(ncname(38,:),'rssoil','Soil evaporation resistance','s/m','time')
+          call ncinfo(ncname(39,:),'rsveg','Vegitation resistance','s/m','time')
         else if (isurf == 11) then
-          call ncinfo(ncname(25,:),'Qnet','Net radiation','W/m^2','time')
-          call ncinfo(ncname(26,:),'H','Sensible heat flux','W/m^2','time')
-          call ncinfo(ncname(27,:),'LE','Latent heat flux','W/m^2','time')
-          call ncinfo(ncname(28,:),'G','Ground heat flux','W/m^2','time')
-          call ncinfo(ncname(29,:),'f1','Reduction canopy resistance f(swd)','-','time')
-          call ncinfo(ncname(30,:),'f2b','Reduction soil resistance f(theta)','-','time')
-          call ncinfo(ncname(31,:),'wl','Liquid water reservoir','m','time')
+          call ncinfo(ncname(29,:),'Qnet','Net radiation','W/m^2','time')
+          call ncinfo(ncname(30,:),'H','Sensible heat flux','W/m^2','time')
+          call ncinfo(ncname(31,:),'LE','Latent heat flux','W/m^2','time')
+          call ncinfo(ncname(32,:),'G','Ground heat flux','W/m^2','time')
+          call ncinfo(ncname(33,:),'f1','Reduction canopy resistance f(swd)','-','time')
+          call ncinfo(ncname(34,:),'f2b','Reduction soil resistance f(theta)','-','time')
+          call ncinfo(ncname(35,:),'wl','Liquid water reservoir','m','time')
 
           if (lags) then
-            call ncinfo(ncname(32,:),'an_co2','Net CO2 assimilation','ppb m s-1','time')
-            call ncinfo(ncname(33,:),'resp_co2','CO2 respiration soil','ppb m s-1','time')
+            call ncinfo(ncname(36,:),'an_co2','Net CO2 assimilation','ppb m s-1','time')
+            call ncinfo(ncname(37,:),'resp_co2','CO2 respiration soil','ppb m s-1','time')
           end if
         end if
 
@@ -306,7 +311,7 @@ contains
   subroutine timestat
 
     use modglobal,  only : i1,j1, k1,kmax,zf,dzf,cu,cv,rv,rd,eps1, &
-                          ijtot,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput
+                          ijtot,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput,cp,rlv
     use modmicrodata, only : imicro, imicro_sice, imicro_sice2, imicro_bulk, imicro_bulk3, precep
     use modfields,  only : e120,qt0,ql0,u0av,v0av,rhobf,rhof,u0,v0,w0,sv0
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
@@ -319,10 +324,12 @@ contains
     use modraddata, only :  lwd,lwu,swd,swu,lwdca,lwuca,swdca,swuca, &
                             iradiation, doclearsky, irad_par, SW_up_TOA, SW_dn_TOA, LW_up_TOA
     use modtracers, only : get_tracer_index
+    use modthermodynamics, only: qsat_tab
+
     implicit none
 
     real(field_r)   :: zbaseavl, ztopavl, ztopmaxl, ztop, zbaseminl
-    real(field_r)   :: qlintavl, qlintmaxl, tke_totl
+    real(field_r)   :: qlintavl, qlintmaxl, tke_totl, qsatintavl
     real(field_r)   :: qrintavl, qtintavl
     real(field_r)   :: ccl, wmaxl, qlmaxl
     real(field_r)   :: ust,tst,qst,ustl,tstl,qstl,thlfluxl,qtfluxl
@@ -385,7 +392,7 @@ contains
     tnext = tnext+idtav
     dt_lim = minval((/dt_lim,tnext-timee/))
 
-    !      -----------------------------------------------------------
+  !      -----------------------------------------------------------
   !     1     EVALUATION OF CLOUD COVER, CLOUD BASE, ETC.
   !    -----------------------------------------------------------
 
@@ -411,6 +418,7 @@ contains
     qtintavl = 0.0
     qrintavl = 0.0
     qlintmaxl= 0.0
+    qsatintavl = 0.0
     tke_totl = 0.0
 
     ! Make qlint 2D array to get rid of the if statement?
@@ -577,6 +585,8 @@ contains
                           MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(qlintmaxl, qlintmax, 1, &
                           MPI_MAX, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(qsatintavl, qsatintav, 1  , &
+                          MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(zbaseavl, zbaseav, 1,   &
                           MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(zbaseminl, zbasemin, 1, &
@@ -617,6 +627,7 @@ contains
     qlintav = qlintav / ijtot !domain averaged liquid water path
     qtintav = qtintav / ijtot !domain averaged total water path
     qrintav = qrintav / ijtot !domain averaged rain water path
+    qsatintav = qsatintav / ijtot ! domain averaged saturation water path
     prav    = prav*rhobf(1) / ijtot !domain averaged precipitation rate
 
     call D_MPI_ALLREDUCE(tke_totl, tke_tot, 1,   &
@@ -994,31 +1005,35 @@ contains
         vars(22) = qtintav
         vars(23) = qrintav
         vars(24) = prav
+        vars(25) = rhof(1) * rlv * wqls  ! hfls
+        vars(26) = rhof(1) * cp * wts    ! hfss
+        vars(27) = qtintav - qlintav     ! prw = water vapor path
+        vars(28) = qsatintav             ! spwr = saturated water vapor path
 
         if (isurf == 1) then
-          vars(25) = Qnetav
-          vars(26) = Hav
-          vars(27) = LEav
-          vars(28) = G0av
-          vars(29) = tendskinav
-          vars(30) = rsav
-          vars(31) = raav
-          vars(32) = cliqav
-          vars(33) = wlav
-          vars(34) = rssoilav
-          vars(35) = rsvegav
+          vars(29) = Qnetav
+          vars(30) = Hav
+          vars(31) = LEav
+          vars(32) = G0av
+          vars(33) = tendskinav
+          vars(34) = rsav
+          vars(35) = raav
+          vars(36) = cliqav
+          vars(37) = wlav
+          vars(38) = rssoilav
+          vars(39) = rsvegav
         else if (isurf == 11) then
-          vars(25) = Qnetav
-          vars(26) = Hav
-          vars(27) = LEav
-          vars(28) = G0av
-          vars(29) = f1_av
-          vars(30) = f2b_av
-          vars(31) = wlav
+          vars(29) = Qnetav
+          vars(30) = Hav
+          vars(31) = LEav
+          vars(32) = G0av
+          vars(33) = f1_av
+          vars(34) = f2b_av
+          vars(35) = wlav
 
           if (lags) then
-            vars(32) = an_co2_av
-            vars(33) = resp_co2_av
+            vars(36) = an_co2_av
+            vars(37) = resp_co2_av
           end if
         end if
 
@@ -1042,7 +1057,7 @@ contains
     call d_mpi_allreduce(var_sum_l, var_sum, 1, mpi_sum, comm3d, mpierr)
     res = var_sum / ijtot
   end function mean_2d
-    
+
 
 !>Calculate the boundary layer height
 !!
