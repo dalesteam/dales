@@ -88,6 +88,7 @@ contains
     call d_mpi_bcast(lapply_ibm         ,    1, 0, comm3d, mpierr)
     call d_mpi_bcast(lwallheat          ,    1, 0, comm3d, mpierr)
     call d_mpi_bcast(thlwall            ,    1, 0, comm3d, mpierr)
+    call d_mpi_bcast(qtwall            ,    1, 0, comm3d, mpierr)
     call d_mpi_bcast(thlibm             ,    1, 0, comm3d, mpierr)
     call d_mpi_bcast(qtibm              ,    1, 0, comm3d, mpierr)
     call d_mpi_bcast(thlroof            ,    1, 0, comm3d, mpierr)
@@ -842,7 +843,7 @@ contains
         up(i,j  ,k) = up(i,j  ,k) + 0.5_field_r * emmo * ( (u0(i,j,k) - u0(i,j-1,k) ) / dy) / dy - 0.5_field_r * tau_uv_plus / dy
 
         ! for u(i+1,j,k):
-        empo = 0.25_field_r * ( ekm(i,j,k) + ekm(i,j-1,k) + ekm(i+1,j,k) + ekm(i-1,j-1,k) )
+        empo = 0.25_field_r * ( ekm(i,j,k) + ekm(i,j-1,k) + ekm(i+1,j,k) + ekm(i+1,j-1,k) )
         w_at_u_plus = 0.25_field_r * (w0(i+1,j,k) + w0(i+1,j,k+1) + w0(i,j,k) + w0(i,j,k+1) )
         tau_uv_plus = log_wallaw(u0(i+1,j,k), w_at_u_plus, Cm_ywall)
         
@@ -988,7 +989,18 @@ contains
       vp(i,j,k)   = -v0(i,j,k) * rk3coefi
       wp(i,j,k)   = -w0(i,j,k) * rk3coefi
 
-      ! Do trick: moving one index up by 1 in each direction also corrects walls with normals pointing in positive direction
+    end do
+
+    !$acc parallel loop gang vector default(present)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
+    ! Set tendencies inside obstacled (i.e., correct for any drift from previous integration step)
+    do nn = 1,Nobst_wide
+      i = iobst(nn,1)
+      j = iobst(nn,2)
+      k = iobst(nn,3)
+
+      ! Do trick: loop again, but move one index up by 1 in each direction. This corrects walls with normals pointing in positive direction
       up(i+1,j,k) = -u0(i+1,j,k) * rk3coefi
       vp(i,j+1,k) = -v0(i,j+1,k) * rk3coefi
       wp(i,j,k+1) = -w0(i,j,k+1) * rk3coefi
