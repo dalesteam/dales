@@ -166,7 +166,7 @@ contains
     use modglobal,    only : nsv, lopenbc, lboundary, lperiodic
     use modthermodynamics, only: lmoist, ltliq
     use modfields,    only : up,vp,wp,e12p,thl0,thlp,tliq0,tliqp,qt0,qtp,sv0,svp
-    use modsurfdata,  only : thlflux,qtflux,svflux
+    use modsurfdata,  only : thlflux,qtflux,svflux,tliqflux !cstep
 
     implicit none
     integer :: sx=2,sy=2
@@ -189,10 +189,9 @@ contains
     if (.not. lsmagorinsky) call diffe(e12p)
 
     if (ltliq) then
-       call diffc(tliq0, tliqp, thlflux) ! TODO adapt thlflux
-    else
-       call diffc(thl0, thlp, thlflux)
-    end if
+       call diffc(tliq0, tliqp, tliqflux) ! TODO adapt thlflux
+    endif
+    call diffc(thl0, thlp, thlflux)
 
     if (lmoist) call diffc( qt0, qtp, qtflux)
     if (nsv > 0 ) then
@@ -422,10 +421,10 @@ contains
          end do
       else if (lD80R) then
          ! D80R scheme
-         ! Y. Dai, S. Basu, B. Maronga, S. R. de Roode, 
+         ! Y. Dai, S. Basu, B. Maronga, S. R. de Roode,
          ! Addressing the grid-size sensitivity issue in large-eddy simulations of stable boundary layers.
          ! Boundary-Layer Meteorology, 178, 63-89 (2021).
-         
+
          !$acc parallel loop collapse(3) default(present)
          !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
          !$omp defaultmap(present:allocatable)
@@ -436,7 +435,7 @@ contains
                   if (dthvdz(i,j,k) > 0) then
                      zlt(i,j,k) = min(delta(k), 1/(1/(0.4_field_r*zf(k))+1/(cn*e120(i,j,k)/sqrt(grav/thvf(k)*dthvdz(i,j,k)))))
                   end if
-                  
+
                   ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
                   ekh(i,j,k) = (ch1 + ch2 * zlt(i,j,k)*deltai(k)) * ekm(i,j,k)
 

@@ -44,6 +44,7 @@ save
   real(field_r), allocatable :: thl0(:,:,:)      !<   liq. water pot. temperature at time step t
   real(field_r), allocatable :: tliq0(:,:,:)     !<   liquid static energy at time step t (optionally allocated)
   real(field_r), allocatable :: thl0h(:,:,:)     !<  3d-field of theta_l at half levels for kappa scheme
+  real(field_r), allocatable :: help_arr(:,:,:)     !< !cstep
   real(field_r), allocatable :: qt0h(:,:,:)      !<  3d-field of q_tot   at half levels for kappa scheme
   real(field_r), allocatable :: tliq0h(:,:,:)    !<  3d-field of liquid static energy at half levels for kappa scheme
   real(field_r), allocatable :: e120(:,:,:)      !<   square root of turb. kin. energy at time step t
@@ -88,6 +89,7 @@ save
   real(field_r), allocatable :: ql0av(:)                      !<   slab averaged q_liq
 
   real(field_r), allocatable :: thl0av(:)                     !<   slab averaged th_liq
+  real(field_r), allocatable :: tliq0av(:)                    !<   slab averaged tliq !cstep
   real(field_r), allocatable :: u0av(:)                       !<   slab averaged u
   real(field_r), allocatable :: v0av(:)                       !<   slab averaged v
   real(field_r), allocatable :: ug(:)                       !<   geostrophic u-wind
@@ -100,6 +102,9 @@ save
   real(field_r), allocatable :: dthldyls(:)                   !<   large scale y-gradient of th_liq
   real(field_r), allocatable :: dthldtls(:)                   !<   large scale tendency of thl
 
+  real(field_r), allocatable :: dtliqdxls(:)                   !<   large scale x-gradient of tliq !cstep
+  real(field_r), allocatable :: dtliqdyls(:)                   !<   large scale y-gradient of tliq
+  real(field_r), allocatable :: dtliqdtls(:)                   !<   large scale tendency of tliq
 
   real(field_r), allocatable :: dqtdxls(:)                    !<   large scale x-gradient of q_tot
   real(field_r), allocatable :: dqtdyls(:)                    !<   large scale y-gradient of q_tot
@@ -120,17 +125,19 @@ save
   real(field_r), allocatable :: dthvdz(:,:,:)!<   theta_v at half level
 
   real(field_r), allocatable :: thlprof(:)                    !<   initial thl-profile
+  real(field_r), allocatable :: tliqprof(:)                   !<   initial tliq-profile
   real(field_r), allocatable :: qtprof(:)                     !<   initial qt-profile
   real(field_r), allocatable :: uprof(:)                      !<   initial u-profile
   real(field_r), allocatable :: vprof(:)                      !<   initial v-profile
   real(field_r), allocatable :: e12prof(:)                    !<   initial subgrid sqrt(TKE) profile
   real(field_r), allocatable :: sv0av(:,:)                    !<   slab average of sv(n)
   real(field_r), allocatable :: svprof(:,:)                   !<   initial sv(n)-profile
-  
+
   real(field_r), allocatable :: baseprof_T(:)               !<   initial temperature profile at full levels
   real(field_r), allocatable :: baseprof_P(:)               !<   initial pressure profile at full levels
 
   real(field_r), allocatable :: thlpcar(:)                    !< prescribed radiatively forced thl tendency
+  real(field_r), allocatable :: tliqpcar(:)                    !< prescribed radiatively forced tliq tendency
   real(field_r), allocatable :: qvsl(:,:,:)
   real(field_r), allocatable :: qvsi(:,:,:)
   real(field_r), allocatable :: esl(:,:,:)
@@ -158,6 +165,7 @@ subroutine initfields
     allocate(v0      (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(w0      (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thl0    (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(help_arr(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thl0h   (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(e120    (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(qt0     (2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -169,6 +177,12 @@ subroutine initfields
     allocate(thlp    (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(e12p    (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(qtp     (2-ih:i1+ih,2-jh:j1+jh,k1))
+
+    allocate(tliq0    (2-ih:i1+ih,2-jh:j1+jh,k1))  !cstep now we have thl and tliq
+    allocate(tliqm    (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(tliqp    (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(tliq0h   (2-ih:i1+ih,2-jh:j1+jh,k1))
+
 
     ! Allocation of tracer fields has been moved to modtracers!
     !allocate(svm     (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
@@ -201,6 +215,7 @@ subroutine initfields
     allocate(qt0av        (k1))
     allocate(ql0av        (k1))
     allocate(thl0av       (k1))
+    allocate(tliq0av      (k1)) !cstep
     allocate(u0av         (k1))
     allocate(v0av         (k1))
     allocate(ug           (k1))
@@ -211,6 +226,10 @@ subroutine initfields
     allocate(dthldxls(k1))
     allocate(dthldyls(k1))
     allocate(dthldtls(k1))
+
+    allocate(dtliqdxls(k1))
+    allocate(dtliqdyls(k1))
+    allocate(dtliqdtls(k1))
 
     allocate(dqtdxls(k1))
     allocate(dqtdyls(k1))
@@ -226,6 +245,7 @@ subroutine initfields
 
     allocate(wfls   (k1))
     allocate(thlprof(k1))
+    allocate(tliqprof(k1))
     allocate(qtprof (k1))
     allocate(uprof  (k1))
     allocate(vprof  (k1))
@@ -237,6 +257,7 @@ subroutine initfields
     !allocate(sv0av  (k1,nsv))
     !allocate(svprof (k1,nsv))
     allocate(thlpcar(k1))
+    allocate(tliqpcar(k1))
 
     allocate (qvsl(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv-liquid
              ,qvsi(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv-ice
@@ -249,17 +270,23 @@ subroutine initfields
     vm=0.;v0=0.;vp=0.
     wm=0.;w0=0.;wp=0.
     thlm=0.;thl0=0.;thlp=0.
+    help_arr=0.
     qtm=0.;qt0=0.;qtp=0.
     e12m=0.;e120=0.;e12p=0.
+    tliqm=0.;tliq0=0;tliqp=0.
 
     rhobf=0.;rhobh=0.;drhobdzf=0.;drhobdzh=0.
     ql0=0.;tmp0=0.;ql0h=0.;thv0h=0.;thl0h=0.;qt0h=0.
     presf=0.;presh=0.;exnf=0.;exnh=0.;thvh=0.;thvf=0.;rhof=0.    ! OG
     qt0av=0.;ql0av=0.;thl0av=0.;u0av=0.;v0av=0.;
+    tliq0av=0.;  ! cstep
+    tliq0h=0.
     thlprof=0.;qtprof=0.;uprof=0.;vprof=0.;e12prof=0.;
     ug=0.;vg=0.;dpdxl=0.;dpdyl=0.;wfls=0.;whls=0.
     thlpcar = 0.
+    tliqpcar = 0.
     dthldxls=0.;dthldyls=0.;dthldtls=0.
+    dtliqdxls=0.;dtliqdyls=0.;dtliqdtls=0.  !cstep
     dqtdxls=0.;dqtdyls=0.;dqtdtls=0.
     dudxls=0.;dudyls=0.;dudtls=0.
     dvdxls=0.;dvdyls=0.;dvdtls=0.
@@ -276,7 +303,7 @@ subroutine initfields
     !$acc&                  thl0h, qt0h, presf, presh, exnf, exnh, &
     !$acc&                  thvh, thvf, rhof, qt0av, ql0av, thl0av, &
     !$acc&                  u0av, v0av, ug, vg, dpdxl, dpdyl, &
-    !$acc&                  wfls, whls, thlpcar, dthldxls, dthldyls, &
+    !$acc&                  wfls, whls, thlpcar, tliqpcar, dthldxls, dthldyls, &
     !$acc&                  dthldtls, dqtdxls, dqtdyls, dqtdtls, &
     !$acc&                  dudxls, dudyls, dudtls, dvdxls, dvdyls, &
     !$acc&                  dvdtls, dthvdz, qvsl, qvsi, esl, qsat)
@@ -299,7 +326,7 @@ subroutine initfields
     !$acc&                 thl0h, qt0h, presf, presh, exnf, exnh, &
     !$acc&                 thvh, thvf, rhof, qt0av, ql0av, thl0av, &
     !$acc&                 u0av, v0av, ug, vg, dpdxl, dpdyl, &
-    !$acc&                 wfls, whls, thlpcar, dthldxls, dthldyls, &
+    !$acc&                 wfls, whls, thlpcar, tliqpcar, dthldxls, dthldyls, &
     !$acc&                 dthldtls, dqtdxls, dqtdyls, dqtdtls, &
     !$acc&                 dudxls, dudyls, dudtls, dvdxls, dvdyls, &
     !$acc&                 dvdtls, dthvdz, qvsl, qvsi, esl, qsat)
@@ -311,15 +338,18 @@ subroutine initfields
 !$omp dvdxls,dvdyls,dvdtls,dthvdz,qvsl,qvsi,esl,qsat)
 
     deallocate(um,vm,wm,thlm,e12m,qtm,u0,v0,w0,thl0,thl0h,qt0h,e120,qt0)
+    deallocate(tliq0h,tliqp,dtliqdxls,dtliqdyls,dtliqdtls,tliqprof)
+    deallocate(tliq0)
+    deallocate(help_arr)
     deallocate(up,vp,wp,thlp,e12p,qtp)
     deallocate(rhobf,rhobh)
     deallocate(drhobdzf,drhobdzh)
-    deallocate(ql0,tmp0,ql0h,thv0h,dthvdz,whls,presf,presh,initial_presf,initial_presh,exnf,exnh,thvh,thvf,rhof,qt0av,ql0av,thl0av,u0av,v0av)
+    deallocate(ql0,tmp0,ql0h,thv0h,dthvdz,whls,presf,presh,initial_presf,initial_presh,exnf,exnh,thvh,thvf,rhof,qt0av,ql0av,thl0av,tliq0av,u0av,v0av)
     deallocate(ug,vg,dpdxl,dpdyl,wfls)
     deallocate(dthldxls,dthldyls,dthldtls,dqtdxls,dqtdyls,dqtdtls)
     deallocate(dudxls,dudyls,dudtls,dvdxls,dvdyls,dvdtls)
     deallocate(thlprof,qtprof,uprof,vprof,e12prof,baseprof_T,baseprof_P)
-    deallocate(thlpcar)
+    deallocate(thlpcar,tliqpcar)
     deallocate(qvsl,qvsi,esl)
     deallocate(qsat)
     deallocate(surf_rain)

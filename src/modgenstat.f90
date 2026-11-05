@@ -547,7 +547,8 @@ contains
 
     use modfields, only : u0,v0,w0,thl0,qt0,qt0h, &
                           ql0,ql0h,thl0h,thv0h,sv0,exnf,exnh,tmp0,presf, &
-                          um, vm, wm, svm, qtm, thlm, e12m  
+                          um, vm, wm, svm, qtm, thlm, e12m  ,& !cstep
+                          tliq0,tliqm,help_arr
     use modsurfdata,only: thls,qts,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp,dzhi, &
@@ -1267,6 +1268,9 @@ contains
     !$omp target update to(cfracav, cfracmn, cliav, climn, clwav, clwmn, cszmn, pliav, plimn, plwav, plwmn, ql2mn, qlhav, qlhmn, qlmn, qt2mn, qtmn, skewmn, sv2mn, svmmn, svpmn, svptmn, tamn, th2mn, thl2mn, thlmn, thv2mn, thvmn, v2mn, vmn, vwres, vwrmn, vwsmn, vwtmn, vwtot, w2mn, wmn, wqlres, wqlrmn, wqlsmn, wqltmn, wqltot, wqtres, wqtrmn, wqtsmn, wqttmn, wqttot, wsvres, wsvrmn, wsvsmn, wsvtmn, wsvtot, wthlres, wthlrmn, wthlsmn, wthltmn, wthltot, wthvres, wthvrmn, wthvsmn, wthvtmn, wthvtot, u2mn, vwsub, wqlsub, wqtsub, wsvsub, wthlsub, wthvsub, w2submn, umn, hurav, hurmn, uwres, uwrmn, uwsmn, uwsub, uwtmn, uwtot)
 
     call timer_toc('modgenstat/do_genstat')
+
+    !thlm = help_arr !cstep set it back
+
   end subroutine do_genstat
 
   subroutine calc_moment(prof, var, n, mean, c_in)

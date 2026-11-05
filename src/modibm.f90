@@ -650,7 +650,7 @@ contains
         else
           retval = calc_obl_iter(thl0(i,j,k), qt0(i,j,k), real(thlroof), &
                                 real(qtroof), z_MO, real(z0m_wall), real(z0h_wall), & 
-                                ucc, vcc, Lob)
+                                ucc, vcc, Lob, -999._field_r,-999.) !cstep new function
 
           Cm_zwall = fkar**2 / (log(z_MO / z0m_wall) - psim(z_MO / Lob) + psim(z0m_wall / Lob))** 2
           Cd_zwall = fkar**2 / (log(z_MO / z0m_wall) - psim(z_MO / Lob) + psim(z0m_wall / Lob)) / (log(z_MO / z0h_wall) - psih(z_MO / Lob) + psih(z0h_wall / Lob))

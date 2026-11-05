@@ -100,6 +100,9 @@ SAVE
   real, allocatable :: z0h        (:,:) !<  Roughness length for heat [m]
   real              :: z0hav    = -1
   real, allocatable :: tskin      (:,:) !<  Skin temperature [K]
+  real, allocatable :: tliq_skin  (:,:) !<  Skin temperature [K] !cstep. I assume ql_sfc = 0, diagnosed from  theta in inp files
+                                        !<  cstep has to to changed to Tskin or Tsfc (not done know as we already have Tskin
+                                        !<  cstep which ia a potential temperature!
   real, allocatable :: tskin_radiative(:,:) !<  Radiative skin temperature used in modslurb [K]
   real, allocatable :: tskinm     (:,:) !<  Skin temperature previous timestep [K]
   real, allocatable :: Wl         (:,:) !<  Liquid water reservoir [m]
@@ -151,7 +154,7 @@ SAVE
   real, allocatable :: PARField     (:,:)
   real, allocatable :: PARdirField  (:,:)
   real, allocatable :: PARdifField  (:,:)
-  
+
   ! ============================================================
   ! Vegetation physiological parameters (AGS photosynthesis scheme)
   ! ============================================================
@@ -161,22 +164,22 @@ SAVE
 
   ! Maximum carboxylation / photosynthetic capacity at 25oC
   real, allocatable :: Ammax25(:,:) !µg CO2 m-2 s-1
- 
+
   ! Initial / reference quantum efficiency factor (light response scaling)
   real, allocatable :: f0field(:,:) !dimensionless (-)
-      
+
   ! Initial slope of light response curve (quantum yield parameter)
   real, allocatable :: alpha0field(:,:) !mol CO2 mol-1 photons
-      
+
   ! CO₂ compensation point at 298 K (25oC)
   real, allocatable :: co2_comp298(:,:) !µmol mol-1 (ppm)
-      
+
   ! Temperature sensitivity parameter for stomatal conductance
   real, allocatable :: T1gmfield(:,:) ! K
 
   ! Temperature sensitivity parameter for photosynthesis capacity (Ammax)
   real, allocatable :: T1Amfield(:,:) !K
-  
+
   !<Non namelist options
   logical           :: linags     = .false.!<  Switch to make additional initialization for AGS
   logical           :: lCHon      = .false.!<  Equal to lchem, but due to compilation has to be outside modchem.f90
@@ -247,6 +250,7 @@ SAVE
   real, allocatable, target :: ustar (:,:)    !<  Friction velocity [m/s]
   real, pointer     :: ustar_3D(:,:,:)        !<  Pointer for halo exchange
   real, allocatable :: thlflux (:,:)          !<  Kinematic temperature flux [K m/s]
+  real, allocatable :: tliqflux (:,:)         !<  cstep
   real, allocatable :: qtflux  (:,:)          !<  Kinematic specific humidity flux [kg/kg m/s]
   real, allocatable :: svflux  (:,:,:)        !<  Kinematic scalar flux [- m/s]
   real              :: min_horv = .1          !<  minimum surface wind speed for drag calculation
@@ -258,18 +262,22 @@ SAVE
   real, allocatable :: dvdz  (:,:)            !<  V-wind gradient in surface layer [1/s]
   real, allocatable :: dqtdz (:,:)            !<  Specific humidity gradient in surface layer [kg/kg/m]
   real, allocatable :: dthldz(:,:)            !<  Liquid water potential temperature gradient in surface layer [K/m]
+  real, allocatable :: dtliqdz(:,:)           !cstep
 
   ! Surface properties in case of prescribed conditions (previous isurf 2, 3 and 4)
   real(field_r)     :: thls  = -1             !<  Surface liquid water potential temperature [K]
+  real(field_r)     :: tliq_skin_av  = -1      !<  Surface mean liquid static energy divided by cp [K]
   real(field_r)     :: qts                    !<  Surface specific humidity [kg/kg]
   real              :: thvs                   !<  Surface virtual temperature [K]
+  real              :: svirts                 !<  Surface virtual static temperature [K] !cstep
   real(field_r), allocatable :: svs   (:)              !<  Surface scalar concentration [-]
   real              :: z0    = -1             !<  Surface roughness length [m]
 
   ! prescribed surface fluxes
   real              :: ustin  = -1            !<  Prescribed friction velocity [m/s]
-  real              :: wtsurf = -1e20         !<  Prescribed kinematic temperature flux [K m/s]
+  real              :: wtsurf = -1e20         !<  Prescribed kinematic potential temperature flux [K m/s]
   real              :: wqsurf = -1e20         !<  Prescribed kinematic moisture flux [kg/kg m/s]
+  real              :: wtliqsurf  = -1e20     !<  Prescribed kinematic temperature flux [K m/s] !cstep
   real(field_r), allocatable :: wsvsurf(:)    !<  Prescribed surface scalar(n) flux [- m/s]
   integer           :: i_expemis = -1         !<  Scalar index for which the exponential emission should be applied [-]
   real              :: expemis0 = 0.0         !<  Maximum exponential emission [ppb m/s]
