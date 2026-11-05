@@ -34,7 +34,7 @@ contains
 !> Advection redirection function
 subroutine advection
 
-  use modglobal,      only : nsv, iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv, &
+  use modglobal,      only : nsv, iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv, iadv_tliq, & !cstep adv_tliq added
                              iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,&
                              iadv_upw,iadv_hybrid,iadv_hybrid_f,iadv_null,leq,&
                              lopenbc,lboundary,lperiodic,i1,j1
@@ -140,8 +140,8 @@ subroutine advection
   end select
 
   istart = 2; iend = i1; jstart = 2; jend = j1
-  if (ltliq) then ! tliq used as temperature variable
-     select case(iadv_thl)
+  !if (ltliq) then ! tliq used as temperature variable
+     select case(iadv_tliq)  !cstep iadv_tliq
      case(iadv_cd2)
         call hadvecc_2nd(tliq0,tliqp,istart,iend,jstart,jend)
      case(iadv_5th)
@@ -174,11 +174,11 @@ subroutine advection
         call hadvecc_hybrid_f(tliq0,tliqp,1.0)
      case(iadv_null)
         ! null advection scheme
-        call finish(routine, "Null advection scheme selected for iadv_thl - probably a bad idea.")
+        call finish(routine, "Null advection scheme selected for iadv_tliq - probably a bad idea.")
      case default
         call finish(routine, "Unknown advection scheme ")
      end select
-  else ! thl used as temperature variable
+  !else ! thl used as temperature variable
      select case(iadv_thl)
      case(iadv_cd2)
         call hadvecc_2nd(thl0,thlp,istart,iend,jstart,jend)
@@ -216,7 +216,7 @@ subroutine advection
      case default
         call finish(routine, "Unknown advection scheme ")
      end select
-  end if
+  !end if
 
   if (lmoist) then
     istart = 2; iend = i1; jstart = 2; jend = j1
@@ -341,8 +341,8 @@ subroutine advection
   !$acc wait
 
   istart = 2; iend = i1; jstart = 2; jend = j1
-  if (ltliq) then ! tliq used as temperature variable
-     select case(iadv_thl)
+  !if (ltliq) then ! tliq used as temperature variable
+     select case(iadv_tliq)   !cstep iadv_tliq
      case(iadv_cd2)
         call vadvecc_2nd(tliq0,tliqp,istart,iend,jstart,jend)
      case(iadv_5th)
@@ -366,7 +366,7 @@ subroutine advection
         !if (.not. leq) stop "advec_hybrid_f does not support a non-uniform vertical grid."
         call vadvecc_hybrid_f(tliq0,tliqp,1.0)
      end select
-  else ! thl used as temperature variable
+  !else ! thl used as temperature variable
      select case(iadv_thl)
      case(iadv_cd2)
         call vadvecc_2nd(thl0,thlp,istart,iend,jstart,jend)
@@ -391,7 +391,7 @@ subroutine advection
         !if (.not. leq) stop "advec_hybrid_f does not support a non-uniform vertical grid."
         call vadvecc_hybrid_f(thl0,thlp,1.0)
      end select
-  end if
+  !end if
   if (lmoist) then
     istart = 2; iend = i1; jstart = 2; jend = j1
     select case(iadv_qt)

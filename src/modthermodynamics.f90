@@ -26,15 +26,15 @@
 module modthermodynamics
   use modglobal,       only: checknamelisterror, ifnamopt, i1, j1, k1, ih, jh, &
                              rv, rlv, cp, rd, dzf, dzhi, iadv_kappa, iadv_qt, &
-                             iadv_thl, tdn, tup, timee, ijtot, kmax, zf, dzh, &
+                             iadv_thl, iadv_tliq, tdn, tup, timee, ijtot, kmax, zf, dzh, &  !cstep iadv_tliq added
                              eps1, cu, cv, grav, pref0, nsv, zh,&
                              ep,ep2,gravocp, rlvocp
   use modfields,       only: qt0, thl0, qt0h, thl0h, ql0, presf, exnf, thvh, &
                              thv0h, qt0av, ql0av, thvf, rhof, ql0h, presh, exnh, &
                              u0, v0, sv0, u0av, v0av, thl0av, ql0av, sv0av, &
                              tmp0, dthvdz, esl, qvsl, qvsi, &
-                             tliq0, tliqm, tliq0h  !cstep 
-  use modsurfdata,     only: qts, thls, ps, dthldz, dqtdz
+                             tliq0, tliqm, tliqp, tliq0h  !cstep
+  use modsurfdata,     only: qts, thls, ps, dthldz, dqtdz,tliq_skin_av
   use modmpi,          only: myid, d_mpi_bcast, commwrld, slabsum
   use modmicrodata,    only: imicro, imicro_bulk3, imicro_none
   use modibmdata,      only: lapply_ibm, fluid_mask
@@ -57,7 +57,7 @@ module modthermodynamics
 
   logical :: lmoist = .true.       !< Switch to calculate moisture fields.
   logical :: lnoclouds = .false.   !< Switch to enable/disable thl calculations.
-  logical :: ltliq = .false.       !< Switch to use liquid static energy instead of theta_l
+  logical :: ltliq = .true.       !< Switch to use liquid static energy instead of theta_l
 
   real, allocatable :: th0av(:)
   real(field_r), allocatable :: thv0(:,:,:)
@@ -98,8 +98,12 @@ contains
     real(field_r) :: th !< potential temperature [K]
     real(field_r) :: thv !< Virtual potential temperature [K]
 
-    !thv = (thl + rlv * ql / (cp * exn)) * (1 + (rv / rd - 1) * qt - rv / rd * ql)
-    th = (tliq - gravocp*zf  + rlvocp * ql )/exn
+    !logical :: ltheta_is_theta = .false.   !if false then theta and thetav represent dry static energy and dry virt stat en div cp, svirt
+    !if (ltheta_is_theta) then
+    !  th = (tliq - gravocp*zf  + rlvocp * ql )/exn   ;makes a real potential temperature
+    !else
+      th = (tliq + rlvocp * ql )   !makes a dry static energy
+    !endif
     thv = th * (1 + ep2 * qt -  ql/ep)
 
   end function calc_virt_pot_temp_from_tliq
@@ -140,13 +144,6 @@ contains
     allocate(thetah(k1), qth(k1), qlh(k1))
 
     th0av(:) = 0.
-
-    if (ltliq) then
-       allocate(tliq0    (2-ih:i1+ih,2-jh:j1+jh,k1))
-       allocate(tliqm    (2-ih:i1+ih,2-jh:j1+jh,k1))
-       allocate(tliqp    (2-ih:i1+ih,2-jh:j1+jh,k1))
-       allocate(tliq0h   (2-ih:i1+ih,2-jh:j1+jh,k1))
-    end if
 
     !$acc enter data copyin(th0av, thv0, thetah, qth, qlh)
 
@@ -203,20 +200,38 @@ contains
 
       !$acc parallel loop collapse(3) default(present) async(1) private(T) &
       !$acc firstprivate(too_cold, too_hot)
-      do k = 1, k1
-        do j = 2, j1
-          do i = 2, i1
-            T = thl0(i,j,k) * exnf(k)    !cstep include tliq version
-            if (T < 150) then
-              !$acc atomic write
-              too_cold = .true.
-            else if (T > 550) then
-              !$acc atomic write
-              too_hot = .true.
-            end if
+      if (ltliq) then
+        do k = 1, k1
+          do j = 2, j1
+            do i = 2, i1
+              T = tliq0(i,j,k) - gravocp * zf(k)
+        !cstep      write (6,*) 'tliq0',i,j,k,tliq0(i,j,k),T
+              if (T < 150) then
+                !$acc atomic write
+                too_cold = .true.
+              else if (T > 550) then
+                !$acc atomic write
+                too_hot = .true.
+              end if
+            end do
           end do
         end do
-      end do
+      else  !not ltliq (thetal)
+        do k = 1, k1
+          do j = 2, j1
+            do i = 2, i1
+              T = thl0(i,j,k) * exnf(k)
+              if (T < 150) then
+                !$acc atomic write
+                too_cold = .true.
+              else if (T > 550) then
+                !$acc atomic write
+                too_hot = .true.
+              end if
+            end do
+          end do
+        end do
+      end if   !end ltliq
 
       !$acc wait
       if (too_cold) then
@@ -229,25 +244,49 @@ contains
 #if defined(DALES_GPU)
       call saturation_adjustment_gpu(qt0, thl0, presf, exnf, ql0, opt_stream=1)  !cstep include tliq version
 #else
-      call saturation_adjustment(qt0, thl0, presf, exnf, ql0, opt_stream=1)      !cstep include tliq version
+      if (ltliq) then
+        call saturation_adjustment_from_tliq(qt0, tliq0, presf, zf, ql0, opt_stream=1)
+      else
+        call saturation_adjustment(qt0, thl0, presf, exnf, ql0, opt_stream=1)
+      end if !ltliq
 #endif
 
       call diagfld
 
       ! Interpolate thl and qt to the half levels
-      call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)  !cstep include tliq version
+      if (ltliq) then
+         call calc_halflev(tliq0,dzf, dzhi, tliq_skin_av, iadv_tliq == iadv_kappa, tliq0h)
+      endif
+      call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
       call calc_halflev(qt0, dzf, dzhi, qts, iadv_qt == iadv_kappa, qt0h)
 
       ! Do saturation adjustment again on the half levels
 #if defined(DALES_GPU)
       call saturation_adjustment_gpu(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1) !cstep include tliq version
 #else
-      call saturation_adjustment(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1) !cstep include tliq version
+       if (ltliq) then
+              ! write(6,*) 'tliq_skin_av',tliq_skin_av
+              ! write(6,*) 'tliqh',tliq0h(2,2,1:k1)
+              ! write(6,*) 'qt0',qt0(2,2,1:k1)
+               !write(6,*) 'qt0h',qt0h(2,2,1:k1)
+!               write(6,*) '-----'
+!               write(6,*) 'tliq',tliq0(2,2,1:k1)
+!               write(6,*) 'presh',presh(1:20)
+
+         call saturation_adjustment_from_tliq(qt0h, tliq0h, presh,zh,ql0h, opt_stream=1)
+       else
+         call saturation_adjustment(qt0h, thl0h, presh, exnh, ql0h, opt_stream=1) !cstep include tliq version
+       endif
 #endif
 
       if (imicro /= imicro_none) then
-        call calc_saturation_humidities(qt0, ql0, thl0, presf, exnf, esl, &
-                                        qvsl, qvsi)   !cstep include tliq version
+        if (ltliq) then
+          call calc_saturation_humidities_from_tliq(qt0, ql0, tliq0, presf, zf, esl, &
+                                        qvsl, qvsi)
+        else
+          call calc_saturation_humidities(qt0, ql0, thl0, presf, exnf, esl, &
+                                        qvsl, qvsi)
+        endif
       end if
     else
       call calc_dry_tmp ! tmp0 is used in statistics
@@ -316,10 +355,6 @@ contains
   subroutine exitthermodynamics
     !$acc exit data delete(th0av, thv0, thetah, qth, qlh)
     deallocate(th0av, thv0, thetah, qth, qlh)
-    if (ltliq) then
-       !$acc exit data delete(tliq0, tliqm, tliqp)
-       deallocate(tliq0, tliqm, tliqp)  
-    end if
   end subroutine exitthermodynamics
 
   !> Calculate real temperature tmp0 from thl0, for the dry case i.e. ql=0
@@ -518,9 +553,9 @@ contains
 !         default thv jump computed unsaturated
 !
 !
-!cstep replace all thl0 by tliq0, see Entrainment in stratocumulus-topped mixed layers, Stevens, 2002, QJRMS 
+!cstep replace all thl0 by tliq0, see Entrainment in stratocumulus-topped mixed layers, Stevens, 2002, QJRMS
 !
-            
+
             !cstep ep2   =>    eps_I = 1/ep - 1  !cstep approx 0.608
 
 
@@ -530,7 +565,7 @@ contains
 
 
 
-            
+
 
             a_dry = 1 + ep2 * qt0(i,j,k)
 !cstep            b_dry = ep2 * thl0(i,j,k)
@@ -545,7 +580,7 @@ contains
             tmp0(i,j,k) = temp !stored for statistics
 
             if  (ql0(i,j,k)> 0) then  !include moist thermodynamics
-            
+
                qs   = qt0(i,j,k) - ql0(i,j,k)
 
                a_moist = (1-qt0(i,j,k)+qs/ep*(1+rlv/(rv*temp))) &
@@ -947,6 +982,81 @@ contains
 
   end subroutine saturation_adjustment
 
+  subroutine saturation_adjustment_from_tliq(qt, tliq, pres, z, ql, opt_stream)
+
+    real(field_r), intent(in) :: qt(2-ih:,2-jh:,:)   !< Total water specific humidity [kg/kg]
+    real(field_r), intent(in) :: tliq(2-ih:,2-jh:,:) !< Liquid static energy / cp [K]
+    real(field_r), intent(in) :: pres(:)             !< Pressure [Pa]
+    real(field_r), intent(in) :: z(:)                !< Height [m]
+    real(field_r), intent(inout) :: ql(2-ih:,2-jh:,:) !< Liquid water specific humidity [kg/kg].
+
+    integer, optional, intent(in) :: opt_stream !< (Optional) OpenACC stream ID.
+
+    character(len=*), parameter :: routine = modname//'saturation_adjustment_from_tliq'
+
+    integer :: i, j, k
+    integer :: stream = 1 !< OpenACC stream ID.
+
+    real(field_r) :: b      !< Factor in the equation for saturation specific humidity [-]
+    real(field_r) :: qli    !< Intermediate value of liquid water specific humidity [kg/kg]
+    real(field_r) :: qsat   !< Saturation specific humidity [kg/kg]
+    real(field_r) :: qti    !< Intermediate value of total water specific humditiy [kg/kg]
+    real(field_r) :: Tl     !< Liquid water temperature [K]
+    real(field_r) :: Tl_min !< Minimum value of the liquid water temperature [K]
+    real(field_r) :: qt_max !< Maximum value of the total water specific humidity [kg/kg]
+
+    if (present(opt_stream)) stream = opt_stream
+
+    call timer_tic(routine, 1)
+
+    !$acc parallel loop gang default(present) async(stream) &
+    !$acc private(b, qli, qsat, qti, Tl)
+    do k = 1, k1
+      ! Find lowest thl and highest qt in the slab.
+      ! If they in combination are not saturated, the whole slab is below saturation.
+      !
+      ! TODO: on GPU, test if it's cheaper to just do the computation instead.
+      TL_min = minval(tliq(2:i1,2:j1,k) - gravocp * z(k))  ! minval(thl(2:i1,2:j1,k)) * exn(k)
+      !cstep write(6,*) 'xxx',k,Tl_min,tliq(2,2,1)
+      qt_max = maxval(qt(2:i1,2:j1,k))
+      qsat = qsat_tab(TL_min, pres(k))
+      !cstep write(6,*) 'qsat',qsat,TL_min,pres(k),qt_maX
+      if (qt_max > qsat) then
+        !$acc loop vector collapse(2)
+        do j = 2, j1
+          do i = 2, i1
+            qti = qt(i,j,k)
+
+            ! First step
+            Tl = tliq(i,j,k) - gravocp * z(k)    !exn(k) * thl(i,j,k)
+            qsat = qsat_tab(Tl, pres(k))
+            b = rlv**2 / (rv * cp * Tl**2)
+            qsat = qsat * (1 + b * qti) / (1 + b * qsat)
+
+            ! Update the starting point
+            qli = max(qti - qsat, 0.0_field_r)
+            Tl = Tl + (rlv / cp) * qli
+            qti = qti - qli
+
+            ! Second step
+            !cstep write(6,*) 'yyy',i,j,k,Tl,pres(k)
+            qsat = qsat_tab(Tl, pres(k))
+            b = rlv**2 / (rv * cp * Tl**2)
+            qsat = qsat * (1 + b * qti) / (1 + b * qsat)
+
+            ql(i,j,k) = max(qt(i,j,k) - qsat, 0.0_field_r)
+          end do
+        end do
+      else
+        ql(:,:,k) = 0
+      end if
+    end do
+
+    call timer_toc(routine)
+
+  end subroutine saturation_adjustment_from_tliq
+
+
 #if defined(DALES_GPU)
   !> Compute the cloud water content via the saturation adjustment method.
   subroutine saturation_adjustment_gpu(qt, thl, pres, exn, ql, opt_stream)
@@ -1061,6 +1171,59 @@ contains
     end do
 
   end subroutine calc_saturation_humidities
+
+  subroutine calc_saturation_humidities_from_tliq(qt, ql, tliq, pres, z, esl, qvsl, qvsi)
+
+    real(field_r), intent(in) :: qt(2-ih:,2-jh:,:)   !< Total water specific humidity [kg/kg]
+    real(field_r), intent(in) :: ql(2-ih:,2-jh:,:)   !< Liquid water specific humidity [kg/kg]
+    real(field_r), intent(in) :: tliq(2-ih:,2-jh:,:) !< Liquid static energy divided by cp [K]
+    real(field_r), intent(in) :: pres(:)             !< Pressure [Pa]
+    real(field_r), intent(in) :: z(:)                !< Height [m]
+
+    real(field_r), intent(out) :: esl(2-ih:,2-jh:,:)  !< Liquid water saturation pressure [Pa]
+    real(field_r), intent(out) :: qvsl(2-ih:,2-jh:,:) !< Liquid water saturation humidity [kg/kg]
+    real(field_r), intent(out) :: qvsi(2-ih:,2-jh:,:) !< Ice saturation humidity [kg/kg]
+
+    character(len=*), parameter :: routine = &
+      modname//'calc_saturation_humidities'
+
+    integer :: i, j, k
+
+    real(field_r) :: esi      !< Saturation vapor pressure for ice (not stored) [Pa]
+    real(field_r) :: qsat     !< Saturation specific humidity [kg/kg]
+    real(field_r) :: T        !< Temperature [K]
+    real(field_r) :: interp_w !< Interpolation temperature [K]
+    integer       :: tlo      !< Index of temperature in esat lookuptable
+
+    !$acc parallel loop collapse(3) default(present) async(1) &
+    !$acc private(qsat, T, interp_w, tlo, esi)
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
+          qsat = max(qt(i,j,k) - ql(i,j,k), 1.0_field_r)
+          !T = exn(k) * thl(i,j,k) + (rlv / cp) * ql(i,j,k)
+          T = tliq (i,j,k) - gravocp * z(k) + rlvocp * ql(i,j,k)
+
+          interp_w = (T - 150) * 5
+          tlo = int(interp_w)
+          interp_w = interp_w - tlo
+
+          ! Liquid
+          esl(i,j,k) = (1 - interp_w) * esatltab(tlo) &
+                       + interp_w * esatltab(tlo + 1)
+          qvsl(i,j,k) = rd / rv * esl(i,j,k) &
+                        / (pres(k) - (1 - rd / rv) * esl(i,j,k))
+
+          ! Ice
+          esi = (1 - interp_w) * esatitab(tlo) &
+                + interp_w * esatitab(tlo + 1)
+          qvsi(i,j,k) = rd / rv * esi / (pres(k) - (1 - rd / rv) * esi)
+        end do
+      end do
+    end do
+
+  end subroutine calc_saturation_humidities_from_tliq
+
 
   !> Interpolate a scalar field to the half levels.
   !!

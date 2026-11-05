@@ -37,19 +37,19 @@ module modibm
                             z0m_wall, z0h_wall, fluid_mask
   use modtimer
   use modlogging,      only : finish, warning, message
-  
+
   implicit none
   save
   private
   character(len=*), parameter :: modname = 'modibm'
-  
+
   public :: ixw_p, ixw_m, iyw_p, iyw_m, izw_p, iobst
-  
-  integer :: Nobst, Nobst_wide                                                                    !< Number of obstacles on pure domain and incl. halo cells 
+
+  integer :: Nobst, Nobst_wide                                                                    !< Number of obstacles on pure domain and incl. halo cells
   integer :: Nxwalls_plus, Nywalls_plus, Nzwalls_plus, Nxwalls_min, Nywalls_min, Nzwalls_min      !< Number of walls oriented in positve/negative x,y,z directions
   integer, allocatable :: ixw_p(:,:), ixw_m(:,:), iyw_p(:,:), iyw_m(:,:), izw_p(:,:)!, izw_m(:,:) !< Indices of walls oriented in positve/negative x,y,z directions
   integer, allocatable :: iobst(:,:)                                                              !< Indices of obstacles
-  
+
   real(field_r) :: dx_half, dy_half, Cm_xwall, Cm_ywall, Cd_xwall, Cd_ywall, Cm_zwall, Cd_zwall, z_MO !< Additional variables/parameters
 
   public :: ibm_read_namelist, initibm, exitibm, applyibm, zerowallvelocity
@@ -59,9 +59,9 @@ contains
   !> Read ibm namelist entries and broadcast settings.
   subroutine ibm_read_namelist(nml_filename)
     use fortran_support, only: nnml_output
-    
+
     character(len=*), intent(in) :: nml_filename
-    
+
     character(len=*), parameter :: routine = modname//'/ibm_read_namelist'
 
     integer :: ierr
@@ -98,7 +98,7 @@ contains
 
     use modglobal,        only : zh, zf, itot, jtot, ih, i1, i2, jh, j1, j2, k1, imax, jmax, kmax, cexpnr, ifinput, &
                                 nsv, cu, cv, ijtot, &
-                                iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,iadv_cd2, &
+                                iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,iadv_cd2, &    !cstep : not yet adapted for tliq!!
                                 ibas_prf, &
                                 dx,dy,fkar
     use modsurface,       only : lmostlocal
@@ -123,8 +123,8 @@ contains
 
       ! Do some checks for conflicting settings and warn/stop further execution
       if ( lapply_ibm ) then
-        if (abs(cu) > 0) call finish(routine, 'Domain translation not allowed with IBM, set cu to zero')  
-        if (abs(cv) > 0) call finish(routine, 'Domain translation not allowed with IBM, set cv to zero')  
+        if (abs(cu) > 0) call finish(routine, 'Domain translation not allowed with IBM, set cu to zero')
+        if (abs(cv) > 0) call finish(routine, 'Domain translation not allowed with IBM, set cv to zero')
 
         if (ibas_prf .ne. 2) then
           ibas_prf = 2
@@ -132,7 +132,7 @@ contains
               'ibas_pr is overwritten to 2 (Boussinesq approximation with constant density) ' // &
               'height dependent density gives probles with correction of vertical advective '  // &
               'tendencies at the top of obstacles'  &
-          )  
+          )
         end if
 
         ! TODO: implement kappa advection for tracers
@@ -141,21 +141,21 @@ contains
           call finish(routine, &
               'Current IBM implementation only works with 2nd order advection. '  // &
               'Proper check for kappa advection of scalars to be implemented'&
-          )  
+          )
         end if
 
         if ( lanisotrop ) then
           call warning(routine, &
-              'WARNING: you are using IBM with anisotropic grids in x,y-direction '  // & 
+              'WARNING: you are using IBM with anisotropic grids in x,y-direction '  // &
               'while possible, this may cause unexpected results (blending effects)' &
-          )  
+          )
         end if
 
         if ( .not.(lsmagorinsky) ) then
           call warning(routine, &
               'WARNING: subgrid TKE (e120) is not (yet) explicitly corrected for walls. '  // &
               'This includes production, destruction and dissipation terms in sgs-tke budget' &
-          )  
+          )
         end if
 
         !! Check doesn't work currently, related to order in startup routine
@@ -203,7 +203,7 @@ contains
 
       else
 
-       call message(routine, 'Reading inputfile ibm.inp.', cexpnr) 
+       call message(routine, 'Reading inputfile ibm.inp.', cexpnr)
 
         open (ifinput,file='ibm.inp.'//cexpnr)
           do k=1,7
@@ -219,16 +219,16 @@ contains
 
         close(ifinput)
 
-        call message(routine, 'Succesfully read inputfile in modibm') 
+        call message(routine, 'Succesfully read inputfile in modibm')
 
       end if
-    end if 
+    end if
 
     call d_mpi_bcast(bc_height, (itot+1)*(jtot+1), 0, comm3d, mpierr)
 
     ! Determine obstacle cells. Checks if obstacle height is above midpoint of vertical cell (= full levels). Corresponds to >50% of cell being filled.
     Nobst = 0
-    do i=2,i1 
+    do i=2,i1
       do j=2,j1
          do k=1,kmax
             if (zf(k) <= bc_height(i+myidx*imax,j+myidy*jmax)) then
@@ -319,7 +319,7 @@ contains
             !   tizw_m(Nzwalls_min, 3) = k
             ! end if
 
-          end if 
+          end if
 
         end do
       end do
@@ -388,7 +388,7 @@ contains
 
     write(input_file(9:11), '(i3.3)') iexpnr
 
-    call message(routine, "Reading IBM input: ", input_file) 
+    call message(routine, "Reading IBM input: ", input_file)
     call message(routine, "Expecting dimensions x,y and variable bc_height(:,:)")
 
     call check( nf90_open(input_file, nf90_nowrite, ncid), input_file, __LINE__)
@@ -415,7 +415,7 @@ contains
     call message(routine, 'Succesfully read netCDF inputfile in modibm')
 
   end subroutine init_ibm_from_nc
-  
+
   !> Applies the immersed boundary through forcings.
   subroutine applyibm
 
@@ -440,7 +440,7 @@ contains
     real(field_r)     :: uspeed, ucc, vcc, z_MO
     real(field_r)     :: tau_vu_plus, tau_vu_min, tau_wu_min, tau_wu_plus, tau_uv_min, tau_uv_plus, tau_wv_min, tau_wv_plus
     real              :: Lob
-    
+
     if (.not. lapply_ibm) return
 
     call timer_tic('modibm/applyibm',0)
@@ -470,7 +470,7 @@ contains
     end do
 
     ! All corrections consist of 2 parts: cancel the "wrong" diffusion imposed by modsubgrid at fluid points at the wall, and add wall friction/flux.
-    ! In this framework, we assume no correction for advection is needed, as velocities at walls should already be close to zero 
+    ! In this framework, we assume no correction for advection is needed, as velocities at walls should already be close to zero
     ! TODO: 1. do explicitly remove advective tendencies over walls (mainly for improvement of conservations of scalars)
     !       2. apply IBM conditions explicitly to e12 as well
 
@@ -521,8 +521,8 @@ contains
         Cd_zwall = fkar**2 / (log(z_MO / z0m_wall)) / (log(z_MO / z0h_wall))
       else
         retval = calc_obl_iter(thl0(i,j,k), qt0(i,j,k), real(thlroof), &
-                               real(qtroof), z_MO, real(z0m_wall), real(z0h_wall), & 
-                               ucc, vcc, Lob)
+                               real(qtroof), z_MO, real(z0m_wall), real(z0h_wall), &
+                               ucc, vcc, Lob, -999.,-999.) !cstep new function
 
         Cm_zwall = fkar**2 / (log(z_MO / z0m_wall) - psim(z_MO / Lob) + psim(z0m_wall / Lob))** 2
         Cd_zwall = fkar**2 / (log(z_MO / z0m_wall) - psim(z_MO / Lob) + psim(z0m_wall / Lob)) / (log(z_MO / z0h_wall) - psih(z_MO / Lob) + psih(z0h_wall / Lob))
@@ -563,7 +563,7 @@ contains
       ! Remove "wrong" diffusive tendencies and replace with wall drag:
       ! essentially every wall facet is split up in two parts, where half the correction goes into v(i,j,k) and half into v(i,j+1,k)
       ! if the x-plane next to the current one is not a wall, no partial correction to v(i,j+1,k) occurs (but a partial contribution of diffusion does)
-      ! if this x-plane is also a wall, the total correction on a momentum component will therefore be split over two entries in the wall list. 
+      ! if this x-plane is also a wall, the total correction on a momentum component will therefore be split over two entries in the wall list.
 
       ! for v(i,j,k):
       emmo = 0.25_field_r * ( ekm(i,j,k) + ekm(i,j-1,k) + ekm(i-1,j,k) + ekm(i-1,j-1,k) )
@@ -857,7 +857,7 @@ contains
     real(field_r)             :: tau
 
     tau  = Cm_hor_wall * sqrt(u1**2 + u2**2) * u1   ! minus sign included in subroutine above, where it checks direction of the wind
-                                                    
+
   end function log_wallaw
 
   ! TODO: wall corection for e12 currenly neglected. To be tested in detail later.

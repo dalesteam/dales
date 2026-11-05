@@ -30,6 +30,7 @@ module modboundary
 use modtimer
 use modprecision, only: field_r
 use modlogging, only: finish
+use modthermodynamics, only: ltliq
 implicit none
 save
 private
@@ -41,8 +42,9 @@ public :: initboundary, boundary, exitboundary, grwdamp, ksp, tsc, cyclich
   logical :: lboundopen = .false.            !GT switch for open boundary conditions for all scalars
   real(field_r) :: fillvalues(100) = 0       !GT fill value for each scalar to apply at the boundary
 
-  real(field_r), public              :: dtheta !< Applied gradient of qt at top of model
-  real(field_r), public              :: dqt    !< Applied gradient of theta at top of model
+  real(field_r), public              :: dtheta !< Applied gradient of thl at top of model
+  real(field_r), public              :: dtliq  !< Applied gradient of tliq at top of model
+  real(field_r), public              :: dqt    !< Applied gradient of qt at top of model
   real(field_r), public, allocatable :: dsv(:) !< Applied gradient of sv(n) at top of model
 contains
 !>
@@ -53,7 +55,7 @@ contains
                                 ifnamopt, fname_options, checknamelisterror           !GT added
     use modmpi,    only : myid, comm3d, d_mpi_bcast                             !GT added
     use fortran_support, only : nnml_output
-    
+
     implicit none
 
     real    :: zspb, zspt
@@ -62,17 +64,17 @@ contains
     namelist/NAMBOUNDSET/ lboundopen, fillvalues        !GT added
 
     call timer_tic('modboundary/initboundary', 0)
-    
+
     if (myid == 0) then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,nml=NAMBOUNDSET,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMBOUNDSET')
       write(nnml_output, NAMBOUNDSET)
       close(ifnamopt)
-    endif 
+    endif
 
     call d_mpi_bcast(lboundopen,          1,  0, comm3d, ierr)  !GT added
-    call d_mpi_bcast(fillvalues,        nsv,  0, comm3d, ierr)  !GT added 
+    call d_mpi_bcast(fillvalues,        nsv,  0, comm3d, ierr)  !GT added
 
 
     allocate(tsc(k1))
@@ -119,7 +121,7 @@ contains
     call cyclicm
     call cyclich
     call setboundaries          !was uncommented GT
-  
+
     call topm
     call toph
 
@@ -128,7 +130,7 @@ contains
 !> Cleans up after the run
   subroutine exitboundary
     implicit none
-    
+
     !$acc exit data delete(tsc, dsv)
     deallocate(tsc, dsv)
   end subroutine exitboundary
@@ -137,13 +139,17 @@ contains
  subroutine cyclich
 
   use modglobal, only : i1,ih,j1,jh,k1,nsv
-  use modfields, only : thl0,qt0,sv0
+  use modfields, only : thl0,qt0,sv0,tliq0
   use modmpi,    only : excjs
 
   integer n
 
-  call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh)
+  if (ltliq) then
+    call excjs( tliq0        , 2,i1,2,j1,1,k1,ih,jh)
+  endif
+  call excjs( thl0         , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh)
+
 
   if ( nsv > 0 ) then
     do n=1,nsv
@@ -181,7 +187,7 @@ contains
   do n=1,nsv
     call closeboundaries(sv0(:, :, 1:k1, n), 2,i1,ih, 2,j1,jh, 1,k1, fillvalues(n))             !GT changes 0. (given BC) to fillvalues(n)
     call closeboundaries(svm(:, :, 1:k1, n), 2,i1,ih, 2,j1,jh, 1,k1, fillvalues(n))             !GT changes 0. (given BC) to fillvalues(n)
-  enddo     
+  enddo
 
   end subroutine setboundaries
 
@@ -202,8 +208,8 @@ contains
 !! \endlatexonly
  subroutine grwdamp
   use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,nsv,rdt,unudge,dzf,lopenbc,uvdamprate
-  use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0,sv0,ug,vg &
-                        ,thl0av,qt0av,sv0av,u0av,v0av
+  use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0,sv0,ug,vg ,thlp, tliq0, tliq0av, tliqp,& !cstep
+                        thl0av,qt0av,sv0av,u0av,v0av
   implicit none
 
   character(len=*), parameter :: routine = modname//'/grwdamp'
@@ -223,6 +229,11 @@ contains
       thlp(:,:,k)= thlp(:,:,k)-(thl0(:,:,k)-thl0av(k))*tsc(k)
       qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
     end do
+    if (ltliq) then
+       do k=ksp,kmax
+        tliqp(:,:,k)= tliqp(:,:,k)-(tliq0(:,:,k)-tliq0av(k))*tsc(k)
+       enddo
+    endif
     !$acc end kernels
     if(lcoriol) then
       !$acc kernels default(present) async(1)
@@ -241,6 +252,11 @@ contains
       thlp(:,:,k)= thlp(:,:,k)-(thl0(:,:,k)-thl0av(k))*tsc(k)
       qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
     end do
+    if (ltliq) then
+       do k=ksp,kmax
+         tliqp(:,:,k)= tliqp(:,:,k)-(tliq0(:,:,k)-tliq0av(k))*tsc(k)
+       enddo
+    endif
     !$acc end kernels
   case(3)
     !$acc kernels default(present) async(1)
@@ -251,6 +267,11 @@ contains
       thlp(:,:,k)= thlp(:,:,k)-(thl0(:,:,k)-thl0av(k))*tsc(k)
       qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
     end do
+     if (ltliq) then
+       do k=ksp,kmax
+         tliqp(:,:,k)= tliqp(:,:,k)-(tliq0(:,:,k)-tliq0av(k))*tsc(k)
+       enddo
+    endif
     !$acc end kernels
   case(-1)
     !$acc kernels default(present) async(1)
@@ -269,6 +290,9 @@ contains
     !$acc kernels default(present) async(1)
     thl0(2:i1,2:j1,kmax) = thl0av(kmax)
     qt0 (2:i1,2:j1,kmax) = qt0av(kmax)
+    if (ltliq) then
+       tliq0(2:i1,2:j1,kmax) = tliq0av(kmax)
+    endif
     !$acc end kernels
 
     if (nsv > 0) then
@@ -298,7 +322,8 @@ contains
 
   use modglobal, only : kmax,k1,nsv,dzh
   use modfields, only : thl0,thlm,qt0,qtm,sv0,svm &
-                       ,thl0av,qt0av,sv0av
+                       ,thl0av,qt0av,sv0av,&
+                        tliq0,tliqm,tliq0av
   implicit none
   integer :: n
   integer,parameter :: kav=5
@@ -306,12 +331,16 @@ contains
 ! **  Top conditions :
   ! Calculate new gradient over several of the top levels, to be used
   ! to extrapolate thl and qt to level k1 !JvdD
-  
+
   !$acc serial default(present)
   dtheta = sum((thl0av(kmax-kav+1:kmax)-thl0av(kmax-kav:kmax-1))/ &
              dzh(kmax-kav+1:kmax))/kav
   dqt    = sum((qt0av (kmax-kav+1:kmax)-qt0av (kmax-kav:kmax-1))/ &
              dzh(kmax-kav+1:kmax))/kav
+  if (ltliq) then
+     dtliq = sum((tliq0av(kmax-kav+1:kmax)-tliq0av(kmax-kav:kmax-1))/ &
+             dzh(kmax-kav+1:kmax))/kav
+  endif
   !$acc end serial
 
   if ( nsv > 0 ) then
@@ -321,15 +350,20 @@ contains
                  dzh(kmax-kav:kmax-1))/kav
     enddo
   endif
-  
-  !$acc kernels default(present) 
+
+  !$acc kernels default(present)
   thl0(:,:,k1) = thl0(:,:,kmax) + dtheta*dzh(k1)
   qt0(:,:,k1)  = qt0 (:,:,kmax) + dqt*dzh(k1)
 
   thlm(:,:,k1) = thlm(:,:,kmax) + dtheta*dzh(k1)
   qtm(:,:,k1)  = qtm (:,:,kmax) + dqt*dzh(k1)
+
+  if (ltliq) then
+     tliq0(:,:,k1) = tliq0(:,:,kmax) + dtliq*dzh(k1)
+     tliqm(:,:,k1) = tliqm(:,:,kmax) + dtliq*dzh(k1)
+  endif
   !$acc end kernels
-  
+
   if ( nsv > 0) then
     !$acc kernels default(present)
     do n=1,nsv
@@ -359,7 +393,7 @@ contains
         e120(:,:,k1) = e120(:,:,kmax)
         !$acc end kernels
     endif
-    
+
     !$acc kernels default(present)
     um(:,:,k1)   = um(:,:,kmax)
     vm(:,:,k1)   = vm(:,:,kmax)

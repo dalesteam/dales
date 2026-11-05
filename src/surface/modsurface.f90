@@ -64,11 +64,11 @@ module modsurface
   use iso_fortran_env, only: real64
   use modtimer
   use modsurfdata
-  use modfields,  only: u0, v0, thl0, qt0, u0av, v0av, thl0av, qt0av
+  use modfields,  only: u0, v0, thl0, qt0, u0av, v0av, thl0av, qt0av,tliq0,tliq0av !cstep
   use modglobal,  only: ifnamopt, checknamelisterror, zf, i1, j1, i2, j2, &
-                        grav, cu, cv, rd, rv
+                        grav, cu, cv, rd, rv, cp, pref0 !cstep pref0 needed for wtliqsurf
   use modmpi,     only: d_mpi_bcast, commwrld, myid
-  use modthermodynamics, only: lmoist
+  use modthermodynamics, only: lmoist,ltliq !cstep
   use modlogging, only: finish
   use fortran_support, only: nnml_output
   implicit none
@@ -96,7 +96,7 @@ contains
       ! Jarvis-Steward related variables
       rsminav, rssoilminav, LAIav, gDav, &
       ! Prescribed values for isurf 2, 3, 4
-      z0, thls, ps, ustin, wtsurf, wqsurf, &
+      z0, thls, ps, ustin, wtsurf, wqsurf, &   !cstep thls is read from namsurface, derive tliq_skin from this variable
       ! AGS variables
       lrsAgs, lCO2Ags,planttype, &
       ! Delay plant response in Ags
@@ -170,6 +170,11 @@ contains
     call D_MPI_BCAST(min_horv                   ,            1, 0, commwrld, istat)
 
     !$acc update device(min_horv)
+
+    if (ltliq) then
+       wtliqsurf = wtsurf * (ps / pref0)**(rd/cp)   !cstep
+       write (6,*) 'wtliqsurf',wtliqsurf
+    endif
 
   end subroutine surface_read_namelist
 
@@ -343,7 +348,8 @@ contains
     allocate(z0h(i2,j2))
     allocate(obl(i2,j2))
     allocate(tskin(i2,j2))
-    allocate(tskin_radiative(i2,j2))
+    allocate(tliq_skin(i2,j2))   !cstep, liquid static energy divided by cp at the surface
+    allocate(tskin_radiative(i2,j2))  !cstep: replace at some point by tliq_skin?
     allocate(qskin(i2,j2))
     allocate(Cm(i2,j2))
     allocate(Cs(i2,j2))
@@ -367,7 +373,7 @@ contains
     ! emissivity was always set in (rte)rrtmg to 0.95, but we want to be able to change it for the urban tile.
     ! Hence we set it in surface to be used later.
     emissivity = 0.95
-  
+
     albedo     = albedoav
     z0m        = z0mav
     z0h        = z0hav
@@ -379,10 +385,12 @@ contains
     allocate(dudz    (i2,j2))
     allocate(dvdz    (i2,j2))
 
-    allocate(thlflux (i2,j2))
+    allocate(thlflux (i2,j2))   !cstep is it deallocated?
+    allocate(tliqflux (i2,j2))  !cstep
     allocate(qtflux  (i2,j2))
     allocate(dqtdz   (i2,j2))
     allocate(dthldz  (i2,j2))
+    allocate(dtliqdz (i2,j2))  !cstep
     allocate(svflux  (i2,j2,nsv))
     allocate(svs(nsv))
 
@@ -451,6 +459,7 @@ contains
     character(len=*), parameter :: routine = modname//'/surface'
 
     call timer_tic('modsurface/surface', 0)
+
     select case (isurf)
       case (1) ! Interactive land surface model
         call calc_mean_wind
@@ -547,23 +556,33 @@ contains
   !> Prescribes the skin temperature
   subroutine presc_skin_temperature
     use modglobal, only: i1, j1
+    use modfields, only: exnh
     implicit none
 
     integer :: i, j
 
     !$acc parallel loop collapse(2) default(present)
-    do j = 2, j1
-      do i = 2, i1
-        tskin(i,j) = thls
-      end do
-    end do
+    if (ltliq) then
+       do j = 2, j1
+         do i = 2, i1
+           tliq_skin(i,j) = thls * exnh(1) !cstep ignores liquid , also z=0 for this case
+           ! cstep write(6,*) 'tliq_skin',tliq_skin(2,2),thls,exnh(1)
+         end do
+       end do
+   ! else
+        do j = 2, j1
+          do i = 2, i1
+             tskin(i,j) = thls    !cstep note that this is theta_skin
+          end do
+        end do
+    endif
 
   end subroutine presc_skin_temperature
 
   !> Calculates the surface temperature and specific humidity
-  subroutine calc_surface_scalars
+  subroutine calc_surface_scalars   !cstep here we have to define tliq_skin(:,:) and its slab mean value
     use modglobal, only: i1, j1, rv, rd, ijtot
-    use modfields, only: thl0, qt0
+    use modfields, only: thl0, qt0, tliq0
     use modmpi, only: D_MPI_ALLREDUCE, mpi_sum, comm3d, mpierr
     implicit none
 
@@ -578,8 +597,19 @@ contains
       end do
     end do
 
+    if (ltliq) then
+        do j = 2, j1
+          do i = 2, i1
+            tliq_skin (i,j) = min(max(tliqflux(i,j) / (Cs(i,j) * horv(i,j)), -10.), 10.) + tliq0(i,j,1) !cstep todo nest tskin within
+                                                                                                        !this if statement
+          enddo
+        enddo
+    endif
+
     thls = 0.0
     qts = 0.0
+    tliq_skin_av = 0.0
+
     !$acc parallel loop collapse(2) default(present) reduction(+: thls, qts)
     do j = 2, j1
       do i = 2, i1
@@ -594,6 +624,18 @@ contains
     thls = thls / ijtot
     qts = qts / ijtot
     thvs = thls * (1. + (rv/rd - 1.) * qts)
+
+    if (ltliq) then
+       do j = 2, j1
+         do i = 2, i1
+            tliq_skin_av = tliq_skin_av + tliq_skin(i,j)
+         end do
+       end do
+       call D_MPI_ALLREDUCE(tliq_skin_av, 1, MPI_SUM, comm3d, mpierr)
+       tliq_skin_av = tliq_skin_av / ijtot
+       svirts = tliq_skin_av * ( (1. + (rv/rd - 1.) * qts))   !cstep todo: I add tliq at all places with thl, do the same with thv
+    endif
+
 
   end subroutine calc_surface_scalars
 
@@ -691,12 +733,12 @@ contains
   !> the calculated aerodynamic resistance
   subroutine calc_surface_flux
     use modglobal, only: i1, j1, nsv, ijtot
-    use modfields, only: thl0, qt0
+    !use modfields, only: thl0, qt0 !cstep , not needed
     use modmpi, only: D_MPI_ALLREDUCE, mpi_sum, comm3d, mpierr
     implicit none
 
     integer :: i, j, n
-    real :: ust, ustl, wtsurfl, wqsurfl
+    real :: ust, ustl, wtsurfl, wqsurfl, wtliqsurfl !cstep
 
     ! Uniform sensible and latent heat flux
     if (lsmoothflux) then
@@ -720,6 +762,17 @@ contains
       wtsurf = wtsurf / ijtot
       wqsurf = wqsurf / ijtot
 
+      if (ltliq) then  !cstep todo nest above within this if statement
+         wtliqsurfl = 0.0
+         do j = 2, j1
+           do i = 2, i1
+             wtliqsurfl = wtliqsurfl + tliqflux(i,j)
+           end do
+        end do
+        call D_MPI_ALLREDUCE(wtliqsurfl, wtliqsurf, 1, MPI_SUM, comm3d, mpierr)
+        wtliqsurf = wtliqsurf / ijtot
+      endif
+
       call presc_surface_flux
     else
       !$acc parallel loop collapse(2) default(present)
@@ -729,6 +782,14 @@ contains
           qtflux(i,j) = - (qt0(i,j,1) - qskin(i,j)) / ra(i,j)
         end do
       end do
+
+      if (ltliq) then
+         do j = 2, j1
+           do i = 2, i1
+             tliqflux(i,j) = - (tliq0(i,j,1) - tliq_skin(i,j)) / ra(i,j)
+           end do
+         end do
+      endif
 
       ! Passive scalars
       if (nsv > 0) then
@@ -770,6 +831,16 @@ contains
         qtflux(i,j) = wqsurf
       end do
     end do
+
+    if (ltliq) then !cstep nest above loop thlflux
+      do j = 2, j1
+        do i = 2, i1
+          tliqflux(i,j) = wtliqsurf
+        !cstep  write(6,*) 'tliqflux',tliqflux(i,j)
+         !cstep  stop
+        end do
+      end do
+    endif
 
     if (nsv > 0) then
       !$acc parallel loop collapse(3) default(present) async(2)
@@ -815,6 +886,15 @@ contains
         dqtdz(i,j) = - qtflux(i,j) / ustar(i,j) * phihzf * scaling
       end do
     end do
+
+    if (ltliq) then
+       do j = 2, j1
+         do i = 2, i1
+             dtliqdz(i,j) = - tliqflux(i,j) / ustar(i,j) * phihzf * scaling
+         enddo
+       enddo
+    endif
+
   end subroutine calc_surface_gradients
 
 !> Calculate the surface humidity assuming saturation.
@@ -831,7 +911,21 @@ contains
     if(isurf <= 2) then
       qts = 0.
       !$acc parallel loop collapse(2) default(present) reduction(+: qts)
-      do j = 2, j1
+
+      if (ltliq) then
+       do j = 2, j1
+        do i = 2, i1
+          tsurf      = tliq_skin(i,j)
+          es         = es0 * exp(at*(tsurf-tmelt) / (tsurf-bt))
+          qsatsurf   = rd / rv * es / ps
+          surfwet    = ra(i,j) / (ra(i,j) + rs(i,j))
+          qskin(i,j) = surfwet * qsatsurf + (1. - surfwet) * qt0(i,j,1)
+          qts        = qts + qskin(i,j)
+          !cstep write(6,*) 'qts',qts,tliq_skin(i,j)
+        end do
+       end do
+      else
+       do j = 2, j1
         do i = 2, i1
           exner      = (ps / pref0)**(rd/cp)
           tsurf      = tskin(i,j) * exner
@@ -841,11 +935,13 @@ contains
           qskin(i,j) = surfwet * qsatsurf + (1. - surfwet) * qt0(i,j,1)
           qts        = qts + qskin(i,j)
         end do
-      end do
+       end do
+      endif
 
       call D_MPI_ALLREDUCE(qts, 1,  MPI_SUM, comm3d,mpierr)
       qts  = qts / ijtot
-      thvs = thls * (1. + (rv/rd - 1.) * qts)
+      thvs = thls * (1. + (rv/rd - 1.) * qts)   !cstep I think this is never used in the code?
+      svirts = tliq_skin_av *  (1. + (rv/rd - 1.) * qts) !cstep
 
     end if
 
@@ -872,23 +968,39 @@ contains
         end do
       end do
       oblav = -1.e10
-    else 
+    else
       !$acc serial default(present) copy(oblav)
       retval = calc_obl_iter(thl0av(1), qt0av(1), real(thls), real(qts), &
-                             zf(1), z0mav, z0hav, u0av(1), v0av(1), oblav)
+                             zf(1), z0mav, z0hav, u0av(1), v0av(1), oblav, &
+                             tliq0av(1), real(tliq_skin_av) )  !cstep
+
       !$acc end serial
 
       if (lmostlocal) then
         !$acc parallel loop collapse(2) default(present)
-        do j = 2, j1
-          do i = 2, i1
-            upcu = 0.5_real64 * (u0(i,j,1) + u0(i+1,j,1)) + cu 
-            vpcv = 0.5_real64 * (v0(i,j,1) + v0(i,j+1,1)) + cv
-            retval = calc_obl_iter(thl0(i,j,1), qt0(i,j,1), real(tskin(i,j)), &
+        if (ltliq) then
+          do j = 2, j1
+            do i = 2, i1
+              upcu = 0.5_real64 * (u0(i,j,1) + u0(i+1,j,1)) + cu
+              vpcv = 0.5_real64 * (v0(i,j,1) + v0(i,j+1,1)) + cv
+              retval = calc_obl_iter(thl0(i,j,1), qt0(i,j,1), real(tskin(i,j)), &
                                    real(qskin(i,j)), zf(1), z0m(i,j), &
-                                   z0h(i,j), upcu, vpcv, obl(i,j))
+                                   z0h(i,j), upcu, vpcv, obl(i,j),&
+                                   tliq0(i,j,1),real(tliq_skin(i,j)) )
+            end do
           end do
-        end do
+        else
+          do j = 2, j1
+            do i = 2, i1
+              upcu = 0.5_real64 * (u0(i,j,1) + u0(i+1,j,1)) + cu
+              vpcv = 0.5_real64 * (v0(i,j,1) + v0(i,j+1,1)) + cv
+              retval = calc_obl_iter(thl0(i,j,1), qt0(i,j,1), real(tskin(i,j)), &
+                                   real(qskin(i,j)), zf(1), z0m(i,j), &
+                                   z0h(i,j), upcu, vpcv, obl(i,j),&
+                                   -999.,-999. )  !cstep error values to offer two new unused variables
+            end do
+          end do
+        endif
       else
         !$acc parallel loop collapse(2) default(present)
         do j = 1, j2
@@ -902,19 +1014,22 @@ contains
   end subroutine get_obl
 
   !> Calculate the Obukhov length iteratively.
-  function calc_obl_iter(thl, qt, tskin, qskin, z, z0m, z0h, u, v, L) &
+  function calc_obl_iter(thl, qt, tskin, qskin, z, z0m, z0h, u, v, L, tliq,tliqsurf )  &
     result(retval)
 
     !$acc routine seq
     real(field_r), intent(in) :: thl   !< Liquid potential temperature [K]
     real(field_r), intent(in) :: qt    !< Specific humidity [kg/kg]
-    real(real64),  intent(in) :: tskin !< Skin temperature [K]
+    real(real64),  intent(in) :: tskin !< Skin temperature [K] !cstep potential temperature !
     real(real64),  intent(in) :: qskin !< Skin specific humidity [kg/kg]
     real(field_r), intent(in) :: z     !< Height [m]
     real(real64),  intent(in) :: z0m   !< Roughness length for momentum [m]
     real(real64),  intent(in) :: z0h   !< Roughness length for heat [m]
     real(field_r), intent(in) :: u     !< U wind component at first model level [m/s]
     real(field_r), intent(in) :: v     !< V wind component at first model level [m/s]
+    real(field_r), intent(in) :: tliq  !< Liquid static energy divided by cp [K] !cstep
+    real(real64),  intent(in) :: tliqsurf !< Skin temperature [K]
+
 
     real(real64), intent(inout) :: L   !< Obukhov length [m]
 
@@ -929,8 +1044,13 @@ contains
     real(real64) :: fx, fxdif
     real(real64) :: Lend, Lold, Lstart
 
-    thv = thl * (1 + (rv/rd - 1) * qt)
-    thvsl = tskin * (1 + (rv/rd - 1) * qskin)
+    if (ltliq) then
+      thv = tliq * (1 + (rv/rd - 1) * qt)   !cstep assumes that there is no liquid water, like the original code
+      thvsl = tliqsurf * (1 + (rv/rd - 1) * qskin)  !cstep better call is svirt
+    else
+      thv = thl * (1 + (rv/rd - 1) * qt)
+      thvsl = tskin * (1 + (rv/rd - 1) * qskin)
+    endif
     horv2 = max(u**2 + v**2, min_horv**2)
 
     Rib = grav / thvsl * z * (thv - thvsl) / horv2
@@ -954,7 +1074,7 @@ contains
         Lend = L + 0.001 * L
 
         fx = Rib - calc_rib_from_obl(z, L, z0h, z0m)
-        
+
         fxdif = (- calc_rib_from_obl(z, Lstart, z0h, z0m) &
                 + calc_rib_from_obl(z, Lend, z0h, z0m)) / (Lstart - Lend)
 
@@ -979,7 +1099,7 @@ contains
   !!
   !! See Heus et al. (2010) equation 28.
   elemental function calc_rib_from_obl(z, L, z0h, z0m) result(fac)
-    
+
     real(field_r), intent(in) :: z   !< Height [m]
     real(real64),  intent(in) :: L   !< Obukhov length [m]
     real(real64),  intent(in) :: z0h !< Roughness length for heat [m]
@@ -996,7 +1116,7 @@ contains
 !> Calculates the Obukhov length iteratively.
   subroutine getobl
     use modglobal, only : zf, rv, rd, grav, i1, j1, i2, j2, cu, cv
-    use modfields, only : thl0av, qt0av, u0, v0, thl0, qt0, u0av, v0av
+    use modfields, only : thl0av, qt0av, u0, v0, thl0, qt0, u0av, v0av,tliq0av,tliq0 !cstep
     use modmpi,    only : mpierr,comm3d,mpi_sum,D_MPI_ALLREDUCE, &
                           D_MPI_BCAST
     implicit none
@@ -1008,6 +1128,7 @@ contains
     real                :: L, Lend, Lstart, Lold
     real                :: Rib, fx, fxdif
     real                :: upcu, vpcv
+    real                :: svirt !cstep
 
 
     if (lneutral) then
@@ -1028,6 +1149,10 @@ contains
         do j=2,j1
           thv     =   thl0(i,j,1)  * (1. + (rv/rd - 1.) * qt0(i,j,1))
           thvsl   =   tskin(i,j)   * (1. + (rv/rd - 1.) * qskin(i,j))
+          if (ltliq) then   !cstep TODO very ugly coding to improve!!
+             thv     =   tliq0(i,j,1)  * (1. + (rv/rd - 1.) * qt0(i,j,1))  !call it svirt
+             thvsl   =   tliq_skin(i,j)   * (1. + (rv/rd - 1.) * qskin(i,j))
+          endif
           upcu    =   0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
           vpcv    =   0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
           horv2   =   upcu ** 2. + vpcv ** 2.
@@ -1084,6 +1209,12 @@ contains
     horv2 = max(horv2, min_horv**2)
 
     Rib   = grav / thvs * zf(1) * (thv - thvs) / horv2
+
+    if (ltliq) then
+      svirt = tliq0av(1) * (1. + (rv/rd - 1.) * qt0av(1))
+      Rib   = grav / svirts * zf(1) * (svirt - svirts) / horv2
+    endif
+
     if (Rib == 0) then
        ! Rib can be 0 if there is no surface flux
        ! L is capped at 1e6 below, so use the same cap here
@@ -1257,7 +1388,7 @@ contains
     return
   end subroutine exitsurface
 
-  subroutine initlsm
+  subroutine initlsm !not adapted yet for static energy
     use modglobal, only : i2,j2
     integer :: k,j,i,tempy,tempx
 
@@ -1370,7 +1501,7 @@ contains
 
 
 !> Calculates surface resistance, temperature and moisture using the Land Surface Model
-  subroutine do_lsm
+  subroutine do_lsm    !cstep not yet prepared for liquid static energy
 
     use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,ijtot,rk3step,nsv,xtime,rtimee,xday,xlat,xlon
     use modfields, only : ql0,qt0,thl0,rhof,presf,svm
@@ -1501,7 +1632,7 @@ contains
         f2  = min(1.e8, f2)
 
         ! Response of stomata to vapor deficit of atmosphere
-        esat = 0.611e3 * exp(17.2694 * (thl0(i,j,1) - 273.16) / (thl0(i,j,1) - 35.86))
+        esat = 0.611e3 * exp(17.2694 * (thl0(i,j,1) - 273.16) / (thl0(i,j,1) - 35.86))   !cstep thl0 => temperature??
         e    = qt0(i,j,1) * ps / 0.622
 
         f3   = 1. / exp(-gD(i,j) * (esat - e) / 100.)

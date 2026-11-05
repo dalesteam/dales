@@ -34,6 +34,7 @@ use modtimer,        only: timer_init, timer_tic, timer_toc
 use modstat_nc
 use modchecksim, only: check_array
 use modlogging, only: warning, finish, message
+use modthermodynamics, only: ltliq   !cstep needed to diagnose tliq from default theta iput files
 
 implicit none
 ! private
@@ -43,7 +44,7 @@ save
 
   integer (KIND=selected_int_kind(6)) :: irandom= 0     !    * number to seed the randomnizer with
   integer :: krand = huge(0), krandumin=1,krandumax=0
-  real :: randthl= 0.1,randqt=1e-5                 !    * thl and qt amplitude of randomnization
+  real :: randthl= 0.1,randqt=1e-5,randtliq=0.1                 !    * thl and qt amplitude of randomnization, and cstep for tliq
   real :: randu = 0.5
   real :: wctime=8640000.   !<     * The maximum wall clock time of a simulation (set to 100 days by default)
 
@@ -72,7 +73,8 @@ contains
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,xyrot,&
                                   lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,cu,cv,&
                                   ifnamopt,fname_options,llsadv, &
-                                  ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,&
+                                  ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_tliq, & !cstep iadv_tliq added
+                                  iadv_qt,iadv_sv,courant,peclet,ladaptive,author,&
                                   lrigidlid,unudge,ntimedep,&
                                   checknamelisterror, &
                                   loutdirs, output_prefix, &
@@ -127,7 +129,7 @@ contains
     !declare namelists
     namelist/RUN/ &
         iexpnr,lwarmstart,startfile,ltotruntime, runtime,dtmax,wctime,dtav_glob,timeav_glob,&
-        trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author,&
+        trestart,irandom,randthl,randqt,randtliq,krand,nsv,courant,peclet,ladaptive,author,&
         krandumin, krandumax, randu,&
         nprocx,nprocy,loutdirs, iinput
     namelist/DOMAIN/ &
@@ -140,7 +142,7 @@ contains
         irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge
     namelist/DYNAMICS/ &
-        llsadv, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv
+        llsadv, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_tliq, iadv_qt, iadv_sv  !cstep added iadv_tliq
     namelist/OPENBC/ &
         lopenbc,linithetero,lper,lbuoytop,dxint,dyint,dzint,dxturb,dyturb,taum,tauh,pbc,lsynturb,iturb,tau,lambda,nmodes,lambdas,lambdas_x,lambdas_y,lambdas_z,lbuoytop
 
@@ -281,6 +283,7 @@ contains
     call D_MPI_BCAST(krandumax  ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(randthl    ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(randqt     ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(randtliq   ,1,0,commwrld,mpierr) !cstep
     call D_MPI_BCAST(randu      ,1,0,commwrld,mpierr)
 
     call D_MPI_BCAST(ladaptive  ,1,0,commwrld,mpierr) ! RUN
@@ -291,6 +294,7 @@ contains
     call D_MPI_BCAST(iadv_mom,1,0,commwrld,mpierr)
     call D_MPI_BCAST(iadv_tke,1,0,commwrld,mpierr)
     call D_MPI_BCAST(iadv_thl,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(iadv_tliq,1,0,commwrld,mpierr)  !cstep added
     call D_MPI_BCAST(iadv_qt ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(iadv_sv ,1,0,commwrld,mpierr)
 
@@ -405,7 +409,8 @@ contains
 
   !> Checks whether crucial parameters are set correctly
   subroutine checkinitvalues
-    use modsurfdata, only: wtsurf, wqsurf, ustin, thls, isurf, ps
+    use modsurfdata, only: wtsurf, wqsurf, ustin, thls, tliq_skin_av,isurf, ps,wtliqsurf !cstep
+    use modfields  , only: exnh
     use modglobal,   only: itot, jtot, ysize, xsize, dtmax, runtime, &
                            startfile, lwarmstart, eps1, imax, jmax, ih, jh, &
                            lcoriol, lpressgrad
@@ -453,6 +458,9 @@ contains
     if (dtmax < 0) call finish(routine, 'dtmax out of range/not set')
     if (ps < eps1) call finish(routine, 'psout of range/not set')
     if (thls < eps1) call finish(routine, 'thls out of range/not set')
+    if (ltliq) then
+       if (tliq_skin_av < eps1) call finish(routine, 'tliq_skin_av out of range/not set')
+    endif
     if (xsize < 0) call finish(routine, 'xsize out of range/not set')
     if (ysize < 0) call finish(routine, 'ysize out of range/not set')
 
@@ -481,26 +489,34 @@ contains
     if (lcoriol .and. lpressgrad) then
       if (myid==0) call finish(routine, "Coriolis force (lcoriol) and channel-like pressure gradient (lpressgrad) are mutually exclusive. To use Coriolis force with NO pressure gradient, set geowinds to zero.")
    end if
+
+     if (ltliq) then
+         wtliqsurf = wtsurf * exnh(1)  !cstep
+         write (6,*) 'wtliqsurf',wtliqsurf,exnh(1)
+     endif
   end subroutine checkinitvalues
 
   subroutine readinitfiles
     use modfields,         only : u0,v0,w0,um,vm,wm,thlm,thl0,thl0h,qtm,qt0,qt0h,&
+                                  tliqm,tliq0,tliq0h,&  !cstep
                                   ql0,ql0h,thv0h,sv0,svm,e12m,e120,&
                                   dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,&
+                                  dtliqdxls,dtliqdyls,& !cstep
                                   dqtdxls,dqtdyls,dqtdtls,dpdxl,dpdyl,&
-                                  wfls,whls,ug,vg,uprof,vprof,thlprof, qtprof,e12prof, svprof, baseprof_T, baseprof_P,&
-                                  v0av,u0av,qt0av,ql0av,thl0av,sv0av,exnf,exnh,presf,presh,initial_presf,initial_presh,rhof,&
-                                  thlpcar,thvh,thvf
+                                  wfls,whls,ug,vg,uprof,vprof,thlprof, tliqprof,qtprof,e12prof, svprof, baseprof_T, baseprof_P,&
+                                  v0av,u0av,qt0av,ql0av,thl0av,tliq0av,sv0av,exnf,exnh,presf,presh,initial_presf,initial_presh,rhof,&
+                                  thlpcar,tliqpcar,thvh,thvf   !cstep tliqprof,tliq0av,tliqpcar added
     use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,&
                                   rtimee,timee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
                                   trestart, ladaptive,llsadv,tnextrestart,longint,lopenbc,linithetero, &
                                   iinput, input_netcdf, input_ascii, lcoriol, &
-                                  dzhi, iadv_thl, iadv_qt, iadv_kappa, eps1
+                                  dzhi, iadv_thl, iadv_tliq, iadv_qt, iadv_kappa, eps1,&   !cstep added iadv_tliq
+                                  gravocp,rlvocp  !cstep
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
-                                  thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
+                                  thls,tskin,tskinm,tliq_skin,tliq_skin_av,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,& !cstep
                                   qskin
     use modsurface,        only : surface,qtsurf,dthldz,ps
     use modlsm,            only : init_lsm_tiles
@@ -508,8 +524,8 @@ contains
     use modmpi,            only : slabsum,myid,comm3d,mpierr,D_MPI_BCAST, print_info_stderr
     use modthermodynamics, only : thermodynamics,calc_halflev, lmoist
     use moduser,           only : initsurf_user
-    use modibmdata,        only : thlibm, qtibm, lapply_ibm, fluid_mask
-    use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
+    use modibmdata,        only : thlibm, qtibm, lapply_ibm, fluid_mask  !cstep not yet done for tliq
+    use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&  !cstep not yet done for tliq
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
     use modopenboundary,   only : openboundary_ghost,openboundary_readboundary,openboundary_initfields
     use modtracers,        only : tracer_prop, tracer_profs_from_netcdf, nsv_user
@@ -843,6 +859,12 @@ contains
       case(10)
         call initsurf_user
       end select
+
+      if (ltliq) then
+        tliq_skin_av = thls *  (ps/pref0)**(rd/cp)
+        tliq_skin(:,:) = thls *  (ps/pref0)**(rd/cp)
+      endif
+
       if(lopenbc) then
         call openboundary_readboundary(tracer_prop)
         call openboundary_ghost
@@ -856,6 +878,7 @@ contains
 #if defined(_OPENACC)
       call update_gpu_surface
 #endif
+
       if (lmoist) call qtsurf
 
       dthldz(:,:) = (thlprof(1) - thls) / zf(1)
@@ -871,7 +894,9 @@ contains
 
       svs = svprof(1,:)
 
-      call baseprofs! call baseprofs before thermodynamics
+      call baseprofs! call baseprofs before thermodynamics  , computes exner and pressure so the are known at this point
+
+      !cstep stop
 
 #if defined(_OPENACC)
       call update_gpu
@@ -882,7 +907,20 @@ contains
         call boundary
       end if
 
-      call thermodynamics
+      if (ltliq) then
+
+         do k=1,k1
+           tliq0(:,:,k) = thl0(:,:,k) * exnf(k) + gravocp * zf(k) - rlvocp * ql0(:,:,k)
+           tliqm(:,:,k) = thlm(:,:,k) * exnf(k) + gravocp * zf(k) - rlvocp * ql0(:,:,k) !cstep use ql, but is not known yet
+                                                                                   !cstep no problem because this is initialziation
+                                                                                   !cstep with random perturbations
+           tliq0av(k) = thlprof(k) * exnf(k) + gravocp * zf(k)
+           !write(6,*) 'modthermo', 1,1,k,thl0(1,1,k),tliq0(1,1,k)
+         end do
+      endif
+
+      call thermodynamics !cstep Calculates liquid water content, mean hydrostatic pressure and virtual
+                          !! potential temperature.
       call surface
 
       if ( lopenbc ) then
@@ -890,6 +928,7 @@ contains
       else
         call boundary
       end if
+
 
       call thermodynamics
 
@@ -903,7 +942,7 @@ contains
       initial_presf(:) = presf(:)
       initial_presh(:) = presh(:)
 
-    else !if lwarmstart
+    else !if lwarmstart    !cstep not yet prepared for tliq
 
       call readrestartfiles
       call baseprofs
@@ -919,9 +958,16 @@ contains
 #if defined(_OPENACC)
       call update_gpu
 #endif
-
-      call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
+      !stop cstep add tliq here, we need to define tliqsfc!!
+      if (ltliq) then
+        call calc_halflev(tliq0, dzf, dzhi, tliq_skin_av, iadv_tliq == iadv_kappa, tliq0h)  !cstep we need more tliq code
+     ! else
+        call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
+      endif
+      !write(6,*) 'qt0h before',qt0h(2,2,1:k1)
       call calc_halflev(qt0, dzf, dzhi, qts, iadv_qt == iadv_kappa, qt0h)
+      !write(6,*) 'qt0h after',qt0h(2,2,1:k1)
+      !stop
 
 #if defined(_OPENACC)
       call update_host
@@ -951,6 +997,7 @@ contains
       u0av(:) = 0.0
       v0av(:) = 0.0
       thl0av(:) = 0.0
+      tliq0av(:) = 0.0 !cstep
       th0av(:) = 0.0
       qt0av(:) = 0.0
       ql0av(:) = 0.0
@@ -963,6 +1010,7 @@ contains
         call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
         call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
         call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+        call slabsum(tliq0av,1,k1,tliq0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)  !cstep
         call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
         call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
         do n = 1, nsv
@@ -974,6 +1022,7 @@ contains
         u0av(:) = u0av(:) / ijtot + cu
         v0av(:) = v0av(:) / ijtot + cv
         thl0av(:) = thl0av(:) / ijtot
+        tliq0av(:) = tliq0av(:) / ijtot
         qt0av(:) = qt0av(:) / ijtot
         ql0av(:) = ql0av(:) / ijtot
         sv0av(:,:) = sv0av(:,:) / ijtot
@@ -983,6 +1032,7 @@ contains
         call slabavg(u0,fluid_mask,ih,u0av)
         call slabavg(v0,fluid_mask,ih,v0av)
         call slabavg(thl0,fluid_mask,ih,thl0av)
+        call slabavg(tliq0,fluid_mask,ih,tliq0av)
         call slabavg(qt0,fluid_mask,ih,qt0av)
         call slabavg(ql0,fluid_mask,ih,ql0av)
         do n=1,nsv
@@ -1015,7 +1065,7 @@ contains
 
     if(myid==0)then
 
-      if (ltestbed) then
+      if (ltestbed) then   !cstep not yet prepared for tliq
 
           write(*,*) 'readinitfiles: testbed mode: profiles for ls forcing obtained from scm_in.nc'
 
@@ -1069,6 +1119,7 @@ contains
             end do
           end if
           close(ifinput)
+
         end if
 
       end if
@@ -1103,6 +1154,10 @@ contains
         end do
       end if
 
+      if (ltliq) then
+         tliqpcar(:) = thlpcar(:) * exnf (:)   !cstep
+      endif
+
     end if ! end myid==0
 
     ! MPI broadcast variables read in
@@ -1116,6 +1171,9 @@ contains
     call D_MPI_BCAST(dqtdyls  ,kmax,0,comm3d,mpierr)
     call D_MPI_BCAST(dqtdtls  ,kmax,0,comm3d,mpierr)
     call D_MPI_BCAST(thlpcar  ,kmax,0,comm3d,mpierr)
+    if (ltliq) then
+       call D_MPI_BCAST(tliqpcar  ,kmax,0,comm3d,mpierr)
+    endif
 
     !-----------------------------------------------------------------
     !    2.3 make large-scale horizontal pressure gradient
@@ -1148,7 +1206,7 @@ contains
     dudyls   = 0.0
     dvdxls   = 0.0
     dvdyls   = 0.0
-    dthldxls = 0.0
+    dthldxls = 0.0    !no large-scale gradient and assocatedadvection yet for tliq
     dthldyls = 0.0
 
     idtmax = floor(dtmax/tres)
@@ -1169,7 +1227,7 @@ contains
 
   end subroutine readinitfiles
 
-  subroutine readrestartfiles
+  subroutine readrestartfiles   !not yet ready for thl
 
     use modsurfdata, only : ustar,thlflux,qtflux,svflux,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
                            tsoil,phiw,tskin,Wl,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
@@ -1180,7 +1238,8 @@ contains
                           SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA
     use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,initial_presf,initial_presh,sv0,tmp0,esl,qvsl,qvsi
     use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,startfile,timee,&
-                           tres,ifinput,nsv,dt,output_prefix
+                           tres,ifinput,nsv,dt,output_prefix,&
+                           gravocp,rlvocp
     use modboundary, only: dqt, dtheta, dsv
     use modmpi,     only : myid, cmyid
     use modsubgriddata, only : ekm,ekh
@@ -1341,7 +1400,7 @@ contains
   ! this function is called from time stepping,
   ! determines when to write a restart file, then calls do_writerestartfiles to do the work
   !  if trestart = 0, no periodic restart files will be written.
-  subroutine writerestartfiles
+  subroutine writerestartfiles !not yet ready
     use modglobal, only : trestart,itrestart,tnextrestart,dt_lim,timee,timeleft,rk3step
 #if defined(_OPENACC)
     use modgpu, only: update_host
@@ -1690,7 +1749,7 @@ contains
     call random_number(noise)
     qtm(2:i1,2:j1,1:krand)  = qtm(2:i1,2:j1,1:krand)  + &
          min(randqt,qtm(2:i1,2:j1,1:krand)) * 2 * (noise(2:i1,2:j1,1:krand)-0.5_field_r)  ! avoid negative q
-    call random_number(noise)                           
+    call random_number(noise)
     qt0(2:i1,2:j1,1:krand)  = qt0(2:i1,2:j1,1:krand)  + &
          min(randqt,qt0(2:i1,2:j1,1:krand)) * 2 * (noise(2:i1,2:j1,1:krand)-0.5_field_r)
     call random_number(noise)
@@ -1771,7 +1830,7 @@ contains
         else if (ibas_prf == ibas_usr) then
           call baseprofile_user_supplied
         end if
-        
+
         if (.not. used_baseprof_inp) then
           ! Write background profiles in all cases, but don't overwrite an existing baseprof.inp if it was read in from file
           ! we write up to k1 level, so that all profiles can be used for warm start, and everything is initialized
@@ -1795,7 +1854,7 @@ contains
           ibas_prf = ibas_usr
           print *, 'WARNING: warm start requires input files for density. ibas_prf set to 5'
         end if
-        
+
         call read_baseprofile_from_file
 
       end if
@@ -1812,7 +1871,7 @@ contains
       pbh(1)   = ps
       do k = 2, k1
         pbh(k)   = (   pb(k)*dzf(k-1)+   pb(k-1)*dzf(k))/(dzf(k)+dzf(k-1)) ! interpolate base half-level pressure like half-level base rho
-      end do 
+      end do
 
       ! write profiles to standard output
       write (profile_output,*) ' height   rhobf       rhobh       pb       tb'
@@ -1857,7 +1916,7 @@ contains
       close(ifinput)
       used_baseprof_inp = .true.
     end subroutine read_baseprofile_from_file
-    
+
     subroutine baseprofile_thvconst_hydrostatic
       !< thv constant and hydrostatic balance
       if (thls < 0) call finish(routine, 'thls has not been initialized but is needed for setting up the base profiles when ibas_prf=ibas_thv=1.')

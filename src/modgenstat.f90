@@ -535,7 +535,8 @@ contains
 
     use modfields, only : u0,v0,w0,thl0,qt0,qt0h, &
                           ql0,ql0h,thl0h,thv0h,sv0,exnf,exnh,tmp0,presf, &
-                          um, vm, wm, svm, qtm, thlm, e12m  
+                          um, vm, wm, svm, qtm, thlm, e12m  ,& !cstep
+                          tliq0,tliqm,help_arr
     use modsurfdata,only: thls,qts,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp,dzhi, &
@@ -571,6 +572,9 @@ contains
     !1.0    RESET ARRAYS FOR SLAB AVERAGES
     !---    ------------------------------
     !--------------------------------------------------------
+
+    !help_arr = thlm
+    !thlm = tliqm
 
     !$acc kernels default(present)
     qlhav = 0.0
@@ -1127,6 +1131,9 @@ contains
     !$acc end kernels
 
     call timer_toc('modgenstat/do_genstat')
+
+    !thlm = help_arr !cstep set it back
+
   end subroutine do_genstat
 
   subroutine calc_moment(prof, var, n, mean, c_in)

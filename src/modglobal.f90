@@ -87,7 +87,7 @@ save
       !< real,parameter :: cv       = cp-rd            !<    716.96
       real,parameter :: rcp      = rd/cp            !<    0.286
       real,parameter :: cpr      = cp/rd            !<    3.50
-      real,parameter :: rlvocp   = rlv/cp           !<    2.49e3 
+      real,parameter :: rlvocp   = rlv/cp           !<    2.49e3
       real,parameter :: gravocp  = grav/cp          !<    dry adiabatic lapse rate
       real,parameter :: mair     = 28.967           !< Molar mass of air
       real,parameter :: rhow     = 0.998e3          !<    * Density of water
@@ -139,7 +139,7 @@ save
       integer, parameter :: ibas_dry    = 6 !< Dry atmosphere, using thl profile as theta profile, calculating the pressure and density
 
       !Advection scheme
-      integer :: iadv_mom = 5, iadv_tke = -1, iadv_thl = -1,iadv_qt = -1,iadv_sv = -1
+      integer :: iadv_mom = 5, iadv_tke = -1, iadv_thl = -1,iadv_qt = -1,iadv_sv = -1, iadv_tliq = -1 !cstep iadv_tliq added
       integer, parameter :: iadv_null   = 0
       integer, parameter :: iadv_upw    = 1
       integer, parameter :: iadv_cd2    = 2
@@ -280,7 +280,11 @@ contains
     i2=imax+2
     j2=jmax+2
     !set the number of ghost cells. NB: This switch has to run in order of required ghost cells
-    advarr = (/iadv_mom,iadv_tke,iadv_thl,iadv_qt/)
+    !cstep if (ltliq) then
+    !cstep   advarr = (/iadv_mom,iadv_tke,iadv_tliq,iadv_qt/)
+    !cstep else
+       advarr = (/iadv_mom,iadv_tke,iadv_thl,iadv_qt/)  !cstep ltliq not set yet, to be solved
+    !cstep endif
     if     (any(advarr==iadv_cd6).or.iadv_sv==iadv_cd6) then
       ih = 3
       jh = 3
@@ -314,8 +318,8 @@ contains
         ih = 1
         jh = 1
       else
-        ih = 2 
-        jh = 2 
+        ih = 2
+        jh = 2
       end if
       kh = 1
     end if
@@ -325,6 +329,7 @@ contains
     ! Select advection scheme for scalars. If not set in the options file, the momentum scheme is used
     if (iadv_tke<0) iadv_tke = iadv_mom
     if (iadv_thl<0) iadv_thl = iadv_mom
+    if (iadv_tliq<0) iadv_tliq = iadv_mom
     if (iadv_qt<0)  iadv_qt  = iadv_mom
 
     !CvH remove where
@@ -338,9 +343,9 @@ contains
     colat  = cos(phi)
     silat  = sin(phi)
 
-    gamma = xyrot*pi/180. 
-    corot = cos(gamma) 
-    sirot = sin(gamma) 
+    gamma = xyrot*pi/180.
+    corot = cos(gamma)
+    sirot = sin(gamma)
 
     omega = 7.292e-5
     omega_gs = 7.292e-5

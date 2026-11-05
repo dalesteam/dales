@@ -201,8 +201,11 @@ program DALES
 
         ! Calculate new timestep, and reset tendencies to 0.
         call timedep
+       ! stop
         call scalarpulse
+       ! stop
         call samptend(tend_start,firstterm=.true.)
+        !stop
 
         ! Check if we have to sample profiles this time step
         call sample_profiles

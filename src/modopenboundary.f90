@@ -23,6 +23,9 @@
 !
 !  Copyright 1993-2026 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
+
+! cstep  : not yet adapted for tliq!
+
 module modopenboundary
 use modglobal, only : boundary_type,boundary,lopenbc,linithetero,lboundary,lperiodic,lsynturb,dzint,dxint,dyint,ntboundary,tboundary,dxturb,dyturb
 use modsynturb, only : synturb,initsynturb,exitsynturb
@@ -182,7 +185,7 @@ contains
     use modmpi, only : myidx,myidy,myid
     use modtracer_type, only: T_tracer
     use utils
-    
+
     implicit none
     type(T_tracer), dimension(:), intent(in) :: tracer_prop
     integer :: VARID,STATUS,NCID,n
@@ -258,8 +261,8 @@ contains
       if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
       e12m = e120
     endif
-    
-    
+
+
     !old code, with code (sv) names:
     !if(nsv>0) then
       !STATUS = NF90_INQ_VARID(NCID,'sv0', VARID)
@@ -275,14 +278,14 @@ contains
         !svm = sv0
       !endif
     !endif
-    
-    
+
+
     ! Loop over scalar tracers to read them by name
     if (nsv > 0) then
         do n = 1, nsv
             varname = trim(to_lower(tracer_prop(n) % tracname))
-            STATUS = NF90_INQ_VARID(NCID, varname, VARID) 
-            
+            STATUS = NF90_INQ_VARID(NCID, varname, VARID)
+
             if (STATUS == NF90_NOERR) then
                 if (myid == 0) print *, "Variable ", trim(varname), " is found in initfields.inp."
                 	STATUS = NF90_GET_VAR(NCID, VARID, sv0(2:i1,2:j1,1:kmax,tracer_prop(n)%trac_idx), start=istart, count=(/imax, jmax, kmax/))
@@ -294,7 +297,7 @@ contains
             endif
         end do
     endif
-    
+
     status = nf90_close(ncid)
     if (status /= nf90_noerr) call handle_err(status)
   end subroutine openboundary_initfields
@@ -411,9 +414,9 @@ contains
       STATUS = NF90_GET_VAR (NCID, VARID, boundary(ib)%e12, start=istart, &
         & count=(/boundary(ib)%nx1,boundary(ib)%nx2,ntboundary/))
       if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
-      
-      
-      
+
+
+
       ! old Read of sv tracers
       !if(nsv>0) then
         !STATUS = NF90_INQ_VARID(NCID, 'sv'//boundary(ib)%name, VARID)
@@ -427,13 +430,13 @@ contains
           !if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         !endif
       !endif
-      
+
       ! Loop over scalar tracers to read them by name
       if (nsv > 0) then
         do n = 1, nsv
             varname = trim(to_lower(tracer_prop(n) % tracname)) // trim(boundary(ib)%name)
-            STATUS = NF90_INQ_VARID(NCID, varname, VARID) 
-            
+            STATUS = NF90_INQ_VARID(NCID, varname, VARID)
+
             if (STATUS == NF90_NOERR) then
                 if(myidx==0 .and. myidy==0) print *, "Variable ", trim(varname), " found in openboundaries file."
                 STATUS = NF90_GET_VAR(NCID, VARID, boundary(ib)%sv(:, :, :, tracer_prop(n) % trac_idx), &
@@ -446,8 +449,8 @@ contains
         end do
        endif
 
-      
-      
+
+
       ! Read input for turbulent pertubations
       if(lsynturb .and. iturb <10) then
         ! Read u2
