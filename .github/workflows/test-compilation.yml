@@ -20,7 +20,7 @@ jobs:
         hypre: ["OFF"]
         include:
           # GPU build
-          - toolchain: {compiler: nvidia-hpc, version: '25.7'}
+          - toolchain: {compiler: nvidia-hpc, version: 'latest'}
             target: "GPU"
             prec: "DP"
             hypre: "OFF"
