@@ -4,6 +4,7 @@ module modlcm_namelist
   use iso_fortran_env, only : real32
   use lcm_host_interface, only : lcm_config_t, lcm_init_config
   use modglobal, only : ifnamopt, checknamelisterror
+  use modlogging, only : finish
   use modmpi, only : myid, D_MPI_BCAST, comm3d
 
   implicit none
@@ -117,6 +118,9 @@ contains
     type(lcm_config_t), intent(inout) :: config
 
     if (.not. lcm_namelist_is_set) call initialize_lcm_namelist_defaults()
+    if (switch_radiation_micro .or. switch_ffc_micro) then
+      call finish('modlcm_namelist', 'LCM radiative growth and film-forming compounds are unsupported.')
+    end if
     call apply_lcm_namelist_to_config(config)
   end subroutine lcm_apply_namelist_config
 
@@ -163,10 +167,10 @@ contains
     switch_linear_sampling_collection = default_config%switch_linear_sampling_collection
     switch_breakup = default_config%switch_breakup
     switch_analytical_micro = default_config%switch_analytical_micro
-    switch_radiation_micro = default_config%switch_radiation_micro
+    switch_radiation_micro = .false.
     switch_lem_micro = default_config%switch_lem_micro
     switch_koehler_micro = default_config%switch_koehler_micro
-    switch_ffc_micro = default_config%switch_ffc_micro
+    switch_ffc_micro = .false.
     switch_steady_pichamber = default_config%switch_steady_pichamber
     switch_cloud_tracking = default_config%switch_cloud_tracking
     switch_phase_sources = default_config%switch_phase_sources
@@ -271,10 +275,8 @@ contains
     config%switch_linear_sampling_collection = switch_linear_sampling_collection
     config%switch_breakup = switch_breakup
     config%switch_analytical_micro = switch_analytical_micro
-    config%switch_radiation_micro = switch_radiation_micro
     config%switch_lem_micro = switch_lem_micro
     config%switch_koehler_micro = switch_koehler_micro
-    config%switch_ffc_micro = switch_ffc_micro
     config%switch_steady_pichamber = switch_steady_pichamber
     config%switch_cloud_tracking = switch_cloud_tracking
     config%switch_phase_sources = switch_phase_sources
