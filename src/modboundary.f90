@@ -39,7 +39,7 @@ public :: initboundary, boundary, exitboundary, grwdamp, ksp, tsc, cyclich
   integer :: ksp = -1                 !<    lowest level of sponge layer
   real(field_r),allocatable :: tsc(:)          !<   damping coefficients to be used in grwdamp.
   real(field_r) :: rnu0 = 2.75e-3
-  logical :: lboundopen = .false.            !GT switch for open boundary conditions for all scalars
+  logical, public, protected :: lboundopen = .false. !< Open boundaries for all scalars
   real(field_r) :: fillvalues(100) = 0       !GT fill value for each scalar to apply at the boundary
 
   real(field_r), public              :: dtheta !< Applied gradient of qt at top of model
