@@ -36,6 +36,7 @@ module moddatetime
   integer :: startyear  = 0, &
              startmonth = 0, &
              startday   = 0, &
+             starthour  = 0, &
              timezone   = 0  
 
   integer               :: jday
@@ -47,17 +48,17 @@ module moddatetime
     ! Using the namelist, construct datetime relevant variables
 
     use modmpi,    only : myid, comm3d, D_MPI_BCAST
-    use modglobal, only : ifnamopt, fname_options, xtime
+    use modglobal, only : ifnamopt, fname_options, xtime, rtimee
     use fortran_support, only : nnml_output
    
     implicit none
     character(len=*), parameter :: routine = modname//'/initdatetime'
    
     ! Auxiliary variables
-    integer :: ierr
+    integer :: ierr, itimee
 
     ! Read & broadcast namelist DATETIME -----------------------------------
-    namelist/NAMDATETIME/ l_datetime, startyear, startmonth, startday, timezone
+    namelist/NAMDATETIME/ l_datetime, startyear, startmonth, startday, starthour, timezone
 
     if (myid == 0) then
 
@@ -78,23 +79,26 @@ module moddatetime
     call d_mpi_bcast(startyear,  1, 0, comm3d, ierr)
     call d_mpi_bcast(startmonth, 1, 0, comm3d, ierr)
     call d_mpi_bcast(startday,   1, 0, comm3d, ierr)
+    call d_mpi_bcast(starthour,  1, 0, comm3d, ierr)
     call d_mpi_bcast(timezone,   1, 0, comm3d, ierr)
 
     ! Initialize datetime array -----------------------------------------------
     if (l_datetime) then
+    
+      itimee = int(starthour)
 
       datex(1) = startyear        ! year
       datex(2) = startmonth       ! month
 
-      if (xtime + timezone > 24) then
+      if (itimee + int(xtime) + timezone > 24) then
         datex(3) = startday + 1   ! day (LT is a day ahead of GMT)
-      elseif (xtime + timezone < 0) then
+      elseif (itimee + int(xtime) + timezone < 0) then
         datex(3) = startday - 1   ! day (LT is a day behind GMT)
       else
         datex(3) = startday       ! day
       endif
 
-      datex(4) = mod(int(xtime) + timezone + 24, 24) ! hour
+      datex(4) = mod(itimee + int(xtime) + timezone + 24, 24) ! hour
       datex(5) = 0                ! minutes
       datex(6) = 0                ! seconds
   
@@ -119,7 +123,9 @@ module moddatetime
     ! --------------------------------------------------------------------------
    
     use modglobal, only : rtimee, xtime 
-    ! TODO: Check if rtimee really is seconds of if it is scaled
+    !TODO: Check if rtimee really is seconds of if it is scaled (remark: yes, rtimee is in seconds )
+    !TODO: At warmstart, `rtimee` is always 0, likely because it is read from restarts
+    !TODO: after moddatetime is called. Needs proper handling to reflect correct restart time here.
 
     implicit none
     integer :: xhr, itimee
