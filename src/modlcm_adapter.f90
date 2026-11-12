@@ -13,7 +13,7 @@ module modlcm_adapter
                                  lcm_attach_thermodynamic_history, lcm_initialize, lcm_advance, &
                                  lcm_pass_timer_routines
   use modboundary, only : lboundopen
-  use modfields, only : u0, v0, w0, tmp0, dse0, qv0, presf, rhof, sv0, svm, whls
+  use modfields, only : u0, v0, w0, tmp0, dse0, qv0, qt0, presf, rhof, sv0, svm, whls
   use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1, k1, &
                         ih, jh, kh, dx, dy, dzf, zf, zh, rdt, cp, lopenbc, lwarmstart, iadv_sv, iadv_null, nsv
   use modlcm_namelist, only : lcm_apply_namelist_config
@@ -35,6 +35,8 @@ module modlcm_adapter
   type(lcm_config_t), save :: lcm_config
   real(real64), allocatable, target, save :: lcm_static_energy(:,:,:)
   real(real64), allocatable, target, save :: lcm_w(:,:,:)
+  real(real64), allocatable, target, save :: lcm_vapor_mixing_ratio(:,:,:)
+  real(real64), allocatable, target, save :: lcm_dry_air_density(:,:,:)
   integer, save :: i_t_prev, i_p_prev, i_qv_prev
 
 contains
@@ -51,7 +53,7 @@ contains
     nsv_before = nsv
     call add_tracer('lcm_t_prev', 'LCM transported previous temperature', 'K', isv=i_t_prev)
     call add_tracer('lcm_p_prev', 'LCM transported previous pressure', 'Pa', isv=i_p_prev)
-    call add_tracer('lcm_qv_prev', 'LCM transported previous vapor', 'kg kg-1', isv=i_qv_prev)
+    call add_tracer('lcm_qv_prev', 'LCM transported previous vapor mixing ratio', 'kg kg-1', isv=i_qv_prev)
     if (nsv /= nsv_before + 3) then
       call finish('modlcm_adapter', 'The lcm_t_prev, lcm_p_prev, and lcm_qv_prev tracer names are reserved.')
     end if
@@ -94,9 +96,10 @@ contains
       w=lcm_w,                                       &
       static_energy=lcm_static_energy,                                   &
       temperature=tmp0(2:i1, 2:j1, 1:kmax),                             &
-      qv=qv0(2:i1, 2:j1, 1:kmax),                                       &
+      qv=lcm_vapor_mixing_ratio(:,:,1:kmax),                            &
       pressure=presf(1:kmax),                                           &
-      density=rhof(1:kmax))
+      density=rhof(1:kmax),                                            &
+      dry_air_density=lcm_dry_air_density)
     call refresh_lcm_history()
     call lcm_attach_thermodynamic_history( &
       temperature=sv0(2:i1, 2:j1, 1:kmax, i_t_prev), &
@@ -119,7 +122,7 @@ contains
 
     ! The saved atmosphere is the starting state for the next RK timestep.
     sv0(2:i1, 2:j1, 1:k1, i_t_prev) = tmp0(2:i1, 2:j1, 1:k1)
-    sv0(2:i1, 2:j1, 1:k1, i_qv_prev) = qv0(2:i1, 2:j1, 1:k1)
+    sv0(2:i1, 2:j1, 1:k1, i_qv_prev) = lcm_vapor_mixing_ratio
     do k = 1, k1
       sv0(2:i1, 2:j1, k, i_p_prev) = presf(k)
     end do
@@ -137,12 +140,23 @@ contains
     if (.not. allocated(lcm_static_energy)) then
       allocate(lcm_static_energy(imax, jmax, kmax))
       allocate(lcm_w(imax, jmax, kmax+1))
+      allocate(lcm_vapor_mixing_ratio(imax, jmax, k1))
+      allocate(lcm_dry_air_density(imax, jmax, kmax))
     end if
 
     ! Prescribed large-scale motion is applied separately from w0 to DALES
     ! scalars. Give particles the same motion at the shared vertical faces.
     do k = 1, kmax+1
       lcm_w(:,:,k) = w0(2:i1, 2:j1, k) + whls(k)
+    end do
+
+    ! DALES water fields are per unit moist-air mass; LCM vapor is per unit
+    ! dry-air mass. Use total water, including liquid, for the dry-air fraction.
+    lcm_vapor_mixing_ratio = qv0(2:i1, 2:j1, 1:k1) / &
+                            (1.0_real64 - qt0(2:i1, 2:j1, 1:k1))
+    do k = 1, kmax
+      lcm_dry_air_density(:,:,k) = rhof(k) * &
+                                 (1.0_real64 - qt0(2:i1, 2:j1, k))
     end do
 
     ! LCM follows SAM-LCM and stores static energy in temperature units.
