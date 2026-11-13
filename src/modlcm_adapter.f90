@@ -10,12 +10,14 @@ module modlcm_adapter
                                  lcm_init_parallel, lcm_set_config,           &
                                  lcm_set_grid, lcm_set_parallel,              &
                                  lcm_configure_runtime, lcm_attach_fields,    &
-                                 lcm_initialize, lcm_advance
+                                 lcm_initialize, lcm_pass_timer_routines,     &
+                                 lcm_advance
   use modfields, only : u0, v0, w0, tmp0, dse0, qv0, presf, rhof
   use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1, &
                         ih, jh, kh, dx, dy, dzf, zf, zh, rdt, cp
   use modlcm_namelist, only : lcm_apply_namelist_config
-  use modmpi, only : comm3d, myidx, myidy
+  use modmpi,   only : comm3d, myidx, myidy
+  use modtimer, only : timer_tic, timer_toc
 #ifdef LCM_VALIDATION_CHECKS
   use modlcm_validation_debug, only : print_lcm_validation_checks
 #endif
@@ -63,6 +65,8 @@ contains
   end subroutine configure_lcm_runtime
 
   subroutine init_lcm()
+    call lcm_pass_timer_routines(timer_tic, timer_toc)
+
     call update_lcm_static_energy_temperature_units()
 
     call lcm_attach_fields(                                             &
