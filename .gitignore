@@ -9,3 +9,4 @@ build/
 build/
 runs/
 CMakePresets.json
+cmake/dales_compile_options.cmake
