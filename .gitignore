@@ -10,5 +10,3 @@ build/
 runs/
 CMakePresets.json
 .venv/
-cmake/dales_compile_options.cmake
-
