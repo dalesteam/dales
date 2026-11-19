@@ -16,9 +16,6 @@ module modlcm_adapter
                         ih, jh, kh, dx, dy, dzf, zf, zh, rdt, cp
   use modlcm_namelist, only : lcm_apply_namelist_config
   use modmpi, only : comm3d, myidx, myidy
-#ifdef LCM_VALIDATION_CHECKS
-  use modlcm_validation_debug, only : print_lcm_validation_checks
-#endif
 
   implicit none
 
@@ -75,9 +72,6 @@ contains
       pressure=presf(1:kmax),                                           &
       density=rhof(1:kmax))
     call lcm_initialize()
-#ifdef LCM_VALIDATION_CHECKS
-    call print_lcm_validation_checks(lcm_config)
-#endif
   end subroutine init_lcm
 
   subroutine advance_lcm_step()
