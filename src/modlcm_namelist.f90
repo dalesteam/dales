@@ -14,6 +14,7 @@ module modlcm_namelist
   public :: lcm_read_namelist
   public :: lcm_apply_namelist_config
 
+  logical, public, protected :: lcm_piggyback = .false.
   logical :: lcm_namelist_is_set = .false.
 
   ! DALES-side storage for NAMLCM. The names intentionally match the
@@ -68,7 +69,7 @@ contains
     integer :: ierr
 
     namelist /NAMLCM/                                                     &
-      np_xy, nzl, nstep_lcm_init, n_uvw_iteration,                        &
+      lcm_piggyback, np_xy, nzl, nstep_lcm_init, n_uvw_iteration,          &
       switch_sgs_velocities, r_separate_micro, n_aero, rm_aero,           &
       shares_aero, sigma_aero, n_ice, rm_in, sigma_in,                    &
       switch_sedimentation, spec_nsave, spec_nsavestart,                  &
@@ -127,6 +128,7 @@ contains
   subroutine initialize_lcm_namelist_defaults()
     type(lcm_config_t) :: default_config
 
+    lcm_piggyback = .false.
     call lcm_init_config(default_config)
 
     np_xy = default_config%np_xy
@@ -343,6 +345,7 @@ contains
   subroutine broadcast_lcm_namelist(ierr)
     integer, intent(out) :: ierr
 
+    call D_MPI_BCAST(lcm_piggyback, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(np_xy, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(nzl, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(nstep_lcm_init, 1, 0, comm3d, ierr)

@@ -51,6 +51,9 @@ program DALES
   use modboundary,       only : boundary, grwdamp! JvdD ,tqaver
   use modthermodynamics, only : thermodynamics
   use modmicrophysics,   only : microphysics, lcm_microphysics
+#ifdef USE_LCM
+  use modlcm_adapter, only : prepare_lcm_piggyback, force_lcm_piggyback
+#endif
   use modsurface,        only : surface
   use modlsm,            only : lsm
   use moddrydeposition,  only : drydep
@@ -229,6 +232,9 @@ program DALES
         call lsm
         call drydep
         call surface
+#ifdef USE_LCM
+        call prepare_lcm_piggyback()
+#endif
 
     !-----------------------------------------------------
     !   3.4   ADVECTION AND DIFFUSION
@@ -247,6 +253,9 @@ program DALES
         call samptend(tend_force)
 
         call lstend !large scale forcings
+#ifdef USE_LCM
+        call force_lcm_piggyback()
+#endif
         call samptend(tend_ls)
         call microphysics
         call samptend(tend_micro)

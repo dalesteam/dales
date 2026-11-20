@@ -31,7 +31,7 @@ module modnudge
   character(*), parameter :: modname = "modnudge"
 
   ! Switches for enabling/disabling nudging
-  logical :: lnudge = .false.
+  logical, public, protected :: lnudge = .false.
   logical :: lunudge = .true.
   logical :: lvnudge = .true.
   logical :: lwnudge = .true.
