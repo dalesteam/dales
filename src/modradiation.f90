@@ -107,50 +107,6 @@ contains
     call D_MPI_BCAST(nbatch,     1,0,comm3d,ierr)
     call D_MPI_BCAST(doclearsky, 1,0,comm3d,ierr)
 
-    allocate(thlprad   (2-ih:i1+ih,2-jh:j1+jh,k1) )
-    allocate(swd       (2-ih:i1+ih,2-jh:j1+jh,k1) )
-    allocate(swu       (2-ih:i1+ih,2-jh:j1+jh,k1) )
-    allocate(lwd       (2-ih:i1+ih,2-jh:j1+jh,k1) )
-    allocate(lwu       (2-ih:i1+ih,2-jh:j1+jh,k1) )
-
-    allocate(swdca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
-    allocate(swuca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
-    allocate(lwdca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
-    allocate(lwuca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
-
-    allocate(swdir     (2-ih:i1+ih,2-jh:j1+jh,k1) )
-    allocate(swdif     (2-ih:i1+ih,2-jh:j1+jh,k1) )
-    allocate(lwc       (2-ih:i1+ih,2-jh:j1+jh,k1) )
-
-    allocate(SW_up_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
-    allocate(SW_dn_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
-    allocate(LW_up_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
-    allocate(LW_dn_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
-
-    allocate(SW_up_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
-    allocate(SW_dn_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
-    allocate(LW_up_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
-    allocate(LW_dn_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
-
-    thlprad = 0.
-
-    swd = 0.
-    swu = 0.
-    lwd = 0.
-    lwu = 0.
-
-    swdca = 0.
-    swuca = 0.
-    lwdca = 0.
-    lwuca = 0.
-
-    swdir = 0.
-    swdif = 0.
-    lwc   = 0.
-
-    SW_up_TOA=0;SW_dn_TOA=0;LW_up_TOA=0;LW_dn_TOA=0
-    SW_up_ca_TOA = 0. ;SW_dn_ca_TOA=0    ;LW_up_ca_TOA=0    ;LW_dn_ca_TOA=0
-
     if (irad/=-1) then
       if (myid==0) write (*,*) 'WARNING: The use of irad is deprecated. Please use the iradiation switch'
       select case (irad)
@@ -190,6 +146,56 @@ contains
       rad_smoke  = .false.
     end if
 
+    allocate(thlprad   (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    thlprad = 0.
+
+    ! Only allocate radiation fields when radiation is actually used 
+    ! (thlprad above is only exception as to not break statistics routine)
+    if ( iradiation /= 0 ) then
+
+      allocate(swd       (2-ih:i1+ih,2-jh:j1+jh,k1) )
+      allocate(swu       (2-ih:i1+ih,2-jh:j1+jh,k1) )
+      allocate(lwd       (2-ih:i1+ih,2-jh:j1+jh,k1) )
+      allocate(lwu       (2-ih:i1+ih,2-jh:j1+jh,k1) )
+
+      allocate(swdca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
+      allocate(swuca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
+      allocate(lwdca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
+      allocate(lwuca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
+
+      allocate(swdir     (2-ih:i1+ih,2-jh:j1+jh,k1) )
+      allocate(swdif     (2-ih:i1+ih,2-jh:j1+jh,k1) )
+      allocate(lwc       (2-ih:i1+ih,2-jh:j1+jh,k1) )
+
+      allocate(SW_up_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
+      allocate(SW_dn_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
+      allocate(LW_up_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
+      allocate(LW_dn_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
+
+      allocate(SW_up_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
+      allocate(SW_dn_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
+      allocate(LW_up_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
+      allocate(LW_dn_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
+
+      swd = 0.
+      swu = 0.
+      lwd = 0.
+      lwu = 0.
+
+      swdca = 0.
+      swuca = 0.
+      lwdca = 0.
+      lwuca = 0.
+
+      swdir = 0.
+      swdif = 0.
+      lwc   = 0.
+
+      SW_up_TOA = 0; SW_dn_TOA = 0; LW_up_TOA = 0; LW_dn_TOA = 0
+      SW_up_ca_TOA = 0.; SW_dn_ca_TOA = 0; LW_up_ca_TOA = 0; LW_dn_ca_TOA = 0
+
+    end if
+
 #if defined(_OPENACC)
     if(iradiation/=irad_none .and. iradiation/=irad_rte_rrtmgp .and. iradiation/=irad_user) then
       call finish(routine, "Please select the RTE-RRTMGP radiation scheme when running on GPU.")
@@ -200,9 +206,9 @@ contains
     !$acc&                  lwdca, lwuca, swdca, swuca, &
     !$acc&                  LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &
     !$acc&                  LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA)
-!$omp target enter data map(to:thlprad,lwd,lwu,swd,swu,lwc,swdir,swdif,&
-!$omp lwdca,lwuca,swdca,swuca,lw_dn_toa,lw_up_toa,sw_dn_toa,sw_up_toa,&
-!$omp lw_dn_ca_toa,lw_up_ca_toa,sw_dn_ca_toa,sw_up_ca_toa)
+    !$omp target enter data map(to:thlprad,lwd,lwu,swd,swu,lwc,swdir,swdif,&
+    !$omp lwdca,lwuca,swdca,swuca,lw_dn_toa,lw_up_toa,sw_dn_toa,sw_up_toa,&
+    !$omp lw_dn_ca_toa,lw_up_ca_toa,sw_dn_ca_toa,sw_up_ca_toa)
 
     if (iradiation /= 0) then
       itimerad = floor(timerad/tres)
@@ -240,10 +246,14 @@ contains
     real wtime
     integer :: i,j,k
 
+    if ( iradiation==0 ) return ! Step out of subroutine when no radiation is used
+
     if(timee<tnext .and. rk3step==3) then
       dt_lim = min(dt_lim,tnext-timee)
     end if
+
     call timer_tic('modradiation/radiation', 0)
+
     if((itimerad==0 .or. timee>=tnext) .and. rk3step==1) then
       tnext = tnext+itimerad
 
@@ -281,7 +291,7 @@ contains
           case (irad_rte_rrtmgp)
             call radrte_rrtmgp
           case (irad_user)
-! EWB: the if statement should came first because moduser uses a radpar variable
+          ! EWB: the if statement should came first because moduser uses a radpar variable
             if(rad_longw.or.rad_shortw) then
               call radpar
             endif
@@ -289,6 +299,7 @@ contains
             call rad_user
 
       end select
+
       if (enable_slurb) then
         call swap(tskin, tskin_radiative)
       end if
@@ -324,12 +335,15 @@ contains
     !$acc&                lwdca, lwuca, swdca, swuca, &
     !$acc&                LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &
     !$acc&                LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA)
-!$omp target exit data map(delete:thlprad,lwd,lwu,swd,swu,lwc,swdir,&
-!$omp swdif,lwdca,lwuca,swdca,swuca,lw_dn_toa,lw_up_toa,sw_dn_toa,&
-!$omp sw_up_toa,lw_dn_ca_toa,lw_up_ca_toa,sw_dn_ca_toa,sw_up_ca_toa)
-    deallocate(thlprad,swd,swdir,swdif,swu,lwd,lwu,swdca,swuca,lwdca,lwuca,lwc)
-    deallocate(SW_up_TOA, SW_dn_TOA,LW_up_TOA,LW_dn_TOA, &
-               SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA)
+    !$omp target exit data map(delete:thlprad,lwd,lwu,swd,swu,lwc,swdir,&
+    !$omp swdif,lwdca,lwuca,swdca,swuca,lw_dn_toa,lw_up_toa,sw_dn_toa,&
+    !$omp sw_up_toa,lw_dn_ca_toa,lw_up_ca_toa,sw_dn_ca_toa,sw_up_ca_toa)
+
+    if (iradiation /= 0) then
+      deallocate(thlprad,swd,swdir,swdif,swu,lwd,lwu,swdca,swuca,lwdca,lwuca,lwc)
+      deallocate(SW_up_TOA, SW_dn_TOA,LW_up_TOA,LW_dn_TOA, &
+                SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA)
+    end if
 
     if(iradiation == irad_rte_rrtmgp) call exit_radrte_rrtmgp
   end subroutine exitradiation

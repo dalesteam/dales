@@ -1238,30 +1238,32 @@ contains
       read(ifinput)   ((tskin(i,j ),i=1,i2      ),j=1,j2      )
       read(ifinput)   ((qskin(i,j ),i=1,i2      ),j=1,j2      )
 
-!!!!! radiation quantities
-      read(ifinput)  tnext_radiation
-      read(ifinput)  (((thlprad (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((swd     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((swu     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((lwd     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((lwu     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((swdca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((swuca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((lwdca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((lwuca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((swdir   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((swdif   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((lwc     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      !!!!! radiation quantities
+      if (iradiation /= 0) then
+        read(ifinput)  tnext_radiation
+        read(ifinput)  (((thlprad (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        read(ifinput)  (((swd     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        read(ifinput)  (((swu     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        read(ifinput)  (((lwd     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        read(ifinput)  (((lwu     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        read(ifinput)  (((swdca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        read(ifinput)  (((swuca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        read(ifinput)  (((lwdca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        read(ifinput)  (((lwuca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        read(ifinput)  (((swdir   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        read(ifinput)  (((swdif   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        read(ifinput)  (((lwc     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
 
-      read(ifinput)  ((SW_up_TOA    (i,j ),i=1,i2),j=1,j2)
-      read(ifinput)  ((SW_dn_TOA    (i,j ),i=1,i2),j=1,j2)
-      read(ifinput)  ((LW_up_TOA    (i,j ),i=1,i2),j=1,j2)
-      read(ifinput)  ((LW_dn_TOA    (i,j ),i=1,i2),j=1,j2)
-      read(ifinput)  ((SW_up_ca_TOA (i,j ),i=1,i2),j=1,j2)
-      read(ifinput)  ((SW_dn_ca_TOA (i,j ),i=1,i2),j=1,j2)
-      read(ifinput)  ((LW_up_ca_TOA (i,j ),i=1,i2),j=1,j2)
-      read(ifinput)  ((LW_dn_ca_TOA (i,j ),i=1,i2),j=1,j2)
-!!!!! end of radiation quantities
+        read(ifinput)  ((SW_up_TOA    (i,j ),i=1,i2),j=1,j2)
+        read(ifinput)  ((SW_dn_TOA    (i,j ),i=1,i2),j=1,j2)
+        read(ifinput)  ((LW_up_TOA    (i,j ),i=1,i2),j=1,j2)
+        read(ifinput)  ((LW_dn_TOA    (i,j ),i=1,i2),j=1,j2)
+        read(ifinput)  ((SW_up_ca_TOA (i,j ),i=1,i2),j=1,j2)
+        read(ifinput)  ((SW_dn_ca_TOA (i,j ),i=1,i2),j=1,j2)
+        read(ifinput)  ((LW_up_ca_TOA (i,j ),i=1,i2),j=1,j2)
+        read(ifinput)  ((LW_dn_ca_TOA (i,j ),i=1,i2),j=1,j2)
+      end if
+      !!!!! end of radiation quantities
 
     close(ifinput)
 
@@ -1432,30 +1434,32 @@ contains
       write(ifoutput)   ((tskin(i,j ),i=1,i2      ),j=1,j2      )
       write(ifoutput)   ((qskin(i,j ),i=1,i2      ),j=1,j2      )
 
-!!!!! radiation quantities
-      write(ifoutput)  tnext_radiation
-      write(ifoutput)  (((thlprad (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((swd     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((swu     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((lwd     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((lwu     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((swdca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((swuca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((lwdca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((lwuca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((swdir   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((swdif   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((lwc     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      !!!!! radiation quantities
+      if (iradiation /= 0) then
+        write(ifoutput)  tnext_radiation
+        write(ifoutput)  (((thlprad (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        write(ifoutput)  (((swd     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        write(ifoutput)  (((swu     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        write(ifoutput)  (((lwd     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        write(ifoutput)  (((lwu     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        write(ifoutput)  (((swdca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        write(ifoutput)  (((swuca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        write(ifoutput)  (((lwdca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        write(ifoutput)  (((lwuca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        write(ifoutput)  (((swdir   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        write(ifoutput)  (((swdif   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+        write(ifoutput)  (((lwc     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
 
-      write(ifoutput)  ((SW_up_TOA    (i,j ),i=1,i2),j=1,j2)
-      write(ifoutput)  ((SW_dn_TOA    (i,j ),i=1,i2),j=1,j2)
-      write(ifoutput)  ((LW_up_TOA    (i,j ),i=1,i2),j=1,j2)
-      write(ifoutput)  ((LW_dn_TOA    (i,j ),i=1,i2),j=1,j2)
-      write(ifoutput)  ((SW_up_ca_TOA (i,j ),i=1,i2),j=1,j2)
-      write(ifoutput)  ((SW_dn_ca_TOA (i,j ),i=1,i2),j=1,j2)
-      write(ifoutput)  ((LW_up_ca_TOA (i,j ),i=1,i2),j=1,j2)
-      write(ifoutput)  ((LW_dn_ca_TOA (i,j ),i=1,i2),j=1,j2)
-!!!!! end of radiation quantities
+        write(ifoutput)  ((SW_up_TOA    (i,j ),i=1,i2),j=1,j2)
+        write(ifoutput)  ((SW_dn_TOA    (i,j ),i=1,i2),j=1,j2)
+        write(ifoutput)  ((LW_up_TOA    (i,j ),i=1,i2),j=1,j2)
+        write(ifoutput)  ((LW_dn_TOA    (i,j ),i=1,i2),j=1,j2)
+        write(ifoutput)  ((SW_up_ca_TOA (i,j ),i=1,i2),j=1,j2)
+        write(ifoutput)  ((SW_dn_ca_TOA (i,j ),i=1,i2),j=1,j2)
+        write(ifoutput)  ((LW_up_ca_TOA (i,j ),i=1,i2),j=1,j2)
+        write(ifoutput)  ((LW_dn_ca_TOA (i,j ),i=1,i2),j=1,j2)
+      end if
+      !!!!! end of radiation quantities
 
       close (ifoutput)
       linkname = name
