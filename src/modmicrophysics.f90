@@ -115,6 +115,7 @@ contains
     ! Common
     call D_MPI_BCAST(imicro, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(lstat, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_rain, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(Nc_0, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(sig_g, 1, 0, comm3d, ierr)
     ! Bulkmicro
