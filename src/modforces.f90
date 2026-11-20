@@ -147,7 +147,7 @@ contains
   !$omp defaultmap(present:allocatable)
   do j=2-jh,j1+jh
      do i=2-ih,i1+ih
-        wp(:,:,1) = 0
+        wp(i,j,1) = 0
      end do
   end do
 
