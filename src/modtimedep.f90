@@ -76,15 +76,14 @@ module modtimedep
 contains
 
   subroutine inittimedep
-      use modmpi,    only :myid,mpierr,comm3d,d_mpi_bcast
-      use modglobal, only :cexpnr,k1,kmax,ifinput,input_netcdf,runtime,zf,ntimedep,lcoriol,iinput
-      use modsurfdata,only :ps,qts,wqsurf,wtsurf,thls, Qnetav
+      use modmpi,       only : myid,mpierr,comm3d,d_mpi_bcast
+      use modglobal,    only : cexpnr,k1,kmax,ifinput,input_netcdf,runtime,zf,ntimedep,lcoriol,iinput
+      use modsurfdata,  only : ps,qts,wqsurf,wtsurf,thls, Qnetav
       use modtimedepsv, only : inittimedepsv
-
-      use modtestbed,        only : ltestbed,ntnudge,&
-                                    tb_time,tb_ps,tb_qts,tb_thls,tb_wqs,tb_wts,&
-                                    tb_w,tb_ug,tb_vg,&
-                                    tb_uadv,tb_vadv,tb_qtadv,tb_thladv,tb_Qnet
+      use modtestbed,   only : ltestbed,ntnudge,&
+                              tb_time,tb_ps,tb_qts,tb_thls,tb_wqs,tb_wts,&
+                              tb_w,tb_ug,tb_vg,&
+                              tb_uadv,tb_vadv,tb_qtadv,tb_thladv,tb_Qnet
 
       implicit none
 
@@ -165,7 +164,7 @@ contains
       thlproft = 0
       qtproft  = 0
 
-      if (myid==0) then !myid=0
+      if ( myid==0 ) then
 
         !--- load lsforcings---
 
@@ -333,44 +332,54 @@ contains
         if(timeflux(1)>runtime) then
           write(6,*) 'Time dependent surface variables do not change before end of'
           write(6,*) 'simulation. --> only large scale forcings'
-          ltimedepsurf=.false.
+          ltimedepsurf = .false.
         endif
 
         if ((timels(1) > runtime) .or. (timeflux(1) > runtime)) then
           write(6,*) 'Time dependent large scale forcings sets in after end of simulation -->'
           write(6,*) '--> only time dependent surface variables'
-          ltimedepz=.false.
+          ltimedepz = .false.
         end if
 
         close(ifinput)
 
-      end if ! myid==0
+      end if
       
-      call d_mpi_bcast(timeflux(1:kflux),kflux   ,0,comm3d,mpierr)
-      call d_mpi_bcast(wtsurft          ,kflux   ,0,comm3d,mpierr)
-      call d_mpi_bcast(wqsurft          ,kflux   ,0,comm3d,mpierr)
-      call d_mpi_bcast(thlst            ,kflux   ,0,comm3d,mpierr)
-      call d_mpi_bcast(qtst             ,kflux   ,0,comm3d,mpierr)
-      call d_mpi_bcast(pst              ,kflux   ,0,comm3d,mpierr)
-      call d_mpi_bcast(Qnetavt          ,kflux   ,0,comm3d,mpierr)
-      call d_mpi_bcast(timels(1:kls)    ,kls     ,0,comm3d,mpierr)
-      call d_mpi_bcast(ugt              ,kmax*kls,0,comm3d,mpierr)
-      call d_mpi_bcast(vgt              ,kmax*kls,0,comm3d,mpierr)
-      call d_mpi_bcast(dpdxlt           ,kmax*kls,0,comm3d,mpierr)
-      call d_mpi_bcast(dpdylt           ,kmax*kls,0,comm3d,mpierr)
-      call d_mpi_bcast(wflst            ,kmax*kls,0,comm3d,mpierr)
-      call d_mpi_bcast(dqtdxlst,kmax*kls ,0,comm3d,mpierr)
-      call d_mpi_bcast(dqtdylst,kmax*kls ,0,comm3d,mpierr)
-      call d_mpi_bcast(dqtdtlst,kmax*kls ,0,comm3d,mpierr)
-      call d_mpi_bcast(dthldtlst,kmax*kls,0,comm3d,mpierr)
-      call d_mpi_bcast(dudtlst,kmax*kls  ,0,comm3d,mpierr)
-      call d_mpi_bcast(dvdtlst,kmax*kls  ,0,comm3d,mpierr)
-      call d_mpi_bcast(thlpcart,kmax*kls ,0,comm3d,mpierr)
-      call d_mpi_bcast(thlproft,kmax*kls ,0,comm3d,mpierr)
-      call d_mpi_bcast(qtproft ,kmax*kls ,0,comm3d,mpierr)
+      call d_mpi_bcast(timeflux(1:kflux)  ,kflux   ,0,comm3d,mpierr)
+      call d_mpi_bcast(wtsurft            ,kflux   ,0,comm3d,mpierr)
+      call d_mpi_bcast(wqsurft            ,kflux   ,0,comm3d,mpierr)
+      call d_mpi_bcast(thlst              ,kflux   ,0,comm3d,mpierr)
+      call d_mpi_bcast(qtst               ,kflux   ,0,comm3d,mpierr)
+      call d_mpi_bcast(pst                ,kflux   ,0,comm3d,mpierr)
+      call d_mpi_bcast(Qnetavt            ,kflux   ,0,comm3d,mpierr)
+      call d_mpi_bcast(timels(1:kls)      ,kls     ,0,comm3d,mpierr)
+      call d_mpi_bcast(ugt                ,kmax*kls,0,comm3d,mpierr)
+      call d_mpi_bcast(vgt                ,kmax*kls,0,comm3d,mpierr)
+      call d_mpi_bcast(dpdxlt             ,kmax*kls,0,comm3d,mpierr)
+      call d_mpi_bcast(dpdylt             ,kmax*kls,0,comm3d,mpierr)
+      call d_mpi_bcast(wflst              ,kmax*kls,0,comm3d,mpierr)
+      call d_mpi_bcast(dqtdxlst           ,kmax*kls,0,comm3d,mpierr)
+      call d_mpi_bcast(dqtdylst           ,kmax*kls,0,comm3d,mpierr)
+      call d_mpi_bcast(dqtdtlst           ,kmax*kls,0,comm3d,mpierr)
+      call d_mpi_bcast(dthldtlst          ,kmax*kls,0,comm3d,mpierr)
+      call d_mpi_bcast(dudtlst            ,kmax*kls,0,comm3d,mpierr)
+      call d_mpi_bcast(dvdtlst            ,kmax*kls,0,comm3d,mpierr)
+      call d_mpi_bcast(thlpcart           ,kmax*kls,0,comm3d,mpierr)
+      call d_mpi_bcast(thlproft           ,kmax*kls,0,comm3d,mpierr)
+      call d_mpi_bcast(qtproft            ,kmax*kls,0,comm3d,mpierr)
 
-      call d_mpi_bcast(ltimedepsurf ,1,0,comm3d,mpierr)
-      call d_mpi_bcast(ltimedepz    ,1,0,comm3d,mpierr)
+      call d_mpi_bcast(ltimedepsurf       ,1,0,comm3d,mpierr)
+      call d_mpi_bcast(ltimedepz          ,1,0,comm3d,mpierr)
+
+      ! Copy everything to GPU
+      !$acc enter data copyin(timeflux(1:klfux), wtsurft, wqsurft, thlst, qtst, pst, Qnetavt, &
+      !$acc                   timels(1:kls), ugt, vgt, dpdxlt, dpdylt, wflst, &
+      !$acc                   dqtdxlst, dqtdylst, dqtdtlst, dthldtlst, dudtlst, dvdtlst, &
+      !$acc                   thlpcart, thlproft, qtproft)
+      !$omp target enter data map(to:timeflux(1:klfux), wtsurft, wqsurft, thlst, qtst, pst, Qnetavt, &
+      !$omp                       timels(1:kls), ugt, vgt, dpdxlt, dpdylt, wflst, &
+      !$omp                       dqtdxlst, dqtdylst, dqtdtlst, dthldtlst, dudtlst, dvdtlst, &
+      !$omp                       thlpcart, thlproft, qtproft)
 
       call inittimedepsv
       call timedep
@@ -378,6 +387,30 @@ contains
       deallocate(height)
 
     end subroutine inittimedep
+
+    subroutine exittimedep
+      use modtimedepsv, only : exittimedepsv
+
+      implicit none
+
+      if (.not. ltimedep) return
+
+      ! Delete everything to GPU
+      !$acc exit data delete(timeflux(1:klfux), wtsurft, wqsurft, thlst, qtst, pst, Qnetavt, &
+      !$acc                  timels(1:kls), ugt, vgt, dpdxlt, dpdylt, wflst, &
+      !$acc                  dqtdxlst, dqtdylst, dqtdtlst, dthldtlst, dudtlst, dvdtlst, &
+      !$acc                  thlpcart, thlproft, qtproft)
+      !$omp target exit data map(delete:timeflux(1:klfux), wtsurft, wqsurft, thlst, qtst, pst, Qnetavt, &
+      !$omp                             timels(1:kls), ugt, vgt, dpdxlt, dpdylt, wflst, &
+      !$omp                             dqtdxlst, dqtdylst, dqtdtlst, dthldtlst, dudtlst, dvdtlst, &
+      !$omp                             thlpcart, thlproft, qtproft)
+
+      deallocate(timels,ugt,vgt,wflst,dqtdxlst,dqtdylst,dqtdtlst,dthldtlst,dudtlst,dvdtlst,thlpcart)
+      deallocate(timeflux, wtsurft,wqsurft,thlst,qtst,pst,Qnetavt)
+
+      call exittimedepsv
+
+    end subroutine
 
     subroutine timedep
     !-----------------------------------------------------------------|
@@ -488,6 +521,7 @@ contains
       use modthermodynamics, only: lmoist
       use modsurfdata, only : wtsurf,wqsurf,thls,qts,ps, Qnetav
       use modsurface,  only : qtsurf
+      
       implicit none
       integer t
       real fac
@@ -516,19 +550,6 @@ contains
 
       return
     end subroutine timedepsurf
-
-
-    subroutine exittimedep
-      use modtimedepsv, only : exittimedepsv
-
-      implicit none
-
-      if (.not. ltimedep) return
-
-      deallocate(timels,ugt,vgt,wflst,dqtdxlst,dqtdylst,dqtdtlst,dthldtlst,dudtlst,dvdtlst,thlpcart)
-      deallocate(timeflux, wtsurft,wqsurft,thlst,qtst,pst,Qnetavt)
-      call exittimedepsv
-    end subroutine
 
     !> \brief Read initial profiles from forcings.XXX.nc
     subroutine init_timedep_from_netcdf(filename, height, time, ntimedep, kmax)

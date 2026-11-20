@@ -116,7 +116,7 @@ save
 
   real(field_r), allocatable :: wfls  (:)                     !<   large scale vertical velocity
   real(field_r), allocatable :: ql0h(:,:,:)
-  real(field_r), allocatable :: dthvdz(:,:,:)!<   theta_v at half level
+  real(field_r), allocatable :: dthvdz(:,:,:)                 !<   theta_v at half level
 
   real(field_r), allocatable :: thlprof(:)                    !<   initial thl-profile
   real(field_r), allocatable :: qtprof(:)                     !<   initial qt-profile
