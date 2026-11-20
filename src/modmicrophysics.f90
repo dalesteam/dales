@@ -51,6 +51,7 @@ module modmicrophysics
   use moduser,           only: micro_user
   use modlogging,        only: finish
 #ifdef USE_LCM
+  use modlcm_namelist,   only: lcm_piggyback
   use modlcm_adapter,    only: configure_lcm_runtime, init_lcm, advance_lcm_step
 #endif
 
@@ -115,6 +116,7 @@ contains
     ! Common
     call D_MPI_BCAST(imicro, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(lstat, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(l_rain, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(Nc_0, 1, 0, comm3d, ierr)
     call D_MPI_BCAST(sig_g, 1, 0, comm3d, ierr)
     ! Bulkmicro
@@ -187,15 +189,20 @@ contains
         call initsimpleice
       case(imicro_bulk3)
         call initbulkmicro3
+#ifndef USE_LCM
       case(imicro_lcm)
-#ifdef USE_LCM
-        call configure_lcm_runtime
-#else
         call finish(routine, &
           'LCM microphysics selected, but DALES was built without USE_LCM.')
 #endif
     end select
 
+#ifdef USE_LCM
+    if (lcm_piggyback) then
+      if (imicro /= imicro_bulk .or. l_rain .or. l_sedc) &
+        call finish(modname, 'LCM piggybacking requires warm bulk with l_rain=false and l_sedc=false.')
+    end if
+    if (imicro == imicro_lcm .or. lcm_piggyback) call configure_lcm_runtime()
+#endif
     if(laerosol) call init_aerosol()
 
   end subroutine initmicrophysics
@@ -206,15 +213,12 @@ contains
     character(len=*), parameter :: routine = modname//'/initmicrophysics_state'
 #endif
 
-    select case(imicro)
-      case(imicro_lcm)
 #ifdef USE_LCM
-        call init_lcm
+    if (imicro == imicro_lcm .or. lcm_piggyback) call init_lcm()
 #else
-        call finish(routine, &
-          'LCM microphysics selected, but DALES was built without USE_LCM.')
+    if (imicro == imicro_lcm) call finish(routine, &
+      'LCM microphysics selected, but DALES was built without USE_LCM.')
 #endif
-    end select
 
   end subroutine initmicrophysics_state
 
@@ -259,7 +263,12 @@ contains
 
     character(len=*), parameter :: routine = modname//'/lcm_microphysics'
 
-    if (imicro /= imicro_lcm .or. rk3step /= 3) return
+    if (rk3step /= 3) return
+#ifdef USE_LCM
+    if (imicro /= imicro_lcm .and. .not. lcm_piggyback) return
+#else
+    if (imicro /= imicro_lcm) return
+#endif
 
 #ifdef USE_LCM
     call timer_tic(routine, 0)
