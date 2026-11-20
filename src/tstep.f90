@@ -120,7 +120,7 @@ subroutine tstep_update
 
   call timer_tic('tstep/tstep_update', 0)
 
-  if(lwarmstart) spinup = .false.
+  if(lwarmstart .or. .not. ladaptive) spinup = .false.
 
   ! In the original precursor code, this was commented out; why?
   !if(rk3step == 1) then
