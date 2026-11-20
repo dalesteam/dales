@@ -57,7 +57,7 @@ save
   real(field_r), allocatable :: qtp(:,:,:)       !<   tendency of qtm
 
   real(field_r), allocatable :: svm(:,:,:,:)   !<  scalar sv(n) at time step t-1
-  real(field_r), allocatable :: sv0(:,:,:,:)   !<  scalar sv(n) at time step t
+  real(field_r), allocatable, target :: sv0(:,:,:,:) !<  scalar sv(n) at time step t
   real(field_r), allocatable :: svp(:,:,:,:)   !<  tendency of sv(n)
 
   ! Base state variables
