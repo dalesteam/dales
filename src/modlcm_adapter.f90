@@ -12,7 +12,7 @@ module modlcm_adapter
                                  lcm_configure_runtime, lcm_attach_fields,    &
                                  lcm_initialize, lcm_pass_timer_routines,     &
                                  lcm_advance
-  use modfields, only : u0, v0, w0, tmp0, dse0, qv0, presf, rhof
+  use modfields, only : u0, v0, w0, tmp0, dse0, qv0, presf, rhof, whls
   use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1, &
                         ih, jh, kh, dx, dy, dzf, zf, zh, rdt, cp
   use modlcm_namelist, only : lcm_apply_namelist_config
@@ -31,6 +31,7 @@ module modlcm_adapter
   type(lcm_parallel_t), save :: lcm_parallel
   type(lcm_config_t), save :: lcm_config
   real(real64), allocatable, target, save :: lcm_static_energy(:,:,:)
+  real(real64), allocatable, target, save :: lcm_w(:,:,:)
 
 contains
 
@@ -64,12 +65,12 @@ contains
   subroutine init_lcm()
     call lcm_pass_timer_routines(timer_tic, timer_toc)
 
-    call update_lcm_static_energy_temperature_units()
+    call update_lcm_atmosphere()
 
     call lcm_attach_fields(                                             &
       u=u0(2:i1+1, 2:j1, 1:kmax),                                       &
       v=v0(2:i1, 2:j1+1, 1:kmax),                                       &
-      w=w0(2:i1, 2:j1, 1:kmax+1),                                       &
+      w=lcm_w,                                                         &
       static_energy=lcm_static_energy,                                   &
       temperature=tmp0(2:i1, 2:j1, 1:kmax),                             &
       qv=qv0(2:i1, 2:j1, 1:kmax),                                       &
@@ -81,19 +82,28 @@ contains
   subroutine advance_lcm_step()
     ! Called once after the final RK integration, boundaries and thermodynamics
     ! by lcm_microphysics; rdt is the full atmospheric timestep.
-    call update_lcm_static_energy_temperature_units()
+    call update_lcm_atmosphere()
     call lcm_advance(real(rdt, kind=real64))
   end subroutine advance_lcm_step
 
-  subroutine update_lcm_static_energy_temperature_units()
+  subroutine update_lcm_atmosphere()
+    integer :: k
+
     if (.not. allocated(lcm_static_energy)) then
       allocate(lcm_static_energy(imax, jmax, kmax))
+      allocate(lcm_w(imax, jmax, kmax+1))
     end if
+
+    ! Prescribed large-scale motion is applied separately from w0 to DALES
+    ! scalars. Give particles the same motion at the shared vertical faces.
+    do k = 1, kmax+1
+      lcm_w(:,:,k) = w0(2:i1, 2:j1, k) + whls(k)
+    end do
 
     ! LCM follows SAM-LCM and stores static energy in temperature units.
     lcm_static_energy = real(dse0(2:i1, 2:j1, 1:kmax), real64) / &
                         real(cp, real64)
-  end subroutine update_lcm_static_energy_temperature_units
+  end subroutine update_lcm_atmosphere
 
 end module modlcm_adapter
 #endif
