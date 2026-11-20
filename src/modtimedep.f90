@@ -238,7 +238,7 @@ contains
             t    = 0
             ierr = 0
             do while (timeflux(t) < runtime)
-              t  t+1
+              t = t+1
               if (t > kflux) then
                 call finish(routine, "Too many time points in file ", 'ls_flux.inp.'//cexpnr, ", the limit is kflux = ", kflux)
               end if
