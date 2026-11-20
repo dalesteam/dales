@@ -161,7 +161,6 @@ contains
       close(ifinput)
    endif
 
-
     call D_MPI_BCAST(timesvsurf(1:kflux),kflux,0,comm3d,mpierr)
     call D_MPI_BCAST(wsvst             ,kflux*nsv,0,comm3d,mpierr)
     call D_MPI_BCAST(timesvz(1:kls)    ,kls,0,comm3d,mpierr)
@@ -170,11 +169,30 @@ contains
     do n=1,nsv
          call D_MPI_BCAST(dsvdtlst(1:k1,1:kls,n),kmax*kls,0,comm3d,mpierr)
     enddo
+
+    ! Copy everything to GPU
+    !$acc enter data copyin(timesvsurf(1:kflux),wsvst,timesvz(1:kls),dsvdtlst)
+    !$omp target enter data map(to:timesvsurf(1:kflux),wsvst,timesvz(1:kls),dsvdtlst)
+
+    ! Put call after copying to GPU
     call timedepsv
 
     deallocate(height)
 
   end subroutine inittimedepsv
+
+  subroutine exittimedepsv
+    use modglobal, only : nsv
+    implicit none
+
+    if (nsv==0 .or. .not.ltimedepsv) return
+
+    ! Delete everything to GPU
+    !$acc exit data delete(timesvsurf(1:kflux),wsvst,timesvz,dsvdtlst)
+    !$omp target exit data map(delete:timesvsurf(1:kflux),wsvst,timesvz,dsvdtlst)
+
+    deallocate(timesvsurf,wsvst,timesvz,dsvdtlst)
+  end subroutine exittimedepsv
 
   subroutine timedepsv
     use modglobal, only : nsv
@@ -236,13 +254,5 @@ contains
     enddo
     return
   end subroutine timedepsvsurf
-
-
-  subroutine exittimedepsv
-    use modglobal, only : nsv
-    implicit none
-    if (nsv==0 .or. .not.ltimedepsv) return
-    deallocate(timesvz,dsvdtlst,timesvsurf)
-  end subroutine exittimedepsv
 
 end module modtimedepsv

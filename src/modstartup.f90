@@ -550,14 +550,14 @@ contains
 
     if (.not. lwarmstart) then
 
-    !********************************************************************
+      !********************************************************************
 
-    !    1.0 prepare initial fields from files 'prog.inp' and 'scalar.inp'
-    !    ----------------------------------------------------------------
+      !    1.0 prepare initial fields from files 'prog.inp' and 'scalar.inp'
+      !    ----------------------------------------------------------------
 
-    !--------------------------------------------------------------------
-    !    1.1 read fields
-    !-----------------------------------------------------------------
+      !--------------------------------------------------------------------
+      !    1.1 read fields
+      !-----------------------------------------------------------------
 
       rdt = dtmax / 100.
       dt  = max(floor(rdt/tres), 1)
@@ -756,9 +756,9 @@ contains
           end do
         endif
       endif
-    !---------------------------------------------------------------
-    !  1.2 randomnize fields
-    !---------------------------------------------------------------
+      !---------------------------------------------------------------
+      !  1.2 randomnize fields
+      !---------------------------------------------------------------
 
       krand  = min(krand,kmax)
       negval = .False. ! No negative perturbations for qt (negative moisture is non physical)
@@ -1036,7 +1036,14 @@ contains
       else
 
         if (iinput == input_netcdf) then
-          continue ! Profiles have been read by init_from_netcdf
+          ! Temporary fix for large scale forcings on warmstart. Redo startup routine to read in regardless of lwarmstart (also check update on GPU)
+          call init_from_netcdf('init.'//cexpnr//'.nc', height, uprof, vprof, &
+                                thlprof, qtprof, e12prof, ug, vg, dpdxl, dpdyl, wfls, &
+                                dqtdxls, dqtdyls, dqtdtls, thlpcar, baseprof_T, baseprof_P, kmax)
+          if (nsv_user > 0) then
+            call tracer_profs_from_netcdf('tracers.'//cexpnr//'.nc', &
+                                          tracer_prop, svprof(1:kmax,:))
+          end if
         else
           open (ifinput,file='lscale.inp.'//cexpnr, status='old',iostat=ierr)
           if (ierr /= 0) then
