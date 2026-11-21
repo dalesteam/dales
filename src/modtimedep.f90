@@ -372,11 +372,11 @@ contains
       call d_mpi_bcast(ltimedepz          ,1,0,comm3d,mpierr)
 
       ! Copy everything to GPU
-      !$acc enter data copyin(timeflux(1:klfux), wtsurft, wqsurft, thlst, qtst, pst, Qnetavt, &
+      !$acc enter data copyin(timeflux(1:kflux), wtsurft, wqsurft, thlst, qtst, pst, Qnetavt, &
       !$acc                   timels(1:kls), ugt, vgt, dpdxlt, dpdylt, wflst, &
       !$acc                   dqtdxlst, dqtdylst, dqtdtlst, dthldtlst, dudtlst, dvdtlst, &
       !$acc                   thlpcart, thlproft, qtproft)
-      !$omp target enter data map(to:timeflux(1:klfux), wtsurft, wqsurft, thlst, qtst, pst, Qnetavt, &
+      !$omp target enter data map(to:timeflux(1:kflux), wtsurft, wqsurft, thlst, qtst, pst, Qnetavt, &
       !$omp                       timels(1:kls), ugt, vgt, dpdxlt, dpdylt, wflst, &
       !$omp                       dqtdxlst, dqtdylst, dqtdtlst, dthldtlst, dudtlst, dvdtlst, &
       !$omp                       thlpcart, thlproft, qtproft)
@@ -396,11 +396,11 @@ contains
       if (.not. ltimedep) return
 
       ! Delete everything to GPU
-      !$acc exit data delete(timeflux(1:klfux), wtsurft, wqsurft, thlst, qtst, pst, Qnetavt, &
+      !$acc exit data delete(timeflux(1:kflux), wtsurft, wqsurft, thlst, qtst, pst, Qnetavt, &
       !$acc                  timels(1:kls), ugt, vgt, dpdxlt, dpdylt, wflst, &
       !$acc                  dqtdxlst, dqtdylst, dqtdtlst, dthldtlst, dudtlst, dvdtlst, &
       !$acc                  thlpcart, thlproft, qtproft)
-      !$omp target exit data map(delete:timeflux(1:klfux), wtsurft, wqsurft, thlst, qtst, pst, Qnetavt, &
+      !$omp target exit data map(delete:timeflux(1:kflux), wtsurft, wqsurft, thlst, qtst, pst, Qnetavt, &
       !$omp                             timels(1:kls), ugt, vgt, dpdxlt, dpdylt, wflst, &
       !$omp                             dqtdxlst, dqtdylst, dqtdtlst, dthldtlst, dudtlst, dvdtlst, &
       !$omp                             thlpcart, thlproft, qtproft)
