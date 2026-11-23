@@ -206,7 +206,7 @@ contains
 
   subroutine timedepsvz
     use modfields, only : dsvdtls
-    use modglobal,   only : rtimee,nsv
+    use modglobal,   only : rtimee,nsv,kmax
 
     use modmpi,      only : myid
     implicit none
