@@ -211,7 +211,7 @@ contains
     use modmpi,      only : myid
     implicit none
 
-    integer t,n
+    integer t,n,k
     real fac
 
     if(.not.(ltimedepsvz)) return
