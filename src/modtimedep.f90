@@ -470,35 +470,47 @@ contains
       end do
       ! timels(t) < rtimee <= timels(t+1)
       ! or t = 1 if rtimee < timels(1)
-
       fac       = ( rtimee-timels(t) ) / ( timels(t+1)-timels(t) )
-      ug        = ugt      (:,t) + fac * ( ugt      (:,t+1) - ugt      (:,t) )
-      vg        = vgt      (:,t) + fac * ( vgt      (:,t+1) - vgt      (:,t) )
-      wfls      = wflst    (:,t) + fac * ( wflst    (:,t+1) - wflst    (:,t) )
-      dqtdxls   = dqtdxlst (:,t) + fac * ( dqtdxlst (:,t+1) - dqtdxlst (:,t) )
-      dqtdyls   = dqtdylst (:,t) + fac * ( dqtdylst (:,t+1) - dqtdylst (:,t) )
-      dqtdtls   = dqtdtlst (:,t) + fac * ( dqtdtlst (:,t+1) - dqtdtlst (:,t) )
-      dthldtls  = dthldtlst(:,t) + fac * ( dthldtlst(:,t+1) - dthldtlst(:,t) )
-      dudtls    = dudtlst  (:,t) + fac * ( dudtlst  (:,t+1) - dudtlst  (:,t) )
-      dvdtls    = dvdtlst  (:,t) + fac * ( dvdtlst  (:,t+1) - dvdtlst  (:,t) )
-      thlpcar   = thlpcart (:,t) + fac * ( thlpcart (:,t+1) - thlpcart (:,t) )
+
+      !$acc parallel loop vector default(present) async
+      do k=1,kmax
+        ug(k)        = ugt      (k,t) + fac * ( ugt      (k,t+1) - ugt      (k,t) )
+        vg(k)        = vgt      (k,t) + fac * ( vgt      (k,t+1) - vgt      (k,t) )
+        wfls(k)      = wflst    (k,t) + fac * ( wflst    (k,t+1) - wflst    (k,t) )
+        dqtdxls(k)   = dqtdxlst (k,t) + fac * ( dqtdxlst (k,t+1) - dqtdxlst (k,t) )
+        dqtdyls(k)   = dqtdylst (k,t) + fac * ( dqtdylst (k,t+1) - dqtdylst (k,t) )
+        dqtdtls(k)   = dqtdtlst (k,t) + fac * ( dqtdtlst (k,t+1) - dqtdtlst (k,t) )
+        dthldtls(k)  = dthldtlst(k,t) + fac * ( dthldtlst(k,t+1) - dthldtlst(k,t) )
+        dudtls(k)    = dudtlst  (k,t) + fac * ( dudtlst  (k,t+1) - dudtlst  (k,t) )
+        dvdtls(k)    = dvdtlst  (k,t) + fac * ( dvdtlst  (k,t+1) - dvdtlst  (k,t) )
+        thlpcar(k)   = thlpcart (k,t) + fac * ( thlpcart (k,t+1) - thlpcart (k,t) )
+      end do
 
       if (lcoriol) then
+        !$acc parallel loop vector default(present) async
         do k=1,kmax
           dpdxl(k) =  om23_gs*vg(k)
           dpdyl(k) = -om23_gs*ug(k)
         end do
       else ! if not lcoriol, update regular pressure gradients
-        dpdxl      = dpdxlt (:,t) + fac * ( dpdxlt (:,t+1) - dpdxlt (:,t) )
-        dpdyl      = dpdylt (:,t) + fac * ( dpdylt (:,t+1) - dpdylt (:,t) )
+        !$acc parallel loop vector default(present) async
+        do k=1,kmax
+          dpdxl      = dpdxlt (k,t) + fac * ( dpdxlt (k,t+1) - dpdxlt (k,t) )
+          dpdyl      = dpdylt (k,t) + fac * ( dpdylt (k,t+1) - dpdylt (k,t) )
+        end do
       end if
 
+      !$acc serial present(whls,wfls,dzf,dzh)
       whls(1)  = 0.0
+      !$acc end serial
+      !$acc parallel loop vector default(present) async
       do k=2,kmax
         whls(k) = ( wfls(k)*dzf(k-1) +  wfls(k-1)*dzf(k) )/(2*dzh(k))
       end do
+      !$acc serial present(whls,wfls,dzf,dzh)
       whls(k1) = (wfls(kmax)+0.5*dzf(kmax)*(wfls(kmax)-wfls(kmax-1)) &
                                                     /dzh(kmax))
+      !$acc end serial
 
       !******include rho if rho = rho(z) /= 1.0 ***********
 
@@ -536,11 +548,15 @@ contains
       ! or t = 1 if rtimee < timeflux(1)
 
       fac = ( rtimee-timeflux(t) ) / ( timeflux(t+1)-timeflux(t))
+
+      !$acc serial present(timeflux,wqsurft,wtsurft,thlst,pst,Qnetavt, &
+      !$acc                wqsurf,wtsurf,thls,ps,Qnetav)
       wqsurf = wqsurft(t) + fac * ( wqsurft(t+1) - wqsurft(t)  )
       wtsurf = wtsurft(t) + fac * ( wtsurft(t+1) - wtsurft(t)  )
       thls   = thlst(t)   + fac * ( thlst(t+1)   - thlst(t)    )
       ps     = pst(t)     + fac * ( pst(t+1)   - pst(t)    )
       Qnetav = Qnetavt(t) + fac * ( Qnetavt(t+1) - Qnetavt(t)  )
+      !$acc end serial
 
       if (lmoist) then
         call qtsurf
