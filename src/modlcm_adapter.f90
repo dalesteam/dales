@@ -48,8 +48,8 @@ module modlcm_adapter
   real(real64), allocatable, target, save :: lcm_dry_air_density(:,:,:)
   integer, save :: i_t_prev, i_p_prev, i_qv_prev
   integer, save :: i_theta, i_vapor
-  real(real64), allocatable, target, save :: lcm_temperature(:,:,:)
-  real(real64), allocatable, save :: liquid_mass(:,:,:), phase_change(:,:,:)
+  real(real64), allocatable, target :: lcm_temperature(:,:,:)
+  real(real64), allocatable :: liquid_mass(:,:,:), phase_change(:,:,:)
   logical, save :: piggyback_initialized = .false.
 
 contains
