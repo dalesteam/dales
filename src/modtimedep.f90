@@ -495,8 +495,8 @@ contains
       else ! if not lcoriol, update regular pressure gradients
         !$acc parallel loop vector default(present) async
         do k=1,kmax
-          dpdxl      = dpdxlt (k,t) + fac * ( dpdxlt (k,t+1) - dpdxlt (k,t) )
-          dpdyl      = dpdylt (k,t) + fac * ( dpdylt (k,t+1) - dpdylt (k,t) )
+          dpdxl(k) = dpdxlt (k,t) + fac * ( dpdxlt (k,t+1) - dpdxlt (k,t) )
+          dpdyl(k) = dpdylt (k,t) + fac * ( dpdylt (k,t+1) - dpdylt (k,t) )
         end do
       end if
 

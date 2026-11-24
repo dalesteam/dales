@@ -224,7 +224,7 @@ contains
 
     fac = ( rtimee-timesvz(t) ) / ( timesvz(t+1)-timesvz(t) )
 
-    !$acc parallel loop vector default(present) async
+    !$acc parallel loop collapse(2) default(present) async
     do k=1,kmax
       do n=1,nsv
         dsvdtls(k,n)  = dsvdtlst (k,t,n) + fac * ( dsvdtlst (k,t+1,n) - dsvdtlst (k,t,n) )
@@ -254,11 +254,10 @@ contains
 
     fac = ( rtimee-timesvsurf(t) ) / ( timesvsurf(t+1)-timesvsurf(t))
 
-    !$acc serial present(wsvsurf,wsvst)
+    !$acc parallel loop vector present(wsvsurf,wsvst) async
     do n=1,nsv
        wsvsurf(n) = wsvst(t,n) + fac * (wsvst(t+1,n) - wsvst(t,n))
     end do
-    !$acc end serial
 
     return
   end subroutine timedepsvsurf
