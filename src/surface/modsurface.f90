@@ -596,7 +596,7 @@ contains
     ! BUG: use local variable lthls for reduction to prevent name conflict with namelist?
     lthls = 0.0
     qts = 0.0
-    !$acc parallel loop collapse(2) default(present) reduction(+: thls, qts)
+    !$acc parallel loop collapse(2) default(present) reduction(+: lthls, qts)
     !$omp target teams loop reduction(+:lthls,qts) collapse(2)&
     !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do j = 2, j1
