@@ -596,7 +596,7 @@ contains
     ! BUG: use local variable lthls for reduction to prevent name conflict with namelist?
     lthls = 0.0
     qts = 0.0
-    !$acc parallel loop collapse(2) default(present) reduction(+: thls, qts)
+    !$acc parallel loop collapse(2) default(present) reduction(+: lthls, qts)
     !$omp target teams loop reduction(+:lthls,qts) collapse(2)&
     !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do j = 2, j1
@@ -677,15 +677,16 @@ contains
       end do
     end if
 
-    !$acc update self(ustar)
+    ! !$acc update self(ustar)
     !$omp target update from(ustar)
     if ( lopenbc ) then
       call openboundary_excjs(ustar_3D, 2,i1,2,j1,1,1,1,1, &
                              (.not.lboundary(1:4)).or.lperiodic(1:4))
     else
        call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
+       !$acc wait ! waiting should not be required, already in excjs itself
     endif
-    !$acc update device(ustar)
+    ! !$acc update device(ustar)
     !$omp target update to(ustar)
   end subroutine calc_friction_velocity
 
@@ -707,15 +708,16 @@ contains
       end do
     end do
 
-    !$acc update self(ustar)
+    ! !$acc update self(ustar)
     !$omp target update from(ustar)
     if ( lopenbc ) then
       call openboundary_excjs(ustar_3D, 2,i1,2,j1,1,1,1,1, &
                              (.not.lboundary(1:4)).or.lperiodic(1:4))
     else
        call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
+       !$acc wait ! waiting should not be required, already in excjs itself
     endif
-    !$acc update device(ustar)
+    ! !$acc update device(ustar)
     !$omp target update to(ustar)
   end subroutine presc_friction_velocity
 
