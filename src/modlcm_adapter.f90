@@ -37,7 +37,7 @@ module modlcm_adapter
   public :: configure_lcm_runtime
   public :: init_lcm
   public :: advance_lcm_step
-  public :: prepare_lcm_piggyback, force_lcm_piggyback
+  public :: apply_lcm_surface_and_radiative_forcing, apply_lcm_large_scale_forcing_and_sponge
 
   type(lcm_grid_t), save :: lcm_grid
   type(lcm_parallel_t), save :: lcm_parallel
@@ -217,7 +217,7 @@ contains
 
 
   !> Same imposed surface/radiative forcing; no bulk microphysics tendencies.
-  subroutine prepare_lcm_piggyback()
+  subroutine apply_lcm_surface_and_radiative_forcing()
     if (.not. lcm_piggyback) return
     ! initnudge reads NAMNUDGE after init_lcm, so check the loaded setting here.
     if (lnudge) call finish('modlcm_adapter', 'Passenger nudging is not implemented; disable lnudge.')
@@ -226,9 +226,9 @@ contains
     svflux(:,:,i_theta)=thlflux
     svflux(:,:,i_vapor)=qtflux
     svp(2:i1,2:j1,1:kmax,i_theta)=svp(2:i1,2:j1,1:kmax,i_theta)+thlp(2:i1,2:j1,1:kmax)
-  end subroutine prepare_lcm_piggyback
+  end subroutine apply_lcm_surface_and_radiative_forcing
 
-  subroutine force_lcm_piggyback()
+  subroutine apply_lcm_large_scale_forcing_and_sponge()
     integer :: k
     if (.not. lcm_piggyback) return
     ! DALES lstend already applies subsidence to each tracer's own profile.
@@ -249,7 +249,7 @@ contains
           -(sv0(2:i1,2:j1,k,i_vapor)-sv0av(k,i_vapor))*tsc(k)
       end do
     end if
-  end subroutine force_lcm_piggyback
+  end subroutine apply_lcm_large_scale_forcing_and_sponge
 
   ! Passenger scalar budgets use the same anelastic reference-air mass
   ! (rhobf*cell_volume) as DALES advection and subgrid diffusion.

@@ -52,7 +52,8 @@ program DALES
   use modthermodynamics, only : thermodynamics
   use modmicrophysics,   only : microphysics, lcm_microphysics
 #ifdef USE_LCM
-  use modlcm_adapter, only : prepare_lcm_piggyback, force_lcm_piggyback
+  use modlcm_adapter, only : apply_lcm_surface_and_radiative_forcing, &
+                            apply_lcm_large_scale_forcing_and_sponge
 #endif
   use modsurface,        only : surface
   use modlsm,            only : lsm
@@ -233,7 +234,7 @@ program DALES
         call drydep
         call surface
 #ifdef USE_LCM
-        call prepare_lcm_piggyback()
+        call apply_lcm_surface_and_radiative_forcing()
 #endif
 
     !-----------------------------------------------------
@@ -254,7 +255,7 @@ program DALES
 
         call lstend !large scale forcings
 #ifdef USE_LCM
-        call force_lcm_piggyback()
+        call apply_lcm_large_scale_forcing_and_sponge()
 #endif
         call samptend(tend_ls)
         call microphysics
