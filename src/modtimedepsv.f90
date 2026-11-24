@@ -254,7 +254,7 @@ contains
 
     fac = ( rtimee-timesvsurf(t) ) / ( timesvsurf(t+1)-timesvsurf(t))
 
-    !$acc parallel loop vector present(wsvsurf,wsvst) async
+    !$acc parallel loop vector default(present) async
     do n=1,nsv
        wsvsurf(n) = wsvst(t,n) + fac * (wsvst(t+1,n) - wsvst(t,n))
     end do
