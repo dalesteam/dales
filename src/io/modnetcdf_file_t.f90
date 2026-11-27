@@ -1,8 +1,11 @@
 module modnetcdf_file_t
 
   use fortran_support, only: finish
-  use modglobal,       only: cexpnr
-  use modstat_nc,      only: exitstat_nc
+  use modglobal,       only: imax, jmax, kmax, itot, jtot, rtimee, cexpnr
+  use modmpi,          only: comm3d, myidx, myidy, cmyid, nprocx, nprocy, &
+                             mpi_comm, commrow, commcol
+  use modprecision,    only: field_r
+  use modstat_nc
 
   implicit none
 
@@ -17,6 +20,7 @@ module modnetcdf_file_t
     integer            :: nrec = 0
     character(len=128) :: timeinfo(1,4)
     character(len=128), allocatable :: names(:,:)
+    logical            :: lgpu = .false.
   contains
     procedure :: add_var => netcdf_file_add_var
     procedure :: get_var_id => netcdf_file_get_var_id
@@ -39,6 +43,86 @@ module modnetcdf_file_t
       class(netcdf_file_t), intent(inout) :: this
     end subroutine netcdf_file_write
   end interface
+
+    !> File containing time series data.
+  type, extends(netcdf_file_t) :: time_series_file_t
+    private
+    real(field_r), allocatable :: buffer(:) !< Memory for variable data.
+  contains
+    procedure :: open => time_series_file_open
+    procedure :: write => time_series_file_write
+    procedure :: get_pointer => time_series_file_get_pointer
+  end type time_series_file_t
+
+  !> File containing vertical profiles.
+  type, extends(netcdf_file_t) :: profiles_file_t
+    private
+    integer :: nz = 0  !< Number of vertical levels.
+    integer :: nzs = 0 !< Number of vertical levels in soil grid.
+    real(field_r), allocatable :: buffer(:,:) !< Memory for variable data.
+  contains
+    procedure :: open => profiles_file_open
+    procedure :: write => profiles_file_write
+    procedure :: get_pointer => profiles_file_get_pointer
+  end type profiles_file_t
+
+  !> File containing cross sections.
+  type, extends(netcdf_file_t) :: cross_section_file_t
+    private
+    integer       :: nx = 1      !< Number of cells in the x-direction.
+    integer       :: ny = 1      !< Number of cells in the y-direction.
+    integer       :: nz = 1      !< Number of vertical layers.
+    integer       :: nzs = 0     !< Number of vertical layers in the soil grid.
+    real(field_r) :: loc = 0     !< Location of the cross section.
+    integer       :: x_start = 0 !< Writing offset in the x-direction.
+    integer       :: y_start = 0 !< Writing offset in the y-direction.
+    integer       :: nvals_x = 0 !< Number of values that will be written by calling process in the x-direction.
+    integer       :: nvals_y = 0 !< Number of values that will be written by calling process in the y-direction.
+    real(field_r), allocatable :: buffer(:,:,:) !< Memory for variable data.
+  contains
+    procedure :: open => cross_section_file_open
+    procedure :: write => cross_section_file_write
+    procedure :: get_pointer => cross_section_file_get_pointer
+  end type cross_section_file_t
+
+  !> File containing 3D field dumps.
+  type, extends(netcdf_file_t) :: field_dump_file_t
+    private
+    integer :: nx = 0      !< Number of cells in the x-direction.
+    integer :: ny = 0      !< Number of cells in the y-direction.
+    integer :: nz = 0      !< Number of vertical levels.
+    integer :: nzs = 0     !< Number of vertical levels in the soil grid.
+    integer :: ncoarse = 1 !< Coarse graining factor.
+    integer :: klo = 1     !< Vertical lower bound.
+    integer :: khi = 1     !< Vertical upper bound.
+    integer :: x_start = 0 !< Writing offset in the x-direction.
+    integer :: y_start = 0 !< Writing offset in the y-direction.
+    integer :: nvals_x = 0 !< Number of values that will be written by calling process in the x-direction.
+    integer :: nvals_y = 0 !< Number of values that will be written by calling process in the y-direction.
+    real(field_r), allocatable :: buffer(:,:,:,:) !< Memory for variable data.
+  contains
+    procedure :: open => field_dump_file_open
+    procedure :: write => field_dump_file_write
+    procedure :: get_pointer => field_dump_file_get_pointer
+  end type field_dump_file_t
+
+  !> File containing SLURB 3D dumps with dimensions ordered as nzs,nx,ny.
+  type, extends(netcdf_file_t) :: slurb_3d_file_t
+    private
+    integer :: nx = 0      !< Number of cells in the x-direction.
+    integer :: ny = 0      !< Number of cells in the y-direction.
+    integer :: nzs = 0     !< Number of vertical levels in the soil grid.
+    integer :: ncoarse = 1 !< Coarse graining factor.
+    integer :: x_start = 0 !< Writing offset in the x-direction.
+    integer :: y_start = 0 !< Writing offset in the y-direction.
+    integer :: nvals_x = 0 !< Number of values that will be written by calling process in the x-direction.
+    integer :: nvals_y = 0 !< Number of values that will be written by calling process in the y-direction.
+    real(field_r), allocatable :: buffer(:,:,:,:) !< Memory for variable data (nzs,nx,ny,nvar).
+  contains
+    procedure :: open => slurb_3d_file_open
+    procedure :: write => slurb_3d_file_write
+    procedure :: get_pointer => slurb_3d_file_get_pointer
+  end type slurb_3d_file_t
 
 contains
 
@@ -142,5 +226,755 @@ contains
     if (this%ncid /= 0) call exitstat_nc(this%ncid)
 
   end subroutine netcdf_file_close
+
+  !> Constructor; initialize a NetCDF file containing time series data.
+  function time_series_file_init(filename, lgpu) result(this)
+
+    character(len=*), intent(in)  :: filename !< Name of the file.
+
+    logical, intent(in), optional :: lgpu !< Allocate buffer on GPU.
+
+    type(time_series_file_t) :: this !< New time series file object.
+
+    if (present(lgpu)) this%lgpu = lgpu
+
+    call this%set_filename(filename)
+
+  end function time_series_file_init
+
+  !> Open the NetCDF file, define dimensions and allocate memory.
+  subroutine time_series_file_open(this)
+
+    class(time_series_file_t), intent(inout) :: this
+
+    integer :: ivar
+
+    call open_nc(this%filename, this%ncid, this%nrec)
+
+    call nctiminfo(this%timeinfo)
+
+    if (this%nrec == 0) then
+      call define_nc(this%ncid, 1, this%timeinfo)
+      call writestat_dims_nc(this%ncid)
+    end if
+
+    call define_nc(this%ncid, this%nvar, this%names)
+
+    allocate(this%buffer(this%nvar))
+
+    do ivar = 1, this%nvar
+      this%buffer(ivar) = 0.0_field_r
+    end do
+
+    !$acc enter data copyin(this, this%buffer) if(this%lgpu)
+
+  end subroutine time_series_file_open
+
+  !> Write data to disk.
+  subroutine time_series_file_write(this)
+
+    class(time_series_file_t), intent(inout) :: this
+
+    integer :: ivar
+
+    !$acc update host(this%buffer) if(this%lgpu)
+
+    call writestat_nc(this%ncid, this%nvar, this%names, this%buffer, &
+                      this%nrec, .true.)
+
+    !$acc parallel loop default(present) if(this%lgpu)
+    do ivar = 1, this%nvar
+      this%buffer(ivar) = 0.0_field_r
+    end do
+
+  end subroutine time_series_file_write
+
+  !> Setup a pointer to the buffer of a variable.
+  subroutine time_series_file_get_pointer(this, name, ptr)
+
+    class(time_series_file_t), target, intent(in) :: this
+    character(len=*),                  intent(in) :: name !< Name of the variable.
+
+    real(field_r), pointer, intent(out) :: ptr !< Pointer to the variable's buffer.
+
+    character(len=*), parameter :: routine = &
+      modname//'time_series_file_get_pointer'
+
+    integer :: id
+
+    id = this%get_var_id(name)
+
+    if (id < 0) then
+      call finish(routine, 'variable '//trim(name)//' not found')
+    end if
+
+    ptr => this%buffer(id)
+
+  end subroutine time_series_file_get_pointer
+
+  !> Constructor; initialize a NetCDF file containing vertical profiles.
+  function profiles_file_init(filename, nz, nzs, lgpu) result(this)
+
+    character(len=*), intent(in) :: filename !< Name of the file.
+
+    integer, intent(in), optional :: nz   !< Number of vertical levels.
+    integer, intent(in), optional :: nzs  !< Number of vertical levels in the soil grid.
+    logical, intent(in), optional :: lgpu !< Allocate buffer on GPU.
+
+    type(profiles_file_t) :: this !< New profiles file object.
+
+    character(len=*), parameter :: routine = modname//'/profiles_file_open'
+
+    if (.not. any([present(nz), present(nzs)], dim=1)) then
+      call finish(routine, 'no vertical dimension length given')
+    end if
+
+    if (present(lgpu)) this%lgpu = lgpu
+
+    call this%set_filename(filename)
+    
+    if (present(nz)) this%nz = nz
+    if (present(nzs)) this%nzs = nzs
+
+  end function profiles_file_init
+
+  !> Open the NetCDF file, define dimensions and allocate memory.
+  subroutine profiles_file_open(this)
+
+    class(profiles_file_t), intent(inout) :: this
+
+    integer :: k, ivar
+
+    call open_nc(this%filename, this%ncid, this%nrec, n3=this%nz, ns=this%nzs)
+
+    call nctiminfo(this%timeinfo)
+
+    if (this%nrec == 0) then
+      call define_nc(this%ncid, 1, this%timeinfo)
+      call writestat_dims_nc(this%ncid)
+    end if
+
+    call define_nc(this%ncid, this%nvar, this%names)
+
+    if (this%nz > 0) then
+      allocate(this%buffer(this%nz,this%nvar))
+    else if (this%nzs > 0) then
+      allocate(this%buffer(this%nzs,this%nvar))
+    end if
+
+    do k = 1, size(this%buffer, dim=1)
+      do ivar = 1, this%nvar
+        this%buffer(k,ivar) = 0.0_field_r
+      end do
+    end do
+
+    !$acc enter data copyin(this, this%buffer) if(this%lgpu)
+
+  end subroutine profiles_file_open
+
+  !> Write data to disk.
+  subroutine profiles_file_write(this)
+
+    class(profiles_file_t), intent(inout) :: this
+
+    integer :: k, ivar
+
+    !$acc update host(this%buffer) if(this%lgpu)
+
+    call writestat_nc(this%ncid, 1, this%timeinfo, [rtimee], this%nrec, &
+                      lraise=.true.)
+    call writestat_nc(this%ncid, this%nvar, this%names, this%buffer, &
+                      this%nrec, dim1=size(this%buffer, dim=1))
+
+    !$acc parallel loop collapse(2) default(present) if(this%lgpu)
+    do k = 1, size(this%buffer, dim=1) 
+      do ivar = 1, this%nvar
+        this%buffer(k,ivar) = 0.0_field_r
+      end do
+    end do
+
+  end subroutine profiles_file_write
+
+  !> Setup a pointer to the buffer of a variable.
+  subroutine profiles_file_get_pointer(this, name, ptr)
+
+    class(profiles_file_t), target, intent(in) :: this
+    character(len=*),               intent(in) :: name !< Name of the variable.
+
+    real(field_r), pointer, intent(out) :: ptr(:) !< Pointer to the variable's buffer.
+
+    character(len=*), parameter :: routine = &
+      modname//'/profiles_file_get_pointer'
+
+    integer :: id
+
+    id = this%get_var_id(name)
+
+    if (id < 0) then
+      call finish(routine, 'variable '//trim(name)//' not found')
+    end if
+
+    ptr => this%buffer(:,id)
+
+  end subroutine profiles_file_get_pointer
+
+  !> Constructor; initialize a NetCDF file containing cross section data.
+  function cross_section_file_init(filename, nx, ny, nz, nzs, loc, lgpu) &
+    result(this)
+
+    character(len=*), intent(in) :: filename !< Name of the file.
+
+    integer,       intent(in), optional :: nx   !< Number of cells in the x-direction.
+    integer,       intent(in), optional :: ny   !< Number of cells in the y-direction.
+    integer,       intent(in), optional :: nz   !< Number of vertical levels.
+    integer,       intent(in), optional :: nzs  !< Number of vertical levels in the soil grid.
+    real(field_r), intent(in), optional :: loc  !< Location of the cross section.
+    logical,       intent(in), optional :: lgpu !< Allocate buffer on GPU.
+
+    type(cross_section_file_t) :: this !< New cross section file object.
+
+    character(len=*), parameter :: routine = modname//'/cross_section_file_open'
+
+    if (count([present(nx), present(ny), present(nz), present(nzs)], dim=1) > 2) then
+      call finish(routine, 'cross section file can contain only two dimensions')
+    end if
+    
+    if (present(nz)) this%nz = nz
+    if (present(nzs)) this%nzs = nzs
+    if (present(loc)) this%loc = loc
+    if (present(lgpu)) this%lgpu = lgpu
+
+    if (NC_HAVE_PARALLEL) then
+      if (present(nx)) then
+        this%nx = itot
+        this%x_start = myidx * imax + 1
+        this%nvals_x = imax
+      end if
+      if (present(ny)) then
+        this%ny = jtot
+        this%y_start = myidy * jmax + 1
+        this%nvals_y = jmax
+      end if
+
+      call this%set_filename(filename)
+    else
+      if (present(nx)) then
+        this%nx = imax
+        this%x_start = 1
+        this%nvals_x = imax
+      end if
+      if (present(ny)) then
+        this%ny = jmax
+        this%y_start = 1
+        this%nvals_y = jmax
+      end if
+
+      ! Every rank writes to its own file, distinguish with cmyid
+      call this%set_filename(filename, suffix=cmyid)
+    end if
+
+  end function cross_section_file_init
+
+  !> Open the NetCDF file, define dimensions and allocate memory.
+  subroutine cross_section_file_open(this)
+
+    class(cross_section_file_t), intent(inout) :: this
+
+    character(len=*), parameter :: routine = modname//'/cross_section_file_open'
+
+    integer :: n1, n2, n3, ns, n1_file, n2_file, ivar
+    integer :: buffer_dim1_len, buffer_dim2_len
+    type(mpi_comm), pointer :: comm
+
+    n1 = 0
+    n1_file = 0
+    n2 = 0
+    n2_file = 0
+    n3 = 0
+    ns = 0
+
+    if (this%nvals_x > 0 .and. this%nvals_y > 0) then
+      ! Horizontal (XY) cross section
+      n1 = this%nvals_x
+      n1_file = this%nx
+      n2 = this%nvals_y
+      n2_file = this%ny
+
+      buffer_dim1_len = this%nvals_x
+      buffer_dim2_len = this%nvals_y
+      comm => comm3d
+
+      if (this%loc > 0) then
+        if (this%nz  > 0) n3 = 1
+        if (this%nzs > 0) ns = 1
+      end if
+
+    else if (this%nvals_x > 0) then
+      ! Vertical (XZ) cross section, sliced at a fixed y-location
+      n1 = this%nvals_x
+      n1_file = this%nx
+      buffer_dim1_len = this%nvals_x
+      comm => commrow
+
+      ! y dimension is 1 long
+      if (this%loc > 0) then
+        n2 = 1
+        n2_file = 1
+      end if
+
+      if (this%nz > 0) then
+        n3 = this%nz
+        buffer_dim2_len = this%nz
+      else if (this%nzs > 0) then
+        ns = this%nzs
+        buffer_dim2_len = this%nzs
+      else
+        call finish(routine, 'File type not supported: no vertical dimension specified')
+      end if
+
+    else if (this%nvals_y > 0) then
+      ! Vertical (YZ) cross section, sliced at a fixed x-location
+      n2 = this%nvals_y
+      n2_file = this%ny
+      buffer_dim1_len = this%nvals_y
+      comm => commcol
+
+      ! x dimension is 1 long
+      if (this%loc > 0) then
+        n1 = 1
+        n1_file = 1
+      end if
+
+      if (this%nz > 0) then
+        n3 = this%nz
+        buffer_dim2_len = this%nz
+      else if (this%nzs > 0) then
+        ns = this%nzs
+        buffer_dim2_len = this%nzs
+      else
+        call finish(routine, 'File type not supported: no vertical dimension specified')
+      end if
+
+    else
+      call finish(routine, 'point type file has to have either x or y dimension')
+    end if
+
+    
+    if (NC_HAVE_PARALLEL) then
+      call open_nc(this%filename, this%ncid, this%nrec, n1=n1_file, &
+                   n2=n2_file, n3=n3, ns=ns, comm=comm)
+    else
+      call open_nc(this%filename, this%ncid, this%nrec, n1=n1, &
+                   n2=n2, n3=n3, ns=ns)
+    end if
+
+    call nctiminfo(this%timeinfo(1,:))
+
+    if (this%nrec == 0) then
+      call define_nc(this%ncid, 1, this%timeinfo, lcollective=.true.)
+      ! TODO: this is some horrible code, clean this up
+      if (this%loc > 0) then
+        if (this%nx == 1) then
+          call writestat_dims_nc(this%ncid, offset_y=this%y_start, &
+                                 x_vals=[this%loc])
+        else if (this%ny == 1) then
+          call writestat_dims_nc(this%ncid, offset_x=this%x_start, &
+                                 y_vals=[this%loc])
+        else if (this%nz == 1) then
+          call writestat_dims_nc(this%ncid, offset_x=this%x_start, &
+                                 offset_y=this%y_start, z_vals=[this%loc])
+        end if
+      else
+        call writestat_dims_nc(this%ncid, offset_x=this%x_start, &
+                               offset_y=this%y_start)
+      end if
+    end if
+
+    call define_nc(this%ncid, this%nvar, this%names, lcollective=.true.)
+
+    allocate(this%buffer(buffer_dim1_len, buffer_dim2_len, this%nvar))
+
+    do ivar = 1, this%nvar
+      do n2 = 1, size(this%buffer, dim=2)
+        do n1 = 1, size(this%buffer, dim=1)
+          this%buffer(n1,n2,ivar) = 0.0_field_r
+        end do
+      end do
+    end do
+
+    !$acc enter data copyin(this, this%buffer) if(this%lgpu)
+
+  end subroutine cross_section_file_open
+
+  !> Write data to disk.
+  subroutine cross_section_file_write(this)
+
+    class(cross_section_file_t), intent(inout) :: this
+
+    integer :: n1, n2, ivar
+    integer :: offsets(2)
+
+    !$acc update host(this%buffer) if(this%lgpu)
+
+    if (this%x_start > 0 .and. this%y_start > 0) then
+      offsets = [this%x_start, this%y_start]
+    else if (this%x_start > 0) then
+      offsets = [this%x_start, 1]
+    else if (this%y_start > 0) then
+      offsets = [this%y_start, 1]
+    else
+      offsets = [1, 1]
+    end if
+
+    call writestat_nc(this%ncid, 1, this%timeinfo, [rtimee], this%nrec, &
+                      lraise=.true.)
+    call writestat_nc(this%ncid, this%nvar, this%names, this%buffer, &
+                      this%nrec, dim1=size(this%buffer, dim=1), &
+                      dim2=size(this%buffer, dim=2), offsets=offsets)
+
+    !$acc parallel loop collapse(3) default(present) if(this%lgpu)
+    do ivar = 1, this%nvar
+      do n2 = 1, size(this%buffer, dim=2)
+        do n1 = 1, size(this%buffer, dim=1)
+          this%buffer(n1,n2,ivar) = 0.0_field_r
+        end do
+      end do
+    end do
+
+  end subroutine cross_section_file_write
+
+  !> Setup a pointer to the buffer of a variable.
+  !!
+  !! @note Lower bounds of the pointer will be set to 2 for horizontal directions.
+  subroutine cross_section_file_get_pointer(this, name, ptr)
+
+    class(cross_section_file_t), target, intent(in) :: this
+    character(len=*),                    intent(in) :: name
+
+    real(field_r), pointer, intent(out) :: ptr(:,:)
+
+    character(len=*), parameter :: routine = &
+      modname//'/cross_section_file_get_pointer'
+
+    integer :: id
+    integer :: lbound_1 !< Lower bound of first pointer dimension
+    integer :: lbound_2 !< Lower bound of second pointer dimension
+
+    id = this%get_var_id(name)
+
+    ! Set lower bounds to 2 so that we can easily access pointers and
+    ! fields in conjunction
+    lbound_1 = 2
+    lbound_2 = 2
+
+    ! For vertical slices, the second dimension (= vertical) starts from 1
+    if (.not. (this%nx > 1 .and. this%ny > 1)) lbound_2 = 1
+
+    ptr(lbound_1:,lbound_2:) => this%buffer(:,:,id)
+
+  end subroutine cross_section_file_get_pointer
+
+  !> Constructor; initialize a NetCDF file containing 3d field dumps.
+  function field_dump_file_init(filename, nz, nzs, ncoarse, klo, khi, lgpu) &
+    result(this)
+
+    character(len=*), intent(in) :: filename !< Name of the file.
+
+    integer, intent(in), optional :: nz      !< Number of vertical levels.
+    integer, intent(in), optional :: nzs     !< Number of vertical levels in the soil grid.
+    integer, intent(in), optional :: ncoarse !< Coarse graining factor (e.g.: 2 means saving only half of the data).
+    integer, intent(in), optional :: klo     !< Vertical lower bound.
+    integer, intent(in), optional :: khi     !< Vertical upper bound.
+    logical, intent(in), optional :: lgpu    !< Allocate buffer on GPU.
+
+    type(field_dump_file_t) :: this !< New field dump file object.
+
+    character(len=*), parameter :: routine = modname//'/field_dump_file_open'
+
+    if (.not. present(nz) .and. .not. present(nzs)) then
+      call finish(routine, 'field dump file has to have at least one&
+        & vertical dimension')
+    end if
+
+    if (present(ncoarse)) this%ncoarse = ncoarse
+
+    if (present(klo)) then
+      this%klo = klo
+    else
+      this%klo = 1
+    end if
+    
+    if (present(khi)) then
+      this%khi = khi
+    else
+      this%khi = kmax
+    end if
+
+    if (present(lgpu)) this%lgpu = lgpu
+
+    if (NC_HAVE_PARALLEL) then
+      call this%set_filename(filename)
+      this%nx = itot
+      this%ny = jtot
+      this%x_start = myidx * (imax / this%ncoarse) + 1
+      this%y_start = myidy * (jmax / this%ncoarse) + 1
+    else
+      call this%set_filename(filename, suffix=cmyid)
+      this%nx = imax
+      this%ny = jmax
+      this%x_start = 1
+      this%y_start = 1
+    end if
+
+    this%nx = this%nx / this%ncoarse
+    this%ny = this%ny / this%ncoarse
+    this%nvals_x = imax / this%ncoarse
+    this%nvals_y = jmax / this%ncoarse
+
+    if (present(nz)) this%nz = khi - klo + 1 ! Passed value of nz not actually used...
+
+  end function field_dump_file_init
+
+  !> Open the NetCDF file, define dimensions and allocate memory.
+  subroutine field_dump_file_open(this)
+
+    class(field_dump_file_t), intent(inout) :: this
+
+    integer :: n1, n2, n3, ivar
+
+    if (NC_HAVE_PARALLEL) then
+      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
+                   n2=this%ny, n3=this%nz, ns=this%nzs, comm=comm3d)
+    else
+      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
+                   n2=this%ny, n3=this%nz, ns=this%nzs)
+    end if
+
+    call nctiminfo(this%timeinfo)
+
+    if (this%nrec == 0) then
+      call define_nc(this%ncid, 1, this%timeinfo, lcollective=.true.)
+      call writestat_dims_nc(this%ncid, ncoarse=this%ncoarse, klow=this%klo, &
+                             offset_x=this%x_start, offset_y=this%y_start)
+    end if
+
+    call define_nc(this%ncid, this%nvar, this%names, lcollective=.true.)
+
+    if (this%nz > 0) then
+      n3 = this%nz
+    else
+      n3 = this%nzs
+    end if
+
+    allocate(this%buffer(this%nvals_x,this%nvals_y,n3,this%nvar))
+
+    do ivar = 1, this%nvar
+      do n3 = 1, size(this%buffer, dim=3)
+        do n2 = 1, size(this%buffer, dim=2)
+          do n1 = 1, size(this%buffer, dim=1)
+            this%buffer(n1,n2,n3,ivar) = 0.0_field_r
+          end do
+        end do
+      end do
+    end do
+
+    !$acc enter data copyin(this, this%buffer) if(this%lgpu)
+
+  end subroutine field_dump_file_open
+
+  !> Write data to disk.
+  subroutine field_dump_file_write(this)
+
+    class(field_dump_file_t), intent(inout) :: this
+
+    integer :: n1, n2, n3, ivar
+
+    !$acc update host(this%buffer) if(this%lgpu)
+
+    call writestat_nc(this%ncid, 1, this%timeinfo, [rtimee], this%nrec, &
+                      lraise=.true.)
+    call writestat_nc(this%ncid, this%nvar, this%names, this%buffer, &
+                      this%nrec, dim1=this%nvals_x, dim2=this%nvals_y, &
+                      dim3=size(this%buffer, dim=3), &
+                      offsets=[this%x_start, this%y_start, 1])
+
+    !$acc parallel loop collapse(4) default(present) if(this%lgpu)
+    do ivar = 1, this%nvar
+      do n3 = 1, size(this%buffer, dim=3)
+        do n2 = 1, size(this%buffer, dim=2)
+          do n1 = 1, size(this%buffer, dim=1)
+            this%buffer(n1,n2,n3,ivar) = 0.0_field_r
+          end do
+        end do
+      end do
+    end do
+
+  end subroutine field_dump_file_write
+
+  !> Setup a pointer to the buffer of a variable.
+  !!
+  !! @note Lower bounds of the pointer will be set to 2 for horizontal directions.
+  subroutine field_dump_file_get_pointer(this, name, ptr)
+
+    class(field_dump_file_t), target, intent(in) :: this
+    character(len=*),                 intent(in) :: name
+
+    real(field_r), pointer, intent(out) :: ptr(:,:,:)
+
+    character(len=*), parameter :: routine = &
+      modname//'/field_dump_file_get_pointer'
+
+    integer :: id
+
+    id = this%get_var_id(name)
+
+    if (id < 0) then
+      call finish(routine, 'variable '//trim(name)//' not found')
+    end if
+
+    ptr(2:,2:,1:) => this%buffer(:,:,:,id)
+
+  end subroutine field_dump_file_get_pointer
+
+  !> Constructor; initialize a NetCDF file containing SLURB 3D data. (z,x,y) instead of (x,y,z)!
+  function slurb_3d_file_init(filename, nzs, ncoarse, lgpu) &
+    result(this)
+
+    character(len=*), intent(in) :: filename !< Name of the file.
+
+    integer, intent(in), optional :: nzs     !< Number of vertical levels in the soil grid.
+    integer, intent(in), optional :: ncoarse !< Coarse graining factor.
+    logical, intent(in), optional :: lgpu    !< Allocate buffer on GPU.
+
+    type(slurb_3d_file_t) :: this !< New slurb 3D file object.
+
+    character(len=*), parameter :: routine = modname//'/slurb_3d_file_init'
+
+    if (.not. present(nzs)) then
+      call finish(routine, 'slurb 3d file needs nzs vertical dimension')
+    end if
+
+    if (present(ncoarse)) this%ncoarse = ncoarse
+
+    if (present(lgpu)) this%lgpu = lgpu
+
+    if (NC_HAVE_PARALLEL) then
+      call this%set_filename(filename)
+      this%nx = itot
+      this%ny = jtot
+      this%x_start = myidx * (imax / this%ncoarse) + 1
+      this%y_start = myidy * (jmax / this%ncoarse) + 1
+    else
+      call this%set_filename(filename, suffix=cmyid)
+      this%nx = imax
+      this%ny = jmax
+      this%x_start = 1
+      this%y_start = 1
+    end if
+
+    this%nx = this%nx / this%ncoarse
+    this%ny = this%ny / this%ncoarse
+    this%nvals_x = imax / this%ncoarse
+    this%nvals_y = jmax / this%ncoarse
+
+    this%nzs = nzs
+
+  end function slurb_3d_file_init
+
+  !> Open the NetCDF file, define dimensions and allocate memory.
+  subroutine slurb_3d_file_open(this)
+
+    class(slurb_3d_file_t), intent(inout) :: this
+
+    integer :: n1, n2, nlev, ivar
+
+    if (NC_HAVE_PARALLEL) then
+      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
+                   n2=this%ny, ns=this%nzs, comm=comm3d)
+    else
+      call open_nc(this%filename, this%ncid, this%nrec, n1=this%nx, &
+                   n2=this%ny, ns=this%nzs)
+    end if
+
+    call nctiminfo(this%timeinfo)
+
+    if (this%nrec == 0) then
+      call define_nc(this%ncid, 1, this%timeinfo, lcollective=.true.)
+      call writestat_dims_nc(this%ncid, ncoarse=this%ncoarse, &
+                             offset_x=this%x_start, offset_y=this%y_start)
+    end if
+
+    call define_nc(this%ncid, this%nvar, this%names, lcollective=.true.)
+
+    nlev = this%nzs
+    allocate(this%buffer(nlev,this%nvals_x,this%nvals_y,this%nvar))
+
+    do ivar = 1, this%nvar
+      do n2 = 1, this%nvals_y
+        do n1 = 1, this%nvals_x
+          do nlev = 1, size(this%buffer, dim=1)
+            this%buffer(nlev,n1,n2,ivar) = 0.0_field_r
+          end do
+        end do
+      end do
+    end do
+
+    !$acc enter data copyin(this, this%buffer) if(this%lgpu)
+
+  end subroutine slurb_3d_file_open
+
+  !> Write data to disk.
+  subroutine slurb_3d_file_write(this)
+
+    class(slurb_3d_file_t), intent(inout) :: this
+
+    integer :: n1, n2, nlev, ivar
+
+    !$acc update host(this%buffer) if(this%lgpu)
+
+    call writestat_nc(this%ncid, 1, this%timeinfo, [rtimee], this%nrec, &
+                      lraise=.true.)
+    call writestat_nc(this%ncid, this%nvar, this%names, this%buffer, &
+                      this%nrec, dim1=size(this%buffer, dim=1), &
+                      dim2=this%nvals_x, dim3=this%nvals_y, &
+                      offsets=[1, this%x_start, this%y_start])
+
+    !$acc parallel loop collapse(4) default(present) if(this%lgpu)
+    do ivar = 1, this%nvar
+      do n2 = 1, this%nvals_y
+        do n1 = 1, this%nvals_x
+          do nlev = 1, size(this%buffer, dim=1)
+            this%buffer(nlev,n1,n2,ivar) = 0.0_field_r
+          end do
+        end do
+      end do
+    end do
+
+  end subroutine slurb_3d_file_write
+
+  !> Setup a pointer to the buffer of a variable.
+  !!
+  !! @note Lower bounds of horizontal pointer dimensions are set to 2.
+  subroutine slurb_3d_file_get_pointer(this, name, ptr)
+
+    class(slurb_3d_file_t), target, intent(in) :: this
+    character(len=*),               intent(in) :: name
+
+    real(field_r), pointer, intent(out) :: ptr(:,:,:)
+
+    character(len=*), parameter :: routine = &
+      modname//'/slurb_3d_file_get_pointer'
+
+    integer :: id
+
+    id = this%get_var_id(name)
+
+    if (id < 0) then
+      call finish(routine, 'variable '//trim(name)//' not found')
+    end if
+
+    ptr(1:,2:,2:) => this%buffer(:,:,:,id)
+
+  end subroutine slurb_3d_file_get_pointer
 
 end module modnetcdf_file_t
