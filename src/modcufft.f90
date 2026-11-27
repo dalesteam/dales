@@ -8,16 +8,19 @@ module modcufft
   use modprecision, only: pois_r
   use modtranspose, only: t_transposer
   use modgpu,       only: workspace_0
+  use hicfft,       only: plan_t, HICFFT_FWD_TYPE, HICFFT_BWD_TYPE, hicfftDestroy, &
+                          hicfftExecForward, hicfftExecBackward, hicfftGetSize, &
+                          hicfftPlanMany, hicfftSetAutoAllocation, &
+                          hicfftsetWorkArea
 
   implicit none
 
   character(len=*), parameter :: modname = 'modcufft'
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
 
   save
     real :: norm_fac !< Normalization factor
-    integer :: istat !< cuFFT return status 
 
     real(pois_r), allocatable, target :: p_halo(:) !< Pressure with halos
     real(pois_r), allocatable, target :: p_nohalo(:)
@@ -26,16 +29,15 @@ module modcufft
     integer :: nphix, nphiy
     integer :: konx, kony, iony, jonx
 
-    integer :: planx, planxi, plany, planyi !< Plan handles
+    type(plan_t) :: planx, planxi, plany, planyi !< Plan handles
 
-    integer(int_ptr_kind()) :: worksize, max_worksize !< Size of the required workspace
+    integer(c_intptr_t) :: worksize, max_worksize !< Size of the required workspace
 
     type(t_transposer) :: transposer
 
   contains
     !< Setup plans, workspace, etc
     subroutine cufftinit(p, Fp, d, xyrt, ps, pe, qs, qe)
-      use cufft
       use modgpu, only: workspace_0, allocate_workspace
 
       implicit none
@@ -48,7 +50,6 @@ module modcufft
 
       integer(kind=8) :: sz
       integer :: fftsize, inembed, onembed, idist, odist, istride, ostride
-      integer :: CUFFT_FWD_TYPE, CUFFT_BWD_TYPE
 
       ! Dimensions of the transposes
       ! For explanation of the variables, see modfftw.f90/fftwinit
@@ -57,6 +58,7 @@ module modcufft
       sz = transposer%get_buffer_size()
 
       !$acc enter data copyin(transposer)
+      !$omp target enter data map(to:transposer)
 
       konx = transposer%konx
       iony = transposer%iony
@@ -75,6 +77,7 @@ module modcufft
       allocate(p_nohalo(sz))
 
       !$acc enter data create(p_halo, p_nohalo)
+      !$omp target enter data map(alloc:p_halo,p_nohalo)
 
       p(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => p_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax) ! z-aligned
       px(1:nphix*2,1:jmax,1:konx) => p_nohalo(1:konx*jmax*(nphix*2)) ! x-aligned
@@ -86,15 +89,6 @@ module modcufft
         Fp(1:iony,1:jonx,1:kmax) => p_halo(1:iony*jonx*kmax)
       end if
 
-      ! Precision
-#if POIS_PRECISION==32
-      CUFFT_FWD_TYPE = CUFFT_R2C
-      CUFFT_BWD_TYPE = CUFFT_C2R
-#else
-      CUFFT_FWD_TYPE = CUFFT_D2Z
-      CUFFT_BWD_TYPE = CUFFT_Z2D
-#endif
-
       ! x-direction
       fftsize = itot
       inembed = itot
@@ -104,8 +98,7 @@ module modcufft
       istride = 1
       ostride = 1
 
-      istat = cufftSetAutoAllocation(planx, 0)
-      istat = cufftPlanMany( &
+      call hicfftPlanMany( &
         planx, &
         1, &
         fftsize, &
@@ -115,13 +108,12 @@ module modcufft
         onembed, &
         ostride, &
         odist, &
-        CUFFT_FWD_TYPE, &
+        HICFFT_FWD_TYPE, &
         jmax*konx &
       )
-      call check_exitcode(istat)
+      call hicfftSetAutoAllocation(planx, 0)
 
-      istat = cufftSetAutoAllocation(planxi, 0)
-      istat = cufftPlanMany( &
+      call hicfftPlanMany( &
         planxi, &
         1, &
         fftsize, &
@@ -131,11 +123,10 @@ module modcufft
         inembed, &
         istride, &
         idist, &
-        CUFFT_BWD_TYPE, &
+        HICFFT_BWD_TYPE, &
         jmax*konx &
       )
-
-      call check_exitcode(istat)
+      call hicfftSetAutoAllocation(planxi, 0)
 
       ! y-direction
 
@@ -147,8 +138,7 @@ module modcufft
       istride = 1
       ostride = 1
 
-      istat = cufftSetAutoAllocation(plany, 0)
-      istat = cufftPlanMany( &
+      call hicfftPlanMany( &
         plany, &
         1, &
         fftsize, &
@@ -158,14 +148,12 @@ module modcufft
         onembed, &
         ostride, &
         odist, &
-        CUFFT_FWD_TYPE, &
+        HICFFT_FWD_TYPE, &
         iony*konx&
       )
+      call hicfftSetAutoAllocation(plany, 0)
 
-      call check_exitcode(istat)
-
-      istat = cufftSetAutoAllocation(planyi, 0)
-      istat = cufftPlanMany( &
+      call hicfftPlanMany( &
         planyi, &
         1, &
         fftsize, &
@@ -175,22 +163,21 @@ module modcufft
         inembed, &
         istride, &
         idist, &
-        CUFFT_BWD_TYPE, &
+        HICFFT_BWD_TYPE, &
         iony*konx&
       )
-
-      call check_exitcode(istat)
+      call hicfftSetAutoAllocation(planyi, 0)
 
       ! Determine the workspace needed for FFTs and transposes
       max_worksize = -1
       
-      istat = cufftGetSize(planx, worksize)
+      call hicfftGetSize(planx, worksize)
       max_worksize = max(max_worksize, worksize)
-      istat = cufftGetSize(planxi, worksize)
+      call hicfftGetSize(planxi, worksize)
       max_worksize = max(max_worksize, worksize)
-      istat = cufftGetSize(plany, worksize)
+      call hicfftGetSize(plany, worksize)
       max_worksize = max(max_worksize, worksize)
-      istat = cufftGetSize(planyi, worksize)
+      call hicfftGetSize(planyi, worksize)
       max_worksize = max(max_worksize, worksize)
       
       ! max_worksize is in bytes, so convert it to number of elements by dividing by the size of a real number
@@ -200,14 +187,10 @@ module modcufft
 
       call allocate_workspace(int(worksize))
 
-      !$acc host_data use_device(workspace_0)
-      istat = cufftSetWorkArea(planx, workspace_0)
-      istat = cufftSetWorkArea(planxi, workspace_0)
-      istat = cufftSetWorkArea(plany, workspace_0)
-      istat = cufftSetWorkArea(planyi, workspace_0)
-      !$acc end host_data
-
-      call check_exitcode(istat)
+      call hicfftSetWorkArea(planx, workspace_0)
+      call hicfftSetWorkArea(planxi, workspace_0)
+      call hicfftSetWorkArea(plany, workspace_0)
+      call hicfftSetWorkArea(planyi, workspace_0)
 
       if (nprocs == 1) then
         allocate(xyrt(2-ih:i1+ih,2-jh:j1+jh))
@@ -230,27 +213,27 @@ module modcufft
       norm_fac = 1 / real((itot*jtot))
 
       !$acc enter data copyin(xyrt, d)
+      !$omp target enter data map(to:xyrt,d)
 
     end subroutine cufftinit
 
     !< Exit routine
     subroutine cufftexit(p, Fp, d, xyrt)
-      use cufft
 
       implicit none
 
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
-      real(pois_r), allocatable :: d(:,:,:), xyrt(:,:,:)
+      real(pois_r), allocatable :: d(:,:,:), xyrt(:,:)
 
 
       deallocate(d, xyrt, p_halo, p_nohalo)
 
       nullify(p, Fp)
 
-      istat = cufftDestroy(planx)
-      istat = cufftDestroy(planxi)
-      istat = cufftDestroy(plany)
-      istat = cufftDestroy(planyi)
+      call hicfftDestroy(planx)
+      call hicfftDestroy(planxi)
+      call hicfftDestroy(plany)
+      call hicfftDestroy(planyi)
       
     end subroutine cufftexit
 
@@ -326,35 +309,21 @@ module modcufft
 
     !< Forward transforms 
     subroutine cufftf(p, Fp)
-      use cufft
-
-      implicit none
 
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
       integer :: i, j, k, ii
 
       call timer_tic('modcufft/cufftf', 1)
-      
+
       call transposer%z_to_x(p, px, workspace_0)
 
-      !$acc host_data use_device(px)
-#if POIS_PRECISION==32
-      istat = cufftExecR2C(planx, px, px)
-#else
-      istat = cufftExecD2Z(planx, px, px)
-#endif
-      !$acc end host_data
-      
+      call hicfftExecForward(planx, px, px)
+
       call postprocess_f_fft(px, (/2*nphix, jmax, konx/), itot)
       call transposer%x_to_y(px, py, workspace_0)
-      
-      !$acc host_data use_device(py)
-#if POIS_PRECISION==32
-      istat = cufftExecR2C(plany, py, py)
-#else
-      istat = cufftExecD2Z(plany, py, py)
-#endif
-      !$acc end host_data
+
+      call hicfftExecForward(plany, py, py)
+
       call postprocess_f_fft(py, (/2*nphiy, konx, iony/), jtot)
 
       call transposer%y_to_z(py, Fp, workspace_0)
@@ -365,9 +334,6 @@ module modcufft
 
     !< Backward transforms
     subroutine cufftb(p, Fp)
-      use cufft
-
-      implicit none
       
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
       integer :: i, j, k, ii
@@ -377,30 +343,18 @@ module modcufft
       call transposer%z_to_y(Fp, py, workspace_0)
       call preprocess_b_fft(py, (/2*nphiy, konx, iony/), jtot)
 
-      !$acc host_data use_device(py)
-#if POIS_PRECISION==32
-      istat = cufftExecC2R(planyi, py, py)
-#else
-      istat = cufftExecZ2D(planyi, py,  py)
-#endif
-      !$acc end host_data
+      call hicfftExecBackward(planyi, py, py)
 
-      call check_exitcode(istat)
       call transposer%y_to_x(py, px, workspace_0)
       call preprocess_b_fft(px, (/2*nphix, jmax, konx/), itot)
 
-      !$acc host_data use_device(px)
-#if POIS_PRECISION==32
-      istat = cufftExecC2R(planxi, px, px)
-#else
-      istat = cufftExecZ2D(planxi, px, px)
-#endif
-      !$acc end host_data
+      call hicfftExecBackward(planxi, px, px)
 
-      call check_exitcode(istat)
       call transposer%x_to_z(px, p, workspace_0)
       
       !$acc parallel loop collapse(3) default(present)
+      !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do k=1,kmax
         do j=2,j1
           do i=2,i1
@@ -427,6 +381,8 @@ module modcufft
       sz_3 = dim(3)
 
       !$acc parallel loop collapse(2) default(present)
+      !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do k = 1, sz_3
         do j = 1, sz_2
           arr(2,j,k) = arr(len+1,j,k)
@@ -449,6 +405,8 @@ module modcufft
       sz_3 = dim(3)
 
       !$acc parallel loop collapse(2) default(present)
+      !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do k = 1, sz_3
         do j = 1, sz_2
           arr(len+1,j,k) = arr(2,j,k)
@@ -457,18 +415,6 @@ module modcufft
       end do
 
     end subroutine preprocess_b_fft
-
-    !< Checks the exitcode of cuFFT calls
-    subroutine check_exitcode(istat)
-      implicit none
-      integer, intent(in) :: istat
-      character(len=*), parameter :: routine = modname//'/check_exitcode'
-      
-      if ( istat /= 0 ) then
-        call finish(routine, "cuFFT returned nonzero exitcode: ", istat)
-      end if
-
-    end subroutine check_exitcode
 
 #else
   contains

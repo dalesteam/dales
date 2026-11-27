@@ -54,6 +54,7 @@ module modlsmdata
   integer, parameter :: lu_default = 0
   integer, parameter :: lu_bs = 1
   integer, parameter :: lu_brn = 2
+  integer, parameter :: lu_slb = 3
 
   ! Data structure for sub-grid tiles
   type T_lsm_tile
@@ -66,6 +67,8 @@ module modlsmdata
       logical           :: lveg
       ! Check if LU type is water
       logical           :: laqu
+      ! Check if LU type is slurb type tile (only one allowed)
+      logical           :: lslurb
       ! Static properties:
       real, allocatable :: z0m(:,:), z0h(:,:)
       ! Base tile fraction (i.e. without liquid water)

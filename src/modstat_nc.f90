@@ -306,6 +306,7 @@ contains
   !
   subroutine define_nc(ncID, nVar, sx, lcollective)
     implicit none
+    character(len=*), parameter :: routine = modname//'/define_nc'
     integer, intent (in) :: nVar, ncID
     character (*), intent (in) :: sx(nVar,4)
     logical, intent(in), optional :: lcollective
@@ -408,7 +409,7 @@ contains
           iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_qt ,VarID)
         case default
         print *, 'ABORTING: Bad dimensional information ',sx(n,:)
-        stop
+        call finish(routine, "ABORTING: Bad dimensional information ")
         ! call appl_abort(0)
 
       end select

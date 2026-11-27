@@ -73,7 +73,7 @@ module modsurface
   use fortran_support, only: nnml_output
   implicit none
 
-  character(len=*), parameter :: modname = 'moduser'
+  character(len=*), parameter :: modname = 'modsurface'
 
   !public  :: initsurface, surface, exitsurface
   public :: surface_read_namelist
@@ -170,6 +170,7 @@ contains
     call D_MPI_BCAST(min_horv                   ,            1, 0, commwrld, istat)
 
     !$acc update device(min_horv)
+    !$omp target update to(min_horv)
 
   end subroutine surface_read_namelist
 
@@ -191,7 +192,6 @@ contains
     integer   :: VARID,STATUS,NCID,timeID
     character(len = nf90_max_name) :: RecordDimName
     character(len=1500) :: readbuffer
-
 
     call timer_tic('modsurface/initsurface', 0)
 
@@ -434,11 +434,15 @@ contains
 
     dqtdz = 0 ! need to initialize, otherwise undefined in the first call to thermodynamics, before call surface (cold start)
     ustar = 0 ! need to initialize, otherwise undefined values in the corners in the first exchange
+    svflux = 0 ! need to initialize, otherwise undefined values causing problems everywhere (valgrind complained, and adding this removes crashes)
     obl = 1e5 ! initialize since used as starting point for iteration
 
     !$acc enter data copyin(z0m, z0h, obl, tskin, qskin, Cm, Cs, &
     !$acc&                  ustar, dudz, dvdz, thlflux, qtflux, &
-    !$acc&                  dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf, albedo, emissivity)
+    !$acc&                  dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf, albedo, qnet, emissivity)
+    !$omp target enter data map(to:z0m,z0h,obl,tskin,qskin,cm,cs,ustar,&
+    !$omp dudz,dvdz,thlflux,qtflux,dqtdz,dthldz,svflux,svs,horv,ra,rs,&
+    !$omp wsvsurf,albedo,qnet,emissivity)
 
     call timer_toc('modsurface/initsurface')
   end subroutine initsurface
@@ -508,6 +512,8 @@ contains
     real :: logz
 
     !$acc parallel loop collapse(2) default(present)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j = 2, j1
       do i = 2, i1
         logz = log(zf(1) / z0m(i,j))
@@ -528,6 +534,8 @@ contains
 
     if (lmostlocal) then
       !$acc parallel loop collapse(2) default(present)
+       !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+       !$omp defaultmap(present:allocatable)
       do j = 2, j1
         do i = 2, i1
           ra(i,j) = 1. / (Cs(i,j) * horv(i,j))
@@ -535,6 +543,8 @@ contains
       end do
     else
       !$acc parallel loop collapse(2) default(present)
+       !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+       !$omp defaultmap(present:allocatable)
       do j = 2, j1
         do i = 2, i1
           ra(i,j) = 1. / (Cs(i,j) * horvav)
@@ -552,6 +562,8 @@ contains
     integer :: i, j
 
     !$acc parallel loop collapse(2) default(present)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j = 2, j1
       do i = 2, i1
         tskin(i,j) = thls
@@ -568,9 +580,12 @@ contains
     implicit none
 
     integer :: i, j
+    real(field_r) :: lthls
 
     ! TODO: check if splitting these loops speeds things up on the GPU (async)
     !$acc parallel loop collapse(2) default(present)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j = 2, j1
       do i = 2, i1
         tskin(i,j) = min(max(thlflux(i,j) / (Cs(i,j) * horv(i,j)), -10.), 10.) + thl0(i,j,1)
@@ -578,15 +593,19 @@ contains
       end do
     end do
 
-    thls = 0.0
+    ! BUG: use local variable lthls for reduction to prevent name conflict with namelist?
+    lthls = 0.0
     qts = 0.0
-    !$acc parallel loop collapse(2) default(present) reduction(+: thls, qts)
+    !$acc parallel loop collapse(2) default(present) reduction(+: lthls, qts)
+    !$omp target teams loop reduction(+:lthls,qts) collapse(2)&
+    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do j = 2, j1
       do i = 2, i1
-        thls = thls + tskin(i,j)
+        lthls = lthls + tskin(i,j)
         qts = qts + qskin(i,j)
       end do
     end do
+    thls=lthls
 
     call D_MPI_ALLREDUCE(thls, 1, MPI_SUM, comm3d, mpierr)
     call D_MPI_ALLREDUCE(qts, 1, MPI_SUM, comm3d, mpierr)
@@ -608,6 +627,8 @@ contains
     real :: upcu, vpcv
 
     !$acc parallel loop collapse(2) default(present) private(upcu, vpcv)
+    !$omp target teams loop private(upcu,vpcv) collapse(2)&
+    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do j = 2, j1
       do i = 2, i1
         upcu = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
@@ -618,6 +639,7 @@ contains
     end do
 
     !$acc update self(u0av(1), v0av(1))
+    !$omp target update from(u0av(1), v0av(1))
     horvav = sqrt(u0av(1)**2. + v0av(1)**2.)
     horvav = max(horvav, 0.1)
 
@@ -635,6 +657,8 @@ contains
 
     if (lmostlocal) then
       !$acc parallel loop collapse(2) default(present)
+      !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do j = 2, j1
         do i = 2, i1
           ustar(i,j) = sqrt(Cm(i,j)) * horv(i,j)
@@ -643,6 +667,8 @@ contains
       end do
     else
       !$acc parallel loop collapse(2) default(present)
+      !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do j = 2, j1
         do i = 2, i1
           ustar(i,j) = sqrt(Cm(i,j)) * horvav
@@ -651,14 +677,17 @@ contains
       end do
     end if
 
-    !$acc update self(ustar)
+    ! !$acc update self(ustar)
+    !$omp target update from(ustar)
     if ( lopenbc ) then
       call openboundary_excjs(ustar_3D, 2,i1,2,j1,1,1,1,1, &
                              (.not.lboundary(1:4)).or.lperiodic(1:4))
     else
        call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
+       !$acc wait ! waiting should not be required, already in excjs itself
     endif
-    !$acc update device(ustar)
+    ! !$acc update device(ustar)
+    !$omp target update to(ustar)
   end subroutine calc_friction_velocity
 
   !> Prescribes the friction velocity \f$u_*\f$
@@ -670,6 +699,8 @@ contains
     integer :: i, j
 
     !$acc parallel loop collapse(2) default(present)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j = 2, j1
       do i = 2, i1
         ustar(i,j) = ustin
@@ -677,14 +708,17 @@ contains
       end do
     end do
 
-   !$acc update self(ustar)
+    ! !$acc update self(ustar)
+    !$omp target update from(ustar)
     if ( lopenbc ) then
       call openboundary_excjs(ustar_3D, 2,i1,2,j1,1,1,1,1, &
                              (.not.lboundary(1:4)).or.lperiodic(1:4))
     else
        call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
+       !$acc wait ! waiting should not be required, already in excjs itself
     endif
-    !$acc update device(ustar)
+    ! !$acc update device(ustar)
+    !$omp target update to(ustar)
   end subroutine presc_friction_velocity
 
   !> Calculates the surfaces fluxes using the scalar values at the surface and
@@ -704,6 +738,8 @@ contains
       wtsurfl = 0.0
       wqsurfl = 0.0
       !$acc parallel loop collapse(2) default(present) reduction(+: ustl, wtsurfl, wqsurfl)
+      !$omp target teams loop reduction(+:ustl,wtsurfl,wqsurfl) collapse(2)&
+      !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do j = 2, j1
         do i = 2, i1
           ustl = ustl + ustar(i,j)
@@ -723,6 +759,8 @@ contains
       call presc_surface_flux
     else
       !$acc parallel loop collapse(2) default(present)
+      !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do j = 2, j1
         do i = 2, i1
           thlflux(i,j) = - (thl0(i,j,1) - tskin(i,j)) / ra(i,j)
@@ -733,6 +771,8 @@ contains
       ! Passive scalars
       if (nsv > 0) then
         !$acc parallel loop collapse(3) default(present)
+        !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+        !$omp defaultmap(present:allocatable)
         do n = 1, nsv
           do j = 2, j1
             do i = 2, i1
@@ -744,6 +784,8 @@ contains
 
       if (lCO2Ags) then
         !$acc parallel loop collapse(3) default(present)
+        !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+        !$omp defaultmap(present:allocatable)
         do n = 1, indCO2
           do j = 2, j1
             do i = 2, i1
@@ -764,6 +806,8 @@ contains
     integer :: i, j, n
 
     !$acc parallel loop collapse(2) default(present) async(1)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j = 2, j1
       do i = 2, i1
         thlflux(i,j) = wtsurf
@@ -773,6 +817,8 @@ contains
 
     if (nsv > 0) then
       !$acc parallel loop collapse(3) default(present) async(2)
+      !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do n = 1, nsv
         do j = 2, j1
           do i = 2, i1
@@ -799,6 +845,8 @@ contains
     scaling = 1.0 / (fkar * zf(1))
 
     !$acc parallel loop collapse(2) default(present)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j = 2, j1
       do i = 2, i1
         phimzf = phim(zf(1) / obl(i,j))
@@ -831,6 +879,8 @@ contains
     if(isurf <= 2) then
       qts = 0.
       !$acc parallel loop collapse(2) default(present) reduction(+: qts)
+      !$omp target teams loop reduction(+:qts) collapse(2)&
+      !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
       do j = 2, j1
         do i = 2, i1
           exner      = (ps / pref0)**(rd/cp)
@@ -866,6 +916,8 @@ contains
 
     if (lneutral) then
       !$acc parallel loop collapse(2) default(present)
+      !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+      !$omp defaultmap(present:allocatable)
       do j = 1, j2
         do i = 1, i2
           obl(i,j) = -1.e10
@@ -874,12 +926,16 @@ contains
       oblav = -1.e10
     else 
       !$acc serial default(present) copy(oblav)
+      !$omp target map(tofrom:oblav) defaultmap(present:allocatable)
       retval = calc_obl_iter(thl0av(1), qt0av(1), real(thls), real(qts), &
                              zf(1), z0mav, z0hav, u0av(1), v0av(1), oblav)
       !$acc end serial
+      !$omp end target
 
       if (lmostlocal) then
         !$acc parallel loop collapse(2) default(present)
+        !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+        !$omp defaultmap(present:allocatable)
         do j = 2, j1
           do i = 2, i1
             upcu = 0.5_real64 * (u0(i,j,1) + u0(i+1,j,1)) + cu 
@@ -891,6 +947,8 @@ contains
         end do
       else
         !$acc parallel loop collapse(2) default(present)
+        !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+        !$omp defaultmap(present:allocatable)
         do j = 1, j2
           do i = 1, i2
             obl(i,j) = oblav
@@ -905,6 +963,7 @@ contains
   function calc_obl_iter(thl, qt, tskin, qskin, z, z0m, z0h, u, v, L) &
     result(retval)
 
+    !$omp declare target
     !$acc routine seq
     real(field_r), intent(in) :: thl   !< Liquid potential temperature [K]
     real(field_r), intent(in) :: qt    !< Specific humidity [kg/kg]
@@ -1134,6 +1193,7 @@ contains
 
   pure function psim(zeta)
     implicit none
+    !$omp declare target
     !$acc routine seq
 
     real             :: psim
@@ -1156,6 +1216,7 @@ contains
   pure function psih(zeta)
 
     implicit none
+    !$omp declare target
     !$acc routine seq
 
     real             :: psih
@@ -1183,6 +1244,7 @@ contains
   function phim(zeta)
     !$acc routine seq
     implicit none
+    !$omp declare target
     real             :: phim
     real, intent(in) :: zeta
 
@@ -1202,6 +1264,7 @@ contains
   function phih(zeta)
     !$acc routine seq
     implicit none
+    !$omp declare target
     real             :: phih
     real, intent(in) :: zeta
 
@@ -1252,7 +1315,11 @@ contains
 
     !$acc exit data delete(z0m, z0h, obl, tskin, qskin, Cm, Cs, &
     !$acc&                 ustar, dudz, dvdz, thlflux, qtflux, &
-    !$acc&                 dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf)
+    !$acc&                 dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf, &
+    !$acc&                 albedo,qnet,emissivity)
+    !$omp target exit data map(delete:z0m,z0h,obl,tskin,qskin,cm,cs,ustar,&
+    !$omp dudz,dvdz,thlflux,qtflux,dqtdz,dthldz,svflux,svs,horv,ra,rs,&
+    !$omp wsvsurf,albedo,qnet,emissivity)
 
     return
   end subroutine exitsurface
@@ -1377,6 +1444,8 @@ contains
     use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu,irad_par,swdir,swdif,zenith
     use modmpi, only :comm3d,mpi_sum,mpierr,myid, D_MPI_ALLREDUCE
     use modmicrodata, only : imicro,imicro_bulk
+
+    character(len=*), parameter :: routine = modname//'/do_lsm'
 
     real     :: f1, f2, f3, f4 ! Correction functions for Jarvis-Stewart
     integer  :: i, j, k, itg
@@ -1521,7 +1590,7 @@ contains
               if (myid == 0) then
                 print *, 'Problem in namoptions NAMSURFACE'
                 print *, 'You enabled AGS (with switch lrsAgs), but there are no scalars (and thus no CO2 as needed for AGS) '
-                stop 'ERROR: Problem in namoptions NAMSURFACE - AGS'
+                call finish(routine, 'ERROR: Problem in namoptions NAMSURFACE - AGS')
               endif
             endif
             if(lCHon) then !Chemistry is on
@@ -1529,7 +1598,7 @@ contains
                 if (myid == 0) then
                   print *, 'WARNING ::: There is no CO2 defined in the chemistry scheme'
                   print *, 'WARNING ::: Scalar 1 might be considered to be CO2 '
-                  stop 'ERROR: Problem in namoptions NAMSURFACE - AGS'
+                  call finish(routine, 'ERROR: Problem in namoptions NAMSURFACE - AGS')
                 endif
                 indCO2 = 1
               else  !CO2 present in chemistry

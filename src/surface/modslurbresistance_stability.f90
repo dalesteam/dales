@@ -128,14 +128,14 @@ module modslurb_resistance_stability
         do j=2,j1
             do i=2, i1
                 call calc_rib( slurb_tile%vpt1(i,j), slurb_tile%vpt_roof(i,j), slurb_tile%rib_roof(i,j), slurb_tile%uv_eff1(i,j), slurb_tile%z_mo(i,j) )
-                call calc_rib( slurb_tile%vpt1(i,j), slurb_tile%vpt_can(i,j),  slurb_tile%rib_can(i,j),  slurb_tile%uv_eff1(i,j), slurb_tile%z_mo(i,j) )
+                call calc_rib( slurb_tile%vpt1(i,j), slurb_tile%vpt_can(i,j),  slurb_tile%rib_can(i,j),  slurb_tile%uv_eff1(i,j), slurb_tile%z_mo(i,j) + slurb_tile%z_mo_can(i,j) )
         enddo
     enddo
     else
         do j=2,j1
             do i=2, i1
                 call calc_rib( slurb_tile%pt1(i,j), slurb_tile%pt_roof(i,j), slurb_tile%rib_roof(i,j), slurb_tile%uv_eff1(i,j), slurb_tile%z_mo(i,j) )
-                call calc_rib( slurb_tile%pt1(i,j), slurb_tile%pt_can(i,j),  slurb_tile%rib_can(i,j),  slurb_tile%uv_eff1(i,j), slurb_tile%z_mo(i,j) )
+                call calc_rib( slurb_tile%pt1(i,j), slurb_tile%pt_can(i,j),  slurb_tile%rib_can(i,j),  slurb_tile%uv_eff1(i,j), slurb_tile%z_mo(i,j) + slurb_tile%z_mo_can(i,j) )
             enddo
         enddo
     endif
@@ -146,7 +146,7 @@ module modslurb_resistance_stability
                         slurb_tile%z0h_roof(i,j), slurb_tile%z_mo(i,j) )
             ! write(*,*), i,j
             call calc_ol( ln_z_z0_urb(i,j), ln_z_z0_urb(i,j), slurb_tile%ol_can(i,j), slurb_tile%rib_can(i,j), slurb_tile%z0_urb(i,j),       &
-                        slurb_tile%z0_urb(i,j), slurb_tile%z_mo(i,j) )
+                        slurb_tile%z0_urb(i,j), (slurb_tile%z_mo(i,j) + slurb_tile%z_mo_can(i,j)) )
             ! write(*,*), "alldone"
         enddo
     enddo
@@ -164,8 +164,8 @@ module modslurb_resistance_stability
     !--    For canyons, use urban roughness length (assume the air mixes efficiently
     !--    between the canyon air and atmosphere).
        slurb_tile%us_can(i,j) = kappa * slurb_tile%uv_eff1(i,j) /                                                  &
-                        ( LOG( slurb_tile%z_mo(i,j) / slurb_tile%z0_urb(i,j) ) -                                   &
-                          psi_m( slurb_tile%z_mo(i,j) / slurb_tile%ol_can(i,j) ) +                                 &
+                        ( LOG( (slurb_tile%z_mo(i,j) + slurb_tile%z_mo_can(i,j)) / slurb_tile%z0_urb(i,j) ) -                                   &
+                          psi_m( (slurb_tile%z_mo(i,j) + slurb_tile%z_mo_can(i,j)) / slurb_tile%ol_can(i,j) ) +                                 &
                           psi_m( slurb_tile%z0_urb(i,j) / slurb_tile%ol_can(i,j) ) )
 
     !
@@ -184,8 +184,8 @@ module modslurb_resistance_stability
                             psi_h( slurb_tile%z0h_roof(i,j) / slurb_tile%ol_roof(i,j) ) )
 
        slurb_tile%rah_can(i,j) = 1.0_field_r / ( kappa * slurb_tile%us_can(i,j) ) *                                     &
-                         ( LOG( slurb_tile%z_mo(i,j) / slurb_tile%z0_urb(i,j) ) -                                  &
-                           psi_h( slurb_tile%z_mo(i,j) / slurb_tile%ol_can(i,j) ) +                                &
+                         ( LOG( (slurb_tile%z_mo(i,j) + slurb_tile%z_mo_can(i,j)) / slurb_tile%z0_urb(i,j) ) -                                  &
+                           psi_h( (slurb_tile%z_mo(i,j) + slurb_tile%z_mo_can(i,j)) / slurb_tile%ol_can(i,j) ) +                                &
                            psi_h( slurb_tile%z0_urb(i,j) / slurb_tile%ol_can(i,j) ) )
 
        if ( slurb_tile%rah_roof(i,j) < rah_min )  slurb_tile%rah_roof(i,j) = rah_min

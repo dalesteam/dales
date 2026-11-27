@@ -42,6 +42,8 @@ real    :: thres = 8e-3,a=1,D=3.75e-6
 real    :: zi=0.0
 
 !$acc parallel loop collapse(2) default(present) private(k,zi)
+!!$omp target teams loop private(k,zi) collapse(2)&
+!!$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
   do i=2,j1
   do j=2,j1
   !Determine local BL-height following the specifications.

@@ -40,7 +40,7 @@ lnetcdf    = .true.
 /
 
 &NAMSUBGRID
-lsmagorinsky = .false
+lsmagorinsky = .false.
 cs           = 0.16
 lmason       = .true.
 nmason       = 1.

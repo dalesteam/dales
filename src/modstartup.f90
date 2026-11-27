@@ -205,6 +205,7 @@ contains
     call initmpi
 
     !$acc update device (myidx,myidy)
+!$omp target update to(myidx,myidy)
 
     ! Ignore user-provided nsv, we take care of it ourselves
     nsv = 0
@@ -519,7 +520,7 @@ contains
     use modslabaverage,    only : slabavg
     use modlogging,        only : profile_output
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
     use modgpu, only: update_gpu, update_host, host_is_updated, update_gpu_surface
 #endif
 
@@ -549,14 +550,14 @@ contains
 
     if (.not. lwarmstart) then
 
-    !********************************************************************
+      !********************************************************************
 
-    !    1.0 prepare initial fields from files 'prog.inp' and 'scalar.inp'
-    !    ----------------------------------------------------------------
+      !    1.0 prepare initial fields from files 'prog.inp' and 'scalar.inp'
+      !    ----------------------------------------------------------------
 
-    !--------------------------------------------------------------------
-    !    1.1 read fields
-    !-----------------------------------------------------------------
+      !--------------------------------------------------------------------
+      !    1.1 read fields
+      !-----------------------------------------------------------------
 
       rdt = dtmax / 100.
       dt  = max(floor(rdt/tres), 1)
@@ -755,9 +756,9 @@ contains
           end do
         endif
       endif
-    !---------------------------------------------------------------
-    !  1.2 randomnize fields
-    !---------------------------------------------------------------
+      !---------------------------------------------------------------
+      !  1.2 randomnize fields
+      !---------------------------------------------------------------
 
       krand  = min(krand,kmax)
       negval = .False. ! No negative perturbations for qt (negative moisture is non physical)
@@ -875,13 +876,13 @@ contains
 
       call baseprofs! call baseprofs before thermodynamics
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
       call update_gpu
 #endif
       if ( lopenbc ) then
         call openboundary_ghost()
       else
-        call boundary
+        call boundary(on_gpu=.true.)
       end if
 
       call thermodynamics
@@ -890,12 +891,12 @@ contains
       if ( lopenbc ) then
         call openboundary_ghost()
       else
-        call boundary
+        call boundary(on_gpu=.true.)
       end if
 
       call thermodynamics
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
       call update_host
       host_is_updated = .false.
 #endif
@@ -918,14 +919,14 @@ contains
       svm(:,:,:,:)  = sv0(:,:,:,:)
       e12m(:,:,:) = e120(:,:,:)
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
       call update_gpu
 #endif
 
       call calc_halflev(thl0, dzf, dzhi, thls, iadv_thl == iadv_kappa, thl0h)
       call calc_halflev(qt0, dzf, dzhi, qts, iadv_qt == iadv_kappa, qt0h)
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
       call update_host
       host_is_updated = .false.
 #endif
@@ -1004,7 +1005,7 @@ contains
         call openboundary_readboundary(tracer_prop)
       endif
 
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
       call update_gpu
 #endif
 
@@ -1035,7 +1036,14 @@ contains
       else
 
         if (iinput == input_netcdf) then
-          continue ! Profiles have been read by init_from_netcdf
+          ! Temporary fix for large scale forcings on warmstart. Redo startup routine to read in regardless of lwarmstart (also check update on GPU)
+          call init_from_netcdf('init.'//cexpnr//'.nc', height, uprof, vprof, &
+                                thlprof, qtprof, e12prof, ug, vg, dpdxl, dpdyl, wfls, &
+                                dqtdxls, dqtdyls, dqtdtls, thlpcar, baseprof_T, baseprof_P, kmax)
+          if (nsv_user > 0) then
+            call tracer_profs_from_netcdf('tracers.'//cexpnr//'.nc', &
+                                          tracer_prop, svprof(1:kmax,:))
+          end if
         else
           open (ifinput,file='lscale.inp.'//cexpnr, status='old',iostat=ierr)
           if (ierr /= 0) then
@@ -1345,7 +1353,7 @@ contains
   !  if trestart = 0, no periodic restart files will be written.
   subroutine writerestartfiles
     use modglobal, only : trestart,itrestart,tnextrestart,dt_lim,timee,timeleft,rk3step
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
     use modgpu, only: update_host
 #endif
     implicit none
@@ -1360,7 +1368,7 @@ contains
     ! if trestart < 0, don't write any restart files
     if ((timee>=tnextrestart .and. trestart > 0) .or. (timeleft==0 .and. trestart >= 0)) then
       tnextrestart = tnextrestart+itrestart
-#if defined(_OPENACC)
+#if defined(DALES_GPU)
       call update_host
 #endif
       call do_writerestartfiles

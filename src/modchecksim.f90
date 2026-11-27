@@ -40,6 +40,7 @@ module modchecksim
   use modsubgriddata,  only: ekm
   use modmpi,          only: myid, comm3d, mpierr, mpi_sum, mpi_max, D_MPI_ALLREDUCE, &
                              D_MPI_BCAST, MPI_Wtime, nprocx, nprocy
+  use moddatetime,     only: l_datetime, datex
   use modtimer
   use modlogging,      only: finish
 
@@ -84,9 +85,11 @@ module modchecksim
 
     integer :: prevntrun
 
+
   ! explanations for dt_limit, determined in tstep_update()
   character (len=15) :: dt_reasons(0:5) = [character(len=15) :: &
     "initial step", "timee", "dt_lim" , "idtmax", "velocity", "diffusion"]
+  integer :: dt_reason_counts(0:5) = 0
 
   logical :: lchecktend = .false.
   logical :: lstop      = .false.
@@ -144,6 +147,7 @@ contains
     allocate(courx(kmax), coury(kmax), courz(kmax), courtot(kmax), peclettot(kmax))
 
     !$acc enter data create(courx, coury, courz, courtot, peclettot)
+!$omp target enter data map(alloc:courx,coury,courz,courtot,peclettot)
 
     call initETA_stat
     call timer_toc(routine)
@@ -162,6 +166,7 @@ contains
   subroutine exitchecksim
 
     !$acc exit data delete(courx, coury, courz, courtot, peclettot)
+!$omp target exit data map(delete:courx,coury,courz,courtot,peclettot)
 
     deallocate(courx, coury, courz, courtot, peclettot)
 
@@ -173,9 +178,12 @@ contains
     character(len=*), parameter :: routine = modname//'/checksim'
 
     character(len=20) :: timeday
+    character(len=19) :: simDateTime
 
     if (timee == 0) return
     if (rk3step /= 3) return
+
+    call push_dt_reason(dt_reason)
 
     dtmn = dtmn + rdt
     ndt = ndt + 1
@@ -193,11 +201,18 @@ contains
       write (*,'(7A,F11.2,A,F9.4)') 'Time of Day: ', timeday(1:2), ':', &
       timeday(3:4), ':', timeday(5:10),' Time of Simulation: ', &
       rtimee, '    dt: ',dtmn
+      if (l_datetime) then
+        write(simDateTime,'(I4.4,"-",I2.2,"-",I2.2,1X,I2.2,":",I2.2,":",I2.2)') &
+             datex(1), datex(2), datex(3), datex(4), datex(5), datex(6)
+        write (*,'(2A)') 'Simulation datetime: ', trim(simDateTime)
+      end if
       call ETA_stat
     end if
 
     call calccourantandpeclet
     call chkdiv
+
+    call reset_dt_reason_counts
 
     dtmn  = 0.
     ndt   = 0.
@@ -205,6 +220,36 @@ contains
     call timer_toc('modchecksim/checksim')
 
   end subroutine checksim
+
+  !> Store dt_reason in the dt_reason_counts array.
+  subroutine push_dt_reason(reason)
+
+    integer, intent(in) :: reason
+
+    dt_reason_counts(reason) = dt_reason_counts(reason) + 1
+
+  end subroutine push_dt_reason
+
+  subroutine reset_dt_reason_counts
+    dt_reason_counts = 0
+  end subroutine reset_dt_reason_counts
+
+  !>  Return the most common dt_reason based on dt_reason_counts
+  integer function most_common_dt_reason() result(reason)
+
+    integer :: i
+    integer :: max_count
+
+    reason = dt_reason
+    max_count = -1
+    do i = lbound(dt_reason_counts, 1), ubound(dt_reason_counts, 1)
+      if (dt_reason_counts(i) > max_count) then
+        max_count = dt_reason_counts(i)
+        reason = i
+      end if
+    end do
+
+  end function most_common_dt_reason
 
   !> Calculates the remaining time left in hh:mm:ss, iteration speed
   !! and a core scaling number, it/s * (gridcells / core)
@@ -261,6 +306,9 @@ contains
 
     !$acc parallel loop gang default(present) &
     !$acc private(velx_max, vely_max, velz_max, velmag_max, ekm_max)
+    !$omp target teams loop private(velx_max,vely_max,velz_max,velmag_max,&
+    !$omp ekm_max) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k = 1, kmax
       velx_max = 0
       vely_max = 0
@@ -269,6 +317,8 @@ contains
       ekm_max = 0
       !$acc loop collapse(2) &
       !$acc reduction(max:velx_max, vely_max, velz_max, velmag_max, ekm_max)
+      !$omp loop reduction(max:velx_max,vely_max,velz_max,velmag_max,&
+      !$omp ekm_max) collapse(2)
       do j = 2, j1
         do i = 2, i1
           velx_max = max(velx_max, abs(u0(i,j,k)))
@@ -288,6 +338,7 @@ contains
     end do
 
     !$acc update self(courx, coury, courz, courtot, peclettot)
+    !$omp target update from(courx,coury,courz,courtot,peclettot)
 
     call D_MPI_ALLREDUCE(courx, kmax, MPI_MAX, comm3d, mpierr)
     call D_MPI_ALLREDUCE(coury, kmax, MPI_MAX, comm3d, mpierr)
@@ -319,6 +370,9 @@ contains
 
     !$acc parallel loop collapse(3) default(present) private(div) &
     !$acc reduction(max:divmax) reduction(+:divtot)
+    !$omp target teams loop private(div) reduction(max:divmax)&
+    !$omp reduction(+:divtot) collapse(3) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k=1,kmax
       do j=2,j1
         do i=2,i1
@@ -336,7 +390,7 @@ contains
 
     if (myid == 0) then
       write(6 ,'(A,2ES11.2,A,A)')'divmax, divtot = ', divmax, divtot,  &
-        '       dt limited by ', dt_reasons(dt_reason)
+        '       dt limited by ', dt_reasons(most_common_dt_reason())
    end if
 
   end subroutine chkdiv

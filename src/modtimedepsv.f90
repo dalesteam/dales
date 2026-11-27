@@ -161,7 +161,6 @@ contains
       close(ifinput)
    endif
 
-
     call D_MPI_BCAST(timesvsurf(1:kflux),kflux,0,comm3d,mpierr)
     call D_MPI_BCAST(wsvst             ,kflux*nsv,0,comm3d,mpierr)
     call D_MPI_BCAST(timesvz(1:kls)    ,kls,0,comm3d,mpierr)
@@ -170,11 +169,30 @@ contains
     do n=1,nsv
          call D_MPI_BCAST(dsvdtlst(1:k1,1:kls,n),kmax*kls,0,comm3d,mpierr)
     enddo
+
+    ! Copy everything to GPU
+    !$acc enter data copyin(timesvsurf(1:kflux),wsvst,timesvz(1:kls),dsvdtlst)
+    !$omp target enter data map(to:timesvsurf(1:kflux),wsvst,timesvz(1:kls),dsvdtlst)
+
+    ! Put call after copying to GPU
     call timedepsv
 
     deallocate(height)
 
   end subroutine inittimedepsv
+
+  subroutine exittimedepsv
+    use modglobal, only : nsv
+    implicit none
+
+    if (nsv==0 .or. .not.ltimedepsv) return
+
+    ! Delete everything to GPU
+    !$acc exit data delete(timesvsurf(1:kflux),wsvst,timesvz,dsvdtlst)
+    !$omp target exit data map(delete:timesvsurf(1:kflux),wsvst,timesvz,dsvdtlst)
+
+    deallocate(timesvsurf,wsvst,timesvz,dsvdtlst)
+  end subroutine exittimedepsv
 
   subroutine timedepsv
     use modglobal, only : nsv
@@ -188,12 +206,12 @@ contains
 
   subroutine timedepsvz
     use modfields, only : dsvdtls
-    use modglobal,   only : rtimee,nsv
+    use modglobal,   only : rtimee,nsv,kmax
 
     use modmpi,      only : myid
     implicit none
 
-    integer t,n
+    integer t,n,k
     real fac
 
     if(.not.(ltimedepsvz)) return
@@ -205,8 +223,12 @@ contains
     end do
 
     fac = ( rtimee-timesvz(t) ) / ( timesvz(t+1)-timesvz(t) )
-    do n=1,nsv
-      dsvdtls(:,n)  = dsvdtlst (:,t,n) + fac * ( dsvdtlst (:,t+1,n) - dsvdtlst (:,t,n) )
+
+    !$acc parallel loop collapse(2) default(present) async
+    do k=1,kmax
+      do n=1,nsv
+        dsvdtls(k,n)  = dsvdtlst (k,t,n) + fac * ( dsvdtlst (k,t+1,n) - dsvdtlst (k,t,n) )
+      end do
     end do
 
     return
@@ -231,18 +253,13 @@ contains
     end if
 
     fac = ( rtimee-timesvsurf(t) ) / ( timesvsurf(t+1)-timesvsurf(t))
+
+    !$acc parallel loop vector default(present) async
     do n=1,nsv
        wsvsurf(n) = wsvst(t,n) + fac * (wsvst(t+1,n) - wsvst(t,n))
-    enddo
+    end do
+
     return
   end subroutine timedepsvsurf
-
-
-  subroutine exittimedepsv
-    use modglobal, only : nsv
-    implicit none
-    if (nsv==0 .or. .not.ltimedepsv) return
-    deallocate(timesvz,dsvdtlst,timesvsurf)
-  end subroutine exittimedepsv
 
 end module modtimedepsv

@@ -788,7 +788,7 @@ contains
             kpatch = k
             boundary(4)%uphasesingle(ipatch,kpatch) = boundary(4)%uphasesingle(ipatch,kpatch) + &
               (-vp(i+1,j1,k)*dy/sign(max(abs(v0(i+1,j1,k)-v0(i+1,j1-1,k)),real(1e-10, field_r)),v0(i+1,j1,k)-v0(i+1,j1-1,k))) &
-              *dx*rhobf(k)/dxint*rhointi(kpatch)
+              *dx*rhobf(k)*dzf(k)/dxint*rhointi(kpatch)
           end do
         end do
         ! Integrate over processes

@@ -35,6 +35,7 @@ use modpois_data, only: p, Fp, d, xyrt, pup, pvp, pwp, a, b, c, ps, pe, qs, &
                           qe, maxiter, tolerance, n_pre, n_post, precond_id, &
                           maxiter_precond, hypre_logging, psolver, solver_id
 use modtimer
+use modlogging,   only: finish
 implicit none
 character(len=*), parameter :: modname = 'modpois'
 private
@@ -128,7 +129,9 @@ contains
 
     allocate(a(kmax), b(kmax), c(kmax))
     !$acc enter data copyin(pup, pvp)
+    !$omp target enter data map(to:pup,pvp)
     !$acc enter data create(pwp, a, b, c)
+    !$omp target enter data map(alloc:pwp,a,b,c)
 
   end subroutine initpois
 
@@ -148,6 +151,7 @@ contains
     else if (solver_id == 200) then
       call cufftexit(p, Fp, d, xyrt)
       !$acc exit data delete(pup, pvp, pwp, a, b, c)
+      !$omp target exit data map(delete:pup,pvp,pwp,a,b,c)
     else
       ! HYPRE based solver
       !call fft2dexit(p,Fp,d,xyrt)
@@ -262,6 +266,8 @@ contains
   rk3coef_inv = (4. - dble(rk3step)) / rdt
 
   !$acc parallel loop collapse(3) default(present) async(1)
+  !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+  !$omp defaultmap(present:allocatable)
   do k=1,kmax
     do j=2,ey ! openbc needs these to i2,j2. Periodic bc needs them to i1,j1
       do i=2,ex
@@ -282,6 +288,8 @@ contains
   !**************************************************************
 
     !$acc parallel loop collapse(2) default(present) async(1)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=2,j1
       do i=2,i1
         pwp(i,j,1)  = 0.
@@ -294,11 +302,16 @@ contains
     !call excjs(pup,2,i1,2,j1,1,kmax,ih,jh)
     !call excjs(pvp,2,i1,2,j1,1,kmax,ih,jh)
     if(.not. lopenbc) then
+      ! FIXME: do mpi on GPU
+      !$omp target update from(pup, pvp)
       call excjs( pup           , 2,i1,2,j1,1,kmax,ih,jh)
       call excjs( pvp           , 2,i1,2,j1,1,kmax,ih,jh)
+      !$omp target update to(pup, pvp)
     endif
 
     !$acc parallel loop collapse(3) default(present) async(1)
+    !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k=1,kmax
       do j=2,j1
         do i=2,i1
@@ -355,7 +368,9 @@ contains
     if(lboundary(3).and. .not. lperiodic(3)) p(:,1,:) = p(:,2,:)
     if(lboundary(4).and. .not. lperiodic(4)) p(:,j2,:) = p(:,j1,:)
   else
+    ! FIXME: mpi on gpu
     call excjs( p, 2,i1,2,j1,1,kmax,ih,jh)
+    !$omp target update to(p)
   endif
 
   !*****************************************************************
@@ -364,6 +379,8 @@ contains
   !*****************************************************************
 
     !$acc parallel loop collapse(3) default(present) async(1)
+    !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k=1,kmax
       do j=2,j1
         do i=2,i1
@@ -374,6 +391,8 @@ contains
     end do
 
     !$acc parallel loop collapse(3) default(present) async(1)
+    !$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k=2,kmax
       do j=2,j1
         do i=2,i1
@@ -434,6 +453,8 @@ contains
   ! Generate tridiagonal matrix
 
     !$acc parallel loop default(present) async(1)
+    !$omp target teams loop defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do k=1,kmax
       ! SB fixed the coefficients
       a(k)=rhobh(k)  /(dzf(k)*dzh(k  ))
@@ -442,11 +463,13 @@ contains
     end do
 
     !$acc serial default(present) async(1)
+    !$omp target defaultmap(present:allocatable)
     b(1   )=b(1)+a(1)        ! -c(1)
     a(1   )=0.
     b(kmax)=b(kmax)+c(kmax)  ! -a(kmax)
     c(kmax)=0.
     !$acc end serial
+    !$omp end target
 
     ! SOLVE TRIDIAGONAL SYSTEMS WITH GAUSSIAN ELEMINATION
     ! a(i) x(i-1) + b(i) x(i) + c(i) x(i+1) = d(i)
@@ -462,6 +485,8 @@ contains
     ! d'(1) = d(1) / b(1)
 
     !$acc parallel loop collapse(2) default(present) private(z) async(1)
+    !$omp target teams loop private(z) collapse(2)&
+    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do j=qs,qe
       do i=ps,pe
         z        = 1./(b(1)+rhobf(1)*xyrt(i,j))
@@ -474,6 +499,8 @@ contains
     ! c'(i) = c(i) / [ b(i) - c'(i-1) a(i) ]
     ! d'(i) = [ d(i) - d'(i-1) a(i) ] / [ b(i) - c'(i-1) a(i) ]
     !$acc parallel loop collapse(2) default(present) private(bbk, z) async(1)
+    !$omp target teams loop private(bbk,z) collapse(2)&
+    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do  j=qs,qe
       do  i=ps,pe
         !$acc loop seq
@@ -490,6 +517,8 @@ contains
     ! x(n) = d'(n)
 
     !$acc parallel loop collapse(2) default(present) private(bbk, z) async(1)
+    !$omp target teams loop private(bbk,z) collapse(2)&
+    !$omp defaultmap(present:aggregate) defaultmap(present:allocatable)
     do j=qs,qe
       do i=ps,pe
         bbk = b(kmax) + rhobf(kmax)*xyrt(i,j)
@@ -506,6 +535,8 @@ contains
     ! x(i) = d'(i) - c'(i) x(i+1)
 
     !$acc parallel loop collapse(2) default(present) async(1)
+    !$omp target teams loop collapse(2) defaultmap(present:aggregate)&
+    !$omp defaultmap(present:allocatable)
     do j=qs,qe
       do i=ps,pe
         !$acc loop seq

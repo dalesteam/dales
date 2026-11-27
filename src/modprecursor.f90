@@ -254,6 +254,24 @@ contains
       !$acc                   presfsave(1:k1), preshsave(1:k1), thvhsave(1:k1), &
       !$acc                   u0avsave(1:k1), v0avsave(1:k1), thl0avsave(1:k1), &
       !$acc                   qt0avsave(1:k1))
+!$omp target enter data map(to:umsave(2-ih:i1+ih,2-jh:j1+jh,1:k1),&
+!$omp vmsave(2-ih:i1+ih,2-jh:j1+jh,1:k1),wmsave(2-ih:i1+ih,2-jh:j1+jh,&
+!$omp 1:k1),e12msave(2-ih:i1+ih,2-jh:j1+jh,1:k1),thlmsave(2-ih:i1+ih,&
+!$omp 2-jh:j1+jh,1:k1),qtmsave(2-ih:i1+ih,2-jh:j1+jh,1:k1),&
+!$omp u0save(2-ih:i1+ih,2-jh:j1+jh,1:k1),v0save(2-ih:i1+ih,2-jh:j1+jh,&
+!$omp 1:k1),w0save(2-ih:i1+ih,2-jh:j1+jh,1:k1),thl0save(2-ih:i1+ih,&
+!$omp 2-jh:j1+jh,1:k1),qt0save(2-ih:i1+ih,2-jh:j1+jh,1:k1),&
+!$omp ql0save(2-ih:i1+ih,2-jh:j1+jh,1:k1),ql0hsave(2-ih:i1+ih,&
+!$omp 2-jh:j1+jh,1:k1),e120save(2-ih:i1+ih,2-jh:j1+jh,1:k1),&
+!$omp dthvdzsave(2-ih:i1+ih,2-jh:j1+jh,1:k1),ekmsave(2-ih:i1+ih,&
+!$omp 2-jh:j1+jh,1:k1),tmp0save(2-ih:i1+ih,2-jh:j1+jh,1:k1),&
+!$omp eslsave(2-ih:i1+ih,2-jh:j1+jh,1:k1),qvslsave(2-ih:i1+ih,&
+!$omp 2-jh:j1+jh,1:k1),qvsisave(2-ih:i1+ih,2-jh:j1+jh,1:k1),&
+!$omp thv0hsave(2-ih:i1+ih,2-jh:j1+jh,1:k1),svmsave(2-ih:i1+ih,&
+!$omp 2-jh:j1+jh,1:k1,1:nsv),sv0save(2-ih:i1+ih,2-jh:j1+jh,1:k1,1:nsv),&
+!$omp sv0avsave(1:k1,1:nsv),presfsave(1:k1),preshsave(1:k1),&
+!$omp thvhsave(1:k1),u0avsave(1:k1),v0avsave(1:k1),thl0av(1:k1),&
+!$omp qt0avsave(1:k1))
 
     end if
 
@@ -341,6 +359,8 @@ contains
     ! North
     if (myidy == 0) then
       !$acc parallel loop gang vector collapse(3) default(present) async
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = 1, kmax
         do j = 1, nudgedepthgr
           do i = 2, i1
@@ -354,6 +374,8 @@ contains
     ! South
     if (myidy == nprocy - 1) then
       !$acc parallel loop gang vector collapse(3) default(present) async
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = 1, kmax
         do j = j1 - nudgedepthgr + 1, j1
           do i = 2, i1
@@ -368,6 +390,8 @@ contains
     ! West
     if (myidx == 0) then
       !$acc parallel loop gang vector collapse(3) default(present) async
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = 1, kmax
         do j = 2, j1
           do i = 1, nudgedepthgr
@@ -381,6 +405,8 @@ contains
     ! East
     if (myidx == nprocx - 1) then
       !$acc parallel loop gang vector collapse(3) default(present) async
+!!$omp target teams loop collapse(3) defaultmap(present:aggregate)&
+!!$omp defaultmap(present:allocatable)
       do k = 1, kmax
         do j = 2, j1
           do i = i1 - nudgedepthgr + 1, i1
@@ -406,6 +432,11 @@ contains
     !$acc                  presfsave, preshsave, thv0hsave, u0avsave, &
     !$acc                  v0avsave,thl0avsave,qt0avsave, thvhsave, &
     !$acc                  svmsave, sv0save, sv0avsave)
+!$omp target exit data map(delete:umsave,vmsave,wmsave,thlmsave,&
+!$omp qtmsave,e12msave,u0save,v0save,w0save,thl0save,qt0save,e120save,&
+!$omp ql0save,ql0hsave,dthvdzsave,ekmsave,tmp0save,eslsave,qvslsave,&
+!$omp qvsisave,presfsave,preshsave,thv0hsave,u0avsave,v0avsave,&
+!$omp thl0avsave,qt0avsave,thvhsave,svmsave,sv0save,sv0avsave)
 
     deallocate(umsave, vmsave, wmsave, thlmsave, qtmsave, e12msave, &
                u0save, v0save, w0save, thl0save, qt0save, e120save, &

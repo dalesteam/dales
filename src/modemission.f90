@@ -404,8 +404,10 @@ contains
         if (.not. tracer_prop(l)%lemis) cycle
     
         ! Check if current tracer has point sources
-        if (l_points .and. (point_sources(l)%npoints > 0)) then
-            call applypoints(l, iem)  ! Pass the tracer index to applypoints
+        if (l_points) then
+            if ((point_sources(l)%npoints > 0)) then
+                call applypoints(l, iem)  ! Pass the tracer index to applypoints
+            end if
         end if
         iem=iem+1
     end do
