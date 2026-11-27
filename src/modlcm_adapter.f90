@@ -60,6 +60,10 @@ contains
 
     call lcm_init_config(lcm_config)
     call lcm_apply_namelist_config(lcm_config)
+    if (lcm_config%switch_lem_micro) then
+      call finish('modlcm_adapter', &
+        'LCM LEM mode requires SGS-environment coupling; use switch_lem_micro=false with this adapter.')
+    end if
     call lcm_set_config(lcm_config)
 
     ! LCM derives the complete Cartesian topology from DALES's existing

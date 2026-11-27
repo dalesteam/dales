@@ -168,7 +168,9 @@ contains
     switch_breakup = default_config%switch_breakup
     switch_analytical_micro = default_config%switch_analytical_micro
     switch_radiation_micro = .false.
-    switch_lem_micro = default_config%switch_lem_micro
+    ! This adapter currently provides transported history for the non-LEM path.
+    ! LEM requires a separate SGS-environment coupling.
+    switch_lem_micro = .false.
     switch_koehler_micro = default_config%switch_koehler_micro
     switch_ffc_micro = .false.
     switch_steady_pichamber = default_config%switch_steady_pichamber
